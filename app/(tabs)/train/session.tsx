@@ -27,6 +27,7 @@ import { useSessionStore } from '@/stores/sessionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { saveSession, checkMilestones, updateStreak } from '@/lib/sessionManager';
 import { EXERCISE_TO_PROTOCOL } from '@/constants/protocols';
 
@@ -81,6 +82,8 @@ export default function SessionScreen() {
   const { activePlan, fetchProtocol, markSessionComplete } = usePlanStore();
   const { dog } = useDogStore();
   const { user } = useAuthStore();
+  const ensureNotificationPermission = useNotificationStore((s) => s.ensurePermissionAfterMeaningfulAction);
+  const refreshNotificationSchedules = useNotificationStore((s) => s.refreshSchedules);
   const {
     activeSession,
     startSession,
@@ -259,6 +262,12 @@ export default function SessionScreen() {
           dogId: dog.id,
           planId: activePlan.id,
         }).catch(() => {});
+
+        ensureNotificationPermission().catch(() => {});
+        const latestPlan = usePlanStore.getState().activePlan;
+        if (dog && latestPlan) {
+          refreshNotificationSchedules(dog, latestPlan).catch(() => {});
+        }
       });
     } finally {
       setIsSaving(false);
@@ -342,6 +351,10 @@ export default function SessionScreen() {
           onBack={handleBackPress}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
+          }}
+          onResetTimer={() => {
+            const step = protocol.steps[activeSession.currentStepIndex];
+            if (step?.durationSeconds) resetTimer(step.durationSeconds);
           }}
           onIncrementRep={incrementRep}
           onResetReps={resetReps}
@@ -550,12 +563,12 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
   const allChecked = checkedItems.size === checklist.length;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + spacing.md,
           paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + 140,
+          paddingBottom: spacing.xl,
           gap: spacing.xl,
         }}
       >
@@ -615,10 +628,6 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
 
       <View
         style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
           paddingHorizontal: spacing.lg,
           paddingBottom: insets.bottom + spacing.lg,
           paddingTop: spacing.md,
@@ -633,16 +642,16 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
           style={({ pressed }) => ({
             backgroundColor: allChecked
               ? pressed
-                ? '#246158'
+                ? '#1aab50'
                 : colors.primary
-              : colors.border.default,
+              : '#D1D5DB',
             borderRadius: 14,
             paddingVertical: spacing.lg,
             alignItems: 'center',
             minHeight: 54,
           })}
         >
-          <Text style={{ fontSize: 17, fontWeight: '700', color: allChecked ? '#fff' : colors.textSecondary }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>
             Start session
           </Text>
         </Pressable>
@@ -661,6 +670,7 @@ interface StepActiveViewProps {
   activeSession: import('@/stores/sessionStore').ActiveSession;
   onBack: () => void;
   onToggleTimer: () => void;
+  onResetTimer: () => void;
   onIncrementRep: () => void;
   onResetReps: () => void;
   onStepDone: () => void;
@@ -675,6 +685,7 @@ function StepActiveView({
   activeSession,
   onBack,
   onToggleTimer,
+  onResetTimer,
   onIncrementRep,
   onResetReps,
   onStepDone,
@@ -726,84 +737,143 @@ function StepActiveView({
 
         {/* Timer */}
         {hasTimer && (
-          <View style={{ alignItems: 'center', gap: spacing.lg }}>
-            <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-              <TimerRing
-                totalSeconds={step.durationSeconds!}
-                currentSeconds={activeSession.timerSeconds}
-                size={180}
-                color={timerDone ? colors.success : colors.primary}
-              />
-              <View style={{ position: 'absolute', alignItems: 'center' }}>
-                <Text
-                  style={{
-                    fontSize: 40,
-                    fontWeight: '700',
-                    color: timerDone ? colors.success : colors.textPrimary,
-                  }}
-                >
-                  {formatTimer(activeSession.timerSeconds)}
-                </Text>
-                {timerDone && (
-                  <Text style={{ fontSize: 13, color: colors.success, fontWeight: '600' }}>
-                    Done!
-                  </Text>
-                )}
-              </View>
-            </View>
+          <View
+        style={{
+          alignItems: 'center',
+          gap: spacing.lg,
+          marginTop: spacing.lg,
+        }}
+          >
+        <View
+          style={{
+            position: 'relative',
+            alignItems: 'center',
+            justifyContent: 'center',
+            // Extra padding so the text is never clipped by the ScrollView
+            paddingVertical: spacing.md,
+          }}
+        >
+          <TimerRing
+            totalSeconds={step.durationSeconds!}
+            currentSeconds={activeSession.timerSeconds}
+            size={200} // a bit bigger so text has more room
+            color={timerDone ? colors.success : colors.primary}
+          />
+          <View
+            style={{
+          position: 'absolute',
+          alignItems: 'center',
+          justifyContent: 'center',
+            }}
+          >
+            <Text
+          style={{
+            fontSize: 40,
+            fontWeight: '700',
+            lineHeight: 46, // make sure top isn’t cut
+            color: timerDone ? colors.success : colors.textPrimary,
+          }}
+            >
+          {formatTimer(activeSession.timerSeconds)}
+            </Text>
+            {timerDone && (
+          <Text
+            style={{
+              fontSize: 13,
+              color: colors.success,
+              fontWeight: '600',
+              marginTop: 4,
+            }}
+          >
+            Done!
+          </Text>
+            )}
+          </View>
+        </View>
 
+        {/* Timer controls */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 24,
+            marginTop: spacing.md,
+          }}
+        >
+          {/* Reset button */}
+          {(activeSession.isTimerRunning || activeSession.timerSeconds !== step.durationSeconds) && (
             <Pressable
-              onPress={onToggleTimer}
+              onPress={onResetTimer}
               style={({ pressed }) => ({
-                backgroundColor: pressed ? '#f0f0f0' : colors.surface,
-                borderRadius: 99,
-                paddingHorizontal: spacing.xl,
-                paddingVertical: spacing.md,
-                borderWidth: 1,
-                borderColor: colors.border.default,
-                flexDirection: 'row',
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: pressed ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)',
                 alignItems: 'center',
-                gap: spacing.sm,
-                minHeight: 44,
+                justifyContent: 'center',
               })}
             >
-              <AppIcon
-                name={activeSession.isTimerRunning ? 'pause' : 'play'}
-                size={18}
-                color={colors.textPrimary}
-              />
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>
-                {activeSession.isTimerRunning ? 'Pause' : timerDone ? 'Restart' : 'Start timer'}
-              </Text>
+              <AppIcon name="refresh" size={20} color={colors.textSecondary} />
             </Pressable>
+          )}
 
-            {timerDone && (
-              <View
-                style={{
-                  backgroundColor: '#E6F4F1',
-                  borderRadius: 12,
-                  padding: spacing.md,
-                  borderLeftWidth: 3,
-                  borderLeftColor: colors.primary,
-                }}
-              >
-                <Text style={{ fontSize: 15, color: '#1A4A42', fontWeight: '500' }}>
-                  Timer done! How did it go? Tap "Step done" when ready.
-                </Text>
-              </View>
-            )}
+          {/* Play / Pause button */}
+          <Pressable
+            onPress={onToggleTimer}
+            style={({ pressed }) => ({
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: pressed
+                ? (timerDone ? '#3DAD9A' : '#2D8A7C')
+                : (timerDone ? colors.success : colors.primary),
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: timerDone ? colors.success : colors.primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 4,
+            })}
+          >
+            <AppIcon
+              name={activeSession.isTimerRunning ? 'pause' : 'play'}
+              size={28}
+              color="#FFFFFF"
+            />
+          </Pressable>
+        </View>
+
+        {/* Status label */}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '600',
+            color: timerDone ? colors.success : colors.textSecondary,
+            textAlign: 'center',
+            marginTop: 12,
+            letterSpacing: 0.3,
+          }}
+        >
+          {activeSession.isTimerRunning
+            ? 'Running'
+            : timerDone
+              ? 'Complete!'
+              : 'Ready'}
+        </Text>
           </View>
         )}
 
         {/* Rep counter */}
         {hasReps && (
           <View style={{ height: 300 }}>
-            <RepCounter
-              count={activeSession.repCount}
-              target={step.reps}
-              onIncrement={onIncrementRep}
-              onReset={onResetReps}
-            />
+        <RepCounter
+          count={activeSession.repCount}
+          target={step.reps}
+          onIncrement={onIncrementRep}
+          onReset={onResetReps}
+        />
           </View>
         )}
       </ScrollView>
@@ -837,7 +907,7 @@ function StepActiveView({
           })}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Step done</Text>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Step done</Text>
             <AppIcon name="checkmark" size={16} color="#fff" />
           </View>
         </Pressable>
@@ -910,7 +980,7 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, onNex
             })}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Rate session</Text>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Rate session</Text>
               <AppIcon name="arrow-forward" size={16} color="#fff" />
             </View>
           </Pressable>
@@ -931,7 +1001,7 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, onNex
             })}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Next step</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#6B7280' }}>Next step</Text>
               <AppIcon name="arrow-forward" size={14} color="#fff" />
             </View>
           </Pressable>

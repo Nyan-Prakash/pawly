@@ -15,6 +15,7 @@ import { useDogStore } from '@/stores/dogStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { supabase } from '@/lib/supabase';
 import type { ThemePreference } from '@/stores/themeStore';
+import { router } from 'expo-router';
 
 export default function ProfileScreen() {
   const { user } = useAuthStore();
@@ -187,6 +188,28 @@ export default function ProfileScreen() {
             <Text variant="micro" color={colors.text.secondary}>Account</Text>
             <Text variant="body" color={colors.text.primary}>{user?.email ?? '—'}</Text>
           </View>
+
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/profile/notification-settings')}
+            style={{
+              backgroundColor: colors.bg.surface,
+              borderRadius: radii.md,
+              padding: spacing.md,
+              borderWidth: 1,
+              borderColor: colors.border.soft,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View>
+              <Text variant="bodyStrong">Notifications</Text>
+              <Text variant="caption" color={colors.text.secondary}>
+                Training reminders, walk check-ins, and milestones
+              </Text>
+            </View>
+            <AppIcon name="chevron-forward" size={18} color={colors.text.secondary} />
+          </TouchableOpacity>
 
           <Button
             label="Sign out"

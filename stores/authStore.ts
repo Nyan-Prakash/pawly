@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { Session, User } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
-import { supabase } from '@/lib/supabase';
+import { supabase, createUserRecord } from '@/lib/supabase';
 import type { SubscriptionTier, DogProfile } from '@/types';
 
 interface AuthStore {
@@ -46,6 +46,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
     supabase.auth.onAuthStateChange((_event, nextSession) => {
       set({ session: nextSession, user: nextSession?.user ?? null });
+      if (nextSession?.user) {
+        createUserRecord(nextSession.user.id, nextSession.user.email ?? '').catch(() => {});
+      }
     });
 
     set({ isInitialized: true });

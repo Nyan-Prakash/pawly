@@ -10,10 +10,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore } from '@/stores/planStore';
-import { getPlanCompletion, getBehaviorLabel } from '@/lib/scheduleEngine';
+import { formatScheduleLabel, getPlanCompletion, getBehaviorLabel } from '@/lib/scheduleEngine';
 import type { PlanSession } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,8 +164,24 @@ function SessionRow({
           </Text>
         </View>
         <Text variant="caption" style={{ marginTop: 2 }}>
-          Week {session.weekNumber} · Day {session.dayNumber} · {session.durationMinutes} min
+          {formatScheduleLabel(session)} · {session.durationMinutes} min
         </Text>
+        {session.autoRescheduledFrom ? (
+          <View
+            style={{
+              marginTop: 6,
+              alignSelf: 'flex-start',
+              backgroundColor: colors.status.warningBg,
+              borderRadius: radii.pill,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+            }}
+          >
+            <Text style={{ fontSize: 10, color: colors.warning, fontWeight: '700' }}>
+              Rescheduled
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Chevron */}
@@ -359,6 +376,11 @@ export default function PlanScreen() {
               <Text variant="caption" style={{ marginTop: 4 }}>
                 {activePlan.durationWeeks} weeks · {activePlan.sessionsPerWeek}×/week
               </Text>
+              {activePlan.metadata?.scheduleSummary ? (
+                <Text variant="caption" style={{ marginTop: 4 }}>
+                  {activePlan.metadata.scheduleSummary}
+                </Text>
+              ) : null}
               <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap' }}>
                 <View
                   style={{
@@ -411,7 +433,7 @@ export default function PlanScreen() {
           }
 
           return (
-            <View style={{ marginBottom: spacing.xs }}>
+          <View style={{ marginBottom: spacing.xs }}>
               <SessionRow
                 session={item.session}
                 isToday={item.isToday}

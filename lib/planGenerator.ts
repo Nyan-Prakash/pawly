@@ -1,4 +1,10 @@
-import type { Dog, Plan, PlanSession } from '@/types';
+import type { Dog, Plan, PlanSession } from '../types';
+import {
+  buildPlanMetadata,
+  buildWeeklySchedule,
+  chooseTrainingDays,
+  normalizeTrainingSchedulePrefs,
+} from './scheduleEngine';
 
 type GoalKey =
   | 'leash_pulling'
@@ -157,6 +163,22 @@ export function generatePlan(dog: Dog): Plan {
     isCompleted: false,
   }));
 
+  const prefs = normalizeTrainingSchedulePrefs(undefined, dog);
+  const trainingDays = chooseTrainingDays({
+    sessionsPerWeek,
+    availableDaysPerWeek: dog.availableDaysPerWeek,
+    prefs,
+  });
+  const scheduledSessions = buildWeeklySchedule({
+    sessions,
+    sessionsPerWeek,
+    durationWeeks: totalWeeks,
+    availableDaysPerWeek: dog.availableDaysPerWeek,
+    availableMinutesPerDay: dog.availableMinutesPerDay,
+    prefs,
+    goal: dog.behaviorGoals[0],
+  });
+
   return {
     id: '',
     dogId: dog.id,
@@ -166,7 +188,13 @@ export function generatePlan(dog: Dog): Plan {
     sessionsPerWeek,
     currentWeek: 1,
     currentStage,
-    sessions,
+    sessions: scheduledSessions,
+    metadata: buildPlanMetadata({
+      goal: dog.behaviorGoals[0] ?? 'General Training',
+      sessionsPerWeek,
+      prefs,
+      trainingDays,
+    }),
     createdAt: new Date().toISOString(),
   };
 }

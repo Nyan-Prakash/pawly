@@ -30,10 +30,12 @@ import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useProgressStore } from '@/stores/progressStore';
 import {
+  formatDisplayTime,
   getGreeting,
   getWalkGoal,
   getNextMilestone,
   getBehaviorLabel,
+  formatScheduleLabel,
   isRoundStreakNumber,
 } from '@/lib/scheduleEngine';
 import type { Milestone } from '@/types';
@@ -175,6 +177,9 @@ export default function TrainScreen() {
   const hasDogProfile = useAuthStore((s) => s.hasDogProfile);
   const { activePlan, todaySession, completionPercentage, isLoading, fetchActivePlan, refreshPlan } =
     usePlanStore();
+  const getUpcomingPlanSessions = usePlanStore((s) => s.getUpcomingSessions);
+  const getMissedPlanSessions = usePlanStore((s) => s.getMissedScheduledSessions);
+  const reschedulePlanSession = usePlanStore((s) => s.rescheduleMissedSession);
   const { sessionStreak, walkLoggedToday, logWalk, fetchProgressData } = useProgressStore();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -235,6 +240,12 @@ export default function TrainScreen() {
 
   const milestoneText = getNextMilestone(completedCount);
   const isCelebration = isRoundStreakNumber(streak);
+  const upcomingSessions = getUpcomingPlanSessions(3);
+  const nextUpcomingSession = upcomingSessions[0] && upcomingSessions[0].id === todaySession?.id
+    ? upcomingSessions[1] ?? null
+    : upcomingSessions[0] ?? null;
+  const missedSessions = getMissedPlanSessions();
+  const firstMissedSession = missedSessions[0] ?? null;
 
   if (isLoading && !activePlan) {
     return (
@@ -366,31 +377,59 @@ export default function TrainScreen() {
               >
                 <EmptyState
                   icon="checkmark-circle"
-                  title="You're done for today!"
-                  subtitle="Come back tomorrow — consistency is how great dogs are made."
+                  title={firstMissedSession ? 'A session needs a new spot' : "You're done for today!"}
+                  subtitle={
+                    firstMissedSession
+                      ? `${firstMissedSession.title} slipped past its scheduled time. You can keep it visible without rewriting the whole plan.`
+                      : 'Come back tomorrow — consistency is how great dogs are made.'
+                  }
                 />
-                {/* Tomorrow preview */}
-                {(() => {
-                  const nextSession = activePlan.sessions.find((s) => !s.isCompleted);
-                  if (!nextSession) return null;
-                  return (
+                {firstMissedSession ? (
+                  <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm }}>
                     <View
                       style={{
                         backgroundColor: colors.bg.surfaceAlt,
-                        marginHorizontal: spacing.lg,
-                        marginBottom: spacing.lg,
                         borderRadius: radii.md,
                         padding: spacing.md,
                       }}
                     >
-                      <Text variant="micro" color={colors.text.secondary}>Tomorrow</Text>
+                      <Text variant="micro" color={colors.text.secondary}>Missed session</Text>
                       <Text variant="bodyStrong" style={{ marginTop: 2 }}>
-                        {nextSession.title}
+                        {firstMissedSession.title}
                       </Text>
-                      <Text variant="caption">{nextSession.durationMinutes} min</Text>
+                      <Text variant="caption">{formatScheduleLabel(firstMissedSession)}</Text>
                     </View>
-                  );
-                })()}
+                    {activePlan.metadata?.flexibility !== 'skip' ? (
+                      <Button
+                        size="md"
+                        label={
+                          activePlan.metadata?.flexibility === 'move_tomorrow'
+                            ? 'Move to tomorrow'
+                            : 'Move to next slot'
+                        }
+                        onPress={() => reschedulePlanSession(firstMissedSession.id)}
+                      />
+                    ) : null}
+                  </View>
+                ) : nextUpcomingSession ? (
+                  <View
+                    style={{
+                      backgroundColor: colors.bg.surfaceAlt,
+                      marginHorizontal: spacing.lg,
+                      marginBottom: spacing.lg,
+                      borderRadius: radii.md,
+                      padding: spacing.md,
+                    }}
+                  >
+                    <Text variant="micro" color={colors.text.secondary}>Next up</Text>
+                    <Text variant="bodyStrong" style={{ marginTop: 2 }}>
+                      {nextUpcomingSession.title}
+                    </Text>
+                    <Text variant="caption">
+                      {formatScheduleLabel(nextUpcomingSession)} · {nextUpcomingSession.durationMinutes} min
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             )}
 
@@ -453,6 +492,21 @@ export default function TrainScreen() {
                       {todaySession.durationMinutes} min
                     </Text>
                   </View>
+
+                  {todaySession.scheduledTime ? (
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: radii.pill,
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                        {formatDisplayTime(todaySession.scheduledTime)}
+                      </Text>
+                    </View>
+                  ) : null}
 
                   <View
                     style={{
@@ -530,6 +584,29 @@ export default function TrainScreen() {
               </View>
             </LinearGradient>
           )}
+
+          {activePlan?.metadata?.explanation?.length ? (
+            <View
+              style={{
+                backgroundColor: colors.bg.surface,
+                borderRadius: radii.lg,
+                padding: spacing.lg,
+                borderWidth: 1,
+                borderColor: colors.border.default,
+                ...shadows.card,
+              }}
+            >
+              <Text variant="bodyStrong">Why this schedule?</Text>
+              {activePlan.metadata.explanation.map((bullet, index) => (
+                <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.sm }}>
+                  <AppIcon name="sparkles" size={14} color={colors.brand.primary} />
+                  <Text variant="caption" style={{ flex: 1 }}>
+                    {bullet}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {/* ── Walk Goal Strip ── */}
           {walkGoalText && (

@@ -25,9 +25,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-export async function createUserRecord(userId: string, email: string): Promise<void> {
-  const { error } = await supabase.from('users').upsert(
-    { id: userId, email },
+export async function createUserRecord(userId: string, _email?: string): Promise<void> {
+  const { error } = await supabase.from('user_profiles').upsert(
+    { id: userId },
     { onConflict: 'id', ignoreDuplicates: true }
   );
 

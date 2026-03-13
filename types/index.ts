@@ -31,8 +31,54 @@ export interface Dog {
   equipment: string[];
   availableDaysPerWeek: number;
   availableMinutesPerDay: number;
+  preferredTrainingDays: Weekday[];
+  preferredTrainingWindows: Partial<Record<Weekday, TimeWindow[]>>;
+  preferredTrainingTimes: Partial<Record<Weekday, string[]>>;
+  usualWalkTimes: string[];
+  sessionStyle: SessionStyle;
+  scheduleFlexibility: ScheduleFlexibility;
+  scheduleIntensity: ScheduleIntensity;
+  blockedDays: Weekday[];
+  blockedDates: string[];
+  scheduleNotes: string | null;
+  scheduleVersion: number;
+  timezone: string;
   lifecycleStage: string;
   createdAt: string;
+}
+
+export type Weekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export type TimeWindow =
+  | 'early_morning'
+  | 'morning'
+  | 'midday'
+  | 'afternoon'
+  | 'evening'
+  | 'late_evening';
+
+export type SessionStyle = 'micro' | 'balanced' | 'focused';
+export type ScheduleFlexibility = 'skip' | 'move_next_slot' | 'move_tomorrow';
+export type ScheduleIntensity = 'gentle' | 'balanced' | 'aggressive';
+
+export interface TrainingSchedulePrefs {
+  preferredTrainingDays: Weekday[];
+  preferredTrainingWindows: Partial<Record<Weekday, TimeWindow[]>>;
+  preferredTrainingTimes: Partial<Record<Weekday, string[]>>;
+  usualWalkTimes: string[];
+  sessionStyle: SessionStyle;
+  scheduleFlexibility: ScheduleFlexibility;
+  scheduleIntensity: ScheduleIntensity;
+  blockedDays: Weekday[];
+  blockedDates: string[];
+  timezone: string;
 }
 
 export interface PlanSession {
@@ -43,6 +89,24 @@ export interface PlanSession {
   title: string;
   durationMinutes: number;
   isCompleted: boolean;
+  scheduledDay?: Weekday;
+  scheduledTime?: string;
+  scheduledDate?: string;
+  isReschedulable?: boolean;
+  autoRescheduledFrom?: string | null;
+  schedulingReason?: string;
+  isMissed?: boolean;
+}
+
+export interface PlanMetadata {
+  scheduleVersion?: number;
+  preferredDays?: Weekday[];
+  preferredWindows?: Partial<Record<Weekday, TimeWindow[]>>;
+  flexibility?: ScheduleFlexibility;
+  intensity?: ScheduleIntensity;
+  explanation?: string[];
+  scheduleSummary?: string;
+  timezone?: string;
 }
 
 export interface Plan {
@@ -55,6 +119,7 @@ export interface Plan {
   currentWeek: number;
   currentStage: string;
   sessions: PlanSession[];
+  metadata?: PlanMetadata;
   createdAt: string;
 }
 
@@ -87,6 +152,22 @@ export interface CoachConversation {
   dogId: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NotificationPrefs {
+  dailyReminder: boolean;
+  dailyReminderTime: string;
+  walkReminders: boolean;
+  postWalkCheckIn: boolean;
+  streakAlerts: boolean;
+  milestoneAlerts: boolean;
+  insights: boolean;
+  expertReview: boolean;
+  lifecycle: boolean;
+  weeklySummary: boolean;
+  scheduledSessionReminders: boolean;
+  reminderLeadMinutes: number;
+  fallbackMissedSessionReminders: boolean;
 }
 
 // ─── Progress & Walk Tracking ─────────────────────────────────────────────────
