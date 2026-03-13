@@ -200,9 +200,9 @@ export default function SignUpScreen() {
 
             {/* OR divider */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
               <Text variant="caption" style={{ marginHorizontal: spacing.md, color: colors.textSecondary }}>OR</Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
             </View>
 
             {/* Apple Sign In — iOS only */}
@@ -245,7 +245,7 @@ export default function SignUpScreen() {
 
 const inputStyle = (hasError: boolean) => ({
   borderWidth: 1,
-  borderColor: hasError ? colors.error : colors.border,
+  borderColor: hasError ? colors.error : colors.border.default,
   borderRadius: 12,
   paddingVertical: spacing.lg,
   paddingHorizontal: spacing.lg,
@@ -276,7 +276,7 @@ const googleButtonStyle = {
   backgroundColor: colors.surface,
   borderRadius: 12,
   borderWidth: 1,
-  borderColor: colors.border,
+  borderColor: colors.border.default,
   paddingVertical: spacing.lg,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,

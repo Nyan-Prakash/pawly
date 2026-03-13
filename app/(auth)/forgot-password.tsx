@@ -99,7 +99,7 @@ export default function ForgotPasswordScreen() {
                   placeholderTextColor={colors.textSecondary}
                   style={{
                     borderWidth: 1,
-                    borderColor: emailError ? colors.error : colors.border,
+                    borderColor: emailError ? colors.error : colors.border.default,
                     borderRadius: 12,
                     paddingVertical: spacing.lg,
                     paddingHorizontal: spacing.lg,

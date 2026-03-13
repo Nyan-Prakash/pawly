@@ -7,7 +7,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: 'pawly',
   version: '1.0.0',
   orientation: 'portrait',
-  userInterfaceStyle: 'light',
+  userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier: 'com.nyan.prakash.pawly'
   },

@@ -6,17 +6,19 @@ module.exports = {
     extend: {
       colors: {
         pawly: {
-          primary: '#2D7D6F',
-          secondary: '#F5F0E8',
-          accent: '#E8845A',
-          success: '#4CAF7D',
-          warning: '#F5A623',
-          error: '#E05252',
-          textPrimary: '#1A1A2E',
-          textSecondary: '#6B7280',
-          background: '#FAFAF8',
+          green: '#22C55E',
+          gold: '#F59E0B',
+          coach: '#3B82F6',
+          appBg: '#FFF9F4',
           surface: '#FFFFFF',
-          border: '#E5E7EB'
+          surfaceAlt: '#F5F7F9',
+          textPrimary: '#111827',
+          textSecondary: '#6B7280',
+          border: '#E5E7EB',
+          borderSoft: '#EEF2F7',
+          success: '#22C55E',
+          warning: '#FBBF24',
+          error: '#EF4444',
         }
       }
     }

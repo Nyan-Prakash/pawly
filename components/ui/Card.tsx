@@ -2,27 +2,33 @@ import type { PropsWithChildren } from 'react';
 import { View, type ViewProps } from 'react-native';
 
 import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
+import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
 
-type CardProps = PropsWithChildren<ViewProps>;
+type CardVariant = 'default' | 'elevated';
 
-export function Card({ children, style, ...props }: CardProps) {
+type CardProps = PropsWithChildren<
+  ViewProps & {
+    variant?: CardVariant;
+  }
+>;
+
+export function Card({ children, style, variant = 'default', ...props }: CardProps) {
+  const isElevated = variant === 'elevated';
+
   return (
     <View
-      className="rounded-2xl"
       style={[
         {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-          borderWidth: 1,
+          backgroundColor: colors.bg.surface,
+          borderColor: isElevated ? 'transparent' : colors.border.default,
+          borderWidth: isElevated ? 0 : 1,
+          borderRadius: radii.lg,
           padding: spacing.lg,
-          shadowColor: colors.textPrimary,
-          shadowOffset: { width: 0, height: spacing.xs },
-          shadowOpacity: 0.08,
-          shadowRadius: spacing.sm,
-          elevation: 3
+          ...(isElevated ? shadows.modal : shadows.card),
         },
-        style
+        style,
       ]}
       {...props}
     >
