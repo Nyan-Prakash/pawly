@@ -143,7 +143,7 @@ export default function PoseDebugScreen() {
   const insets = useSafeAreaInsets();
   const device = useCameraDevice('back');
   const { hasPermission, requestPermission } = useCameraPermission();
-  const { observation, cameraRef, isModelLoaded, isRunning, error, startSession, stopSession } =
+  const { observation, cameraRef, isModelLoaded, isRunning, error, frameProcessor, startSession, stopSession } =
     usePoseSession();
   const [cameraReady, setCameraReady] = useState(false);
 
@@ -235,7 +235,8 @@ export default function PoseDebugScreen() {
         style={StyleSheet.absoluteFill}
         device={device}
         isActive={true}
-        photo={true}
+        pixelFormat="rgb"
+        frameProcessor={frameProcessor}
         onInitialized={() => setCameraReady(true)}
         onError={(e: unknown) => console.warn('[PoseDebug] camera error', e)}
       />
