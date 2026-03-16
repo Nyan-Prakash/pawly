@@ -301,6 +301,24 @@ export default function TrainScreen() {
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/(tabs)/train/calendar')}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: colors.bg.surface,
+                borderWidth: 1,
+                borderColor: colors.border.default,
+                alignItems: 'center',
+                justifyContent: 'center',
+                ...shadows.card,
+              }}
+            >
+              <AppIcon name="calendar" size={22} color={colors.text.primary} />
+            </TouchableOpacity>
+
             <NotificationBell
               unreadCount={unreadCount}
               onPress={() => router.push('/(tabs)/train/notifications')}
