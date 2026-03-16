@@ -18,7 +18,6 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
-import { StreakBadge } from '@/components/ui/StreakBadge';
 import { Text } from '@/components/ui/Text';
 import { WalkLogModal } from '@/components/shared/WalkLogModal';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -300,14 +299,14 @@ export default function TrainScreen() {
             </Text>
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => router.push('/(tabs)/train/calendar')}
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
+                width: 42,
+                height: 42,
+                borderRadius: 21,
                 backgroundColor: colors.bg.surface,
                 borderWidth: 1,
                 borderColor: colors.border.default,
@@ -316,30 +315,13 @@ export default function TrainScreen() {
                 ...shadows.card,
               }}
             >
-              <AppIcon name="calendar" size={22} color={colors.text.primary} />
+              <AppIcon name="calendar-outline" size={21} color={colors.text.primary} />
             </TouchableOpacity>
-
             <NotificationBell
+              size={42}
               unreadCount={unreadCount}
               onPress={() => router.push('/(tabs)/train/notifications')}
             />
-            <StreakBadge count={streak} size="md" />
-
-            {/* Dog avatar */}
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: colors.mascot.fur + '33',
-                borderWidth: 2,
-                borderColor: colors.mascot.fur,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <AppIcon name="paw" size={22} color={colors.mascot.fur} />
-            </View>
           </View>
         </View>
 

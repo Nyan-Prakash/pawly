@@ -2,13 +2,15 @@ import { create } from 'zustand';
 
 import { EXERCISE_TO_PROTOCOL, PROTOCOLS_BY_ID } from '@/constants/protocols';
 import { captureEvent } from '@/lib/analytics';
-import { mapPlanRowToPlan } from '@/lib/modelMappers';
+import { mapDogRowToDog, mapPlanRowToPlan } from '@/lib/modelMappers';
 import { fetchRecentAdaptations as fetchAdaptations } from '@/lib/adaptivePlanning/repositories';
 import {
+  buildWeeklySchedule,
   getMissedScheduledSessions,
   getPlanCompletion,
   getTodaySession,
   getUpcomingSessions,
+  normalizeTrainingSchedulePrefs,
   rescheduleMissedSession,
 } from '@/lib/scheduleEngine';
 import { supabase } from '@/lib/supabase';
@@ -66,7 +68,38 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         .single();
 
       if (error && error.code !== 'PGRST116') throw error;
-      const plan = data ? mapPlanRowToPlan(data) : null;
+      let plan = data ? mapPlanRowToPlan(data) : null;
+
+      // If sessions lack scheduledDate (Edge Function doesn't assign them), apply schedule engine
+      if (plan && plan.sessions.length > 0 && !plan.sessions.some((s) => s.scheduledDate)) {
+        const { data: dogData } = await supabase
+          .from('dogs')
+          .select('*')
+          .eq('id', dogId)
+          .single();
+        if (dogData) {
+          const dog = mapDogRowToDog(dogData);
+          const prefs = normalizeTrainingSchedulePrefs(undefined, dog);
+          const scheduledSessions = buildWeeklySchedule({
+            sessions: plan.sessions,
+            sessionsPerWeek: plan.sessionsPerWeek,
+            durationWeeks: plan.durationWeeks,
+            availableDaysPerWeek: dog.availableDaysPerWeek,
+            availableMinutesPerDay: dog.availableMinutesPerDay,
+            prefs,
+            goal: dog.behaviorGoals[0],
+          });
+          plan = { ...plan, sessions: scheduledSessions };
+
+          // Persist scheduled sessions back to Supabase so future loads don't need to re-compute
+          supabase
+            .from('plans')
+            .update({ sessions: scheduledSessions })
+            .eq('id', plan.id)
+            .then();
+        }
+      }
+
       set({
         ...derivePlanState(plan),
         recentAdaptations: plan ? await fetchAdaptations(plan.id).catch(() => []) : [],

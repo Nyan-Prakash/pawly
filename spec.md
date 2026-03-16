@@ -1,6 +1,6 @@
 # Pawly — Technical Specification
-**Version:** 1.1
-**Date:** March 13, 2026
+**Version:** 1.2
+**Date:** March 16, 2026
 **Status:** Current (updated to match implemented codebase)
 
 ---
@@ -43,13 +43,15 @@ Download App
      ↓
 Onboarding (18-step wizard: dog profile + goal + schedule preferences)
      ↓
-Plan Generated (rules-based, 4-week, 8 behavior goals supported)
+Plan Generated (AI-powered via Claude API, 4-week, 8 behavior goals supported)
      ↓
 Plan Preview → Account Creation → First Session
      ↓
 Daily Session Loop + Walk Logging
      ↓
 AI Coach Available Throughout
+     ↓
+Plan Adapts Based on Session Outcomes
      ↓
 Progress Tracked → Streaks → Milestones
      ↓
@@ -65,7 +67,7 @@ Lifecycle Events Triggered as Dog Ages
 | 1 | Train | Behavior problem solving — acquisition wedge | ✅ Implemented |
 | 2 | Progress | Streaks, behavior scores, milestones, walk data | ✅ Implemented |
 | 3 | Coach | AI-powered conversational training coach | ✅ Implemented |
-| 4 | Know | Breed info, training articles, insights feed | ⏳ Not yet implemented |
+| 4 | Know | Expert video library, articles, insights feed | ✅ Implemented (basic) |
 | 5 | Profile | Settings, notifications, theme, subscription | ✅ Implemented |
 
 ### 1.4 Platform Targets
@@ -114,7 +116,7 @@ Lifecycle Events Triggered as Dog Ages
 - **Edge functions for lightweight logic:** Supabase Edge Functions (Deno) handle plan generation, AI calls, and event processing
 - **Stateless API layer:** All application state lives in the database, not in server memory
 - **Mobile-first data design:** All API responses optimized for mobile payload size and offline resilience
-- **Progressive complexity:** V1 uses simple rule-based engines where possible; AI layers are additive, not foundational
+- **AI-driven planning:** Plan generation uses Claude API via `generate-adaptive-plan` Edge Function; rules-based fallback available
 
 ### 2.3 Technology Stack Summary
 
@@ -126,8 +128,12 @@ Lifecycle Events Triggered as Dog Ages
 | Navigation | Expo Router (file-based) | Native feel, deep linking support |
 | Backend | Supabase (PostgreSQL + Edge Functions) | Full backend in one service for v1 |
 | AI Coach | Anthropic Claude API (claude-sonnet-4-6) | Best conversational quality, context handling |
-| Payments | RevenueCat | Cross-platform subscription management (integrated, no purchase UI yet) |
+| AI Planning | Anthropic Claude API (claude-sonnet-4-6) | Personalized plan generation |
+| Pose Detection | TFLite (MobileNet-based dog pose model) | On-device real-time dog keypoint detection |
+| Camera | react-native-vision-camera v4 | High-performance frame processing |
+| Payments | RevenueCat | Cross-platform subscription management (dependency included, not yet initialized) |
 | Push Notifications | Expo Notifications + Supabase triggers | Integrated with existing stack |
+| In-App Notifications | Supabase table + in-app store | Notification center within the app |
 | Video Storage | Supabase Storage (S3-compatible) | Unified with backend stack |
 | Analytics | PostHog (dependency included, not yet initialized) | Product analytics with event tracking |
 | Error Monitoring | Sentry (dependency included, not yet initialized) | Mobile and backend error tracking |
@@ -156,15 +162,21 @@ pawly/
 │   ├── (tabs)/                   # Main authenticated tab navigator
 │   │   ├── train/
 │   │   │   ├── index.tsx         # Today card / home screen
+│   │   │   ├── calendar.tsx      # Monthly training calendar view
 │   │   │   ├── session.tsx       # Active session screen
-│   │   │   └── plan.tsx          # Full plan view (all sessions)
+│   │   │   ├── plan.tsx          # Full plan view (all sessions)
+│   │   │   ├── notifications.tsx # In-app notification center
+│   │   │   ├── pose-debug.tsx    # Dev-only: pose detection debug
+│   │   │   └── upload-video.tsx  # Video submission for expert review
 │   │   ├── progress/
 │   │   │   ├── index.tsx         # Progress dashboard
 │   │   │   └── milestones.tsx    # All milestones screen
 │   │   ├── coach/
 │   │   │   └── index.tsx         # AI coach chat
 │   │   ├── know/
-│   │   │   └── index.tsx         # Placeholder — not yet implemented
+│   │   │   ├── index.tsx         # Education hub
+│   │   │   ├── videos.tsx        # Video library and expert reviews
+│   │   │   └── video-player.tsx  # Video playback with timestamps
 │   │   └── profile/
 │   │       ├── index.tsx         # Profile screen
 │   │       └── notification-settings.tsx  # Notification preferences
@@ -174,6 +186,10 @@ pawly/
 │   ├── session/                  # TimerRing, RepCounter, StepCard
 │   ├── coach/                    # MessageBubble, TypingIndicator, QuickSuggestions
 │   ├── progress/                 # MilestoneCard, ShareCard
+│   ├── train/                    # TrainingCalendar, CalendarDayCell, DaySessionList
+│   ├── vision/                   # DogKeypointOverlay (SVG skeleton rendering)
+│   ├── adaptive/                 # LearningInsightCard, AdaptationNotice, WhyThisChangedSheet, etc.
+│   ├── notifications/            # NotificationBell, NotificationItem
 │   ├── video/                    # VideoUploadProgress, ExpertReviewRequest
 │   ├── onboarding/               # OptionCard, QuestionScreen, ScheduleSelector
 │   └── shared/                   # WalkLogModal
@@ -184,23 +200,58 @@ pawly/
 │   ├── planStore.ts
 │   ├── coachStore.ts
 │   ├── progressStore.ts
-│   ├── notificationStore.ts      # NEW — notification preferences & scheduling
+│   ├── notificationStore.ts
 │   ├── videoStore.ts
-│   └── themeStore.ts
+│   ├── themeStore.ts
+│   └── onboardingStore.ts
+├── hooks/
+│   └── usePoseSession.ts         # Real-time dog pose detection hook
 ├── lib/                          # Utilities and service helpers
 │   ├── supabase.ts               # Supabase client + createUserRecord()
-│   ├── planGenerator.ts          # Goal maps, sequences, plan building
+│   ├── planGenerator.ts          # Goal maps, sequences, plan building (rules-based fallback)
 │   ├── scheduleEngine.ts         # Schedule logic, session timing, rescheduling
 │   ├── sessionManager.ts         # Session saving, streak updates, milestone checks
 │   ├── milestoneEngine.ts        # 13 milestone definitions and check functions
 │   ├── analytics.ts              # Event capture (console-only in dev; PostHog pending)
 │   ├── modelMappers.ts           # DB row → TypeScript type converters
 │   ├── notifications.ts          # Expo Notifications wrapper, scheduling
+│   ├── inAppNotifications.ts     # In-app notification logic
 │   ├── videoUploader.ts          # Video upload utilities
-│   └── theme.ts                  # useTheme() hook
-├── types/                        # TypeScript type definitions (types/index.ts)
+│   ├── calendarSessions.ts       # Calendar date ops, session grouping by date
+│   ├── planScheduleDiff.ts       # Plan change diffing
+│   ├── theme.ts                  # useTheme() hook
+│   └── adaptivePlanning/         # Full adaptive planning engine (18 files)
+│       ├── types.ts              # Adaptation types and interfaces
+│       ├── config.ts             # Feature flags and configuration
+│       ├── featureFlags.ts       # Runtime feature control
+│       ├── initialPlanner.ts     # Rules-based fallback planner
+│       ├── adaptationEngine.ts   # Decides when & what to adapt
+│       ├── adaptationRules.ts    # Adaptation trigger rules
+│       ├── adaptationCompiler.ts # Converts adaptations to plan updates
+│       ├── adaptationAudit.ts    # Audit trail for adaptations
+│       ├── learningStateEngine.ts    # Updates learning state from signals
+│       ├── learningStateScoring.ts   # Scores dog learning dimensions
+│       ├── learningStateSummary.ts   # Summarizes learning state
+│       ├── learningSignals.ts        # Extracts signals from session/walk logs
+│       ├── skillGraph.ts             # Skill prerequisite/advancement graph
+│       ├── graphTraversal.ts         # Graph traversal for skill pathfinding
+│       ├── graphValidation.ts        # Validates skill graph integrity
+│       ├── planValidation.ts         # Validates generated plans
+│       ├── planDiff.ts               # Diff between plan versions
+│       ├── planCompiler.ts           # Compiles AI planner output to concrete plan
+│       ├── plannerPrompt.ts          # AI prompt engineering for plan generation
+│       └── repositories.ts           # Supabase queries for adaptation & learning state
+│   └── vision/                   # On-device vision utilities
+│       ├── poseDecoder.ts        # Decodes TFLite output to PoseObservation
+│       ├── TFLitePoseProvider.ts # TFLite model wrapper
+│       └── nativeSupport.ts      # Platform support checks
+├── types/                        # TypeScript type definitions
+│   ├── index.ts                  # All app types
+│   └── pose.ts                   # Dog pose keypoint types
 ├── constants/                    # App-wide constants
-└── assets/                       # Images, fonts, animations
+│   ├── protocols.ts              # Full training protocol library (1,360+ lines)
+│   └── colors.ts                 # Brand color palette
+└── assets/                       # Images, fonts, animations, TFLite model
 ```
 
 ### 3.2 Navigation Architecture
@@ -217,15 +268,20 @@ Root Layout (RootNavigationGate)
 └── Main Tab Navigator (authenticated + dog profile exists)
     ├── Train Tab
     │   ├── Today Screen (home)
+    │   ├── Calendar Screen (monthly plan view)
     │   ├── Session Screen (step-by-step execution)
-    │   └── Full Plan Screen (all sessions, week view)
+    │   ├── Full Plan Screen (all sessions, week view)
+    │   ├── Notifications Screen (in-app notification center)
+    │   └── Upload Video Screen
     ├── Progress Tab
     │   ├── Dashboard (streaks, behavior scores, charts, milestones)
     │   └── Milestones (full list)
     ├── Coach Tab
     │   └── Chat Screen (AI coach, hides bottom nav bar)
     ├── Know Tab
-    │   └── Placeholder (not yet implemented)
+    │   ├── Education Hub
+    │   ├── Video Library
+    │   └── Video Player
     └── Profile Tab
         ├── Profile Screen (dog info, stats, theme)
         └── Notification Settings Screen
@@ -290,6 +346,7 @@ interface DogStore {
   fetchDog: (dogId: string) => Promise<void>
   updateDog: (updates: Partial<Dog>) => Promise<void>
   fetchActivePlan: () => Promise<void>
+  fetchDogLearningState: (dogId: string) => Promise<DogLearningState | null>
 }
 ```
 
@@ -330,17 +387,22 @@ interface PlanStore {
   protocols: Record<string, Protocol>
   todaySession: PlanSession | null      // derived from activePlan
   completionPercentage: number          // derived from activePlan
+  recentAdaptations: PlanAdaptation[]
+  isLoading: boolean
   fetchActivePlan: (dogId: string) => Promise<void>
   fetchProtocol: (exerciseId: string) => Promise<Protocol>
-  markSessionComplete: (sessionId: string) => Promise<void>
+  markSessionComplete: (sessionId: string, score?: SessionScore) => Promise<void>
   getTodaySession: () => PlanSession | null
-  getUpcomingSessions: () => PlanSession[]
+  getUpcomingSessions: (limit?: number) => PlanSession[]
   getMissedScheduledSessions: () => PlanSession[]
   rescheduleMissedSession: (sessionId: string) => Promise<void>
   refreshPlan: (dogId: string) => Promise<void>
   setActivePlan: (plan: Plan | null) => void
+  fetchRecentAdaptations: (planId: string) => Promise<void>
 }
 ```
+
+If a loaded plan's sessions lack `scheduledDate` fields, the store calls `buildWeeklySchedule()` automatically and persists the result.
 
 #### coachStore
 
@@ -429,6 +491,7 @@ Components:
 - Upcoming sessions — next 3 sessions from plan
 - `WalkLogModal` — tap to log a walk
 - Streak badge — current session streak
+- `NotificationBell` — header badge with unread in-app notification count
 
 State transitions:
 ```
@@ -436,6 +499,23 @@ No plan → show "Complete onboarding" CTA
 Plan exists, session incomplete → show session CTA
 Session complete today → show walk check-in or enrichment
 ```
+
+#### Training Calendar Screen (`app/(tabs)/train/calendar.tsx`)
+
+Purpose: Monthly overview of all scheduled and completed training sessions.
+
+Components:
+- `TrainingCalendar` — 6×7 monthly grid with navigation arrows
+- `CalendarDayCell` — individual day cell with status indicator (completed: green dot, upcoming: secondary color)
+- `DaySessionList` — session list for the selected date
+
+Behavior:
+- Month navigation via prev/next arrows
+- Today's date is highlighted with a border
+- Non-current-month dates are grayed out
+- Tapping a day shows sessions scheduled for that date
+- Sessions are grouped by `scheduledDate` (YYYY-MM-DD) and sorted by `scheduledTime`
+- Tapping a session navigates to `/(tabs)/train/session?id={sessionId}`
 
 #### Session Screen (`app/(tabs)/train/session.tsx`)
 
@@ -472,7 +552,7 @@ Components:
 
 #### AI Coach Screen (`app/(tabs)/coach/index.tsx`)
 
-Purpose: Conversational support grounded in the dog's full context.
+Purpose: Conversational support grounded in the dog's full context and current learning state.
 
 Components:
 - `MessageList` (FlatList) — chat history with role-based styling
@@ -481,7 +561,7 @@ Components:
 - `MessageInput` — text input with send button
 - Reset button (archive conversation and start fresh)
 
-Calls Supabase Edge Function `ai-coach-message` for each message. Handles rate limit errors with `rateLimitError` state flag.
+Calls Supabase Edge Function `ai-coach-message` for each message. Coach context includes the dog's current `DogLearningState` and recent plan adaptations. Handles rate limit errors with `rateLimitError` state flag.
 
 #### Plan Screen (`app/(tabs)/train/plan.tsx`)
 
@@ -491,6 +571,7 @@ Components:
 - Completion ring (72px circular progress)
 - Session list grouped by week
 - Session rows: status icon (completed/locked/playable), title, scheduled day/time, duration
+- `AdaptationNotice` — shown when the plan has been recently adapted
 - "TODAY" badge for today's session
 - Tap to navigate to session screen
 
@@ -506,6 +587,15 @@ Components:
 - Walk quality chart (14-day history, 3-point quality scale)
 - Milestones carousel (achieved milestones)
 - Share card for celebrating milestones
+
+#### Know Tab (`app/(tabs)/know/`)
+
+Purpose: Expert content and video feedback.
+
+Screens:
+- `index.tsx` — Education hub landing
+- `videos.tsx` — Video library: user-uploaded videos and their expert review status
+- `video-player.tsx` — Video playback with expert-added timestamps and feedback
 
 #### Notification Settings Screen (`app/(tabs)/profile/notification-settings.tsx`)
 
@@ -527,6 +617,16 @@ Controls all 13 `NotificationPrefs` fields:
 
 Calls `notificationStore.refreshSchedules()` on every preference change.
 
+#### In-App Notification Center (`app/(tabs)/train/notifications.tsx`)
+
+Purpose: Central list of all in-app notifications (plan adaptations, milestones, coach nudges, etc.).
+
+Components:
+- `NotificationItem` — individual notification row with icon, title, body, and timestamp
+- `NotificationBell` — badge indicator used in screen headers
+
+Notifications are stored in the `in_app_notifications` Supabase table and fetched by the notification store.
+
 ---
 
 ## 4. Backend Services
@@ -540,7 +640,7 @@ All backend logic in v1 runs through Supabase:
 | PostgreSQL | All relational data |
 | Auth | User authentication (email, Apple, Google) |
 | Storage | Video and image files (`pawly-videos` bucket) |
-| Edge Functions | Plan generation, AI coach calls, event processing |
+| Edge Functions | Plan generation, AI coach calls, plan adaptation, expert review notifications |
 | Real-time | Live session sync, notification triggers |
 | Row Level Security | Data access control per user |
 
@@ -548,40 +648,51 @@ All backend logic in v1 runs through Supabase:
 
 Edge functions are Deno-based serverless functions running at the Supabase edge.
 
-#### `generate-plan`
+#### `generate-adaptive-plan`
 
-Triggered: after onboarding completion
-Input: dog profile, behavior goals, environment data
-Process: rule-based plan selector → protocol module assembly → plan JSON
-Output: inserts new plan record with session array
+Triggered: after onboarding completion or when a new plan is requested
+Input: `{ dogId: string, userId: string }`
+Process:
+1. Fetch dog profile from DB
+2. Build training preferences from dog config
+3. Fetch skill graph (nodes & edges from DB)
+4. Construct AI prompt with dog profile, behavior goals, skill graph, and training constraints
+5. Call Claude API to generate `AIPlannerOutput`
+6. Compile output into concrete plan with scheduled sessions (server-side schedule engine)
+7. Assign dates/times respecting dog's preferred days, windows, and timezone
+8. Insert plan record to `plans` table
+
+Output: `{ plan: Plan, plannerMode: 'adaptive_ai' | 'rules_fallback', planningSummary?, fallbackReason? }`
+
+Falls back to rules-based `initialPlanner.ts` if Claude call fails.
+
+#### `adapt-plan`
+
+Triggered: manually or after session outcome signals
+Input: plan ID, session outcome data
+Process: runs adaptation engine to check rules, generates adaptations, compiles plan updates
+Output: updated plan with adaptation audit record
 
 #### `ai-coach-message`
 
 Triggered: user sends message in coach chat
-Input: message content, conversation history, dog context
-Process: assemble system prompt → call Anthropic API → store response
+Input: message content, conversation history, dog context (including `DogLearningState`)
+Process: assemble system prompt with full dog context → call Anthropic API → store response
 Output: assistant message stored and returned to client
 
-#### `process-video-upload`
+#### `complete-expert-review`
 
-Triggered: video uploaded to Supabase Storage
-Input: storage path, user context, video metadata
-Process: extract metadata → generate structured review request → notify expert queue
-Output: video record updated with metadata, expert review job created
+Triggered: admin marks a video review as complete
+Input: review ID, trainer feedback, timestamps
+Process: updates `expert_reviews` record to `complete` status
+Output: triggers push notification to user
 
-#### `generate-insights`
+#### `notify-expert-review`
 
-Triggered: cron job, weekly
-Input: all active dogs with sufficient session history
-Process: analyze session patterns → generate insight text via Claude → store
-Output: new insight records per dog
-
-#### `lifecycle-trigger-check`
-
-Triggered: cron job, daily
-Input: all active dogs
-Process: check age milestones, upcoming events, session gaps
-Output: trigger appropriate programs, send push notifications
+Triggered: expert review status transitions to `complete`
+Input: review ID, user ID
+Process: sends push notification via Expo Push Service
+Output: notification delivered to user's device
 
 ### 4.3 Real-time Subscriptions
 
@@ -600,7 +711,7 @@ Mobile clients subscribe to relevant Supabase real-time channels:
 
 ### 5.1 Core Tables
 
-Applied via Supabase migrations in `supabase/migrations/`. Migration files:
+Applied via Supabase migrations in `supabase/migrations/`. Migration files (in order):
 - `pr03_dog_profile.sql` — dogs table
 - `pr04_protocols.sql` — exercises and protocols
 - `pr05_session_logs.sql` — session completion logging
@@ -609,6 +720,12 @@ Applied via Supabase migrations in `supabase/migrations/`. Migration files:
 - `pr08_videos.sql` — videos, expert_reviews, review_credits
 - `pr09_coach_conversation_active_unique.sql` — coach conversation constraints
 - `pr10_schedule_preferences.sql` — notification_prefs on user_profiles
+- `pr11_adaptive_planning_foundation.sql` — skill_nodes and skill_edges foundation tables
+- `pr11_seed_skill_graph.sql` — initial skill graph data seed
+- `pr12_full_skill_graph.sql` — complete skill graph for all supported behaviors
+- `pr13_learning_state_signals.sql` — dog_learning_state and learning_signals tables
+- `pr14_plan_adaptation_flow.sql` — plan_adaptations and adaptation_audit tables
+- `pr15_in_app_notifications.sql` — in_app_notifications table
 
 #### `users` (managed by Supabase Auth + `user_profiles` table)
 
@@ -696,7 +813,7 @@ CREATE TABLE plans (
   protocol_ids     TEXT[],
   -- sessions stored as JSONB array of PlanSession objects
   sessions         JSONB DEFAULT '[]',
-  metadata         JSONB DEFAULT '{}'  -- includes schedule explanation, preferred days/windows
+  metadata         JSONB DEFAULT '{}'  -- includes schedule explanation, preferred days/windows, AI planning summary
 );
 ```
 
@@ -858,6 +975,93 @@ CREATE TABLE coach_messages (
 );
 ```
 
+#### `skill_nodes` and `skill_edges` (adaptive planning foundation)
+
+```sql
+CREATE TABLE skill_nodes (
+  id          TEXT PRIMARY KEY,       -- e.g., 'llw_foundation_1'
+  behavior    TEXT NOT NULL,           -- behavior goal this skill belongs to
+  stage       TEXT NOT NULL,           -- 'foundation', 'building', 'proofing', 'mastery'
+  title       TEXT NOT NULL,
+  description TEXT,
+  kind        TEXT NOT NULL,           -- 'exercise', 'milestone', 'prerequisite'
+  metadata    JSONB DEFAULT '{}'
+);
+
+CREATE TABLE skill_edges (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_id     TEXT REFERENCES skill_nodes(id),
+  to_id       TEXT REFERENCES skill_nodes(id),
+  edge_type   TEXT NOT NULL,           -- 'prerequisite', 'progression', 'regression', 'parallel'
+  weight      DECIMAL DEFAULT 1.0
+);
+```
+
+#### `dog_learning_state` and `learning_signals`
+
+```sql
+CREATE TABLE dog_learning_state (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  dog_id         UUID REFERENCES dogs(id) NOT NULL UNIQUE,
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  overall_score  DECIMAL,
+  dimensions     JSONB DEFAULT '{}',  -- per-behavior scores
+  hypotheses     JSONB DEFAULT '[]',  -- LearningHypothesis[]
+  summary        TEXT,
+  last_signal_at TIMESTAMPTZ
+);
+
+CREATE TABLE learning_signals (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  dog_id     UUID REFERENCES dogs(id) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  source     TEXT NOT NULL,    -- 'session_log', 'walk_log', 'manual'
+  signal     JSONB NOT NULL
+);
+```
+
+#### `plan_adaptations` and `adaptation_audit`
+
+```sql
+CREATE TABLE plan_adaptations (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plan_id      UUID REFERENCES plans(id) NOT NULL,
+  dog_id       UUID REFERENCES dogs(id) NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  type         TEXT NOT NULL,          -- AdaptationType enum
+  status       TEXT DEFAULT 'pending', -- 'pending', 'applied', 'rejected'
+  reason       TEXT,
+  before_state JSONB,
+  after_state  JSONB,
+  applied_at   TIMESTAMPTZ
+);
+
+CREATE TABLE adaptation_audit (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  adaptation_id  UUID REFERENCES plan_adaptations(id),
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  actor          TEXT,   -- 'system', 'user', 'coach'
+  action         TEXT,
+  notes          TEXT
+);
+```
+
+#### `in_app_notifications`
+
+```sql
+CREATE TABLE in_app_notifications (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID REFERENCES users(id) NOT NULL,
+  dog_id     UUID REFERENCES dogs(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  type       TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT,
+  data       JSONB DEFAULT '{}',
+  read_at    TIMESTAMPTZ
+);
+```
+
 #### `protocols` (content table)
 
 ```sql
@@ -912,6 +1116,9 @@ CREATE INDEX idx_walk_logs_dog_id_logged_at ON walk_logs(dog_id, logged_at DESC)
 CREATE INDEX idx_coach_messages_conversation_id ON coach_messages(conversation_id);
 CREATE INDEX idx_videos_dog_id ON videos(dog_id);
 CREATE INDEX idx_milestones_dog_id ON milestones(dog_id, achieved_at DESC);
+CREATE INDEX idx_in_app_notifications_user_id ON in_app_notifications(user_id, created_at DESC);
+CREATE INDEX idx_plan_adaptations_plan_id ON plan_adaptations(plan_id);
+CREATE INDEX idx_learning_signals_dog_id ON learning_signals(dog_id, created_at DESC);
 ```
 
 ---
@@ -920,7 +1127,7 @@ CREATE INDEX idx_milestones_dog_id ON milestones(dog_id, achieved_at DESC);
 
 ### 6.1 AI Coach — Full Architecture
 
-The AI coach is a conversational system powered by the Anthropic Claude API, grounded in the user's dog profile, training history, and trainer-authored protocol knowledge.
+The AI coach is a conversational system powered by the Anthropic Claude API, grounded in the user's dog profile, training history, learning state, and trainer-authored protocol knowledge.
 
 #### Context Assembly Pipeline
 
@@ -937,12 +1144,13 @@ async function assembleCoachContext(
   const recentSessions = await fetchRecentSessions(dogId, 7)  // last 7 days
   const recentWalks = await fetchRecentWalks(dogId, 7)
   const history = await fetchConversationHistory(conversationId, 20)  // last 20 msgs
+  const learningState = await fetchDogLearningState(dogId)
   const relevantProtocols = await retrieveRelevantProtocols(
     dog.behavior_goals,
     plan?.goal
   )
 
-  return { dog, plan, recentSessions, recentWalks, history, relevantProtocols }
+  return { dog, plan, recentSessions, recentWalks, history, learningState, relevantProtocols }
 }
 ```
 
@@ -961,6 +1169,10 @@ Age: {{dog.age_months}} months ({{lifecycle_stage}})
 ## Current Training Focus
 Goal: {{plan.goal}}
 Week {{plan.current_week}} of {{plan.duration_weeks}}
+...
+
+## Dog's Learning State
+Overall progress: {{learningState.overall_score}}
 ...
 
 ## Recent Activity (Last 7 Days)
@@ -986,9 +1198,9 @@ const COACH_CONFIG = {
 }
 ```
 
-### 6.2 Plan Generation Engine (V1 — Rules-Based)
+### 6.2 Adaptive Plan Generation Engine
 
-Plan generation is deterministic, handled client-side in `lib/planGenerator.ts` and `lib/scheduleEngine.ts`.
+Plan generation is AI-driven via the `generate-adaptive-plan` Edge Function, with a rules-based fallback.
 
 **Supported behavior goals** (8 total):
 - `leash_pulling` — Loose Leash Walking
@@ -1000,7 +1212,14 @@ Plan generation is deterministic, handled client-side in `lib/planGenerator.ts` 
 - `puppy_biting` — Puppy Biting
 - `settling` — Calm Settling
 
-**Exercise sequences:** Each goal maps to 6–8 exercises that are cycled through based on `sessionsPerWeek` and `durationWeeks` (default 4 weeks).
+**AI Planning flow:**
+1. Dog profile + skill graph → AI prompt
+2. Claude generates `AIPlannerOutput` (ordered exercise IDs + reasoning)
+3. `planCompiler.ts` maps AI output to concrete `PlanSession[]`
+4. `scheduleEngine.buildWeeklySchedule()` assigns dates/times based on dog preferences
+5. Result stored in `plans.sessions` JSONB
+
+**Rules-based fallback** (`lib/adaptivePlanning/initialPlanner.ts`): Used when Claude API call fails. Each goal maps to 6–8 protocol IDs cycled based on `sessionsPerWeek` and `durationWeeks`.
 
 **Schedule engine** (`lib/scheduleEngine.ts`):
 - `chooseTrainingDays()` — selects training days from user preferences
@@ -1010,25 +1229,33 @@ Plan generation is deterministic, handled client-side in `lib/planGenerator.ts` 
 - `getMissedScheduledSessions()` — identifies sessions past their scheduled date that were not completed
 - `getTodaySession()` — returns the `PlanSession` scheduled for today
 
-### 6.3 Milestone Engine (`lib/milestoneEngine.ts`)
+### 6.3 Adaptive Planning Engine (`lib/adaptivePlanning/`)
 
-13 milestone definitions, each with a `checkFn` that receives `MilestoneCheckData`:
+An on-device engine that monitors training outcomes and adapts the active plan.
 
-| Milestone ID | Title | Trigger |
-|---|---|---|
-| `first_session` | First Session Complete | 1 total session |
-| `streak_3` | 3-Day Streak | 3 consecutive session days |
-| `streak_7` | 7-Day Streak | 7 consecutive session days |
-| `streak_14` | 2-Week Warrior | 14-day streak |
-| `streak_30` | 30-Day Champion | 30-day streak |
-| `sessions_10` | 10 Sessions | 10 total sessions |
-| `sessions_25` | 25 Sessions | 25 total sessions |
-| `sessions_50` | 50 Sessions | 50 total sessions |
-| `stage_advance` | Stage Unlocked | Plan advances to next stage |
-| `walk_streak_5` | 5-Day Walk Streak | 5 consecutive walk days |
-| `walk_streak_14` | 2-Week Walker | 14-day walk streak |
-| `walk_improvement` | Walk Quality Rising | Improving walk quality trend |
-| `first_video` | First Video Uploaded | 1 video uploaded |
+**Learning State System:**
+- `learningSignals.ts` — extracts signals from `session_logs` and `walk_logs`
+- `learningStateEngine.ts` — processes signals to update `DogLearningState`
+- `learningStateScoring.ts` — scores dimensions: consistency, success rate, difficulty trend, walk quality
+- `learningStateSummary.ts` — generates human-readable learning state summary
+
+**Adaptation Engine:**
+- `adaptationRules.ts` — defines triggers: e.g., 3+ consecutive hard sessions → regress; avg score ≥4 + all easy → advance
+- `adaptationEngine.ts` — evaluates rules against current learning state
+- `adaptationCompiler.ts` — converts adaptation decisions into plan mutations
+- `adaptationAudit.ts` — writes audit trail to `adaptation_audit` table
+
+**Skill Graph:**
+- `skillGraph.ts` — directed graph of skills with prerequisite/progression/regression edges
+- `graphTraversal.ts` — pathfinding for next/previous skill recommendations
+- Stored in `skill_nodes` and `skill_edges` tables (seeded in pr11–pr12 migrations)
+
+**Adaptation Types** (`AdaptationType`):
+- `regress` — move back to an easier protocol
+- `advance` — move forward to a harder protocol
+- `extend` — add more sessions at current level
+- `reorder` — change session sequence
+- `substitute` — swap one protocol for a more suitable one
 
 ### 6.4 Progress Adaptation Engine
 
@@ -1052,9 +1279,101 @@ function computeNextSessionDifficulty(
 }
 ```
 
-### 6.5 Insight Generation
+### 6.5 Milestone Engine (`lib/milestoneEngine.ts`)
 
-Weekly cron job generates personalized insights per dog using Claude (`generate-insights` Edge Function). Insights expire after 7 days. (Not yet displayed in-app; Know tab is placeholder.)
+13 milestone definitions, each with a `checkFn` that receives `MilestoneCheckData`:
+
+| Milestone ID | Title | Trigger |
+|---|---|---|
+| `first_session` | First Session Complete | 1 total session |
+| `streak_3` | 3-Day Streak | 3 consecutive session days |
+| `streak_7` | 7-Day Streak | 7 consecutive session days |
+| `streak_14` | 2-Week Warrior | 14-day streak |
+| `streak_30` | 30-Day Champion | 30-day streak |
+| `sessions_10` | 10 Sessions | 10 total sessions |
+| `sessions_25` | 25 Sessions | 25 total sessions |
+| `sessions_50` | 50 Sessions | 50 total sessions |
+| `stage_advance` | Stage Unlocked | Plan advances to next stage |
+| `walk_streak_5` | 5-Day Walk Streak | 5 consecutive walk days |
+| `walk_streak_14` | 2-Week Walker | 14-day walk streak |
+| `walk_improvement` | Walk Quality Rising | Improving walk quality trend |
+| `first_video` | First Video Uploaded | 1 video uploaded |
+
+### 6.6 On-Device Dog Pose Detection
+
+Real-time pose estimation runs on-device using a TFLite model, enabling session coaching features.
+
+#### Architecture
+
+```
+Camera Frame (Vision Camera v4)
+    ↓
+Frame Processor (JS Worklet, every 10th frame)
+    ↓
+vision-camera-resize-plugin (640×640 RGB float32)
+    ↓
+react-native-fast-tflite (sync inference)
+    ↓
+poseDecoder.ts (D-first tensor layout)
+    ↓
+PoseObservation { keypoints: PoseKeypoint[], bbox: NormalizedBBox }
+    ↓
+DogKeypointOverlay (SVG skeleton rendering)
+```
+
+#### Model I/O
+
+- **Input:** `[1, 640, 640, 3]` float32 RGB tensor
+- **Output:** `[1, 77, 8400]` D-first tensor layout
+  - `d[0–3]`: bounding box (cx, cy, w, h) normalized [0, 1]
+  - `d[4]`: detection confidence
+  - `d[5–76]`: 24 keypoints × 3 values each (x, y, visibility)
+- **Thresholds:** detection confidence ≥ 0.35, keypoint visibility ≥ 0.35
+
+#### Keypoints (24 canonical dog keypoints)
+
+Defined in `types/pose.ts` as `DOG_KEYPOINT_NAMES`:
+- Head: nose, chin, left/right eye, left/right ear
+- Torso: throat, withers, tail base, back center
+- Front legs: left/right shoulder, elbow, wrist, front paw
+- Rear legs: left/right hip, knee, ankle, rear paw
+
+#### Skeleton Visualization (`components/vision/DogKeypointOverlay.tsx`)
+
+SVG overlay rendered atop the camera preview. Color-coded limb groups:
+- **Blue** — head connections (eyes, ears, nose, throat)
+- **Gold** — spine connections (withers, back, tail)
+- **Green** — front-left leg
+- **Purple** — front-right leg
+- **Pink** — rear-left leg
+- **Orange** — rear-right leg
+
+Dual-pass rendering: glow stroke + core stroke per bone, with joint dots and specular highlights.
+
+#### `usePoseSession` hook (`hooks/usePoseSession.ts`)
+
+```typescript
+function usePoseSession(options: PoseSessionOptions): {
+  frameProcessor: FrameProcessor
+  currentPose: PoseObservation | null
+  fps: number
+  isDetecting: boolean
+}
+```
+
+Runs at ~10 FPS (throttled, every 10th frame). Module-level dispatch pattern for worklet-to-React communication. Requires native dev build (not Expo Go).
+
+#### Pose Debug Screen (`app/(tabs)/train/pose-debug.tsx`)
+
+Developer-only full-screen camera view with:
+- Real-time skeleton overlay
+- FPS counter
+- Detection confidence bar
+- Scanning pulse animation
+
+### 6.7 Insight Generation
+
+Weekly cron job generates personalized insights per dog using Claude (`generate-insights` Edge Function). Insights expire after 7 days. (Not yet displayed in-app; Know tab does not yet surface insights.)
 
 ---
 
@@ -1086,9 +1405,10 @@ PATCH  /rest/v1/dogs?id=eq.{id}  Update dog profile
 
 #### Plans
 ```
-POST   /functions/v1/generate-plan    Generate personalized plan
-GET    /rest/v1/plans?dog_id=eq.{id}  Get dog's plans
-PATCH  /rest/v1/plans?id=eq.{id}      Update plan (sessions JSONB, status)
+POST   /functions/v1/generate-adaptive-plan   Generate AI-powered personalized plan
+POST   /functions/v1/adapt-plan               Trigger plan adaptation
+GET    /rest/v1/plans?dog_id=eq.{id}          Get dog's plans
+PATCH  /rest/v1/plans?id=eq.{id}              Update plan (sessions JSONB, status)
 ```
 
 #### Sessions
@@ -1123,9 +1443,19 @@ GET    /rest/v1/walk_logs?dog_id=eq.{id}     Walk history
 GET    /rest/v1/milestones?dog_id=eq.{id}    Milestones list
 ```
 
+#### Adaptive Planning
+```
+GET    /rest/v1/dog_learning_state?dog_id=eq.{id}   Dog learning state
+GET    /rest/v1/plan_adaptations?plan_id=eq.{id}    Plan adaptation history
+GET    /rest/v1/skill_nodes                          Skill graph nodes
+GET    /rest/v1/skill_edges                          Skill graph edges
+```
+
 #### Notifications
 ```
-PATCH  /rest/v1/user_profiles?id=eq.{id}     Update notification_prefs JSONB
+PATCH  /rest/v1/user_profiles?id=eq.{id}              Update notification_prefs JSONB
+GET    /rest/v1/in_app_notifications?user_id=eq.{id}  Fetch in-app notifications
+PATCH  /rest/v1/in_app_notifications?id=eq.{id}       Mark notification as read
 ```
 
 ### 7.3 Rate Limiting
@@ -1239,21 +1569,21 @@ Admin dashboard shows review queue
         ↓
 Trainer watches video, writes feedback with timestamps
         ↓
-Review submitted (status: 'complete')
+Review submitted via complete-expert-review Edge Function (status: 'complete')
         ↓
-Push notification to user: "Your video review is ready"
+Push notification to user via notify-expert-review Edge Function
 ```
 
-### 9.3 Video Types
+### 9.3 Expert Review Viewing
+
+Users view completed reviews in `app/(tabs)/know/videos.tsx` and `app/(tabs)/know/video-player.tsx`. The video player renders trainer-added timestamp annotations alongside video playback.
+
+### 9.4 Video Types
 
 Videos are tagged with a `context` field:
 - `onboarding` — recorded during onboarding to show current behavior
 - `session` — recorded at end of a training session
 - `behavior` — recorded to document a specific behavior for expert review
-
-### 9.4 Implementation Status
-
-Types, store methods, and DB schema are fully defined. The video upload UI (`VideoUploadProgress`, `ExpertReviewRequest` components) exists. No full video picker/recording screen is implemented yet.
 
 ---
 
@@ -1273,7 +1603,9 @@ lib/notifications.scheduleUserNotifications() creates Expo local notifications
 Expo Notifications delivers via APNs (iOS) or FCM (Android)
 ```
 
-Note: In v1, notifications are **local** (scheduled on-device), not server-pushed. Server-side triggers (Supabase webhooks → Expo Push Service) are designed but not yet wired.
+In-app notifications are written to the `in_app_notifications` Supabase table by Edge Functions and displayed in the notification center screen via `NotificationBell` badge.
+
+Note: In v1, push notifications are **local** (scheduled on-device). Server-side triggers (Supabase webhooks → Expo Push Service) are designed but not fully wired (expert review notifications use the `notify-expert-review` Edge Function).
 
 ### 10.2 Push Token Management
 
@@ -1305,6 +1637,7 @@ The `notificationStore.ensurePermissionAfterMeaningfulAction()` method requests 
 | Post-walk check-in | 30 min after walk time | "How was the walk? One tap to log it." |
 | Missed session follow-up | Fallback if session missed | "No pressure. One easy win today keeps the streak alive." |
 | Milestone celebration | After milestone achieved | "Max's first 3-day streak. That's real progress." |
+| Plan adaptation | After plan is adapted | "Max's plan was updated based on recent progress." |
 | New insight available | Weekly insight generation | "New insight about Max's energy pattern." |
 | Expert review complete | Review status → complete | "Your video review is ready." |
 | Streak at risk | Calculated based on last activity | "Your 7-day streak ends tonight." |
@@ -1397,7 +1730,7 @@ export function captureEvent(event: string, properties?: Record<string, unknown>
 onboarding_started
 onboarding_step_completed { step: string }
 dog_profile_created { breed, age_months, primary_goal }
-plan_generated { goal, difficulty, weeks }
+plan_generated { goal, difficulty, weeks, planner_mode }
 onboarding_completed
 paywall_viewed { source: 'onboarding' }
 subscription_purchased { tier, period, price }
@@ -1431,6 +1764,12 @@ streak_broken { previous_length, type }
 video_upload_started { context }
 video_upload_completed { duration_seconds, file_size_mb }
 expert_review_requested
+```
+
+#### Adaptive Planning Events
+```
+plan_adapted { adaptation_type, reason }
+learning_state_updated { overall_score }
 ```
 
 ### 12.3 North Star Metric
@@ -1496,6 +1835,8 @@ Auth: Supabase Auth
   }
 }
 ```
+
+**Note:** The pose detection feature (react-native-vision-camera, react-native-fast-tflite) requires a native dev build. It does not work in Expo Go.
 
 ### 13.4 CI/CD Pipeline
 
@@ -1600,13 +1941,15 @@ HARD LIMITS — Never violate these regardless of user request:
 | Service | Purpose | SDK | Status |
 |---|---|---|---|
 | Supabase | Backend, auth, storage, DB | `@supabase/supabase-js` | ✅ Active |
-| Anthropic | AI coach | `@anthropic-ai/sdk` | ✅ Active (Edge Function) |
+| Anthropic | AI coach + plan generation | `@anthropic-ai/sdk` | ✅ Active (Edge Functions) |
 | RevenueCat | Subscriptions | `react-native-purchases` | ⏳ Dependency only, not initialized |
 | Expo | Mobile platform | `expo` suite | ✅ Active |
 | Expo Notifications | Local + push notifications | `expo-notifications` | ✅ Active (local scheduling) |
 | PostHog | Analytics | `posthog-react-native` | ⏳ Dependency only, not initialized |
 | Sentry | Error tracking | `@sentry/react-native` | ⏳ Dependency only, not initialized |
 | Apple Authentication | Apple Sign In | `expo-apple-authentication` | ✅ Active |
+| Vision Camera | Camera frame processing | `react-native-vision-camera` | ✅ Active (native build only) |
+| TFLite | Dog pose inference | `react-native-fast-tflite` | ✅ Active (native build only) |
 
 ### 15.2 Anthropic API Configuration
 
@@ -1616,6 +1959,8 @@ const COACH_CONFIG = {
   max_tokens: 600,
 }
 ```
+
+Both the AI coach (`ai-coach-message`) and plan generation (`generate-adaptive-plan`) Edge Functions use `claude-sonnet-4-6`.
 
 ### 15.3 Supabase Client Configuration
 
@@ -1654,6 +1999,7 @@ export const supabase = createClient(
 | Network timeout | Retry 3x with exponential backoff | "Having trouble connecting. Trying again…" |
 | AI coach failure | Show rate limit error state | "Coach is temporarily unavailable." |
 | AI coach rate limit | Set `rateLimitError` flag in coachStore | "You've reached your coaching limit for today." |
+| Plan generation failure | Fall back to rules-based planner | Silent — user receives plan regardless |
 | Video upload failure | Queue and retry on reconnect | "Video saved to retry when connection improves." |
 | Session sync failure | Store locally, sync on next open | Silent — sync in background |
 | Auth expiry | Auto-refresh or redirect to login | "Session expired. Please log in again." |
@@ -1695,11 +2041,13 @@ Sentry.init({
 | Video upload start | < 1 second | > 3 seconds |
 | API response (p95) | < 400ms | > 1 second |
 | Plan generation | < 4 seconds | > 10 seconds |
+| Pose detection inference | ~10 FPS (100ms/frame) | < 5 FPS |
 
 ### 17.2 API Response Optimization
 
 - Plan sessions stored as JSONB array in `plans.sessions` — no join needed to load today's session
 - `planStore` derives `todaySession` and `completionPercentage` client-side when plan is loaded
+- `calendarSessions.ts` groups sessions by date client-side for the calendar view
 - React Query used for data fetching; `planStore` and `progressStore` manage caching
 
 ---
@@ -1742,6 +2090,8 @@ Current coverage: `tests/scheduleEngine.test.ts` — 6+ test cases for:
 | Streak calculation | 95% |
 | Auth token management | 90% |
 | Notification scheduling | 80% |
+| Adaptive planning engine | 80% |
+| Pose decoder | 75% |
 
 ### 18.4 Critical E2E Test Flows (Maestro)
 
@@ -1753,6 +2103,8 @@ Current coverage: `tests/scheduleEngine.test.ts` — 6+ test cases for:
 6. Upload video → confirm receipt and processing state
 7. Achieve milestone → see shareable card
 8. Sign out → sign back in → data persists
+9. View training calendar → navigate months → tap session
+10. Plan adaptation → see adaptation notice → view reason
 
 ---
 
@@ -1764,11 +2116,13 @@ Current coverage: `tests/scheduleEngine.test.ts` — 6+ test cases for:
 - Minimum iOS 16.0
 - Privacy manifest required (iOS 17+)
 - Apple Sign In required (third-party auth offered)
+- Camera usage description required (pose detection feature)
 
 **Android:**
 - Minimum API level 31 (Android 12)
 - Target API level 34 (Android 14)
 - Google Play Billing for subscriptions
+- Camera permission required (pose detection feature)
 
 ### 19.2 OTA Update Strategy
 
@@ -1789,7 +2143,7 @@ export default {
 ```
 
 OTA updates: content updates, bug fixes, AI prompt updates, UI tweaks
-Binary releases: native module changes, Expo SDK upgrades, new permissions
+Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLite model updates
 
 ---
 
@@ -1799,35 +2153,41 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions
 
 - Full onboarding wizard (18 steps: dog profile, goals, schedule preferences)
 - Dog profile with full breed/age/behavior/schedule data
-- Plan generation (8 behavior goals, rules-based, 4-week plans)
+- AI-powered plan generation (Claude API via `generate-adaptive-plan` Edge Function)
+- Rules-based plan generation fallback
 - Schedule engine (preferred days/windows, automatic rescheduling of missed sessions)
 - Session execution engine (step-by-step, timer, rep counter, difficulty scoring)
 - Walk integration (daily goal, 3-point quality logging, walk streak)
-- AI coach (Claude-powered, dog-context grounded, conversation history)
+- AI coach (Claude-powered, dog-context + learning state grounded, conversation history)
 - Progress tracking (session streak, walk streak, behavior score progression)
 - Milestone system (13 milestones with shareable cards)
+- Training calendar (monthly view, session status indicators, day-level session list)
+- Adaptive planning engine (skill graph, learning state, adaptation rules, audit trail)
 - Video upload (storage, context tagging, expert review request)
+- Expert video reviews (review queue, trainer feedback, timestamp annotations, in-app viewer)
+- In-app notification center (notification bell, notification list screen)
 - Notification preferences UI (13 configurable notification types, local scheduling)
 - Theme selection (system / light / dark)
 - Authentication (email, Apple Sign In, Google OAuth, password reset)
 - Subscription tier enforcement (free gating on plan preview)
+- On-device dog pose detection (TFLite, Vision Camera v4, skeleton overlay — native build only)
+- Know tab (education hub, video library, video player)
 
 ### 20.2 What V1 Explicitly Excludes (Not Yet Built)
 
 - Subscription purchase UI / RevenueCat initialization
 - Dog profile editing screen (post-onboarding)
-- Know tab content (training videos, articles, insights feed)
+- Know tab content: training articles, insights feed display
 - PostHog analytics initialization and event tracking to backend
 - Sentry error tracking initialization
-- Expert review viewing UI (trainer feedback display)
-- Server-side push notification triggers (currently local-only)
+- Server-side push notification triggers (currently local-only; expert review uses Edge Function)
 - Household / family sharing
 - AI video analysis
-- Real-time session coaching via camera
-- Dog personality profile
 - Lifecycle curriculum automation
 - Annual report
 - Multi-dog support
+- Pose detection in-session coaching integration (pose detection exists but is not wired into session flows)
+- Dog personality profile (field exists in schema, not yet populated or displayed)
 
 ### 20.3 V1 Success Criteria
 
@@ -1875,26 +2235,34 @@ EXPO_PUBLIC_APP_VERSION=
 ```json
 {
   "dependencies": {
-    "expo": "~52.0.0",
-    "expo-router": "~4.0.0",
-    "react-native": "0.76.x",
+    "expo": "~52.0.37",
+    "expo-router": "~4.0.19",
+    "react-native": "0.76.7",
     "typescript": "^5.7.0",
-    "@supabase/supabase-js": "^2.45.0",
-    "zustand": "^5.0.0",
-    "@tanstack/react-query": "^5.0.0",
-    "nativewind": "^4.x",
-    "react-native-reanimated": "~3.16.0",
-    "react-native-gesture-handler": "~2.20.0",
+    "@supabase/supabase-js": "^2.49.8",
+    "zustand": "^5.0.3",
+    "@tanstack/react-query": "^5.66.9",
+    "nativewind": "4.1.23",
+    "react-native-reanimated": "~3.16.1",
+    "react-native-gesture-handler": "~2.20.2",
+    "react-native-svg": "15.8.0",
     "@anthropic-ai/sdk": "^0.30.0",
+    "react-native-vision-camera": "^4.6.4",
+    "react-native-fast-tflite": "^2.0.0",
+    "vision-camera-resize-plugin": "^3.2.0",
     "react-native-purchases": "^8.0.0",
-    "posthog-react-native": "^3.0.0",
-    "@sentry/react-native": "^5.0.0",
-    "expo-secure-store": "~14.0.0",
+    "posthog-react-native": "^3.8.0",
+    "@sentry/react-native": "^7.4.0",
+    "expo-secure-store": "~14.0.1",
     "expo-notifications": "~0.29.0",
-    "expo-image-picker": "~15.0.0",
-    "expo-file-system": "~18.0.0",
-    "expo-apple-authentication": "~7.0.0",
-    "@react-native-community/datetimepicker": "^8.x"
+    "expo-image-picker": "~16.0.6",
+    "expo-file-system": "~18.0.2",
+    "expo-apple-authentication": "~7.1.3",
+    "expo-av": "~15.0.2",
+    "expo-video-thumbnails": "~8.0.0",
+    "expo-linear-gradient": "~14.0.2",
+    "@react-native-community/datetimepicker": "8.2.0",
+    "@react-native-async-storage/async-storage": "1.23.1"
   }
 }
 ```
@@ -1917,8 +2285,8 @@ supabase db push --project-ref $STAGING_PROJECT_REF
 supabase db push --project-ref $PRODUCTION_PROJECT_REF
 ```
 
-Migration files are version-controlled in Git and applied sequentially. Current migrations: pr03 through pr10.
+Migration files are version-controlled in Git and applied sequentially. Current migrations: pr03 through pr15.
 
 ---
 
-*End of Pawly Technical Specification v1.1*
+*End of Pawly Technical Specification v1.2*

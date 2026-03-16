@@ -1,26 +1,40 @@
-import { View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 
 import { AppIcon } from '@/components/ui/AppIcon';
-import { IconButton } from '@/components/ui/IconButton';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { shadows } from '@/constants/shadows';
 
 export function NotificationBell({
   unreadCount,
   onPress,
+  size = 42,
 }: {
   unreadCount: number;
   onPress: () => void;
+  size?: number;
 }) {
   const badgeLabel = unreadCount > 9 ? '9+' : String(unreadCount);
 
   return (
     <View style={{ position: 'relative' }}>
-      <IconButton
-        variant="surface"
+      <TouchableOpacity
+        activeOpacity={0.7}
         onPress={onPress}
-        icon={<AppIcon name="notifications-outline" size={20} color={colors.text.primary} />}
-      />
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: colors.bg.surface,
+          borderWidth: 1,
+          borderColor: colors.border.default,
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...shadows.card,
+        }}
+      >
+        <AppIcon name="notifications-outline" size={21} color={colors.text.primary} />
+      </TouchableOpacity>
       {unreadCount > 0 ? (
         <View
           style={{

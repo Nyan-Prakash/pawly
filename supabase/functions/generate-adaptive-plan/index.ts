@@ -86,6 +86,236 @@ interface AIPlannerOutput {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Schedule engine (server-side port of lib/scheduleEngine.ts)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+type TimeWindow = 'early_morning' | 'morning' | 'midday' | 'afternoon' | 'evening' | 'late_evening';
+type ScheduleIntensity = 'gentle' | 'balanced' | 'aggressive';
+
+interface TrainingSchedulePrefs {
+  preferredTrainingDays: Weekday[];
+  preferredTrainingWindows: Partial<Record<Weekday, TimeWindow[]>>;
+  preferredTrainingTimes: Partial<Record<Weekday, string[]>>;
+  usualWalkTimes: string[];
+  sessionStyle: string;
+  scheduleFlexibility: string;
+  scheduleIntensity: ScheduleIntensity;
+  blockedDays: Weekday[];
+  blockedDates: string[];
+  timezone: string;
+}
+
+const WEEKDAY_ORDER: Weekday[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const JS_DAY_TO_WEEKDAY: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const OUTDOOR_GOALS_SERVER = new Set(['leash_pulling', 'recall']);
+const WINDOW_DEFAULT_TIMES: Record<TimeWindow, string> = {
+  early_morning: '07:00', morning: '09:00', midday: '12:00',
+  afternoon: '16:00', evening: '19:00', late_evening: '21:00',
+};
+const DEFAULT_PREFS_SERVER: TrainingSchedulePrefs = {
+  preferredTrainingDays: ['tuesday', 'thursday', 'saturday'],
+  preferredTrainingWindows: {},
+  preferredTrainingTimes: {},
+  usualWalkTimes: [],
+  sessionStyle: 'balanced',
+  scheduleFlexibility: 'move_next_slot',
+  scheduleIntensity: 'balanced',
+  blockedDays: [],
+  blockedDates: [],
+  timezone: 'UTC',
+};
+
+function padTwo(n: number): string { return n.toString().padStart(2, '0'); }
+function toDateKeyServer(date: Date): string {
+  return `${date.getFullYear()}-${padTwo(date.getMonth() + 1)}-${padTwo(date.getDate())}`;
+}
+function parseDateServer(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0);
+}
+function addDaysServer(date: Date, days: number): Date {
+  const next = new Date(date); next.setDate(next.getDate() + days); return next;
+}
+function weekdayFromDate(date: Date): Weekday {
+  return JS_DAY_TO_WEEKDAY[date.getDay()] ?? 'monday';
+}
+function weekdayIdx(day: Weekday): number { return WEEKDAY_ORDER.indexOf(day); }
+function isWeekendDay(day: Weekday): boolean { return day === 'saturday' || day === 'sunday'; }
+
+function buildPrefsFromDog(dog: DogRow): TrainingSchedulePrefs {
+  const preferred = (dog.preferred_training_days ?? []) as Weekday[];
+  const blocked = (dog.blocked_days ?? []) as Weekday[];
+  return {
+    preferredTrainingDays: preferred.length ? preferred : DEFAULT_PREFS_SERVER.preferredTrainingDays.slice(0, Math.max(1, Math.min(dog.available_days_per_week ?? 3, 3))),
+    preferredTrainingWindows: (dog.preferred_training_windows ?? {}) as Partial<Record<Weekday, TimeWindow[]>>,
+    preferredTrainingTimes: (dog.preferred_training_times ?? {}) as Partial<Record<Weekday, string[]>>,
+    usualWalkTimes: dog.usual_walk_times ?? [],
+    sessionStyle: dog.session_style ?? 'balanced',
+    scheduleFlexibility: dog.schedule_flexibility ?? 'move_next_slot',
+    scheduleIntensity: (dog.schedule_intensity ?? 'balanced') as ScheduleIntensity,
+    blockedDays: blocked,
+    blockedDates: dog.blocked_dates ?? [],
+    timezone: dog.timezone ?? 'UTC',
+  };
+}
+
+function gapScoreServer(days: Weekday[]): number {
+  if (days.length <= 1) return 10;
+  const indexes = days.map(weekdayIdx).sort((a, b) => a - b);
+  let score = 0;
+  for (let i = 0; i < indexes.length; i++) {
+    const current = indexes[i]!;
+    const next = indexes[(i + 1) % indexes.length]!;
+    const gap = i === indexes.length - 1 ? 7 - current + next : next - current;
+    score += gap;
+    if (gap >= 2) score += 4;
+    if (gap === 1) score -= 3;
+  }
+  return score;
+}
+
+function intensitySpacingScoreServer(days: Weekday[], intensity: ScheduleIntensity): number {
+  const gaps = days.map(weekdayIdx).sort((a, b) => a - b).map((cur, i, all) => {
+    const next = all[(i + 1) % all.length]!;
+    return i === all.length - 1 ? 7 - cur + next : next - cur;
+  });
+  if (intensity === 'gentle') return gaps.reduce((s, g) => s + g * 2 - (g === 1 ? 8 : 0), 0);
+  if (intensity === 'aggressive') return gaps.reduce((s, g) => s + (g === 1 ? 12 : -g * 2), 0);
+  return gaps.reduce((s, g) => s + (g === 1 ? -2 : g + 1), 0);
+}
+
+function chooseBestCombinationServer(candidates: Weekday[], count: number, preferredSet: Set<Weekday>, intensity: ScheduleIntensity): Weekday[] {
+  const combos: Weekday[][] = [];
+  function visit(start: number, current: Weekday[]) {
+    if (current.length === count) { combos.push([...current]); return; }
+    for (let i = start; i < candidates.length; i++) { current.push(candidates[i]!); visit(i + 1, current); current.pop(); }
+  }
+  visit(0, []);
+  const defaultPriority: Record<Weekday, number> = { monday: 2, tuesday: 5, wednesday: 3, thursday: 5, friday: 2, saturday: 4, sunday: 3 };
+  const scored = combos.map((combo) => ({
+    combo,
+    score: combo.filter((d) => preferredSet.has(d)).length * 100
+      + (combo.some(isWeekendDay) ? 4 : 0)
+      + combo.reduce((s, d) => s + defaultPriority[d], 0)
+      + gapScoreServer(combo) + intensitySpacingScoreServer(combo, intensity),
+  }));
+  scored.sort((a, b) => b.score - a.score || a.combo.join(',').localeCompare(b.combo.join(',')));
+  return scored[0]?.combo.sort((a, b) => weekdayIdx(a) - weekdayIdx(b)) ?? candidates.slice(0, count);
+}
+
+function chooseTrainingDaysServer(sessionsPerWeek: number, availableDaysPerWeek: number, prefs: TrainingSchedulePrefs): Weekday[] {
+  const desiredCount = Math.max(1, Math.min(sessionsPerWeek || availableDaysPerWeek || 3, 7));
+  const blocked = new Set(prefs.blockedDays);
+  const preferred = prefs.preferredTrainingDays.filter((d) => !blocked.has(d));
+  const preferredSet = new Set(preferred);
+  const candidates = WEEKDAY_ORDER.filter((d) => !blocked.has(d));
+  if (candidates.length <= desiredCount) return candidates;
+  if (preferred.length >= desiredCount) return chooseBestCombinationServer(candidates.filter((d) => preferredSet.has(d)), desiredCount, preferredSet, prefs.scheduleIntensity);
+  return chooseBestCombinationServer(candidates, desiredCount, preferredSet, prefs.scheduleIntensity);
+}
+
+function chooseTimeForDayServer(day: Weekday, prefs: TrainingSchedulePrefs, goal?: string): string {
+  const exactTimes = prefs.preferredTrainingTimes[day];
+  if (exactTimes?.length) return [...exactTimes].sort()[0]!;
+  if (goal && OUTDOOR_GOALS_SERVER.has(goal) && prefs.usualWalkTimes.length > 0) {
+    const windows = prefs.preferredTrainingWindows[day];
+    const walkTimes = [...prefs.usualWalkTimes].sort();
+    const linked = windows?.length
+      ? walkTimes.find((t) => {
+          const h = Number(t.split(':')[0] ?? '0');
+          return windows.some((w) => {
+            if (w === 'early_morning') return h < 8;
+            if (w === 'morning') return h >= 8 && h < 11;
+            if (w === 'midday') return h >= 11 && h < 14;
+            if (w === 'afternoon') return h >= 14 && h < 18;
+            if (w === 'evening') return h >= 18 && h < 21;
+            if (w === 'late_evening') return h >= 21;
+            return false;
+          });
+        }) ?? null
+      : walkTimes[0] ?? null;
+    if (linked) return linked;
+  }
+  const windows = prefs.preferredTrainingWindows[day];
+  if (windows?.length) return WINDOW_DEFAULT_TIMES[windows[0]!] ?? '19:00';
+  return '19:00';
+}
+
+function findDateForWeekdayServer(startDate: Date, weekday: Weekday, allowToday = false): Date {
+  let offset = (weekdayIdx(weekday) - weekdayIdx(weekdayFromDate(startDate)) + 7) % 7;
+  if (offset === 0 && !allowToday) offset = 7;
+  return addDaysServer(startDate, offset);
+}
+
+function isBlockedDateServer(date: Date, prefs: TrainingSchedulePrefs): boolean {
+  return prefs.blockedDates.includes(toDateKeyServer(date)) || prefs.blockedDays.includes(weekdayFromDate(date));
+}
+
+function findNextAvailableDateServer(startDate: Date, day: Weekday, prefs: TrainingSchedulePrefs, occupied: Set<string>, allowToday = false): Date {
+  let candidate = findDateForWeekdayServer(startDate, day, allowToday);
+  while (isBlockedDateServer(candidate, prefs) || occupied.has(toDateKeyServer(candidate))) {
+    candidate = addDaysServer(candidate, 7);
+  }
+  return candidate;
+}
+
+function applySpacingServer(sessions: Record<string, unknown>[], intensity: ScheduleIntensity): Record<string, unknown>[] {
+  if (sessions.length < 2) return sessions;
+  const adjusted = sessions.map((s) => ({ ...s }));
+  const minGap = intensity === 'gentle' ? 2 : 1;
+  for (let i = 1; i < adjusted.length; i++) {
+    const prev = adjusted[i - 1]!;
+    const cur = adjusted[i]!;
+    if (!prev.scheduledDate || !cur.scheduledDate) continue;
+    const prevDate = parseDateServer(prev.scheduledDate as string);
+    const curDate = parseDateServer(cur.scheduledDate as string);
+    const gapDays = Math.round((curDate.getTime() - prevDate.getTime()) / 86400000);
+    const bothLong = (prev.durationMinutes as number) >= 12 && (cur.durationMinutes as number) >= 12;
+    if (bothLong || gapDays < minGap) {
+      const shifted = addDaysServer(curDate, minGap - gapDays + (bothLong ? 1 : 0));
+      cur.scheduledDate = toDateKeyServer(shifted);
+      cur.scheduledDay = weekdayFromDate(shifted);
+    }
+  }
+  return adjusted;
+}
+
+function buildWeeklyScheduleServer(sessions: Record<string, unknown>[], sessionsPerWeek: number, availableDaysPerWeek: number, prefs: TrainingSchedulePrefs, goal?: string): Record<string, unknown>[] {
+  const rawDays = chooseTrainingDaysServer(sessionsPerWeek, availableDaysPerWeek, prefs);
+  const todayWeekday = weekdayFromDate(new Date());
+  const todayIdx = weekdayIdx(todayWeekday);
+  const startIdx = rawDays.findIndex((d) => weekdayIdx(d) >= todayIdx);
+  const trainingDays = startIdx === -1 ? rawDays : [...rawDays.slice(startIdx), ...rawDays.slice(0, startIdx)];
+
+  const occupied = new Set<string>();
+  const startDate = new Date();
+  startDate.setHours(12, 0, 0, 0);
+
+  const scheduled = sessions.map((session, index) => {
+    const day = trainingDays[index % trainingDays.length]!;
+    const weekOffset = Math.floor(index / trainingDays.length) * 7;
+    const base = addDaysServer(startDate, weekOffset);
+    const scheduledDate = findNextAvailableDateServer(base, day, prefs, occupied, index === 0);
+    const dateKey = toDateKeyServer(scheduledDate);
+    occupied.add(dateKey);
+    return {
+      ...session,
+      scheduledDay: weekdayFromDate(scheduledDate),
+      scheduledDate: dateKey,
+      scheduledTime: chooseTimeForDayServer(day, prefs, goal),
+      isReschedulable: prefs.scheduleFlexibility !== 'skip',
+      autoRescheduledFrom: null,
+    };
+  });
+
+  return applySpacingServer(scheduled, prefs.scheduleIntensity).sort((a, b) => {
+    const dc = ((a.scheduledDate as string) ?? '').localeCompare((b.scheduledDate as string) ?? '');
+    return dc !== 0 ? dc : ((a.scheduledTime as string) ?? '').localeCompare((b.scheduledTime as string) ?? '');
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -348,7 +578,7 @@ function compilePlanServer(
   dog: DogRow,
   nodeMap: Map<string, SkillNodeRow>,
 ): { sessions: unknown[]; metadata: Record<string, unknown>; currentStage: string } {
-  const sessions: unknown[] = [];
+  const rawSessions: Record<string, unknown>[] = [];
   let idx = 0;
 
   for (const week of output.weeklyStructure) {
@@ -363,7 +593,7 @@ function compilePlanServer(
       for (let rep = 0; rep < sel.sessionCount; rep++) {
         dayInWeek++;
         idx++;
-        sessions.push({
+        rawSessions.push({
           id: `session_${idx}`,
           exerciseId: protocolId,
           weekNumber: week.weekNumber,
@@ -380,6 +610,15 @@ function compilePlanServer(
       }
     }
   }
+
+  const prefs = buildPrefsFromDog(dog);
+  const sessions = buildWeeklyScheduleServer(
+    rawSessions,
+    output.sessionsPerWeek,
+    dog.available_days_per_week,
+    prefs,
+    dog.behavior_goals[0],
+  );
 
   const startNode = nodeMap.get(output.startingSkillId);
   const currentStage = startNode
@@ -486,13 +725,13 @@ function generateFallbackPlan(dog: DogRow) {
   const totalWeeks = 4;
   const sequences = SEQUENCES[goalKey] ?? SEQUENCES.leash_pulling;
 
-  const sessions: unknown[] = [];
+  const rawSessions: Record<string, unknown>[] = [];
   let idx = 0;
   for (let week = 1; week <= totalWeeks; week++) {
     for (let day = 1; day <= sessionsPerWeek; day++) {
       const [exerciseId, title, duration] = sequences[idx % sequences.length];
       idx++;
-      sessions.push({
+      rawSessions.push({
         id: `session_${idx}`,
         exerciseId,
         weekNumber: week,
@@ -503,6 +742,9 @@ function generateFallbackPlan(dog: DogRow) {
       });
     }
   }
+
+  const prefs = buildPrefsFromDog(dog);
+  const sessions = buildWeeklyScheduleServer(rawSessions, sessionsPerWeek, dog.available_days_per_week, prefs, goalKey);
 
   const lifecycle = dog.lifecycle_stage || 'adult';
   const currentStage =
