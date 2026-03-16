@@ -9,6 +9,7 @@ import type {
   SkillEdge,
   SkillNode,
 } from '../types/index.ts';
+import type { Protocol, LiveCoachingConfig } from '../constants/protocols.ts';
 
 function asWeekdayArray(value: unknown): Dog['preferredTrainingDays'] {
   return Array.isArray(value) ? (value.filter((item): item is Dog['preferredTrainingDays'][number] => typeof item === 'string') as Dog['preferredTrainingDays']) : [];
@@ -158,5 +159,49 @@ export function mapInAppNotificationRowToModel(data: Record<string, unknown>): I
     isRead: data.is_read === true,
     createdAt: String(data.created_at),
     readAt: typeof data.read_at === 'string' ? data.read_at : null,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Protocol row mapper
+//
+// Maps a Supabase `protocols` table row to the Protocol type defined in
+// constants/protocols.ts.  Used when protocols are fetched from the DB rather
+// than imported from the constants file (e.g. for admin tooling or dynamic
+// protocol delivery).
+//
+// Legacy rows that predate PR16 will have:
+//   supports_live_pose_coaching = false  (column default)
+//   live_coaching_config = null          (column default)
+// Both cases are handled gracefully.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function mapProtocolRowToProtocol(data: Record<string, unknown>): Protocol {
+  return {
+    id:                   String(data.id),
+    behavior:             String(data.behavior),
+    stage:                (data.stage as Protocol['stage']),
+    title:                String(data.title),
+    objective:            String(data.objective),
+    durationMinutes:      Number(data.duration_minutes),
+    repCount:             Number(data.rep_count),
+    steps:                Array.isArray(data.steps) ? (data.steps as Protocol['steps']) : [],
+    successCriteria:      String(data.success_criteria),
+    commonMistakes:       Array.isArray(data.common_mistakes) ? (data.common_mistakes as string[]) : [],
+    equipmentNeeded:      Array.isArray(data.equipment_needed) ? (data.equipment_needed as string[]) : [],
+    ageMinMonths:         Number(data.age_min_months),
+    ageMaxMonths:         Number(data.age_max_months),
+    difficulty:           (data.difficulty as Protocol['difficulty']),
+    nextProtocolId:       typeof data.next_protocol_id === 'string' ? data.next_protocol_id : null,
+    trainerNote:          String(data.trainer_note),
+    // PR16 live coaching fields — default to disabled for legacy rows
+    supportsLivePoseCoaching:
+      data.supports_live_pose_coaching === true,
+    liveCoachingConfig:
+      data.supports_live_pose_coaching === true &&
+      data.live_coaching_config !== null &&
+      typeof data.live_coaching_config === 'object'
+        ? (data.live_coaching_config as LiveCoachingConfig)
+        : null,
   };
 }

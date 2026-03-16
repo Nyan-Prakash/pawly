@@ -1,3 +1,5 @@
+import type { PostureLabel, TrackingQuality } from '../types/pose'
+
 export interface ProtocolStep {
   order: number
   instruction: string
@@ -5,6 +7,157 @@ export interface ProtocolStep {
   reps: number | null
   tip: string | null
   successLook: string
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Live Pose Coaching Config
+//
+// Attached to a Protocol when supportsLivePoseCoaching = true.
+// All fields must round-trip cleanly through JSONB (no Date objects, no Sets).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * How the coaching engine should interpret pose events for this exercise.
+ *
+ * - stationary_hold      : dog must stay in a single posture for a target
+ *                          duration (sit-stay, down-stay, settle).
+ * - transition_detection : dog must move between two postures on cue
+ *                          (sit → down, stand → sit).
+ * - position_precision   : dog must reach a specific body position and hold it
+ *                          briefly (used for future precision-position exercises).
+ */
+export type LiveCoachingMode =
+  | 'stationary_hold'
+  | 'transition_detection'
+  | 'position_precision'
+
+/**
+ * Tuning profile for the stabilizer / feature extractor.
+ *
+ * - stationary  : expect very low motion; tighter outlier rejection, higher
+ *                 hold-time thresholds.
+ * - general     : default settings; suitable for most exercises.
+ * - transition  : expect deliberate position changes; more permissive during
+ *                 the transition window.
+ */
+export type StabilizationProfile = 'stationary' | 'general' | 'transition'
+
+/**
+ * A rule that marks a rep as successfully completed.
+ * Discriminated union on `type` so each variant is fully typed.
+ */
+export type CoachingSuccessRule =
+  | {
+      /** Dog held the target posture for at least `minHoldMs` milliseconds. */
+      type: 'hold_duration'
+      postureLabel: Exclude<PostureLabel, 'unknown'>
+      minHoldMs: number
+      description: string
+    }
+  | {
+      /** Dog transitioned from `fromPosture` to `toPosture` within the window. */
+      type: 'posture_transition'
+      fromPosture: Exclude<PostureLabel, 'unknown'>
+      toPosture: Exclude<PostureLabel, 'unknown'>
+      maxTransitionMs: number
+      description: string
+    }
+  | {
+      /** Dog completed N confirmed reps of entering the target posture. */
+      type: 'rep_count'
+      postureLabel: Exclude<PostureLabel, 'unknown'>
+      count: number
+      description: string
+    }
+
+/**
+ * A rule that causes the current rep attempt to be reset / failed.
+ */
+export type CoachingResetRule =
+  | {
+      /** Dog exited the target posture before the success condition was met. */
+      type: 'broke_posture'
+      postureLabel: Exclude<PostureLabel, 'unknown'>
+      description: string
+    }
+  | {
+      /** Dog moved significantly (per motion score threshold) during a hold. */
+      type: 'significant_motion'
+      description: string
+    }
+  | {
+      /** Dog's tracking quality dropped to poor for too long during the rep. */
+      type: 'tracking_lost'
+      description: string
+    }
+
+/**
+ * Full configuration for live camera coaching on a single protocol.
+ *
+ * Stored as JSONB in `protocols.live_coaching_config`.
+ * Must be non-null when `supports_live_pose_coaching = true`.
+ */
+export interface LiveCoachingConfig {
+  /** Coaching mode — determines how pose events are interpreted. */
+  mode: LiveCoachingMode
+
+  /**
+   * The posture labels that are meaningful for this exercise.
+   * The coaching engine will only emit events for these postures.
+   */
+  targetPostures: Exclude<PostureLabel, 'unknown'>[]
+
+  /**
+   * Minimum tracking quality required to run the coaching engine.
+   * Below this threshold the engine pauses and shows a "tracking lost" state.
+   */
+  minTrackingQuality: TrackingQuality
+
+  /**
+   * Minimum classifier confidence (0–1) before a posture observation is
+   * forwarded to the coaching engine.  Below this threshold the frame is
+   * treated as 'unknown'.
+   */
+  minPostureConfidence: number
+
+  /**
+   * Which stabilizer tuning profile to use for this exercise.
+   * Passed directly to the stabilizer at session start.
+   */
+  stabilizationProfile: StabilizationProfile
+
+  /**
+   * Ordered list of conditions that mark one rep as successfully completed.
+   * The engine evaluates them in order; the first matching rule fires success.
+   */
+  successRules: CoachingSuccessRule[]
+
+  /**
+   * Conditions that cause the current rep attempt to be abandoned / reset.
+   * All reset rules are evaluated every frame after a rep starts.
+   */
+  resetRules: CoachingResetRule[]
+
+  /**
+   * Short feedback strings shown to the user during coaching.
+   * Supports simple template tokens: {dog_name}, {hold_seconds}, {rep_count}.
+   * The coaching engine picks the most contextually appropriate one.
+   */
+  feedbackTemplates: string[]
+
+  /**
+   * For stationary_hold mode: target hold duration in milliseconds.
+   * Used by the UI progress ring and success rule evaluation.
+   * Optional — if omitted the successRules hold_duration value is used.
+   */
+  holdDurationMs?: number
+
+  /**
+   * For rep-based exercises: how many successful reps are needed to
+   * complete the coached portion of the session.
+   * Optional — if omitted the protocol's repCount is used.
+   */
+  requiredRepCount?: number
 }
 
 export interface Protocol {
@@ -24,6 +177,10 @@ export interface Protocol {
   difficulty: 1 | 2 | 3 | 4 | 5
   nextProtocolId: string | null
   trainerNote: string
+  /** Whether this protocol supports optional live camera pose coaching. */
+  supportsLivePoseCoaching: boolean
+  /** Full coaching configuration. Non-null iff supportsLivePoseCoaching = true. */
+  liveCoachingConfig: LiveCoachingConfig | null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,7 +249,9 @@ const llw_stage1: Protocol = {
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'llw_s2',
-  trainerNote: 'This exercise looks boring but it is the single most important foundation for leash manners. Dogs that check in reliably are dogs that can be guided through distractions. Spend at least 3 sessions here before advancing.'
+  trainerNote: 'This exercise looks boring but it is the single most important foundation for leash manners. Dogs that check in reliably are dogs that can be guided through distractions. Spend at least 3 sessions here before advancing.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const llw_stage2: Protocol = {
@@ -157,7 +316,9 @@ const llw_stage2: Protocol = {
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'llw_s3',
-  trainerNote: 'Most owners see improvement within 3–5 sessions. The hard part is consistency: every single walk, every single person in the household must follow the same rule. One person walking forward on tension undoes a week of training.'
+  trainerNote: 'Most owners see improvement within 3–5 sessions. The hard part is consistency: every single walk, every single person in the household must follow the same rule. One person walking forward on tension undoes a week of training.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const llw_stage3: Protocol = {
@@ -222,7 +383,9 @@ const llw_stage3: Protocol = {
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'By Stage 3, your dog should walk nicely on quiet streets. Busy streets, other dogs, and high-distraction environments require months of practice and are a separate advanced module.'
+  trainerNote: 'By Stage 3, your dog should walk nicely on quiet streets. Busy streets, other dogs, and high-distraction environments require months of practice and are a separate advanced module.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -283,7 +446,9 @@ const recall_stage1: Protocol = {
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'recall_s2',
-  trainerNote: 'Never call your dog\'s name to do something they dislike until the recall is bombproof. Every time you call and they come to something bad, you lose a little reliability. Protect the name cue like it is gold.'
+  trainerNote: 'Never call your dog\'s name to do something they dislike until the recall is bombproof. Every time you call and they come to something bad, you lose a little reliability. Protect the name cue like it is gold.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const recall_stage2: Protocol = {
@@ -340,7 +505,9 @@ const recall_stage2: Protocol = {
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'recall_s3',
-  trainerNote: 'The recall cue must be "charged" with many more positive reps than you think before going outdoors. Ten indoor sessions is a minimum before attempting outdoor recall.'
+  trainerNote: 'The recall cue must be "charged" with many more positive reps than you think before going outdoors. Ten indoor sessions is a minimum before attempting outdoor recall.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const recall_stage3: Protocol = {
@@ -405,7 +572,9 @@ const recall_stage3: Protocol = {
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'True off-leash recall in an unfenced area takes 6–12 months of consistent work and is outside the scope of this plan. The long-line protocol here builds the foundation safely. Only practice off-leash in fully enclosed, secure areas.'
+  trainerNote: 'True off-leash recall in an unfenced area takes 6–12 months of consistent work and is outside the scope of this plan. The long-line protocol here builds the foundation safely. Only practice off-leash in fully enclosed, secure areas.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -466,7 +635,9 @@ const jumping_stage1: Protocol = {
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'jumping_s2',
-  trainerNote: 'This protocol requires household-wide buy-in. The #1 reason it fails is one family member who "doesn\'t mind" the jumping. Address this directly with everyone in the home.'
+  trainerNote: 'This protocol requires household-wide buy-in. The #1 reason it fails is one family member who "doesn\'t mind" the jumping. Address this directly with everyone in the home.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const jumping_stage2: Protocol = {
@@ -531,7 +702,9 @@ const jumping_stage2: Protocol = {
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'jumping_s3',
-  trainerNote: 'The auto-sit is one of the most practical behaviors you can teach. A dog that automatically sits for greetings is a social superstar. Celebrate this with your guests — it makes training feel real.'
+  trainerNote: 'The auto-sit is one of the most practical behaviors you can teach. A dog that automatically sits for greetings is a social superstar. Celebrate this with your guests — it makes training feel real.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const jumping_stage3: Protocol = {
@@ -588,7 +761,9 @@ const jumping_stage3: Protocol = {
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Real-world generalization requires dozens of rehearsed interactions. Consider carrying treats on every walk for 4 weeks and asking strangers to participate in greeting rehearsals. This effort compounds — the dog gets better every single repetition.'
+  trainerNote: 'Real-world generalization requires dozens of rehearsed interactions. Consider carrying treats on every walk for 4 weeks and asking strangers to participate in greeting rehearsals. This effort compounds — the dog gets better every single repetition.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -657,7 +832,9 @@ const potty_stage1: Protocol = {
   ageMaxMonths: 36,
   difficulty: 1,
   nextProtocolId: 'potty_s2',
-  trainerNote: 'Potty training is 90% management, 10% training. The most important tool is preventing accidents through supervision. Every accident that happens unsupervised is a practice of the wrong behavior. Your goal is zero indoor accidents for 4 consecutive weeks.'
+  trainerNote: 'Potty training is 90% management, 10% training. The most important tool is preventing accidents through supervision. Every accident that happens unsupervised is a practice of the wrong behavior. Your goal is zero indoor accidents for 4 consecutive weeks.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const potty_stage2: Protocol = {
@@ -714,7 +891,9 @@ const potty_stage2: Protocol = {
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'potty_s3',
-  trainerNote: 'Some dogs will ring the bell obsessively for attention or to go play outside. If this happens, only reward the bell ring if it is followed by actual elimination outdoors. Ignore bell rings that result in no elimination after 2 minutes outside.'
+  trainerNote: 'Some dogs will ring the bell obsessively for attention or to go play outside. If this happens, only reward the bell ring if it is followed by actual elimination outdoors. Ignore bell rings that result in no elimination after 2 minutes outside.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const potty_stage3: Protocol = {
@@ -771,7 +950,9 @@ const potty_stage3: Protocol = {
   ageMaxMonths: 36,
   difficulty: 2,
   nextProtocolId: null,
-  trainerNote: 'Potty training is considered "complete" when the dog has had zero accidents for 30 consecutive days with supervised indoor freedom. Some dogs achieve this at 5 months; others at 12 months. Individual variation is normal and not a sign of a slow learner.'
+  trainerNote: 'Potty training is considered "complete" when the dog has had zero accidents for 30 consecutive days with supervised indoor freedom. Some dogs achieve this at 5 months; others at 12 months. Individual variation is normal and not a sign of a slow learner.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -832,7 +1013,9 @@ const crate_stage1: Protocol = {
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'crate_s2',
-  trainerNote: 'The right crate size is critical. The crate should be just large enough for the dog to stand fully, turn around, and lie down stretched out. A crate that is too large allows the dog to eliminate in one corner and sleep in another — undermining potty training.'
+  trainerNote: 'The right crate size is critical. The crate should be just large enough for the dog to stand fully, turn around, and lie down stretched out. A crate that is too large allows the dog to eliminate in one corner and sleep in another — undermining potty training.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const crate_stage2: Protocol = {
@@ -889,7 +1072,9 @@ const crate_stage2: Protocol = {
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'crate_s3',
-  trainerNote: 'Puppies under 4 months should not be crated for more than 1–2 hours at a time (not including overnight). Their bladders physically cannot hold longer. Adjust expectations based on age.'
+  trainerNote: 'Puppies under 4 months should not be crated for more than 1–2 hours at a time (not including overnight). Their bladders physically cannot hold longer. Adjust expectations based on age.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const crate_stage3: Protocol = {
@@ -946,7 +1131,9 @@ const crate_stage3: Protocol = {
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'The goal of crate training is always a dog who chooses the crate voluntarily for naps and rest. Once this happens — and it will — the crate has become a true safe space. Many dogs continue to use their crate throughout their lives even when the door is left open.'
+  trainerNote: 'The goal of crate training is always a dog who chooses the crate voluntarily for naps and rest. Once this happens — and it will — the crate has become a true safe space. Many dogs continue to use their crate throughout their lives even when the door is left open.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1015,7 +1202,9 @@ const biting_stage1: Protocol = {
   ageMaxMonths: 18,
   difficulty: 1,
   nextProtocolId: 'biting_s2',
-  trainerNote: 'Puppy biting peaks between 10 and 16 weeks and typically improves significantly by 5–6 months when adult teeth come in. Consistency in the next 8 weeks is what separates dogs with reliable bite inhibition from those who continue to mouth as adults.'
+  trainerNote: 'Puppy biting peaks between 10 and 16 weeks and typically improves significantly by 5–6 months when adult teeth come in. Consistency in the next 8 weeks is what separates dogs with reliable bite inhibition from those who continue to mouth as adults.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const biting_stage2: Protocol = {
@@ -1072,7 +1261,9 @@ const biting_stage2: Protocol = {
   ageMaxMonths: 18,
   difficulty: 2,
   nextProtocolId: 'biting_s3',
-  trainerNote: 'At this stage, you want to be decreasing the overall intensity of biting — both frequency and pressure. A puppy who bites hard 5 times a day is worse than one who bites softly 15 times. Track both metrics.'
+  trainerNote: 'At this stage, you want to be decreasing the overall intensity of biting — both frequency and pressure. A puppy who bites hard 5 times a day is worse than one who bites softly 15 times. Track both metrics.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 const biting_stage3: Protocol = {
@@ -1128,7 +1319,9 @@ const biting_stage3: Protocol = {
   ageMaxMonths: 24,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'True bite inhibition — where a dog can put their mouth on skin but will not apply pressure — is built through all three stages. A dog that has never learned to control bite pressure is a liability. A dog with excellent bite inhibition is a safe companion for children, strangers, and veterinary care.'
+  trainerNote: 'True bite inhibition — where a dog can put their mouth on skin but will not apply pressure — is built through all three stages. A dog that has never learned to control bite pressure is a liability. A dog with excellent bite inhibition is a safe companion for children, strangers, and veterinary care.',
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1189,7 +1382,42 @@ const settle_stage1: Protocol = {
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'settle_s2',
-  trainerNote: 'The settle cue is one of the most practical and versatile cues in training. A dog that can settle on cue can be managed in virtually any environment — restaurants, offices, friends\' homes, waiting rooms. Invest in building this cue solidly.'
+  trainerNote: 'The settle cue is one of the most practical and versatile cues in training. A dog that can settle on cue can be managed in virtually any environment — restaurants, offices, friends\' homes, waiting rooms. Invest in building this cue solidly.',
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'stationary_hold',
+    targetPostures: ['down'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.45,
+    stabilizationProfile: 'stationary',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'down',
+        minHoldMs: 5000,
+        description: 'Dog holds a down position for at least 5 seconds',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'down',
+        description: 'Dog breaks the down — rep resets',
+      },
+      {
+        type: 'significant_motion',
+        description: 'Dog moves significantly while in down',
+      },
+    ],
+    feedbackTemplates: [
+      'Nice! {dog_name} is holding the down.',
+      'Good settle! Keep rewarding on the mat.',
+      '{dog_name} got up — calmly lure back and try again.',
+      'That was {hold_seconds}s — great start!',
+    ],
+    holdDurationMs: 5000,
+    requiredRepCount: 8,
+  },
 }
 
 const settle_stage2: Protocol = {
@@ -1245,7 +1473,42 @@ const settle_stage2: Protocol = {
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'settle_s3',
-  trainerNote: 'The settle cue is naturally self-reinforcing once the dog understands it — a settled dog gets ignored, which is exactly what many dogs want. Over time the treat schedule can fade dramatically for many dogs once the habit is established.'
+  trainerNote: 'The settle cue is naturally self-reinforcing once the dog understands it — a settled dog gets ignored, which is exactly what many dogs want. Over time the treat schedule can fade dramatically for many dogs once the habit is established.',
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'stationary_hold',
+    targetPostures: ['down'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.45,
+    stabilizationProfile: 'stationary',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'down',
+        minHoldMs: 30000,
+        description: 'Dog holds a down position for at least 30 seconds',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'down',
+        description: 'Dog breaks the down — rep resets',
+      },
+      {
+        type: 'significant_motion',
+        description: 'Dog moves significantly while in down',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} is settled — keep treating on the mat.',
+      '30 seconds! Great hold.',
+      '{dog_name} got up — lure back calmly, no scolding.',
+      'Reduce distraction level if {dog_name} is breaking frequently.',
+    ],
+    holdDurationMs: 30000,
+    requiredRepCount: 6,
+  },
 }
 
 const settle_stage3: Protocol = {
@@ -1302,6 +1565,9 @@ const settle_stage3: Protocol = {
   difficulty: 3,
   nextProtocolId: null,
   trainerNote: 'A dog that can place on cue from another room and hold for 10+ minutes is genuinely life-changing for most owners. It allows you to have guests, dinner parties, work calls, and veterinary visits without constant management. This is one of the highest-ROI behaviors in this entire program.'
+,
+  supportsLivePoseCoaching: false,
+  liveCoachingConfig: null,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -87,3 +87,78 @@ export interface PoseObservation {
   sourceWidth?: number;
   sourceHeight?: number;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stabilized pose types
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Raw observation directly from the model decoder, before any stabilization. */
+export type RawPoseObservation = PoseObservation;
+
+/** Per-keypoint tracking lifecycle state. */
+export type KeypointTrackingStatus = 'tracked' | 'held' | 'missing';
+
+/** Classified dog posture. */
+export type PostureLabel = 'sit' | 'down' | 'stand' | 'unknown';
+
+/**
+ * Human-readable overall tracking quality.
+ *
+ * - 'good'  — most keypoints visible, high confidence, low dropout rate
+ * - 'fair'  — partial visibility or moderate dropout
+ * - 'poor'  — few keypoints visible, low confidence, or sustained dropout
+ */
+export type TrackingQuality = 'good' | 'fair' | 'poor';
+
+/**
+ * A single smoothed and validated keypoint with lifecycle metadata.
+ *
+ * @property name          - Semantic label (same as PoseKeypoint.name).
+ * @property index         - Keypoint index 0-23.
+ * @property x             - Smoothed normalised x in [0, 1].
+ * @property y             - Smoothed normalised y in [0, 1].
+ * @property score         - Smoothed confidence in [0, 1].
+ * @property status        - Whether this point is actively tracked, held from
+ *                           a recent frame, or has been missing too long.
+ * @property heldFrames    - How many consecutive frames this point has been
+ *                           held (0 when status is 'tracked').
+ */
+export interface StabilizedKeypoint {
+  name: DogKeypointName;
+  index: number;
+  x: number;
+  y: number;
+  score: number;
+  status: KeypointTrackingStatus;
+  heldFrames: number;
+}
+
+/**
+ * The stabilized output of one camera frame after smoothing, outlier
+ * rejection, dropout handling, and quality classification.
+ *
+ * @property keypoints         - 24 entries, one per model keypoint.
+ *                               Missing keypoints are still present in the
+ *                               array but have status 'missing'.
+ * @property confidence        - Detection confidence of the underlying
+ *                               raw observation, or 0 if fully dropped out.
+ * @property trackingQuality   - Global quality classification.
+ * @property bodyCenter        - Estimated center of the dog's body in
+ *                               normalised coords, derived from torso anchors.
+ *                               null when not enough anchors are visible.
+ * @property bodyAngle         - Estimated body orientation in radians
+ *                               (withers→tail_start vector). null when not
+ *                               derivable.
+ * @property timestamp         - Unix ms timestamp of the underlying frame.
+ * @property isDropout         - true when no detection was received this frame
+ *                               (keypoints are all held or missing).
+ */
+export interface StabilizedPoseObservation {
+  keypoints: StabilizedKeypoint[];
+  confidence: number;
+  trackingQuality: TrackingQuality;
+  bodyCenter: { x: number; y: number } | null;
+  bodyAngle: number | null;
+  timestamp: number;
+  isDropout: boolean;
+}
