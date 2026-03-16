@@ -4,6 +4,8 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 import { captureEvent } from '@/lib/analytics';
 import { generatePlan } from '@/lib/planGenerator';
+import { generateAdaptivePlanWithOptions } from '@/lib/adaptivePlanning/initialPlanner';
+import { isAdaptivePlanningEnabled } from '@/lib/adaptivePlanning/featureFlags';
 import {
   buildScheduleSummary,
   normalizeTrainingSchedulePrefs,
@@ -65,7 +67,10 @@ interface OnboardingStore extends OnboardingData {
   nextStep: () => void;
   prevStep: () => void;
   reset: () => void;
-  submitOnboarding: (userId: string) => Promise<{ dogId: string; planId: string; plan: Plan; dog: Dog }>;
+  submitOnboarding: (
+    userId: string,
+    options?: { accessToken?: string | null }
+  ) => Promise<{ dogId: string; planId: string; plan: Plan; dog: Dog }>;
 }
 
 const defaults: OnboardingData = {
@@ -230,7 +235,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
 
       reset: () => set(defaults),
 
-      submitOnboarding: async (userId: string) => {
+      submitOnboarding: async (userId: string, options?: { accessToken?: string | null }) => {
         const state = get();
 
         const lifecycleStage =
@@ -319,7 +324,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
         }
 
         const dog = buildDogFromState(state, userId, dogId, lifecycleStage);
-        const plan = generatePlan(dog);
+
         captureEvent('onboarding_schedule_preferences_set', {
           daysPerWeek: state.availableDaysPerWeek,
           sessionStyle: state.sessionStyle,
@@ -327,30 +332,87 @@ export const useOnboardingStore = create<OnboardingStore>()(
           scheduleIntensity: state.scheduleIntensity,
         });
 
-        const { data: planData, error: planError } = await supabase
-          .from('plans')
-          .insert({
-            dog_id: dogId,
-            goal: plan.goal,
-            status: plan.status,
-            duration_weeks: plan.durationWeeks,
-            sessions_per_week: plan.sessionsPerWeek,
-            current_week: plan.currentWeek,
-            current_stage: plan.currentStage,
-            sessions: plan.sessions,
-            metadata: plan.metadata ?? {},
-          })
-          .select('id')
-          .single();
+        let plan: Plan;
+        let planId: string;
 
-        if (planError || !planData) throw planError ?? new Error('Failed to create plan record');
+        if (isAdaptivePlanningEnabled()) {
+          // Adaptive path: call Edge Function which handles AI + validation + insert
+          try {
+            const result = await generateAdaptivePlanWithOptions(dog, {
+              accessToken: options?.accessToken ?? null,
+            });
+            plan = result.plan;
+            planId = plan.id;
 
-        const planId = planData.id as string;
-        captureEvent('plan_schedule_generated', {
-          dogId,
-          planId,
-          scheduledSessions: plan.sessions.filter((session) => session.scheduledDate).length,
-        });
+            captureEvent('plan_schedule_generated', {
+              dogId,
+              planId,
+              plannerMode: result.plannerMode,
+              scheduledSessions: plan.sessions.filter((session: any) => session.scheduledDate).length,
+              fallbackReason: result.fallbackReason,
+            });
+          } catch (adaptiveErr) {
+            console.warn('[onboarding] Adaptive planner failed, using rules fallback:', adaptiveErr);
+            // Fallback to rules-based
+            plan = generatePlan(dog);
+
+            const { data: planData, error: planError } = await supabase
+              .from('plans')
+              .insert({
+                dog_id: dogId,
+                goal: plan.goal,
+                status: plan.status,
+                duration_weeks: plan.durationWeeks,
+                sessions_per_week: plan.sessionsPerWeek,
+                current_week: plan.currentWeek,
+                current_stage: plan.currentStage,
+                sessions: plan.sessions,
+                metadata: { ...(plan.metadata ?? {}), plannerMode: 'rules_fallback', fallbackReason: String(adaptiveErr) },
+              })
+              .select('id')
+              .single();
+
+            if (planError || !planData) throw planError ?? new Error('Failed to create plan record');
+            planId = planData.id as string;
+            plan = { ...plan, id: planId };
+
+            captureEvent('plan_schedule_generated', {
+              dogId,
+              planId,
+              plannerMode: 'rules_fallback',
+              scheduledSessions: plan.sessions.filter((session) => session.scheduledDate).length,
+            });
+          }
+        } else {
+          // Rules-based path (original)
+          plan = generatePlan(dog);
+
+          const { data: planData, error: planError } = await supabase
+            .from('plans')
+            .insert({
+              dog_id: dogId,
+              goal: plan.goal,
+              status: plan.status,
+              duration_weeks: plan.durationWeeks,
+              sessions_per_week: plan.sessionsPerWeek,
+              current_week: plan.currentWeek,
+              current_stage: plan.currentStage,
+              sessions: plan.sessions,
+              metadata: plan.metadata ?? {},
+            })
+            .select('id')
+            .single();
+
+          if (planError || !planData) throw planError ?? new Error('Failed to create plan record');
+          planId = planData.id as string;
+          plan = { ...plan, id: planId };
+
+          captureEvent('plan_schedule_generated', {
+            dogId,
+            planId,
+            scheduledSessions: plan.sessions.filter((session) => session.scheduledDate).length,
+          });
+        }
 
         // Non-blocking — user_profiles FK may also race with auth.users visibility
         supabase.from('user_profiles').upsert({
@@ -377,7 +439,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
           dogId,
           planId,
           dog,
-          plan: { ...plan, id: planId },
+          plan: plan.id ? plan : { ...plan, id: planId },
         };
       },
     }),

@@ -8,6 +8,8 @@ import {
 } from '@/lib/scheduleEngine';
 import type { Dog, NotificationPrefs, Plan, PlanSession } from '@/types';
 
+export { didUpcomingScheduleChange } from '@/lib/planScheduleDiff';
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,

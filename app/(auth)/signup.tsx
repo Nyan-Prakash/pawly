@@ -97,7 +97,9 @@ export default function SignUpScreen() {
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
         });
-        const { dogId, dog, plan } = await submitOnboarding(data.session.user.id);
+        const { dogId, dog, plan } = await submitOnboarding(data.session.user.id, {
+          accessToken: data.session.access_token,
+        });
         setDog(dog);
         setActivePlan(plan);
         setActiveDogPlan(plan);

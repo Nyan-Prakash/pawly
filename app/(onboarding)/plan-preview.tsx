@@ -7,6 +7,7 @@ import { AppIcon } from '@/components/ui/AppIcon';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import { PlanReasonCard } from '@/components/adaptive/PlanReasonCard';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { useOnboardingStore } from '@/stores/onboardingStore';
@@ -17,7 +18,7 @@ import { formatDisplayTime } from '@/lib/scheduleEngine';
 import { mapPlanRowToPlan } from '@/lib/modelMappers';
 import { supabase } from '@/lib/supabase';
 import { usePlanStore } from '@/stores/planStore';
-import type { Plan } from '@/types';
+import type { AdaptivePlanMetadata, Plan } from '@/types';
 
 const LOADING_MESSAGES = [
   'Analyzing your dog\'s profile…',
@@ -175,6 +176,9 @@ export default function PlanPreviewScreen() {
     [createdPlan]
   );
   const explanationBullets = createdPlan?.metadata?.explanation ?? [];
+  const adaptiveMetadata = createdPlan?.metadata as AdaptivePlanMetadata | undefined;
+  const isAdaptivePlan = adaptiveMetadata?.plannerMode === 'adaptive_ai';
+  const adaptiveSummary = adaptiveMetadata?.planningSummary;
 
   if (loading) {
     return (
@@ -368,6 +372,47 @@ export default function PlanPreviewScreen() {
                   </Text>
                 </View>
               ))}
+            </Animated.View>
+          )}
+
+          {/* Adaptive plan tailored message */}
+          {isAdaptivePlan && adaptiveSummary && (
+            <View style={{ marginBottom: spacing.lg }}>
+              <PlanReasonCard
+                dogName={dogName}
+                summary={adaptiveSummary}
+                profileCaption={[
+                  adaptiveMetadata?.selectedSkillIds?.length
+                    ? `${adaptiveMetadata.selectedSkillIds.length} skills`
+                    : null,
+                  scheduleSummary,
+                ].filter(Boolean).join(' · ')}
+                delay={570}
+              />
+            </View>
+          )}
+          {/* Fallback: show generic "tailored to" message for adaptive plan without full summary */}
+          {isAdaptivePlan && !adaptiveSummary && (
+            <Animated.View
+              entering={FadeInDown.delay(570).duration(400)}
+              style={{
+                backgroundColor: `${colors.primary}08`,
+                borderRadius: 16,
+                padding: spacing.lg,
+                marginBottom: spacing.lg,
+                borderWidth: 1,
+                borderColor: `${colors.primary}30`,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                <AppIcon name="sparkles" size={18} color={colors.primary} />
+                <Text variant="body" style={{ fontWeight: '700', color: colors.primary, marginLeft: spacing.xs }}>
+                  Built for {dogName}
+                </Text>
+              </View>
+              <Text variant="body" style={{ color: colors.textSecondary }}>
+                {"This plan was tailored to " + dogName + "'s age, environment, and current training goal."}
+              </Text>
             </Animated.View>
           )}
 

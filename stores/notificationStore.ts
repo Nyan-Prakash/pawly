@@ -1,6 +1,9 @@
 import { create } from 'zustand';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import { captureEvent } from '@/lib/analytics';
+import { isDuplicatePlanUpdateNotification } from '@/lib/inAppNotifications';
+import { mapInAppNotificationRowToModel } from '@/lib/modelMappers';
 import {
   getNotificationPermissionStatus,
   requestNotificationPermissionIfNeeded,
@@ -9,7 +12,7 @@ import {
 } from '@/lib/notifications';
 import { normalizeNotificationPrefs } from '@/lib/scheduleEngine';
 import { supabase } from '@/lib/supabase';
-import type { Dog, NotificationPrefs, Plan } from '@/types';
+import type { Dog, InAppNotification, InAppNotificationType, NotificationPrefs, Plan } from '@/types';
 
 interface NotificationStore {
   prefs: NotificationPrefs;
@@ -17,12 +20,40 @@ interface NotificationStore {
   permissionStatus: string;
   hasRequestedPermission: boolean;
   isLoading: boolean;
+  items: InAppNotification[];
+  unreadCount: number;
+  isLoadingInbox: boolean;
 
   loadPrefs: (userId: string) => Promise<void>;
   updatePrefs: (userId: string, updates: Partial<NotificationPrefs>) => Promise<void>;
   refreshSchedules: (dog: Dog, plan: Plan) => Promise<void>;
   ensurePermissionAfterMeaningfulAction: () => Promise<void>;
+  fetchInbox: (userId: string) => Promise<void>;
+  addNotification: (input: {
+    userId: string;
+    dogId?: string | null;
+    type: InAppNotificationType;
+    title: string;
+    body: string;
+    metadata?: Record<string, unknown>;
+  }) => Promise<void>;
+  markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: (userId: string) => Promise<void>;
+  hydrateRealtime: (userId: string) => (() => void);
 }
+
+function deriveUnreadCount(items: InAppNotification[]): number {
+  return items.reduce((count, item) => count + (item.isRead ? 0 : 1), 0);
+}
+
+function withDerivedInboxState(items: InAppNotification[]) {
+  return {
+    items,
+    unreadCount: deriveUnreadCount(items),
+  };
+}
+
+let inboxChannel: RealtimeChannel | null = null;
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
   prefs: normalizeNotificationPrefs(),
@@ -30,6 +61,9 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   permissionStatus: 'undetermined',
   hasRequestedPermission: false,
   isLoading: false,
+  items: [],
+  unreadCount: 0,
+  isLoadingInbox: false,
 
   loadPrefs: async (userId) => {
     set({ isLoading: true });
@@ -96,5 +130,176 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       permissionStatus: result.status,
       hasRequestedPermission: true,
     });
+  },
+
+  fetchInbox: async (userId) => {
+    set({ isLoadingInbox: true });
+    try {
+      const { data, error } = await supabase
+        .from('in_app_notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const items = (data ?? []).map((row) =>
+        mapInAppNotificationRowToModel(row as unknown as Record<string, unknown>)
+      );
+      set({
+        ...withDerivedInboxState(items),
+        isLoadingInbox: false,
+      });
+    } catch (error) {
+      console.warn('[notificationStore] fetchInbox error:', error);
+      set({ isLoadingInbox: false });
+    }
+  },
+
+  addNotification: async (input) => {
+    const metadata = input.metadata ?? {};
+
+    const existingDuplicate = get().items.some((item) =>
+      isDuplicatePlanUpdateNotification(item, metadata)
+    );
+    if (existingDuplicate) return;
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from('in_app_notifications')
+      .select('*')
+      .eq('user_id', input.userId)
+      .eq('type', input.type)
+      .order('created_at', { ascending: false })
+      .limit(25);
+
+    if (existingError) throw existingError;
+
+    const duplicateInDb = (existingRows ?? [])
+      .map((row) => mapInAppNotificationRowToModel(row as unknown as Record<string, unknown>))
+      .some((item) => isDuplicatePlanUpdateNotification(item, metadata));
+
+    if (duplicateInDb) return;
+
+    const { data, error } = await supabase
+      .from('in_app_notifications')
+      .insert({
+        user_id: input.userId,
+        dog_id: input.dogId ?? null,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        metadata,
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    const nextItem = mapInAppNotificationRowToModel(data as unknown as Record<string, unknown>);
+    const nextItems = [nextItem, ...get().items.filter((item) => item.id !== nextItem.id)];
+    set(withDerivedInboxState(nextItems));
+  },
+
+  markAsRead: async (notificationId) => {
+    const currentItems = get().items;
+    const existing = currentItems.find((item) => item.id === notificationId);
+    if (!existing || existing.isRead) return;
+
+    const readAt = new Date().toISOString();
+    const optimisticItems = currentItems.map((item) =>
+      item.id === notificationId ? { ...item, isRead: true, readAt } : item
+    );
+    set(withDerivedInboxState(optimisticItems));
+
+    const { error } = await supabase
+      .from('in_app_notifications')
+      .update({
+        is_read: true,
+        read_at: readAt,
+      })
+      .eq('id', notificationId);
+
+    if (error) {
+      console.warn('[notificationStore] markAsRead error:', error);
+      set(withDerivedInboxState(currentItems));
+    }
+  },
+
+  markAllAsRead: async (userId) => {
+    const currentItems = get().items;
+    if (currentItems.every((item) => item.isRead)) return;
+
+    const readAt = new Date().toISOString();
+    const optimisticItems = currentItems.map((item) =>
+      item.isRead ? item : { ...item, isRead: true, readAt }
+    );
+    set(withDerivedInboxState(optimisticItems));
+
+    const { error } = await supabase
+      .from('in_app_notifications')
+      .update({
+        is_read: true,
+        read_at: readAt,
+      })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (error) {
+      console.warn('[notificationStore] markAllAsRead error:', error);
+      set(withDerivedInboxState(currentItems));
+    }
+  },
+
+  hydrateRealtime: (userId) => {
+    if (inboxChannel) {
+      supabase.removeChannel(inboxChannel);
+      inboxChannel = null;
+    }
+
+    inboxChannel = supabase
+      .channel(`in_app_notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'in_app_notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const nextItem = mapInAppNotificationRowToModel(
+            payload.new as unknown as Record<string, unknown>
+          );
+          const items = get().items;
+          if (items.some((item) => item.id === nextItem.id)) return;
+          set(withDerivedInboxState([nextItem, ...items]));
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'in_app_notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const updatedItem = mapInAppNotificationRowToModel(
+            payload.new as unknown as Record<string, unknown>
+          );
+          const nextItems = get().items.map((item) =>
+            item.id === updatedItem.id ? updatedItem : item
+          );
+          set(withDerivedInboxState(nextItems));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      if (inboxChannel) {
+        supabase.removeChannel(inboxChannel);
+        inboxChannel = null;
+      }
+    };
   },
 }));

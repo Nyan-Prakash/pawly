@@ -1,21 +1,29 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppIcon } from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
+import { SessionChangeBadge } from '@/components/adaptive/SessionChangeBadge';
+import { WhyThisChangedSheet } from '@/components/adaptive/WhyThisChangedSheet';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore } from '@/stores/planStore';
 import { formatScheduleLabel, getPlanCompletion, getBehaviorLabel } from '@/lib/scheduleEngine';
-import type { PlanSession } from '@/types';
+import type { PlanAdaptation, PlanSession } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Completion ring (SVG-free, drawn with Views)
@@ -24,12 +32,7 @@ import type { PlanSession } from '@/types';
 function CompletionRing({ percentage }: { percentage: number }) {
   const size = 72;
   const strokeWidth = 7;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const arc = (percentage / 100) * circumference;
 
-  // We approximate the ring with a tinted background circle + foreground arc overlay
-  // using a simple View-based approach that works without SVG
   return (
     <View
       style={{
@@ -43,7 +46,6 @@ function CompletionRing({ percentage }: { percentage: number }) {
         position: 'relative',
       }}
     >
-      {/* Filled arc using an overlay — approximated with a colored border segment */}
       <View
         style={{
           position: 'absolute',
@@ -67,6 +69,228 @@ function CompletionRing({ percentage }: { percentage: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Session Detail Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SessionDetailSheet({
+  session,
+  visible,
+  onClose,
+  onStart,
+  dogName,
+  recentAdaptations,
+}: {
+  session: PlanSession | null;
+  visible: boolean;
+  onClose: () => void;
+  onStart: () => void;
+  dogName: string;
+  recentAdaptations: PlanAdaptation[];
+}) {
+  const [showWhySheet, setShowWhySheet] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  if (!session) return null;
+
+  // Find the adaptation that changed this session (if any)
+  const relatedAdaptation = session.adaptationSource === 'adaptation_engine'
+    ? recentAdaptations.find((a) =>
+        a.status === 'applied' && a.changedSessionIds.includes(session.id)
+      ) ?? recentAdaptations.find((a) => a.status === 'applied') ?? null
+    : null;
+
+  const isAdapted = session.adaptationSource === 'adaptation_engine';
+  const kind = session.sessionKind ?? 'core';
+
+  function skillPathLabel(): string {
+    switch (kind) {
+      case 'regress':  return 'Stepped back from the previous skill to rebuild confidence.';
+      case 'advance':  return 'Moving to a harder version — recent sessions have been strong.';
+      case 'detour':   return 'Taking a different angle on the same skill to reduce frustration.';
+      case 'repeat':   return 'Repeating this skill to deepen the habit before moving on.';
+      case 'proofing': return 'Testing this skill in a more challenging setting.';
+      default:         return 'Following the core progression for this training goal.';
+    }
+  }
+
+  return (
+    <>
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={onClose}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+          onPress={onClose}
+        >
+          <Pressable onPress={() => {}} style={{ width: '100%' }}>
+            <View
+              style={{
+                backgroundColor: colors.bg.surface,
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
+                width: '100%',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Drag handle */}
+              <View
+                style={{
+                  width: 40,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: colors.border.default,
+                  alignSelf: 'center',
+                  marginTop: spacing.md,
+                  marginBottom: spacing.sm,
+                }}
+              />
+
+              <ScrollView
+                style={{ flexGrow: 0, paddingHorizontal: spacing.lg }}
+                contentContainerStyle={{ paddingBottom: spacing.xl}}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Title + badge row */}
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.sm }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text.primary, lineHeight: 28 }}>
+                      {session.title}
+                    </Text>
+                    <Text style={{ fontSize: 13, color: colors.text.secondary, marginTop: 2 }}>
+                      {formatScheduleLabel(session)} · {session.durationMinutes} min
+                    </Text>
+                  </View>
+                  {isAdapted && (
+                    <View style={{ marginTop: 4 }}>
+                      <SessionChangeBadge kind={kind} />
+                    </View>
+                  )}
+                </View>
+
+                {/* Skill path context */}
+                <View
+                  style={{
+                    backgroundColor: colors.bg.surfaceAlt,
+                    borderRadius: radii.md,
+                    padding: spacing.md,
+                    marginBottom: spacing.md,
+                    gap: spacing.xs,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                    <AppIcon name="git-branch" size={14} color={colors.text.secondary} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text.secondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Skill path
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text.primary }}>
+                    {skillPathLabel()}
+                  </Text>
+                  {session.reasoningLabel ? (
+                    <Text style={{ fontSize: 12, color: colors.text.secondary, lineHeight: 18 }}>
+                      {session.reasoningLabel}
+                    </Text>
+                  ) : null}
+                </View>
+
+                {/* Adaptation explanation (if adapted) */}
+                {isAdapted && relatedAdaptation && (
+                  <View
+                    style={{
+                      backgroundColor: colors.status.infoBg,
+                      borderRadius: radii.md,
+                      padding: spacing.md,
+                      marginBottom: spacing.md,
+                      borderWidth: 1,
+                      borderColor: colors.status.infoBorder,
+                      gap: spacing.xs,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                      <AppIcon name="sparkles" size={14} color={colors.brand.coach} />
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand.coach, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Why this changed
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text.primary }}>
+                      {relatedAdaptation.reasonSummary || 'Adjusted based on recent training patterns.'}
+                    </Text>
+                    <Pressable
+                      onPress={() => setShowWhySheet(true)}
+                      style={({ pressed }) => ({
+                        alignSelf: 'flex-start',
+                        marginTop: 4,
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: 6,
+                        borderRadius: radii.pill,
+                        backgroundColor: pressed ? `${colors.brand.coach}22` : `${colors.brand.coach}14`,
+                      })}
+                    >
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand.coach }}>
+                        Full explanation →
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                {/* Adapted but no matching adaptation record — generic note */}
+                {isAdapted && !relatedAdaptation && (
+                  <View
+                    style={{
+                      backgroundColor: colors.status.infoBg,
+                      borderRadius: radii.md,
+                      padding: spacing.md,
+                      marginBottom: spacing.md,
+                      borderWidth: 1,
+                      borderColor: colors.status.infoBorder,
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: colors.text.secondary, lineHeight: 19 }}>
+                      This session was adjusted by Pawly based on recent training results.
+                    </Text>
+                  </View>
+                )}
+
+              </ScrollView>
+
+              {/* Fixed footer button */}
+              <View
+                style={{
+                  paddingHorizontal: spacing.lg,
+                  paddingTop: spacing.md,
+                  paddingBottom: insets.bottom > 0 ? insets.bottom + 4 : spacing.lg,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.border.soft,
+                  backgroundColor: colors.bg.surface,
+                }}
+              >
+                <Button
+                  label={session.isCompleted ? 'Session completed' : 'Start this session'}
+                  onPress={onStart}
+                />
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Full why-this-changed sheet */}
+      {relatedAdaptation && (
+        <WhyThisChangedSheet
+          visible={showWhySheet}
+          onClose={() => setShowWhySheet(false)}
+          dogName={dogName}
+          adaptation={relatedAdaptation}
+        />
+      )}
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Session Row
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -81,13 +305,10 @@ function SessionRow({
   isFuture: boolean;
   onPress: () => void;
 }) {
-  const bgColor = isToday
-    ? '#EBF5F3'
-    : session.isCompleted
-    ? colors.surface
-    : colors.surface;
-
+  const bgColor = isToday ? '#EBF5F3' : colors.surface;
   const borderColor = isToday ? colors.primary : colors.border.default;
+  const kind = session.sessionKind ?? 'core';
+  const isAdapted = session.adaptationSource === 'adaptation_engine';
 
   return (
     <TouchableOpacity
@@ -132,7 +353,7 @@ function SessionRow({
 
       {/* Session info */}
       <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
           {isToday && (
             <View
               style={{
@@ -142,9 +363,7 @@ function SessionRow({
                 borderRadius: 4,
               }}
             >
-              <Text
-                style={{ color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}
-              >
+              <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
                 TODAY
               </Text>
             </View>
@@ -153,9 +372,7 @@ function SessionRow({
             style={{
               fontSize: 14,
               fontWeight: session.isCompleted || isToday ? '600' : '400',
-              color: session.isCompleted
-                ? colors.textSecondary
-                : colors.textPrimary,
+              color: session.isCompleted ? colors.textSecondary : colors.textPrimary,
               flex: 1,
             }}
             numberOfLines={2}
@@ -163,9 +380,18 @@ function SessionRow({
             {session.title}
           </Text>
         </View>
-        <Text variant="caption" style={{ marginTop: 2 }}>
+
+        {/* Adaptation badge — replaces old inline badge */}
+        {isAdapted && (
+          <View style={{ marginTop: 6 }}>
+            <SessionChangeBadge kind={kind} />
+          </View>
+        )}
+
+        <Text variant="caption" style={{ marginTop: 4 }}>
           {formatScheduleLabel(session)} · {session.durationMinutes} min
         </Text>
+
         {session.autoRescheduledFrom ? (
           <View
             style={{
@@ -184,13 +410,9 @@ function SessionRow({
         ) : null}
       </View>
 
-      {/* Chevron */}
+      {/* Chevron — always show for tappable rows */}
       {!isFuture && (
-        <Ionicons
-          name="chevron-forward"
-          size={16}
-          color={colors.textSecondary}
-        />
+        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
       )}
     </TouchableOpacity>
   );
@@ -248,7 +470,8 @@ type ListItem =
 
 export default function PlanScreen() {
   const { dog } = useDogStore();
-  const { activePlan, todaySession, fetchActivePlan } = usePlanStore();
+  const { activePlan, todaySession, recentAdaptations, fetchActivePlan } = usePlanStore();
+  const [selectedSession, setSelectedSession] = useState<PlanSession | null>(null);
 
   useEffect(() => {
     if (dog?.id && !activePlan) {
@@ -289,9 +512,8 @@ export default function PlanScreen() {
   const completionPct = getPlanCompletion(activePlan);
   const behaviorLabel = getBehaviorLabel(activePlan.goal);
   const stageNumber = parseInt(activePlan.currentStage?.match(/\d/)?.[0] ?? '1', 10);
-
-  // Find the first incomplete session (today's session)
   const todaySessionId = todaySession?.id ?? null;
+  const adaptedCount = activePlan.sessions.filter((s) => s.adaptationSource === 'adaptation_engine').length;
 
   // Build flat list data with week section headers
   const listData: ListItem[] = [];
@@ -308,8 +530,6 @@ export default function PlanScreen() {
     }
 
     const isToday = session.id === todaySessionId;
-    // A session is "future" if it's not completed and it's not today's session
-    // and there's a previous incomplete session (i.e., it's locked)
     const firstIncompleteIdx = activePlan.sessions.findIndex((s) => !s.isCompleted);
     const sessionIdx = activePlan.sessions.indexOf(session);
     const isFuture = !session.isCompleted && !isToday && sessionIdx > firstIncompleteIdx;
@@ -352,74 +572,100 @@ export default function PlanScreen() {
           paddingBottom: spacing.xl * 2,
         }}
         ListHeaderComponent={() => (
-          <View
-            style={{
-              backgroundColor: colors.surface,
-              borderRadius: 20,
-              padding: spacing.lg,
-              marginBottom: spacing.md,
-              borderWidth: 1,
-              borderColor: colors.border.default,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.md,
-            }}
-          >
-            <CompletionRing percentage={completionPct} />
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, lineHeight: 22 }}
-                numberOfLines={2}
-              >
-                {dog?.name ? `${dog.name}'s ` : ''}{activePlan.goal} Plan
-              </Text>
-              <Text variant="caption" style={{ marginTop: 4 }}>
-                {activePlan.durationWeeks} weeks · {activePlan.sessionsPerWeek}×/week
-              </Text>
-              {activePlan.metadata?.scheduleSummary ? (
-                <Text variant="caption" style={{ marginTop: 4 }}>
-                  {activePlan.metadata.scheduleSummary}
+          <View>
+            {/* Plan summary card */}
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 20,
+                padding: spacing.lg,
+                marginBottom: spacing.md,
+                borderWidth: 1,
+                borderColor: colors.border.default,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.md,
+              }}
+            >
+              <CompletionRing percentage={completionPct} />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, lineHeight: 22 }}
+                  numberOfLines={2}
+                >
+                  {dog?.name ? `${dog.name}'s ` : ''}{behaviorLabel} Plan
                 </Text>
-              ) : null}
-              <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap' }}>
-                <View
-                  style={{
-                    backgroundColor: colors.secondary,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 99,
-                  }}
-                >
-                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
-                    {behaviorLabel}
+                <Text variant="caption" style={{ marginTop: 4 }}>
+                  {activePlan.durationWeeks} weeks · {activePlan.sessionsPerWeek}×/week
+                </Text>
+                {activePlan.metadata?.scheduleSummary ? (
+                  <Text variant="caption" style={{ marginTop: 4 }}>
+                    {activePlan.metadata.scheduleSummary}
                   </Text>
-                </View>
-                <View
-                  style={{
-                    backgroundColor: colors.secondary,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 99,
-                  }}
-                >
-                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
-                    Stage {stageNumber}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    backgroundColor: colors.secondary,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: 99,
-                  }}
-                >
-                  <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
-                    {activePlan.sessions.filter((s) => s.isCompleted).length}/{activePlan.sessions.length} done
-                  </Text>
+                ) : null}
+                <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap' }}>
+                  <View
+                    style={{
+                      backgroundColor: colors.secondary,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 99,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                      {behaviorLabel}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      backgroundColor: colors.secondary,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 99,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                      Stage {stageNumber}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      backgroundColor: colors.secondary,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 99,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                      {activePlan.sessions.filter((s) => s.isCompleted).length}/{activePlan.sessions.length} done
+                    </Text>
+                  </View>
                 </View>
               </View>
             </View>
+
+            {/* Adaptation summary strip — only when sessions were adapted */}
+            {adaptedCount > 0 && (
+              <View
+                style={{
+                  backgroundColor: colors.status.infoBg,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.status.infoBorder,
+                  padding: spacing.md,
+                  marginBottom: spacing.md,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                }}
+              >
+                <AppIcon name="sparkles" size={16} color={colors.brand.coach} />
+                <Text style={{ flex: 1, fontSize: 13, color: colors.text.primary, lineHeight: 19 }}>
+                  <Text style={{ fontWeight: '700' }}>{adaptedCount} session{adaptedCount !== 1 ? 's' : ''}</Text>
+                  {' '}in this plan {adaptedCount === 1 ? 'was' : 'were'} adjusted by Pawly. Tap a session to see why.
+                </Text>
+              </View>
+            )}
           </View>
         )}
         renderItem={({ item }) => {
@@ -433,20 +679,37 @@ export default function PlanScreen() {
           }
 
           return (
-          <View style={{ marginBottom: spacing.xs }}>
+            <View style={{ marginBottom: spacing.xs }}>
               <SessionRow
                 session={item.session}
                 isToday={item.isToday}
                 isFuture={item.isFuture}
                 onPress={() => {
                   if (!item.isFuture) {
-                    router.push(`/(tabs)/train/session?id=${item.session.id}`);
+                    setSelectedSession(item.session);
                   }
                 }}
               />
             </View>
           );
         }}
+      />
+
+      {/* Session detail sheet */}
+      <SessionDetailSheet
+        session={selectedSession}
+        visible={!!selectedSession}
+        onClose={() => setSelectedSession(null)}
+        onStart={() => {
+          if (selectedSession && !selectedSession.isCompleted) {
+            setSelectedSession(null);
+            router.push(`/(tabs)/train/session?id=${selectedSession.id}`);
+          } else {
+            setSelectedSession(null);
+          }
+        }}
+        dogName={dog?.name ?? 'your dog'}
+        recentAdaptations={recentAdaptations}
       />
     </SafeScreen>
   );

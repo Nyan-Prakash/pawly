@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 
 import { supabase } from '@/lib/supabase';
+import { updateLearningStateFromWalkLog } from '@/lib/adaptivePlanning/learningStateEngine';
+import { triggerPlanAdaptation } from '@/lib/sessionManager';
+import { didUpcomingScheduleChange } from '@/lib/notifications';
 import type {
   Milestone,
   BehaviorScore,
@@ -8,6 +11,9 @@ import type {
   WeeklyWalkData,
 } from '@/types';
 import { checkMilestones } from '@/lib/milestoneEngine';
+import { useDogStore } from '@/stores/dogStore';
+import { useNotificationStore } from '@/stores/notificationStore';
+import { usePlanStore } from '@/stores/planStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Store Interface
@@ -31,7 +37,8 @@ interface ProgressStore {
     dogId: string,
     quality: 1 | 2 | 3,
     notes?: string,
-    durationMinutes?: number
+    durationMinutes?: number,
+    goalAchieved?: boolean | null
   ) => Promise<Milestone | null>;
   fetchMilestones: (dogId: string, userId: string) => Promise<void>;
   checkAndCreateMilestones: (dogId: string, userId: string) => Promise<Milestone | null>;
@@ -271,21 +278,55 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
     }
   },
 
-  logWalk: async (userId, dogId, quality, notes, durationMinutes) => {
+  logWalk: async (userId, dogId, quality, notes, durationMinutes, goalAchieved) => {
     const now = new Date().toISOString();
 
-    const { error } = await supabase.from('walk_logs').insert({
-      user_id: userId,
-      dog_id: dogId,
-      quality,
-      notes: notes ?? null,
-      duration_minutes: durationMinutes ?? null,
-      logged_at: now,
-    });
+    const { data, error } = await supabase
+      .from('walk_logs')
+      .insert({
+        user_id: userId,
+        dog_id: dogId,
+        quality,
+        notes: notes ?? null,
+        duration_minutes: durationMinutes ?? null,
+        goal_achieved: goalAchieved ?? null,
+        logged_at: now,
+      })
+      .select('id')
+      .single();
 
     if (error) {
       console.warn('[progressStore] logWalk error:', error.message);
       throw error;
+    }
+
+    if (data?.id) {
+      updateLearningStateFromWalkLog(data.id)
+        .then(async () => {
+          if (quality !== 1 && goalAchieved !== false) return;
+
+          const activePlan = usePlanStore.getState().activePlan;
+          if (!activePlan?.id) return;
+
+          const planBeforeRefresh = activePlan;
+          const adaptation = await triggerPlanAdaptation({
+            dogId,
+            planId: activePlan.id,
+            triggeredByWalkLogId: data.id,
+          });
+
+          if (!adaptation?.applied) return;
+
+          await usePlanStore.getState().refreshPlan().catch(() => {});
+          const refreshedPlan = usePlanStore.getState().activePlan;
+          const dog = useDogStore.getState().dog;
+          if (dog && refreshedPlan && didUpcomingScheduleChange(planBeforeRefresh, refreshedPlan)) {
+            await useNotificationStore.getState().refreshSchedules(dog, refreshedPlan).catch(() => {});
+          }
+        })
+        .catch((updateError) => {
+          console.warn('[progressStore] learning state update error:', updateError);
+        });
     }
 
     await updateWalkStreak(userId, dogId);

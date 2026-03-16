@@ -1,4 +1,7 @@
 import { supabase } from '@/lib/supabase';
+import { updateLearningStateFromSessionLog } from '@/lib/adaptivePlanning/learningStateEngine';
+import type { AdaptationApiResult, PlanEnvironment, PlanSession } from '@/types';
+import type { StepResult } from '@/stores/sessionStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -15,12 +18,23 @@ export interface SaveSessionParams {
   difficulty: 'easy' | 'okay' | 'hard';
   notes: string;
   completedAt: string;
+  successScore?: number;
+  stepResults?: StepResult[];
+  sessionStatus?: 'completed' | 'abandoned';
+  skillId?: string | null;
+  sessionKind?: PlanSession['sessionKind'] | null;
+  environmentTag?: PlanEnvironment | null;
 }
 
 export interface CompletedSession {
   sessionId: string;
   dogId: string;
   planId: string;
+}
+
+export interface SaveSessionResult {
+  sessionLogId: string | null;
+  adaptation: AdaptationApiResult | null;
 }
 
 export interface Milestone {
@@ -33,24 +47,93 @@ export interface Milestone {
 // saveSession
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function saveSession(params: SaveSessionParams): Promise<void> {
-  const { error } = await supabase.from('session_logs').insert({
-    user_id: params.userId,
-    dog_id: params.dogId,
-    plan_id: params.planId,
-    session_id: params.sessionId,
-    exercise_id: params.exerciseId,
-    protocol_id: params.protocolId,
-    duration_seconds: params.durationSeconds,
-    difficulty: params.difficulty,
-    notes: params.notes || null,
-    completed_at: params.completedAt,
+async function invokeAdaptPlan(body: {
+  dogId: string;
+  planId: string;
+  triggeredBySessionLogId?: string | null;
+  triggeredByWalkLogId?: string | null;
+}): Promise<AdaptationApiResult | null> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const { data, error } = await supabase.functions.invoke('adapt-plan', {
+    body,
+    headers: session?.access_token
+      ? {
+          Authorization: `Bearer ${session.access_token}`,
+        }
+      : undefined,
   });
+  if (error) {
+    const errorDetails = {
+      name: error.name,
+      message: error.message,
+      context: 'context' in error ? (error as { context?: unknown }).context : undefined,
+    };
+    console.warn('[sessionManager] adapt-plan invoke error:', errorDetails);
+    return null;
+  }
+
+  console.log('[sessionManager] adapt-plan response:', data);
+  return (data ?? null) as AdaptationApiResult | null;
+}
+
+export async function triggerPlanAdaptation(params: {
+  dogId: string;
+  planId: string;
+  triggeredBySessionLogId?: string | null;
+  triggeredByWalkLogId?: string | null;
+}): Promise<AdaptationApiResult | null> {
+  return invokeAdaptPlan(params);
+}
+
+export async function saveSession(params: SaveSessionParams): Promise<SaveSessionResult> {
+  const { data, error } = await supabase
+    .from('session_logs')
+    .insert({
+      user_id: params.userId,
+      dog_id: params.dogId,
+      plan_id: params.planId,
+      session_id: params.sessionId,
+      exercise_id: params.exerciseId,
+      protocol_id: params.protocolId,
+      duration_seconds: params.durationSeconds,
+      difficulty: params.difficulty,
+      notes: params.notes || null,
+      completed_at: params.completedAt,
+      success_score: params.successScore ?? null,
+      step_results: params.stepResults ?? [],
+      session_status: params.sessionStatus ?? 'completed',
+      skill_id: params.skillId ?? null,
+      session_kind: params.sessionKind ?? null,
+      environment_tag: params.environmentTag ?? null,
+    })
+    .select('id')
+    .single();
 
   if (error) {
     console.warn('[sessionManager] saveSession error:', error.message);
-    // Non-fatal — local state is already updated
+    return { sessionLogId: null, adaptation: null };
   }
+
+  let adaptation: AdaptationApiResult | null = null;
+  if (data?.id) {
+    try {
+      await updateLearningStateFromSessionLog(data.id);
+      if ((params.sessionStatus ?? 'completed') === 'completed') {
+        adaptation = await invokeAdaptPlan({
+          dogId: params.dogId,
+          planId: params.planId,
+          triggeredBySessionLogId: data.id,
+        });
+      }
+    } catch (updateError) {
+      console.warn('[sessionManager] learning state update error:', updateError);
+    }
+  }
+
+  return { sessionLogId: data?.id ?? null, adaptation };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

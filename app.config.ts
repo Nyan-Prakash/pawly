@@ -9,9 +9,35 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   ios: {
-    bundleIdentifier: 'com.nyan.prakash.pawly'
+    bundleIdentifier: 'com.nyan.prakash.pawly',
+    infoPlist: {
+      NSCameraUsageDescription:
+        "Pawly uses the camera to analyze your dog's pose in real time during training sessions.",
+      NSMicrophoneUsageDescription:
+        'Microphone access is requested by the camera framework; Pawly does not record audio.'
+    }
   },
-  plugins: ['expo-router', 'expo-secure-store', 'expo-asset'],
+  android: {
+    permissions: ['android.permission.CAMERA']
+  },
+  plugins: [
+    'expo-router',
+    'expo-secure-store',
+    'expo-asset',
+    [
+      'react-native-vision-camera',
+      {
+        cameraPermissionText:
+          "Pawly uses the camera to analyze your dog's pose in real time during training sessions.",
+        enableMicrophonePermission: false
+      }
+    ],
+    'react-native-fast-tflite'
+  ],
+  // expo-asset bundles extra files so Metro can resolve them at runtime.
+  // The TFLite model is gitignored (large binary) — place it at the path below
+  // before building. See assets/models/dog_pose/README.md.
+  assetBundlePatterns: ['assets/models/**/*'],
   experiments: {
     typedRoutes: true
   },

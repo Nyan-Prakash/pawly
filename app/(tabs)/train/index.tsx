@@ -21,12 +21,14 @@ import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { StreakBadge } from '@/components/ui/StreakBadge';
 import { Text } from '@/components/ui/Text';
 import { WalkLogModal } from '@/components/shared/WalkLogModal';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { shadows } from '@/constants/shadows';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useProgressStore } from '@/stores/progressStore';
 import {
@@ -181,6 +183,9 @@ export default function TrainScreen() {
   const getMissedPlanSessions = usePlanStore((s) => s.getMissedScheduledSessions);
   const reschedulePlanSession = usePlanStore((s) => s.rescheduleMissedSession);
   const { sessionStreak, walkLoggedToday, logWalk, fetchProgressData } = useProgressStore();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const fetchInbox = useNotificationStore((s) => s.fetchInbox);
+  const hydrateRealtime = useNotificationStore((s) => s.hydrateRealtime);
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedWin, setSelectedWin] = useState<(typeof QUICK_WINS)[0] | null>(null);
@@ -195,6 +200,15 @@ export default function TrainScreen() {
       fetchProgressData(dog.id, user.id);
     }
   }, [dog?.id, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    fetchInbox(user.id).catch((error) => {
+      console.warn('[train] fetchInbox error:', error);
+    });
+    return hydrateRealtime(user.id);
+  }, [fetchInbox, hydrateRealtime, user?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -305,6 +319,10 @@ export default function TrainScreen() {
               <AppIcon name="calendar" size={22} color={colors.text.primary} />
             </TouchableOpacity>
 
+            <NotificationBell
+              unreadCount={unreadCount}
+              onPress={() => router.push('/(tabs)/train/notifications')}
+            />
             <StreakBadge count={streak} size="md" />
 
             {/* Dog avatar */}
@@ -753,6 +771,25 @@ export default function TrainScreen() {
                   : milestoneText}
               </Text>
             </View>
+          )}
+          {/* ── DEV: Pose Debug ── */}
+          {__DEV__ && (
+            <Pressable
+              onPress={() => router.push('/(tabs)/train/pose-debug' as never)}
+              style={{
+                marginTop: spacing.md,
+                padding: spacing.sm,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.border.soft,
+                borderStyle: 'dashed',
+                alignItems: 'center',
+              }}
+            >
+              <Text variant="micro" color={colors.text.secondary}>
+                [DEV] Pose Debug Screen
+              </Text>
+            </Pressable>
           )}
         </View>
       </ScrollView>

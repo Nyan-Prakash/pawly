@@ -19,10 +19,12 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 function RootNavigationGate({ themeKey }: { themeKey: string }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [isDogFetched, setIsDogFetched] = useState(false);
   const hasDogProfile = useAuthStore((state) => state.hasDogProfile);
   const segments = useSegments();
   const router = useRouter();
   const fetchDog = useDogStore((s) => s.fetchDog);
+  const fetchDogLearningState = useDogStore((s) => s.fetchDogLearningState);
   const fetchActivePlan = usePlanStore((s) => s.fetchActivePlan);
 
   useEffect(() => {
@@ -59,16 +61,17 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
 
       // If user is logged in, fetch their dog & plan so Today screen has data
       if (initialSession?.user?.id) {
-        fetchDog(initialSession.user.id).then(() => {
-          const dog = useDogStore.getState().dog;
-          useAuthStore.setState({ hasDogProfile: Boolean(dog?.id) });
+        await fetchDog(initialSession.user.id);
+        const dog = useDogStore.getState().dog;
+        useAuthStore.setState({ hasDogProfile: Boolean(dog?.id) });
 
-          if (dog?.id) {
-            fetchActivePlan(dog.id);
-          }
-        });
+        if (dog?.id) {
+          fetchActivePlan(dog.id);
+          fetchDogLearningState(dog.id).catch(() => {});
+        }
       }
 
+      if (mounted) setIsDogFetched(true);
       setSession(initialSession);
       setIsBootstrapping(false);
     };
@@ -97,10 +100,16 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
       subscription.unsubscribe();
       responseSubscription.remove();
     };
-  }, [fetchActivePlan, fetchDog, router]);
+  }, [fetchActivePlan, fetchDog, fetchDogLearningState, router]);
 
   useEffect(() => {
     if (isBootstrapping) {
+      return;
+    }
+
+    // If authenticated, wait for dog fetch to complete before routing
+    // to avoid redirecting to onboarding due to hasDogProfile being false initially
+    if (session && !isDogFetched) {
       return;
     }
 
@@ -131,7 +140,7 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
     if (!inTabsGroup && !inOnboardingGroup) {
       router.replace('/(tabs)/train');
     }
-  }, [hasDogProfile, isBootstrapping, router, segments, session]);
+  }, [hasDogProfile, isBootstrapping, isDogFetched, router, segments, session]);
 
   if (isBootstrapping) {
     return <LoadingSpinner />;
