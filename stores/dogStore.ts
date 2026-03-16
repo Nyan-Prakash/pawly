@@ -2,16 +2,19 @@ import { create } from 'zustand';
 
 import { supabase } from '@/lib/supabase';
 import { mapDogRowToDog, mapPlanRowToPlan } from '@/lib/modelMappers';
-import type { Dog, Plan, BehaviorGoal } from '@/types';
+import { fetchDogLearningState } from '@/lib/adaptivePlanning/repositories';
+import type { Dog, DogLearningState, Plan, BehaviorGoal } from '@/types';
 
 interface DogStore {
   dog: Dog | null;
   activePlan: Plan | null;
   behaviorGoals: BehaviorGoal[];
+  dogLearningState: DogLearningState | null;
   isLoading: boolean;
   fetchDog: (userId: string) => Promise<void>;
   updateDog: (updates: Partial<Dog>) => Promise<void>;
   fetchActivePlan: () => Promise<void>;
+  fetchDogLearningState: (dogId: string) => Promise<void>;
   setDog: (dog: Dog) => void;
   setActivePlan: (plan: Plan) => void;
 }
@@ -20,6 +23,7 @@ export const useDogStore = create<DogStore>((set, get) => ({
   dog: null,
   activePlan: null,
   behaviorGoals: [],
+  dogLearningState: null,
   isLoading: false,
 
   setDog: (dog) => set({ dog }),
@@ -79,6 +83,15 @@ export const useDogStore = create<DogStore>((set, get) => ({
     if (error) throw error;
 
     set({ dog: { ...current, ...updates } });
+  },
+
+  fetchDogLearningState: async (dogId: string) => {
+    try {
+      const state = await fetchDogLearningState(dogId);
+      set({ dogLearningState: state });
+    } catch {
+      set({ dogLearningState: null });
+    }
   },
 
   fetchActivePlan: async () => {

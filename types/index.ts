@@ -96,6 +96,12 @@ export interface PlanSession {
   autoRescheduledFrom?: string | null;
   schedulingReason?: string;
   isMissed?: boolean;
+  skillId?: string;
+  parentSkillId?: string | null;
+  environment?: PlanEnvironment;
+  sessionKind?: 'core' | 'repeat' | 'regress' | 'advance' | 'detour' | 'proofing';
+  adaptationSource?: 'initial_plan' | 'adaptation_engine';
+  reasoningLabel?: string | null;
 }
 
 export interface PlanMetadata {
@@ -107,6 +113,11 @@ export interface PlanMetadata {
   explanation?: string[];
   scheduleSummary?: string;
   timezone?: string;
+  adaptationCount?: number;
+  lastAdaptedAt?: string | null;
+  lastAdaptationSummary?: string | null;
+  activeSkillFocus?: string | null;
+  currentEnvironmentTrack?: PlanEnvironment | null;
 }
 
 export interface Plan {
@@ -170,6 +181,21 @@ export interface NotificationPrefs {
   fallbackMissedSessionReminders: boolean;
 }
 
+export type InAppNotificationType = 'plan_updated';
+
+export interface InAppNotification {
+  id: string;
+  userId: string;
+  dogId: string | null;
+  type: InAppNotificationType;
+  title: string;
+  body: string;
+  metadata: Record<string, unknown>;
+  isRead: boolean;
+  createdAt: string;
+  readAt: string | null;
+}
+
 // ─── Progress & Walk Tracking ─────────────────────────────────────────────────
 
 export interface WalkLog {
@@ -179,6 +205,7 @@ export interface WalkLog {
   quality: 1 | 2 | 3; // 1=harder, 2=same, 3=better
   notes?: string;
   durationMinutes?: number;
+  goalAchieved?: boolean | null;
   loggedAt: string;
 }
 
@@ -273,4 +300,194 @@ export interface ExpertReview {
 export interface ReviewCredit {
   userId: string;
   creditsRemaining: number;
+}
+
+// ─── Adaptive Planning ───────────────────────────────────────────────────────
+
+export type AdaptationType =
+  | 'repeat'
+  | 'regress'
+  | 'advance'
+  | 'detour'
+  | 'difficulty_adjustment'
+  | 'schedule_adjustment'
+  | 'environment_adjustment';
+
+export type AdaptationStatus = 'applied' | 'skipped' | 'rolled_back';
+
+export type SkillNodeKind = 'foundation' | 'core' | 'proofing' | 'recovery' | 'diagnostic';
+
+export type SkillEdgeType = 'prerequisite' | 'advance' | 'regress' | 'detour' | 'proofing';
+
+export interface LearningHypothesis {
+  code: string;
+  summary: string;
+  evidence: string[];
+  confidence: 'low' | 'medium' | 'high';
+}
+
+export interface DogLearningState {
+  id: string;
+  dogId: string;
+  createdAt: string;
+  updatedAt: string;
+  motivationScore: number;
+  distractionSensitivity: number;
+  confidenceScore: number;
+  impulseControlScore: number;
+  handlerConsistencyScore: number;
+  fatigueRiskScore: number;
+  recoverySpeedScore: number;
+  environmentConfidence: Record<string, number>;
+  behaviorSignals: Record<string, unknown>;
+  recentTrends: Record<string, unknown>;
+  currentHypotheses: LearningHypothesis[];
+  lastEvaluatedAt: string | null;
+  version: number;
+}
+
+export interface PlanAdaptation {
+  id: string;
+  dogId: string;
+  planId: string;
+  triggeredBySessionLogId: string | null;
+  createdAt: string;
+  adaptationType: AdaptationType;
+  status: AdaptationStatus;
+  reasonCode: string;
+  reasonSummary: string;
+  evidence: Record<string, unknown>;
+  previousSnapshot: Record<string, unknown>;
+  newSnapshot: Record<string, unknown>;
+  changedSessionIds: string[];
+  changedFields: string[];
+  modelName: string | null;
+  latencyMs: number | null;
+  wasUserVisible: boolean;
+}
+
+export interface SkillNode {
+  id: string;
+  behavior: string;
+  skillCode: string;
+  title: string;
+  description: string | null;
+  stage: number;
+  difficulty: number;
+  kind: SkillNodeKind;
+  protocolId: string | null;
+  metadata: Record<string, unknown>;
+  isActive: boolean;
+}
+
+export interface SkillEdge {
+  id: string;
+  fromSkillId: string;
+  toSkillId: string;
+  edgeType: SkillEdgeType;
+  conditionSummary: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface AdaptivePlanFeatureFlags {
+  enableAdaptivePlanner: boolean;
+  enableAdaptivePlanPreview: boolean;
+  enableAdaptationEngine: boolean;
+  enableCoachAdaptationExplanations: boolean;
+  enableLearningStateUpdates: boolean;
+}
+
+export interface PlanReasoningSummary {
+  adaptationId: string;
+  reasonCode: string;
+  reasonSummary: string;
+  adaptationType: AdaptationType;
+  wasUserVisible: boolean;
+}
+
+export interface PlanChangeSummary {
+  adaptationId: string;
+  changedSessionIds: string[];
+  changedFields: string[];
+  previousSnapshot: Record<string, unknown>;
+  newSnapshot: Record<string, unknown>;
+}
+
+export interface AdaptationApiResult {
+  applied: boolean;
+  skipped: boolean;
+  adaptationId: string | null;
+  adaptationType: AdaptationType | null;
+  reasonCode: string | null;
+  reasonSummary: string | null;
+  changedSessionIds: string[];
+  changedFields: string[];
+}
+
+// ─── Adaptive Planner ─────────────────────────────────────────────────────────
+
+export type PlannerMode = 'adaptive_ai' | 'rules_fallback';
+
+export type PlanEnvironment =
+  | 'indoors_low_distraction'
+  | 'indoors_moderate_distraction'
+  | 'outdoors_low_distraction'
+  | 'outdoors_moderate_distraction'
+  | 'outdoors_high_distraction';
+
+export type PlanSessionKind = 'core' | 'repeat' | 'proofing';
+
+export interface AISkillSelection {
+  skillId: string;
+  sessionCount: number;
+  environment: PlanEnvironment;
+  sessionKind: PlanSessionKind;
+  reasoningLabel: string;
+}
+
+export interface AIWeekStructure {
+  weekNumber: number;
+  focus: string;
+  skillSequence: AISkillSelection[];
+}
+
+export interface AIPlanningSummary {
+  whyThisStart: string;
+  keyAssumptions: string[];
+  risksToWatch: string[];
+}
+
+export interface AIPlannerOutput {
+  primaryGoal: string;
+  startingSkillId: string;
+  planHorizonWeeks: number;
+  sessionsPerWeek: number;
+  weeklyStructure: AIWeekStructure[];
+  planningSummary: AIPlanningSummary;
+}
+
+export interface PlannerValidationError {
+  field: string;
+  message: string;
+}
+
+export interface AdaptivePlanMetadata extends PlanMetadata {
+  plannerVersion: string;
+  plannerMode: PlannerMode;
+  planningSummary?: AIPlanningSummary;
+  selectedSkillIds: string[];
+  validationWarnings: string[];
+  scheduleExplanation?: string;
+}
+
+export interface AdaptivePlanRequest {
+  dogId: string;
+  userId: string;
+}
+
+export interface AdaptivePlanResult {
+  plan: Plan;
+  plannerMode: PlannerMode;
+  planningSummary?: AIPlanningSummary;
+  fallbackReason?: string;
 }

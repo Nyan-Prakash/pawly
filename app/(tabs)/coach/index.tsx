@@ -13,7 +13,6 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SafeScreen } from '@/components/ui/SafeScreen';
@@ -26,11 +25,12 @@ import { spacing } from '@/constants/spacing';
 import { useTheme } from '@/lib/theme';
 import { useCoachStore } from '@/stores/coachStore';
 import { useDogStore } from '@/stores/dogStore';
+import { usePlanStore } from '@/stores/planStore';
 
 export default function CoachScreen() {
-  const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const { dog } = useDogStore();
+  const { recentAdaptations } = usePlanStore();
   const {
     messages,
     isTyping,
@@ -148,6 +148,7 @@ export default function CoachScreen() {
   }
 
   const showWelcome = messages.length === 0;
+  const hasRecentAdaptation = recentAdaptations.length > 0 && recentAdaptations[0].status === 'applied';
 
   return (
     <SafeScreen style={styles.screen}>
@@ -172,7 +173,11 @@ export default function CoachScreen() {
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => <MessageBubble message={item} />}
             ListEmptyComponent={
-              <WelcomeState dogName={dog.name} onSelect={handleSuggestion} />
+              <WelcomeState
+                dogName={dog.name}
+                onSelect={handleSuggestion}
+                hasRecentAdaptation={hasRecentAdaptation}
+              />
             }
             ListFooterComponent={
               isTyping ? <TypingIndicator /> : <View style={styles.listEndSpacer} />
@@ -254,17 +259,34 @@ export default function CoachScreen() {
   );
 }
 
+const BASE_SUGGESTIONS = [
+  'Should I push through or make it easier?',
+  'How do I know when my dog is ready to progress?',
+  'What should I focus on in today\'s session?',
+  'My dog keeps getting distracted — what should I do?',
+];
+
+const ADAPTIVE_SUGGESTIONS = [
+  'Why did today\'s plan change?',
+  'What is Pawly learning about my dog?',
+  'Should I push through or make it easier?',
+  'How do I know when my dog is ready to progress?',
+];
+
 function WelcomeState({
   dogName,
   onSelect,
+  hasRecentAdaptation,
 }: {
   dogName: string;
   onSelect: (suggestion: string) => void;
+  hasRecentAdaptation: boolean;
 }) {
   const { isDark } = useTheme();
   const styles = createStyles(isDark);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const suggestions = hasRecentAdaptation ? ADAPTIVE_SUGGESTIONS : BASE_SUGGESTIONS;
 
   return (
     <View style={styles.welcomeWrap}>
@@ -281,6 +303,28 @@ function WelcomeState({
         <Text style={styles.welcomeDescription}>
           Get quick guidance for behavior or a clear suggestion on what to work on next.
         </Text>
+      </View>
+
+      {/* Quick suggestion chips */}
+      <View style={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
+        {suggestions.map((s) => (
+          <Pressable
+            key={s}
+            onPress={() => onSelect(s)}
+            style={({ pressed }) => ({
+              backgroundColor: pressed ? colors.bg.surfaceAlt : colors.bg.elevated,
+              borderRadius: radii.lg,
+              borderWidth: 1,
+              borderColor: colors.border.soft,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm + 2,
+            })}
+          >
+            <Text style={{ fontSize: 14, color: colors.text.primary, lineHeight: 20 }}>
+              {s}
+            </Text>
+          </Pressable>
+        ))}
       </View>
     </View>
   );

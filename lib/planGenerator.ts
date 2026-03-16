@@ -16,7 +16,15 @@ type GoalKey =
   | 'puppy_biting'
   | 'settling';
 
-const GOAL_MAP: Record<string, GoalKey> = {
+export const GOAL_MAP: Record<string, GoalKey> = {
+  leash_pulling: 'leash_pulling',
+  jumping_up: 'jumping_up',
+  barking: 'barking',
+  recall: 'recall',
+  potty_training: 'potty_training',
+  crate_anxiety: 'crate_anxiety',
+  puppy_biting: 'puppy_biting',
+  settling: 'settling',
   'Leash Pulling': 'leash_pulling',
   'Jumping Up': 'jumping_up',
   'Barking': 'barking',
@@ -144,6 +152,7 @@ function getStartingStage(goal: GoalKey, lifecycleStage: string): string {
   return 'Stage 2 — Building';
 }
 
+/** Rules-based plan generator. Also used as fallback when adaptive planner fails. */
 export function generatePlan(dog: Dog): Plan {
   const goalKey: GoalKey = GOAL_MAP[dog.behaviorGoals[0]] ?? 'leash_pulling';
   const lifecycleStage = getLifecycleStage(dog.ageMonths);

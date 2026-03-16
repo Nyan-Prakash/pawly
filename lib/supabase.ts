@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -10,19 +10,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables.');
 }
 
-const secureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key)
+const asyncStorageAdapter = {
+  getItem: (key: string) => AsyncStorage.getItem(key),
+  setItem: (key: string, value: string) => AsyncStorage.setItem(key, value),
+  removeItem: (key: string) => AsyncStorage.removeItem(key),
 };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: secureStoreAdapter,
+    storage: asyncStorageAdapter,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false
-  }
+    detectSessionInUrl: false,
+  },
 });
 
 export async function createUserRecord(userId: string, _email?: string): Promise<void> {

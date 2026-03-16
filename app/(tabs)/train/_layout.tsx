@@ -4,6 +4,7 @@ export default function TrainLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="plan" />
       <Stack.Screen
         name="session"

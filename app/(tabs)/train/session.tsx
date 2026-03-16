@@ -30,6 +30,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { saveSession, checkMilestones, updateStreak } from '@/lib/sessionManager';
 import { EXERCISE_TO_PROTOCOL } from '@/constants/protocols';
+import { didUpcomingScheduleChange } from '@/lib/notifications';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -79,8 +80,8 @@ export default function SessionScreen() {
   const { id: sessionId } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
 
-  const { activePlan, fetchProtocol, markSessionComplete } = usePlanStore();
-  const { dog } = useDogStore();
+  const { activePlan, fetchProtocol, markSessionComplete, refreshPlan } = usePlanStore();
+  const { dog, fetchDogLearningState } = useDogStore();
   const { user } = useAuthStore();
   const ensureNotificationPermission = useNotificationStore((s) => s.ensurePermissionAfterMeaningfulAction);
   const refreshNotificationSchedules = useNotificationStore((s) => s.refreshSchedules);
@@ -107,21 +108,36 @@ export default function SessionScreen() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [completedSessionCount, setCompletedSessionCount] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const backgroundTimeRef = useRef<number | null>(null);
   const stepStartTimeRef = useRef<number>(Date.now());
+  const startedSessionIdRef = useRef<string | null>(null);
 
   // ── Load protocol & start session ──────────────────────────────────────────
 
   useEffect(() => {
-    if (!sessionId || !activePlan) return;
+    if (!sessionId) return;
+    if (activeSession?.sessionId === sessionId || startedSessionIdRef.current === sessionId) return;
+    if (!activePlan) return;
 
     const planSession = activePlan.sessions.find((s) => s.id === sessionId);
-    if (!planSession) return;
+    if (!planSession) {
+      setLoadError('This session was not found in your active plan.');
+      return;
+    }
+
+    let isCancelled = false;
+    setLoadError(null);
 
     fetchProtocol(planSession.exerciseId).then((protocol) => {
-      if (!protocol) return;
+      if (isCancelled) return;
+      if (!protocol) {
+        setLoadError('We could not load this session protocol.');
+        return;
+      }
+      startedSessionIdRef.current = sessionId;
       startSession(sessionId, planSession.exerciseId, protocol);
     });
 
@@ -129,9 +145,16 @@ export default function SessionScreen() {
     setCompletedSessionCount(completedCount + 1); // +1 for this session
 
     return () => {
+      isCancelled = true;
+    };
+  }, [sessionId, activePlan, activeSession?.sessionId, fetchProtocol, startSession, clearSession]);
+
+  useEffect(() => {
+    return () => {
+      startedSessionIdRef.current = null;
       clearSession();
     };
-  }, [sessionId]);
+  }, [clearSession]);
 
   // ── Tick interval ──────────────────────────────────────────────────────────
 
@@ -238,9 +261,9 @@ export default function SessionScreen() {
           notes: reviewNotes || undefined,
         });
 
-        // Save log to Supabase (non-blocking)
+        const planSession = activePlan.sessions.find((session) => session.id === sid);
         const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
-        saveSession({
+        await saveSession({
           userId: user.id,
           dogId: dog.id,
           planId: activePlan.id,
@@ -251,7 +274,13 @@ export default function SessionScreen() {
           difficulty: reviewDifficulty,
           notes: reviewNotes,
           completedAt: new Date().toISOString(),
-        }).catch(() => {});
+          successScore: reviewDifficulty === 'easy' ? 5 : reviewDifficulty === 'okay' ? 3 : 2,
+          stepResults: activeSession.stepResults,
+          sessionStatus: 'completed',
+          skillId: planSession?.skillId ?? null,
+          sessionKind: planSession?.sessionKind ?? null,
+          environmentTag: planSession?.environment ?? null,
+        });
 
         // Update streak (non-blocking)
         updateStreak(user.id, dog.id).catch(() => {});
@@ -263,23 +292,54 @@ export default function SessionScreen() {
           planId: activePlan.id,
         }).catch(() => {});
 
+        const planBeforeRefresh = usePlanStore.getState().activePlan;
+        await refreshPlan().catch(() => {});
         ensureNotificationPermission().catch(() => {});
         const latestPlan = usePlanStore.getState().activePlan;
-        if (dog && latestPlan) {
+        if (dog && latestPlan && didUpcomingScheduleChange(planBeforeRefresh, latestPlan)) {
           refreshNotificationSchedules(dog, latestPlan).catch(() => {});
         }
+        fetchDogLearningState(dog.id).catch(() => {});
       });
     } finally {
       setIsSaving(false);
     }
-  }, [reviewDifficulty, reviewNotes, activeSession, user, dog, activePlan]);
+  }, [reviewDifficulty, reviewNotes, activeSession, user, dog, activePlan, fetchDogLearningState, refreshPlan]);
 
-  const handleAbandonConfirm = useCallback(() => {
+  const handleAbandonConfirm = useCallback(async () => {
+    if (activeSession && user && dog && activePlan) {
+      const planSession = activePlan.sessions.find((session) => session.id === activeSession.sessionId);
+      const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
+      const durationSeconds = Math.floor(
+        (Date.now() - activeSession.startedAt.getTime()) / 1000
+      );
+
+      await saveSession({
+        userId: user.id,
+        dogId: dog.id,
+        planId: activePlan.id,
+        sessionId: activeSession.sessionId,
+        exerciseId: activeSession.exerciseId,
+        protocolId,
+        durationSeconds,
+        difficulty: 'hard',
+        notes: reviewNotes,
+        completedAt: new Date().toISOString(),
+        successScore: 1,
+        stepResults: activeSession.stepResults,
+        sessionStatus: 'abandoned',
+        skillId: planSession?.skillId ?? null,
+        sessionKind: planSession?.sessionKind ?? null,
+        environmentTag: planSession?.environment ?? null,
+      }).catch(() => {});
+      fetchDogLearningState(dog.id).catch(() => {});
+    }
+
     abandonSession();
     setShowAbandonSheet(false);
     clearSession();
     router.back();
-  }, []);
+  }, [activeSession, activePlan, user, dog, reviewNotes, abandonSession, clearSession, fetchDogLearningState]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Back press guard
@@ -299,7 +359,7 @@ export default function SessionScreen() {
   // ─────────────────────────────────────────────────────────────────────────
 
   if (!activeSession || activeSession.state === 'LOADING') {
-    return <LoadingView insets={insets} />;
+    return <LoadingView insets={insets} error={loadError} onBack={() => router.back()} />;
   }
 
   const { state, protocol, currentStepIndex } = activeSession;
@@ -420,7 +480,15 @@ export default function SessionScreen() {
 // Sub-views
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LoadingView({ insets }: { insets: ReturnType<typeof useSafeAreaInsets> }) {
+function LoadingView({
+  insets,
+  error,
+  onBack,
+}: {
+  insets: ReturnType<typeof useSafeAreaInsets>;
+  error?: string | null;
+  onBack?: () => void;
+}) {
   return (
     <View
       style={{
@@ -434,8 +502,23 @@ function LoadingView({ insets }: { insets: ReturnType<typeof useSafeAreaInsets> 
       <AppIcon name="paw" size={48} color={colors.primary} />
       <ActivityIndicator size="large" color={colors.primary} />
       <Text style={{ marginTop: spacing.lg, color: colors.textSecondary, fontSize: 16 }}>
-        Getting your session ready…
+        {error ?? 'Getting your session ready…'}
       </Text>
+      {error && onBack ? (
+        <Pressable
+          onPress={onBack}
+          style={({ pressed }) => ({
+            marginTop: spacing.lg,
+            opacity: pressed ? 0.7 : 1,
+            minHeight: 44,
+            justifyContent: 'center',
+          })}
+        >
+          <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
+            Back
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
