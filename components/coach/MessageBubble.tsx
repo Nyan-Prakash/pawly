@@ -6,6 +6,8 @@ import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import type { ChatMessage } from '@/types';
 
+import { FormattedCoachMessage } from './FormattedCoachMessage';
+
 interface MessageBubbleProps {
   message: ChatMessage;
 }
@@ -36,7 +38,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             Pawly Coach
           </Text>
           <View style={styles.assistantBubble}>
-            <Text style={styles.assistantText}>{message.content}</Text>
+            <FormattedCoachMessage message={message.content} />
           </View>
         </View>
       </View>
