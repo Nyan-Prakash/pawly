@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
@@ -22,6 +22,10 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
   onDateSelect,
 }) => {
   const [viewDate, setViewDate] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+
+  useEffect(() => {
+    setViewDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+  }, [selectedDate]);
 
   const monthGrid = useMemo(() => {
     return getMonthGrid(viewDate.getFullYear(), viewDate.getMonth());
