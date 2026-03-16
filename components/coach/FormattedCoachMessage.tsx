@@ -33,12 +33,13 @@ export function FormattedCoachMessage({ message, textColor }: FormattedCoachMess
   if (!message) return null;
 
   const blocks = parseMessage(message);
+  const styles = createStyles();
 
   return (
     <View style={styles.container}>
       {blocks.map((block, index) => (
         <View key={index} style={styles.blockContainer}>
-          {renderBlock(block, textColor)}
+          {renderBlock(block, styles, textColor)}
         </View>
       ))}
     </View>
@@ -113,7 +114,11 @@ function parseMessage(text: string): Block[] {
   return blocks;
 }
 
-function renderBlock(block: Block, textColor?: string) {
+function renderBlock(
+  block: Block,
+  styles: ReturnType<typeof createStyles>,
+  textColor?: string,
+) {
   const commonTextStyle = textColor ? { color: textColor } : {};
 
   switch (block.type) {
@@ -130,7 +135,7 @@ function renderBlock(block: Block, textColor?: string) {
       return (
         <View style={[styles.calloutContainer, { borderLeftColor: borderColor }]}>
           <Text style={[styles.calloutText, commonTextStyle]}>
-            {renderInlineBold(block.content, textColor)}
+            {renderInlineBold(block.content, styles, textColor)}
           </Text>
         </View>
       );
@@ -143,7 +148,7 @@ function renderBlock(block: Block, textColor?: string) {
             <View key={i} style={styles.listItem}>
               <Text style={[styles.listBullet, commonTextStyle]}>•</Text>
               <Text style={[styles.listText, commonTextStyle]}>
-                {renderInlineBold(item, textColor)}
+                {renderInlineBold(item, styles, textColor)}
               </Text>
             </View>
           ))}
@@ -157,7 +162,7 @@ function renderBlock(block: Block, textColor?: string) {
             <View key={i} style={styles.listItem}>
               <Text style={[styles.listBullet, commonTextStyle]}>{i + 1}.</Text>
               <Text style={[styles.listText, commonTextStyle]}>
-                {renderInlineBold(item, textColor)}
+                {renderInlineBold(item, styles, textColor)}
               </Text>
             </View>
           ))}
@@ -167,7 +172,7 @@ function renderBlock(block: Block, textColor?: string) {
     case 'paragraph':
       return (
         <Text style={[styles.paragraph, commonTextStyle]}>
-          {renderInlineBold(block.content, textColor)}
+          {renderInlineBold(block.content, styles, textColor)}
         </Text>
       );
 
@@ -179,7 +184,11 @@ function renderBlock(block: Block, textColor?: string) {
 /**
  * Splits text by **bold** markers and returns an array of Text components/strings.
  */
-function renderInlineBold(text: string, textColor?: string) {
+function renderInlineBold(
+  text: string,
+  styles: ReturnType<typeof createStyles>,
+  textColor?: string,
+) {
   // Regex that captures the **...** including the markers
   const parts = text.split(/(\*\*.*?\*\*)/g);
 
@@ -196,61 +205,63 @@ function renderInlineBold(text: string, textColor?: string) {
   });
 }
 
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  blockContainer: {
-    marginBottom: spacing.xs,
-  },
-  header: {
-    ...typography.h3,
-    color: colors.text.primary,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  paragraph: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.text.primary,
-  },
-  boldText: {
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
-  calloutContainer: {
-    backgroundColor: colors.bg.surfaceAlt,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    marginVertical: spacing.xs,
-  },
-  calloutText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.text.primary,
-  },
-  listContainer: {
-    paddingLeft: spacing.xs,
-    marginVertical: 2,
-  },
-  listItem: {
-    flexDirection: 'row',
-    marginBottom: 6,
-    alignItems: 'flex-start',
-  },
-  listBullet: {
-    width: 22,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.text.primary,
-    fontWeight: '600',
-  },
-  listText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.text.primary,
-  },
-});
+function createStyles() {
+  return StyleSheet.create({
+    container: {
+      width: '100%',
+    },
+    blockContainer: {
+      marginBottom: spacing.xs,
+    },
+    header: {
+      ...typography.h3,
+      color: colors.text.primary,
+      marginTop: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    paragraph: {
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.text.primary,
+    },
+    boldText: {
+      fontWeight: '700',
+      color: colors.text.primary,
+    },
+    calloutContainer: {
+      backgroundColor: colors.bg.surfaceAlt,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: 12,
+      borderLeftWidth: 4,
+      marginVertical: spacing.xs,
+    },
+    calloutText: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.text.primary,
+    },
+    listContainer: {
+      paddingLeft: spacing.xs,
+      marginVertical: 2,
+    },
+    listItem: {
+      flexDirection: 'row',
+      marginBottom: 6,
+      alignItems: 'flex-start',
+    },
+    listBullet: {
+      width: 22,
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.text.primary,
+      fontWeight: '600',
+    },
+    listText: {
+      flex: 1,
+      fontSize: 15,
+      lineHeight: 22,
+      color: colors.text.primary,
+    },
+  });
+}
