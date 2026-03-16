@@ -22,6 +22,14 @@ export default function TrainLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="pose-debug"
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

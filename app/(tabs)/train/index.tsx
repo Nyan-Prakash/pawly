@@ -754,6 +754,25 @@ export default function TrainScreen() {
               </Text>
             </View>
           )}
+          {/* ── DEV: Pose Debug ── */}
+          {__DEV__ && (
+            <Pressable
+              onPress={() => router.push('/(tabs)/train/pose-debug' as never)}
+              style={{
+                marginTop: spacing.md,
+                padding: spacing.sm,
+                borderRadius: radii.md,
+                borderWidth: 1,
+                borderColor: colors.border.soft,
+                borderStyle: 'dashed',
+                alignItems: 'center',
+              }}
+            >
+              <Text variant="micro" color={colors.text.secondary}>
+                [DEV] Pose Debug Screen
+              </Text>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
 
