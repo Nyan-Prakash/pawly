@@ -21,6 +21,7 @@ import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { WalkLogModal } from '@/components/shared/WalkLogModal';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { ActiveCourseCard } from '@/components/train/ActiveCourseCard';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
@@ -28,7 +29,7 @@ import { shadows } from '@/constants/shadows';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useNotificationStore } from '@/stores/notificationStore';
-import { usePlanStore } from '@/stores/planStore';
+import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
 import { useProgressStore } from '@/stores/progressStore';
 import {
   formatDisplayTime,
@@ -38,8 +39,9 @@ import {
   getBehaviorLabel,
   formatScheduleLabel,
   isRoundStreakNumber,
+  getPlanCompletion,
 } from '@/lib/scheduleEngine';
-import type { Milestone } from '@/types';
+import type { EnrichedPlanSession, Milestone } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Quick Win data (v1 hardcoded)
@@ -169,6 +171,57 @@ function QuickWinSheet({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Other-Today Sessions — secondary sessions beyond the recommended one
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OtherTodaySessionRow({
+  session,
+  onPress,
+}: {
+  session: EnrichedPlanSession;
+  onPress: () => void;
+}) {
+  const courseLabel = session.planCourseTitle ?? getBehaviorLabel(session.planGoal);
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={onPress}
+      style={{
+        backgroundColor: colors.bg.surface,
+        borderRadius: radii.md,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.border.default,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        ...shadows.card,
+      }}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: colors.brand.primary + '18',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <AppIcon name="play" size={14} color={colors.brand.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="bodyStrong" numberOfLines={1}>{session.title}</Text>
+        <Text variant="micro" color={colors.text.secondary}>
+          {courseLabel} · {session.durationMinutes} min
+        </Text>
+      </View>
+      <AppIcon name="chevron-forward" size={16} color={colors.text.secondary} />
+    </TouchableOpacity>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Today Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -176,11 +229,25 @@ export default function TrainScreen() {
   const { user } = useAuthStore();
   const { dog } = useDogStore();
   const hasDogProfile = useAuthStore((s) => s.hasDogProfile);
-  const { activePlan, todaySession, completionPercentage, isLoading, fetchActivePlan, refreshPlan } =
-    usePlanStore();
-  const getUpcomingPlanSessions = usePlanStore((s) => s.getUpcomingSessions);
-  const getMissedPlanSessions = usePlanStore((s) => s.getMissedScheduledSessions);
-  const reschedulePlanSession = usePlanStore((s) => s.rescheduleMissedSession);
+
+  const planStoreState = usePlanStore();
+  const {
+    isLoading,
+    fetchActivePlans,
+    refreshPlans,
+    activePlanIds,
+    plansById,
+    todaySessions,
+    recommendedTodaySession,
+    getMissedSessionsAcrossPlans,
+    getUpcomingSessionsAcrossPlans,
+    rescheduleMissedSession,
+    setSelectedPlan,
+  } = planStoreState;
+
+  // Re-derive on each render so it stays reactive with store state
+  const livePlanSummaries = selectPlanSummaries(planStoreState);
+
   const { sessionStreak, walkLoggedToday, logWalk, fetchProgressData } = useProgressStore();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchInbox = useNotificationStore((s) => s.fetchInbox);
@@ -193,7 +260,7 @@ export default function TrainScreen() {
 
   useEffect(() => {
     if (dog?.id) {
-      fetchActivePlan(dog.id);
+      fetchActivePlans(dog.id);
     }
     if (dog?.id && user?.id) {
       fetchProgressData(dog.id, user.id);
@@ -211,10 +278,10 @@ export default function TrainScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await refreshPlan();
+    if (dog?.id) await refreshPlans(dog.id);
     if (dog?.id && user?.id) await fetchProgressData(dog.id, user.id);
     setRefreshing(false);
-  }, [refreshPlan, dog?.id, user?.id]);
+  }, [refreshPlans, dog?.id, user?.id]);
 
   async function handleWalkSave(
     quality: 1 | 2 | 3,
@@ -232,18 +299,21 @@ export default function TrainScreen() {
   const greetingText = `Good ${greeting}, ${dog?.name ?? 'there'}!`;
 
   const streak = sessionStreak;
-  const completedCount = activePlan
-    ? activePlan.sessions.filter((s) => s.isCompleted).length
-    : 0;
+  const hasPlans = activePlanIds.length > 0;
   const needsDogProfile = !hasDogProfile || !dog?.id;
+  const multiplePlans = activePlanIds.length > 1;
 
-  const stageNumber = activePlan
-    ? parseInt(activePlan.currentStage?.match(/\d/)?.[0] ?? '1', 10)
+  // Primary plan for walk goal / progress banner
+  const primaryPlan = livePlanSummaries.find((s) => s.isPrimary) ?? livePlanSummaries[0] ?? null;
+  const primaryPlanFull = primaryPlan ? plansById[primaryPlan.id] ?? null : null;
+
+  const stageNumber = primaryPlanFull
+    ? parseInt(primaryPlanFull.currentStage?.match(/\d/)?.[0] ?? '1', 10)
     : 1;
 
-  const walkGoalText = activePlan
+  const walkGoalText = primaryPlanFull
     ? getWalkGoal(
-        activePlan.goal
+        primaryPlanFull.goal
           .toLowerCase()
           .replace(/ /g, '_')
           .replace("won't_come", 'recall'),
@@ -251,16 +321,45 @@ export default function TrainScreen() {
       )
     : null;
 
+  const completedCount = primaryPlanFull
+    ? primaryPlanFull.sessions.filter((s) => s.isCompleted).length
+    : 0;
   const milestoneText = getNextMilestone(completedCount);
   const isCelebration = isRoundStreakNumber(streak);
-  const upcomingSessions = getUpcomingPlanSessions(3);
-  const nextUpcomingSession = upcomingSessions[0] && upcomingSessions[0].id === todaySession?.id
-    ? upcomingSessions[1] ?? null
-    : upcomingSessions[0] ?? null;
-  const missedSessions = getMissedPlanSessions();
-  const firstMissedSession = missedSessions[0] ?? null;
 
-  if (isLoading && !activePlan) {
+  // Recommended session (hero card CTA)
+  const heroSession = recommendedTodaySession;
+  const heroSessionIsToday = heroSession
+    ? todaySessions.some((s) => s.id === heroSession.id)
+    : false;
+  const heroSessionIsOverdue = heroSession && !heroSessionIsToday && !heroSession.isCompleted
+    && heroSession.scheduledDate
+    ? heroSession.scheduledDate < new Date().toISOString().slice(0, 10)
+    : false;
+
+  // Other sessions today (exclude the recommended hero)
+  const otherTodaySessions = todaySessions.filter((s) => s.id !== heroSession?.id);
+
+  // Upcoming / missed for empty states
+  const missedSessions = getMissedSessionsAcrossPlans();
+  const firstMissedSession = missedSessions[0] ?? null;
+  const upcomingSessions = getUpcomingSessionsAcrossPlans(3);
+  const nextUpcomingSession = upcomingSessions.find((s) => s.id !== heroSession?.id) ?? upcomingSessions[0] ?? null;
+
+  // Completion % for hero card progress bar — use hero session's plan if available
+  const heroCompletion = heroSession
+    ? (() => {
+        const plan = plansById[heroSession.planId];
+        return plan ? getPlanCompletion(plan) : (primaryPlan?.completionPercentage ?? 0);
+      })()
+    : (primaryPlan?.completionPercentage ?? 0);
+
+  // Course label for hero card badge
+  const heroCourseLabel = heroSession
+    ? (heroSession.planCourseTitle ?? getBehaviorLabel(heroSession.planGoal))
+    : null;
+
+  if (isLoading && !hasPlans) {
     return (
       <SafeScreen>
         <LoadingSkeleton />
@@ -328,7 +427,7 @@ export default function TrainScreen() {
         <View style={{ paddingHorizontal: spacing.md, gap: spacing.md }}>
 
           {/* ── No plan state ── */}
-          {!activePlan && (
+          {!hasPlans && (
             <View
               style={{
                 backgroundColor: colors.bg.surface,
@@ -358,120 +457,86 @@ export default function TrainScreen() {
             </View>
           )}
 
-          {/* ── Plan complete state ── */}
-          {activePlan && activePlan.status === 'completed' && (
+          {/* ── Nothing due today / all done state ── */}
+          {hasPlans && !heroSession && (
             <View
               style={{
-                backgroundColor: '#DCFCE7',
+                backgroundColor: colors.bg.surface,
                 borderRadius: radii.lg,
                 borderWidth: 1,
-                borderColor: colors.brand.primary + '40',
+                borderColor: colors.border.default,
+                ...shadows.card,
               }}
             >
               <EmptyState
-                icon="ribbon"
-                title="You've finished your plan!"
-                subtitle={`Incredible work. ${dog?.name} is lucky to have such a dedicated owner.`}
-                action={{
-                  label: 'Ready for the next challenge',
-                  onPress: () => {},
-                }}
+                icon="checkmark-circle"
+                title="You're all caught up!"
+                subtitle="No sessions due today. Come back tomorrow — consistency is how great dogs are made."
               />
+              {nextUpcomingSession ? (
+                <View
+                  style={{
+                    backgroundColor: colors.bg.surfaceAlt,
+                    marginHorizontal: spacing.lg,
+                    marginBottom: spacing.lg,
+                    borderRadius: radii.md,
+                    padding: spacing.md,
+                  }}
+                >
+                  <Text variant="micro" color={colors.text.secondary}>Next up</Text>
+                  <Text variant="bodyStrong" style={{ marginTop: 2 }}>
+                    {nextUpcomingSession.title}
+                  </Text>
+                  <Text variant="caption">
+                    {formatScheduleLabel(nextUpcomingSession)} · {nextUpcomingSession.durationMinutes} min
+                    {multiplePlans && nextUpcomingSession.planCourseTitle
+                      ? ` · ${nextUpcomingSession.planCourseTitle}`
+                      : ''}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           )}
 
-          {/* ── Today's session done ── */}
-          {activePlan &&
-            activePlan.status === 'active' &&
-            !todaySession && (
-              <View
-                style={{
-                  backgroundColor: colors.bg.surface,
-                  borderRadius: radii.lg,
-                  borderWidth: 1,
-                  borderColor: colors.border.default,
-                  ...shadows.card,
-                }}
-              >
-                <EmptyState
-                  icon="checkmark-circle"
-                  title={firstMissedSession ? 'A session needs a new spot' : "You're done for today!"}
-                  subtitle={
-                    firstMissedSession
-                      ? `${firstMissedSession.title} slipped past its scheduled time. You can keep it visible without rewriting the whole plan.`
-                      : 'Come back tomorrow — consistency is how great dogs are made.'
-                  }
-                />
-                {firstMissedSession ? (
-                  <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm }}>
-                    <View
-                      style={{
-                        backgroundColor: colors.bg.surfaceAlt,
-                        borderRadius: radii.md,
-                        padding: spacing.md,
-                      }}
-                    >
-                      <Text variant="micro" color={colors.text.secondary}>Missed session</Text>
-                      <Text variant="bodyStrong" style={{ marginTop: 2 }}>
-                        {firstMissedSession.title}
-                      </Text>
-                      <Text variant="caption">{formatScheduleLabel(firstMissedSession)}</Text>
-                    </View>
-                    {activePlan.metadata?.flexibility !== 'skip' ? (
-                      <Button
-                        size="md"
-                        label={
-                          activePlan.metadata?.flexibility === 'move_tomorrow'
-                            ? 'Move to tomorrow'
-                            : 'Move to next slot'
-                        }
-                        onPress={() => reschedulePlanSession(firstMissedSession.id)}
-                      />
-                    ) : null}
-                  </View>
-                ) : nextUpcomingSession ? (
-                  <View
-                    style={{
-                      backgroundColor: colors.bg.surfaceAlt,
-                      marginHorizontal: spacing.lg,
-                      marginBottom: spacing.lg,
-                      borderRadius: radii.md,
-                      padding: spacing.md,
-                    }}
-                  >
-                    <Text variant="micro" color={colors.text.secondary}>Next up</Text>
-                    <Text variant="bodyStrong" style={{ marginTop: 2 }}>
-                      {nextUpcomingSession.title}
-                    </Text>
-                    <Text variant="caption">
-                      {formatScheduleLabel(nextUpcomingSession)} · {nextUpcomingSession.durationMinutes} min
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            )}
-
-          {/* ── TODAY CARD ── */}
-          {activePlan && activePlan.status === 'active' && todaySession && (
+          {/* ── TODAY / HERO CARD ── */}
+          {hasPlans && heroSession && (
             <LinearGradient
-              colors={['#22C55E', '#16A34A']}
+              colors={heroSessionIsOverdue ? ['#F59E0B', '#D97706'] : ['#22C55E', '#16A34A']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{ borderRadius: radii.lg, overflow: 'hidden' }}
             >
               <View style={{ padding: spacing.lg, gap: spacing.sm }}>
-                {/* Label */}
-                <Text
-                  style={{
-                    color: 'rgba(255,255,255,0.75)',
-                    fontSize: 11,
-                    fontWeight: '700',
-                    letterSpacing: 1.4,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Today's Session
-                </Text>
+                {/* Label row */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Text
+                    style={{
+                      color: 'rgba(255,255,255,0.75)',
+                      fontSize: 11,
+                      fontWeight: '700',
+                      letterSpacing: 1.4,
+                      textTransform: 'uppercase',
+                      flex: 1,
+                    }}
+                  >
+                    {heroSessionIsOverdue ? 'Missed Session' : "Today's Session"}
+                  </Text>
+                  {/* Course badge — only when multiple plans */}
+                  {multiplePlans && heroCourseLabel ? (
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: radii.pill,
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                        {heroCourseLabel}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
 
                 {/* Title */}
                 <Text
@@ -482,7 +547,7 @@ export default function TrainScreen() {
                     lineHeight: 30,
                   }}
                 >
-                  {todaySession.title}
+                  {heroSession.title}
                 </Text>
 
                 {/* Badges row */}
@@ -507,11 +572,11 @@ export default function TrainScreen() {
                   >
                     <AppIcon name="time" size={12} color="#fff" />
                     <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                      {todaySession.durationMinutes} min
+                      {heroSession.durationMinutes} min
                     </Text>
                   </View>
 
-                  {todaySession.scheduledTime ? (
+                  {heroSession.scheduledTime ? (
                     <View
                       style={{
                         backgroundColor: 'rgba(255,255,255,0.2)',
@@ -521,29 +586,31 @@ export default function TrainScreen() {
                       }}
                     >
                       <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                        {formatDisplayTime(todaySession.scheduledTime)}
+                        {formatDisplayTime(heroSession.scheduledTime)}
                       </Text>
                     </View>
                   ) : null}
 
-                  <View
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.2)',
-                      paddingHorizontal: 10,
-                      paddingVertical: 5,
-                      borderRadius: radii.pill,
-                    }}
-                  >
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                      {getBehaviorLabel(activePlan.goal)} · Stage {stageNumber}
-                    </Text>
-                  </View>
+                  {!multiplePlans && primaryPlanFull ? (
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: radii.pill,
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                        {getBehaviorLabel(primaryPlanFull.goal)} · Stage {stageNumber}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
 
                 {/* Progress bar */}
                 <View style={{ marginTop: spacing.xs, gap: 4 }}>
                   <ProgressBar
-                    progress={completionPercentage / 100}
+                    progress={heroCompletion / 100}
                     height={4}
                     color="rgba(255,255,255,0.9)"
                     trackColor="rgba(255,255,255,0.25)"
@@ -554,14 +621,14 @@ export default function TrainScreen() {
                       fontSize: 11,
                     }}
                   >
-                    {completionPercentage}% of plan complete
+                    {heroCompletion}% of plan complete
                   </Text>
                 </View>
 
                 {/* CTA Button */}
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => router.push(`/(tabs)/train/session?id=${todaySession.id}`)}
+                  onPress={() => router.push(`/(tabs)/train/session?id=${heroSession.id}`)}
                   style={{
                     backgroundColor: '#fff',
                     borderRadius: radii.pill,
@@ -574,19 +641,24 @@ export default function TrainScreen() {
                 >
                   <Text
                     style={{
-                      color: colors.brand.primary,
+                      color: heroSessionIsOverdue ? '#D97706' : colors.brand.primary,
                       fontWeight: '700',
                       fontSize: 16,
                     }}
                   >
-                    Start Session
+                    {heroSessionIsOverdue ? 'Do Missed Session' : 'Start Session'}
                   </Text>
                 </TouchableOpacity>
 
                 {/* View full plan link */}
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  onPress={() => router.push('/(tabs)/train/plan')}
+                  onPress={() => {
+                    if (heroSession.planId) {
+                      setSelectedPlan(heroSession.planId);
+                    }
+                    router.push('/(tabs)/train/plan');
+                  }}
                   style={{ alignItems: 'center', paddingVertical: spacing.xs }}
                 >
                   <Text
@@ -603,7 +675,102 @@ export default function TrainScreen() {
             </LinearGradient>
           )}
 
-          {activePlan?.metadata?.explanation?.length ? (
+          {/* ── Missed session reschedule (when no hero and there are missed sessions) ── */}
+          {hasPlans && !heroSession && firstMissedSession && primaryPlanFull?.metadata?.flexibility !== 'skip' && (
+            <View style={{ marginHorizontal: spacing.lg, gap: spacing.sm }}>
+              <View
+                style={{
+                  backgroundColor: colors.bg.surfaceAlt,
+                  borderRadius: radii.md,
+                  padding: spacing.md,
+                }}
+              >
+                <Text variant="micro" color={colors.text.secondary}>Missed session</Text>
+                <Text variant="bodyStrong" style={{ marginTop: 2 }}>
+                  {firstMissedSession.title}
+                </Text>
+                <Text variant="caption">{formatScheduleLabel(firstMissedSession)}</Text>
+              </View>
+              <Button
+                size="md"
+                label={
+                  primaryPlanFull?.metadata?.flexibility === 'move_tomorrow'
+                    ? 'Move to tomorrow'
+                    : 'Move to next slot'
+                }
+                onPress={() => rescheduleMissedSession(firstMissedSession.planId, firstMissedSession.id)}
+              />
+            </View>
+          )}
+
+          {/* ── Other sessions today (multi-plan: secondary courses also have sessions today) ── */}
+          {hasPlans && otherTodaySessions.length > 0 && (
+            <View>
+              <SectionHeader title="Also today" style={{ marginBottom: spacing.sm }} />
+              <View style={{ gap: spacing.sm }}>
+                {otherTodaySessions.map((session) => (
+                  <OtherTodaySessionRow
+                    key={session.id}
+                    session={session}
+                    onPress={() => router.push(`/(tabs)/train/session?id=${session.id}`)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Active Courses section ── */}
+          {multiplePlans && (
+            <View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: spacing.sm,
+                }}
+              >
+                <SectionHeader title="Active Courses" />
+                {activePlanIds.length < 2 && (
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => router.push('/(tabs)/train/add-course' as never)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 6,
+                      borderRadius: radii.pill,
+                      backgroundColor: colors.brand.primary + '12',
+                      borderWidth: 1,
+                      borderColor: colors.brand.primary + '30',
+                    }}
+                  >
+                    <AppIcon name="add-circle" size={14} color={colors.brand.primary} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand.primary }}>
+                      Add goal
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={{ gap: spacing.sm }}>
+                {livePlanSummaries.map((summary) => (
+                  <ActiveCourseCard
+                    key={summary.id}
+                    plan={summary}
+                    onPress={() => {
+                      setSelectedPlan(summary.id);
+                      router.push('/(tabs)/train/plan');
+                    }}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Plan explanation (single plan only — avoids clutter in multi-plan) ── */}
+          {!multiplePlans && primaryPlanFull?.metadata?.explanation?.length ? (
             <View
               style={{
                 backgroundColor: colors.bg.surface,
@@ -615,7 +782,7 @@ export default function TrainScreen() {
               }}
             >
               <Text variant="bodyStrong">Why this schedule?</Text>
-              {activePlan.metadata.explanation.map((bullet, index) => (
+              {primaryPlanFull.metadata.explanation.map((bullet, index) => (
                 <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.sm }}>
                   <AppIcon name="sparkles" size={14} color={colors.brand.primary} />
                   <Text variant="caption" style={{ flex: 1 }}>
@@ -728,7 +895,7 @@ export default function TrainScreen() {
           </View>
 
           {/* ── Progress Banner ── */}
-          {activePlan && (
+          {hasPlans && (
             <View
               style={{
                 backgroundColor: isCelebration ? '#FEF3C7' : colors.bg.surfaceAlt,
@@ -754,6 +921,7 @@ export default function TrainScreen() {
               </Text>
             </View>
           )}
+
           {/* ── DEV: Pose Debug ── */}
           {__DEV__ && (
             <Pressable

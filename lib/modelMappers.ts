@@ -1,4 +1,5 @@
 import type {
+  Article,
   Dog,
   DogLearningState,
   InAppNotification,
@@ -11,6 +12,7 @@ import type {
   SkillNode,
 } from '../types/index.ts';
 import type { Protocol, LiveCoachingConfig } from '../constants/protocols.ts';
+import { normalizeArticleContentBlocks, normalizeArticleDifficulty } from './articleContent.ts';
 
 function asWeekdayArray(value: unknown): Dog['preferredTrainingDays'] {
   return Array.isArray(value) ? (value.filter((item): item is Dog['preferredTrainingDays'][number] => typeof item === 'string') as Dog['preferredTrainingDays']) : [];
@@ -71,6 +73,10 @@ export function mapPlanRowToPlan(data: Record<string, any>): Plan {
     sessions: mapPlanSessions(data.sessions),
     metadata: (data.metadata ?? {}) as PlanMetadata,
     createdAt: data.created_at,
+    // PR-18 multi-course fields (columns may not exist on old rows → safe defaults)
+    courseTitle: data.course_title ?? null,
+    priority: data.priority ?? 0,
+    isPrimary: data.is_primary ?? false,
   };
 }
 
@@ -160,6 +166,31 @@ export function mapInAppNotificationRowToModel(data: Record<string, unknown>): I
     isRead: data.is_read === true,
     createdAt: String(data.created_at),
     readAt: typeof data.read_at === 'string' ? data.read_at : null,
+  };
+}
+
+export function mapArticleRowToModel(data: Record<string, unknown>): Article {
+  return {
+    id: String(data.id),
+    slug: String(data.slug),
+    title: String(data.title),
+    excerpt: String(data.excerpt),
+    content: normalizeArticleContentBlocks(data.content),
+    category: String(data.category),
+    difficulty: normalizeArticleDifficulty(data.difficulty),
+    readTimeMinutes:
+      typeof data.read_time_minutes === 'number' && Number.isFinite(data.read_time_minutes)
+        ? data.read_time_minutes
+        : 1,
+    isFeatured: data.is_featured === true,
+    isPublished: data.is_published !== false,
+    coverImageUrl: typeof data.cover_image_url === 'string' ? data.cover_image_url : null,
+    tags: Array.isArray(data.tags)
+      ? data.tags.filter((item): item is string => typeof item === 'string')
+      : [],
+    sortOrder: typeof data.sort_order === 'number' && Number.isFinite(data.sort_order) ? data.sort_order : 0,
+    createdAt: String(data.created_at),
+    updatedAt: String(data.updated_at),
   };
 }
 

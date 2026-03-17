@@ -447,7 +447,7 @@ export default function UploadVideoScreen() {
         Video uploaded!
       </Text>
       <Text variant="body" style={{ color: colors.textSecondary, textAlign: 'center' }}>
-        {"Your clip has been saved to your video library."}
+        Your clip has been saved to Pawly.
       </Text>
 
       <View style={{ width: '100%', gap: spacing.sm, marginTop: spacing.md }}>
@@ -459,7 +459,7 @@ export default function UploadVideoScreen() {
           />
         )}
         <Pressable
-          onPress={() => router.push('/(tabs)/know/videos')}
+          onPress={() => router.replace('/(tabs)/train')}
           style={({ pressed }) => ({
             padding: spacing.md,
             borderRadius: 14,
@@ -470,9 +470,9 @@ export default function UploadVideoScreen() {
           })}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <AppIcon name="library" size={18} color={colors.primary} />
+            <AppIcon name="paw" size={18} color={colors.primary} />
             <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 15 }}>
-              Go to video library
+              Back to training
             </Text>
           </View>
         </Pressable>

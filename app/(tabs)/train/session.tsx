@@ -97,11 +97,19 @@ export default function SessionScreen() {
   const { id: sessionId } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
 
-  const { activePlan, fetchProtocol, markSessionComplete, refreshPlan } = usePlanStore();
-  const { dog, fetchDogLearningState, dogLearningState } = useDogStore();
+  const { fetchProtocol, markSessionComplete, plansById } = usePlanStore();
+  const { dog, fetchDogLearningState, dogLearningState, activePlans } = useDogStore();
   const { user } = useAuthStore();
   const ensureNotificationPermission = useNotificationStore((s) => s.ensurePermissionAfterMeaningfulAction);
-  const refreshNotificationSchedules = useNotificationStore((s) => s.refreshSchedules);
+  const refreshSchedulesForPlans = useNotificationStore((s) => s.refreshSchedulesForPlans);
+
+  // Resolve the plan and session for this sessionId across ALL active plans.
+  // This is the canonical multi-plan-safe lookup — avoids breaking when the
+  // session belongs to a non-primary (secondary) plan.
+  const resolvedPlan = sessionId
+    ? Object.values(plansById).find((p) => p.sessions.some((s) => s.id === sessionId)) ?? null
+    : null;
+  const activePlan = resolvedPlan; // alias used throughout the component
   const {
     activeSession,
     startSession,
@@ -324,8 +332,8 @@ export default function SessionScreen() {
 
     try {
       await submitSession(reviewDifficulty, reviewNotes, async (sid, durationSeconds) => {
-        // Mark session complete in plan store
-        await markSessionComplete(sid, {
+        // Mark session complete in plan store (planId required for multi-plan support)
+        await markSessionComplete(activePlan.id, sid, {
           sessionId: sid,
           rating: reviewDifficulty === 'easy' ? 5 : reviewDifficulty === 'okay' ? 3 : 1,
           completedAt: new Date().toISOString(),
@@ -419,19 +427,27 @@ export default function SessionScreen() {
           planId: activePlan.id,
         }).catch(() => {});
 
-        const planBeforeRefresh = usePlanStore.getState().activePlan;
-        await refreshPlan().catch(() => {});
-        ensureNotificationPermission().catch(() => {});
-        const latestPlan = usePlanStore.getState().activePlan;
-        if (dog && latestPlan && didUpcomingScheduleChange(planBeforeRefresh, latestPlan)) {
-          refreshNotificationSchedules(dog, latestPlan).catch(() => {});
+        // Refresh plans and notifications for all active plans (multi-plan safe).
+        if (dog?.id) {
+          const plansBefore = usePlanStore.getState().plansById;
+          await usePlanStore.getState().refreshPlans(dog.id).catch(() => {});
+          ensureNotificationPermission().catch(() => {});
+          const plansAfter = usePlanStore.getState().plansById;
+          const primaryBefore = Object.values(plansBefore).find((p) => p.isPrimary) ?? null;
+          const primaryAfter = Object.values(plansAfter).find((p) => p.isPrimary) ?? null;
+          if (didUpcomingScheduleChange(primaryBefore, primaryAfter) && activePlans.length > 0) {
+            const refreshedPlans = usePlanStore.getState().activePlanIds
+              .map((id) => usePlanStore.getState().plansById[id])
+              .filter((p): p is NonNullable<typeof p> => p != null);
+            refreshSchedulesForPlans(dog, refreshedPlans).catch(() => {});
+          }
         }
         fetchDogLearningState(dog.id).catch(() => {});
       });
     } finally {
       setIsSaving(false);
     }
-  }, [reviewDifficulty, reviewNotes, reflectionQuestions, reflectionAnswers, activeSession, user, dog, activePlan, fetchDogLearningState, refreshPlan]);
+  }, [reviewDifficulty, reviewNotes, reflectionQuestions, reflectionAnswers, activeSession, user, dog, activePlan, activePlans, fetchDogLearningState, ensureNotificationPermission, refreshSchedulesForPlans]);
 
   const handleAbandonConfirm = useCallback(async () => {
     if (activeSession && user && dog && activePlan) {

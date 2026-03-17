@@ -205,6 +205,10 @@ export function generatePlan(dog: Dog): Plan {
       trainingDays,
     }),
     createdAt: new Date().toISOString(),
+    // PR-18 multi-course defaults for newly generated plans
+    courseTitle: null,
+    priority: 0,
+    isPrimary: false,
   };
 }
 

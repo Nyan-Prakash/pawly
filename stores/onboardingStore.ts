@@ -344,6 +344,17 @@ export const useOnboardingStore = create<OnboardingStore>()(
             plan = result.plan;
             planId = plan.id;
 
+            // First plan for a new dog must be primary — patch the DB row now
+            // (Edge Function does not set is_primary; the PR-18 migration only
+            //  backfilled existing rows. New rows need an explicit update.)
+            if (planId) {
+              await supabase
+                .from('plans')
+                .update({ is_primary: true })
+                .eq('id', planId);
+              plan = { ...plan, isPrimary: true };
+            }
+
             captureEvent('plan_schedule_generated', {
               dogId,
               planId,
@@ -353,7 +364,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
             });
           } catch (adaptiveErr) {
             console.warn('[onboarding] Adaptive planner failed, using rules fallback:', adaptiveErr);
-            // Fallback to rules-based
+            // Fallback to rules-based — include is_primary=true in INSERT
             plan = generatePlan(dog);
 
             const { data: planData, error: planError } = await supabase
@@ -368,13 +379,14 @@ export const useOnboardingStore = create<OnboardingStore>()(
                 current_stage: plan.currentStage,
                 sessions: plan.sessions,
                 metadata: { ...(plan.metadata ?? {}), plannerMode: 'rules_fallback', fallbackReason: String(adaptiveErr) },
+                is_primary: true,
               })
               .select('id')
               .single();
 
             if (planError || !planData) throw planError ?? new Error('Failed to create plan record');
             planId = planData.id as string;
-            plan = { ...plan, id: planId };
+            plan = { ...plan, id: planId, isPrimary: true };
 
             captureEvent('plan_schedule_generated', {
               dogId,
@@ -384,7 +396,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
             });
           }
         } else {
-          // Rules-based path (original)
+          // Rules-based path — include is_primary=true so the first plan is always primary
           plan = generatePlan(dog);
 
           const { data: planData, error: planError } = await supabase
@@ -399,13 +411,14 @@ export const useOnboardingStore = create<OnboardingStore>()(
               current_stage: plan.currentStage,
               sessions: plan.sessions,
               metadata: plan.metadata ?? {},
+              is_primary: true,
             })
             .select('id')
             .single();
 
           if (planError || !planData) throw planError ?? new Error('Failed to create plan record');
           planId = planData.id as string;
-          plan = { ...plan, id: planId };
+          plan = { ...plan, id: planId, isPrimary: true };
 
           captureEvent('plan_schedule_generated', {
             dogId,

@@ -7,7 +7,8 @@ import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { formatDisplayTime } from '@/lib/scheduleEngine';
-import type { PlanSession, SupportSessionType } from '@/types';
+import { getBehaviorLabel } from '@/lib/scheduleEngine';
+import type { EnrichedPlanSession, PlanSession, SupportSessionType } from '@/types';
 
 function supportSessionLabel(type: SupportSessionType | null | undefined): string {
   switch (type) {
@@ -19,12 +20,18 @@ function supportSessionLabel(type: SupportSessionType | null | undefined): strin
   }
 }
 
-interface DaySessionListProps {
-  date: Date;
-  sessions: PlanSession[];
+function isEnriched(session: PlanSession | EnrichedPlanSession): session is EnrichedPlanSession {
+  return 'planId' in session;
 }
 
-export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions }) => {
+interface DaySessionListProps {
+  date: Date;
+  sessions: (PlanSession | EnrichedPlanSession)[];
+  /** Show a course badge on each session row (used when multiple plans are active). */
+  showCourseBadge?: boolean;
+}
+
+export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, showCourseBadge = false }) => {
   const dateLabel = date.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -52,72 +59,104 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions }
           <Text color={colors.text.secondary}>No sessions scheduled for this day</Text>
         </View>
       ) : (
-        sessions.map((session) => (
-          <TouchableOpacity
-            key={session.id}
-            activeOpacity={0.8}
-            onPress={() => router.push(`/(tabs)/train/session?id=${session.id}`)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
-              padding: spacing.md,
-              gap: spacing.md,
-              borderWidth: 1,
-              borderColor: colors.border.default,
-            }}
-          >
-            <View
+        sessions.map((session) => {
+          const enriched = isEnriched(session) ? session : null;
+          const courseLabel = enriched?.planCourseTitle
+            ?? (enriched ? getBehaviorLabel(enriched.planGoal) : null);
+
+          return (
+            <TouchableOpacity
+              key={session.id}
+              activeOpacity={0.8}
+              onPress={() => router.push(`/(tabs)/train/session?id=${session.id}`)}
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: session.isCompleted
-                  ? colors.brand.primary + '20'
-                  : colors.brand.secondary + '20',
+                flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
+                backgroundColor: colors.bg.surface,
+                borderRadius: radii.lg,
+                padding: spacing.md,
+                gap: spacing.md,
+                borderWidth: 1,
+                borderColor: colors.border.default,
               }}
             >
-              <Ionicons
-                name={session.isCompleted ? 'checkmark' : 'play'}
-                size={20}
-                color={session.isCompleted ? colors.brand.primary : colors.brand.secondary}
-              />
-            </View>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: session.isCompleted
+                    ? colors.brand.primary + '20'
+                    : colors.brand.secondary + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons
+                  name={session.isCompleted ? 'checkmark' : 'play'}
+                  size={20}
+                  color={session.isCompleted ? colors.brand.primary : colors.brand.secondary}
+                />
+              </View>
 
-            <View style={{ flex: 1 }}>
-              <Text variant="bodyStrong">{session.title}</Text>
-              <Text variant="caption" color={colors.text.secondary}>
-                {session.scheduledTime ? formatDisplayTime(session.scheduledTime) : 'Not timed'} · {session.durationMinutes} min
-              </Text>
-              {session.insertedByAdaptation && (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    marginTop: 4,
-                  }}
-                >
-                  <Ionicons name="sparkles" size={11} color={colors.brand.secondary} />
-                  <Text
-                    variant="micro"
-                    style={{ color: colors.brand.secondary, fontWeight: '600' }}
+              <View style={{ flex: 1 }}>
+                {/* Course badge — only shown when multiple plans are active */}
+                {showCourseBadge && courseLabel ? (
+                  <View
+                    style={{
+                      alignSelf: 'flex-start',
+                      backgroundColor: enriched?.isPrimaryPlan
+                        ? colors.brand.primary + '18'
+                        : colors.bg.surfaceAlt,
+                      borderRadius: radii.pill,
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      marginBottom: 4,
+                    }}
                   >
-                    {supportSessionLabel(session.supportSessionType)}
-                  </Text>
-                </View>
-              )}
-            </View>
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '700',
+                        color: enriched?.isPrimaryPlan ? colors.brand.primary : colors.text.secondary,
+                        letterSpacing: 0.3,
+                      }}
+                    >
+                      {courseLabel}
+                    </Text>
+                  </View>
+                ) : null}
 
-            <View style={{ alignItems: 'flex-end', gap: 4 }}>
-             
-              <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
-            </View>
-          </TouchableOpacity>
-        ))
+                <Text variant="bodyStrong">{session.title}</Text>
+                <Text variant="caption" color={colors.text.secondary}>
+                  {session.scheduledTime ? formatDisplayTime(session.scheduledTime) : 'Not timed'} · {session.durationMinutes} min
+                </Text>
+                {session.insertedByAdaptation && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Ionicons name="sparkles" size={11} color={colors.brand.secondary} />
+                    <Text
+                      variant="micro"
+                      style={{ color: colors.brand.secondary, fontWeight: '600' }}
+                    >
+                      {supportSessionLabel(session.supportSessionType)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
+              </View>
+            </TouchableOpacity>
+          );
+        })
       )}
     </View>
   );

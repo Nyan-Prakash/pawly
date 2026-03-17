@@ -21,9 +21,9 @@ import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { useDogStore } from '@/stores/dogStore';
-import { usePlanStore } from '@/stores/planStore';
+import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
 import { formatScheduleLabel, getPlanCompletion, getBehaviorLabel } from '@/lib/scheduleEngine';
-import type { PlanAdaptation, PlanSession } from '@/types';
+import type { Plan, PlanAdaptation, PlanSession } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Completion ring (SVG-free, drawn with Views)
@@ -65,6 +65,76 @@ function CompletionRing({ percentage }: { percentage: number }) {
         {percentage}%
       </Text>
     </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Course Switcher — pill tabs for switching between active plans
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CourseSwitcherProps {
+  plans: Array<{ id: string; label: string; isPrimary: boolean }>;
+  selectedId: string;
+  onSelect: (id: string) => void;
+}
+
+function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
+  if (plans.length <= 1) return null;
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingHorizontal: spacing.md,
+        paddingBottom: spacing.sm+10,
+        gap: spacing.xs,
+      }}
+    >
+      {plans.map((plan) => {
+        const isSelected = plan.id === selectedId;
+        return (
+          <TouchableOpacity
+            key={plan.id}
+            activeOpacity={0.75}
+            onPress={() => onSelect(plan.id)}
+            style={{
+              paddingHorizontal: spacing.md,
+              borderRadius: radii.pill,
+              backgroundColor: isSelected ? colors.brand.primary : colors.bg.surfaceAlt,
+              borderWidth: 1,
+              borderColor: isSelected ? colors.brand.primary : colors.border.default,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 36,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: '600',
+                color: isSelected ? '#fff' : colors.text.primary,
+              }}
+            >
+              {plan.label}
+            </Text>
+            {plan.isPrimary && !isSelected && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 5,
+                  right: 5,
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: colors.brand.primary,
+                }}
+              />
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
   );
 }
 
@@ -381,7 +451,7 @@ function SessionRow({
           </Text>
         </View>
 
-        {/* Adaptation badge — replaces old inline badge */}
+        {/* Adaptation badge */}
         {isAdapted && (
           <View style={{ marginTop: 6 }}>
             <SessionChangeBadge kind={kind} />
@@ -410,7 +480,7 @@ function SessionRow({
         ) : null}
       </View>
 
-      {/* Chevron — always show for tappable rows */}
+      {/* Chevron */}
       {!isFuture && (
         <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
       )}
@@ -468,18 +538,84 @@ type ListItem =
   | { type: 'header'; weekNumber: number; isCurrentWeek: boolean }
   | { type: 'session'; session: PlanSession; isToday: boolean; isFuture: boolean };
 
+function buildListData(plan: Plan, todaySessionId: string | null): ListItem[] {
+  const items: ListItem[] = [];
+  let currentWeek = 0;
+
+  for (const session of plan.sessions) {
+    if (session.weekNumber !== currentWeek) {
+      currentWeek = session.weekNumber;
+      items.push({
+        type: 'header',
+        weekNumber: currentWeek,
+        isCurrentWeek: currentWeek === plan.currentWeek,
+      });
+    }
+
+    const isToday = session.id === todaySessionId;
+    const firstIncompleteIdx = plan.sessions.findIndex((s) => !s.isCompleted);
+    const sessionIdx = plan.sessions.indexOf(session);
+    const isFuture = !session.isCompleted && !isToday && sessionIdx > firstIncompleteIdx;
+
+    items.push({ type: 'session', session, isToday, isFuture });
+  }
+  return items;
+}
+
 export default function PlanScreen() {
   const { dog } = useDogStore();
-  const { activePlan, todaySession, recentAdaptations, fetchActivePlan } = usePlanStore();
+  const planStoreState = usePlanStore();
+  const {
+    plansById,
+    activePlanIds,
+    selectedPlanId,
+    recommendedTodaySession,
+    recentAdaptations,
+    isLoading,
+    fetchActivePlans,
+    setSelectedPlan,
+    fetchRecentAdaptations,
+  } = planStoreState;
+
   const [selectedSession, setSelectedSession] = useState<PlanSession | null>(null);
 
   useEffect(() => {
-    if (dog?.id && !activePlan) {
-      fetchActivePlan(dog.id);
+    if (dog?.id && activePlanIds.length === 0) {
+      fetchActivePlans(dog.id);
     }
-  }, [dog?.id]);
+  }, [dog?.id, activePlanIds.length, fetchActivePlans]);
 
-  if (!activePlan) {
+  // Resolve which plan to display: selectedPlanId → primary → first
+  const displayPlanId =
+    selectedPlanId ??
+    activePlanIds.find((id) => plansById[id]?.isPrimary) ??
+    activePlanIds[0] ??
+    null;
+
+  const displayPlan = displayPlanId ? (plansById[displayPlanId] ?? null) : null;
+
+  // When the displayed plan changes, fetch its adaptations
+  useEffect(() => {
+    if (displayPlanId) {
+      fetchRecentAdaptations(displayPlanId);
+    }
+  }, [displayPlanId, fetchRecentAdaptations]);
+
+  // Build switcher entries from all active plans
+  const planSummaries = selectPlanSummaries(planStoreState);
+  const switcherPlans = planSummaries.map((s) => ({
+    id: s.id,
+    label: s.courseTitle ?? getBehaviorLabel(s.goal),
+    isPrimary: s.isPrimary,
+  }));
+
+  const todaySessionId = recommendedTodaySession?.planId === displayPlanId
+    ? recommendedTodaySession?.id ?? null
+    : null;
+
+  const noPlans = !isLoading && activePlanIds.length === 0;
+
+  if (noPlans || (!isLoading && !displayPlan)) {
     return (
       <SafeScreen>
         <View
@@ -509,33 +645,14 @@ export default function PlanScreen() {
     );
   }
 
-  const completionPct = getPlanCompletion(activePlan);
-  const behaviorLabel = getBehaviorLabel(activePlan.goal);
-  const stageNumber = parseInt(activePlan.currentStage?.match(/\d/)?.[0] ?? '1', 10);
-  const todaySessionId = todaySession?.id ?? null;
-  const adaptedCount = activePlan.sessions.filter((s) => s.adaptationSource === 'adaptation_engine').length;
+  if (!displayPlan) return null;
 
-  // Build flat list data with week section headers
-  const listData: ListItem[] = [];
-  let currentWeek = 0;
-
-  for (const session of activePlan.sessions) {
-    if (session.weekNumber !== currentWeek) {
-      currentWeek = session.weekNumber;
-      listData.push({
-        type: 'header',
-        weekNumber: currentWeek,
-        isCurrentWeek: currentWeek === activePlan.currentWeek,
-      });
-    }
-
-    const isToday = session.id === todaySessionId;
-    const firstIncompleteIdx = activePlan.sessions.findIndex((s) => !s.isCompleted);
-    const sessionIdx = activePlan.sessions.indexOf(session);
-    const isFuture = !session.isCompleted && !isToday && sessionIdx > firstIncompleteIdx;
-
-    listData.push({ type: 'session', session, isToday, isFuture });
-  }
+  const completionPct = getPlanCompletion(displayPlan);
+  const behaviorLabel = getBehaviorLabel(displayPlan.goal);
+  const courseTitle = displayPlan.courseTitle ?? behaviorLabel;
+  const stageNumber = parseInt(displayPlan.currentStage?.match(/\d/)?.[0] ?? '1', 10);
+  const adaptedCount = displayPlan.sessions.filter((s) => s.adaptationSource === 'adaptation_engine').length;
+  const listData = buildListData(displayPlan, todaySessionId);
 
   return (
     <SafeScreen>
@@ -557,9 +674,39 @@ export default function PlanScreen() {
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text variant="title" style={{ fontSize: 20, flex: 1 }}>
-          My Plan
+          {switcherPlans.length > 1 ? 'My Courses' : 'My Plan'}
         </Text>
+        {switcherPlans.length < 2 && (
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => router.push('/(tabs)/train/add-course' as never)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: 8,
+              borderRadius: radii.pill,
+              backgroundColor: colors.brand.primary + '12',
+              borderWidth: 1,
+              borderColor: colors.brand.primary + '30',
+              minHeight: 36,
+            }}
+          >
+            <AppIcon name="add-circle" size={14} color={colors.brand.primary} />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand.primary }}>
+              Add goal
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* ── Course Switcher (only when multiple plans) ── */}
+      <CourseSwitcher
+        plans={switcherPlans}
+        selectedId={displayPlanId ?? ''}
+        onSelect={(id) => setSelectedPlan(id)}
+      />
 
       <FlatList
         data={listData}
@@ -593,14 +740,14 @@ export default function PlanScreen() {
                   style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, lineHeight: 22 }}
                   numberOfLines={2}
                 >
-                  {dog?.name ? `${dog.name}'s ` : ''}{behaviorLabel} Plan
+                  {dog?.name ? `${dog.name}'s ` : ''}{courseTitle} Plan
                 </Text>
                 <Text variant="caption" style={{ marginTop: 4 }}>
-                  {activePlan.durationWeeks} weeks · {activePlan.sessionsPerWeek}×/week
+                  {displayPlan.durationWeeks} weeks · {displayPlan.sessionsPerWeek}×/week
                 </Text>
-                {activePlan.metadata?.scheduleSummary ? (
+                {displayPlan.metadata?.scheduleSummary ? (
                   <Text variant="caption" style={{ marginTop: 4 }}>
-                    {activePlan.metadata.scheduleSummary}
+                    {displayPlan.metadata.scheduleSummary}
                   </Text>
                 ) : null}
                 <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap' }}>
@@ -637,14 +784,28 @@ export default function PlanScreen() {
                     }}
                   >
                     <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
-                      {activePlan.sessions.filter((s) => s.isCompleted).length}/{activePlan.sessions.length} done
+                      {displayPlan.sessions.filter((s) => s.isCompleted).length}/{displayPlan.sessions.length} done
                     </Text>
                   </View>
+                  {displayPlan.isPrimary && switcherPlans.length > 1 && (
+                    <View
+                      style={{
+                        backgroundColor: colors.brand.primary + '18',
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: 99,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '600' }}>
+                        Primary
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
 
-            {/* Adaptation summary strip — only when sessions were adapted */}
+            {/* Adaptation summary strip */}
             {adaptedCount > 0 && (
               <View
                 style={{

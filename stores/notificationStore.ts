@@ -8,6 +8,7 @@ import {
   getNotificationPermissionStatus,
   requestNotificationPermissionIfNeeded,
   scheduleUserNotifications,
+  scheduleUserNotificationsForPlans,
   type ScheduledNotification,
 } from '@/lib/notifications';
 import { normalizeNotificationPrefs } from '@/lib/scheduleEngine';
@@ -27,6 +28,8 @@ interface NotificationStore {
   loadPrefs: (userId: string) => Promise<void>;
   updatePrefs: (userId: string, updates: Partial<NotificationPrefs>) => Promise<void>;
   refreshSchedules: (dog: Dog, plan: Plan) => Promise<void>;
+  /** Multi-plan variant — prefers this over refreshSchedules when multiple courses are active. */
+  refreshSchedulesForPlans: (dog: Dog, plans: Plan[]) => Promise<void>;
   ensurePermissionAfterMeaningfulAction: () => Promise<void>;
   fetchInbox: (userId: string) => Promise<void>;
   addNotification: (input: {
@@ -116,6 +119,15 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     const notifications = await scheduleUserNotifications({
       dog,
       plan,
+      prefs: get().prefs,
+    });
+    set({ pendingNotifications: notifications });
+  },
+
+  refreshSchedulesForPlans: async (dog, plans) => {
+    const notifications = await scheduleUserNotificationsForPlans({
+      dog,
+      plans,
       prefs: get().prefs,
     });
     set({ pendingNotifications: notifications });

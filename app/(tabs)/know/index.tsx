@@ -1,90 +1,204 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  TextInput,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 
-import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import { ArticleCard } from '@/components/know/ArticleCard';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
-import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
-
-const SECTIONS = [
-  {
-    id: 'videos',
-    emoji: 'videocam',
-    title: 'My Videos',
-    description: 'Your training clips and expert feedback',
-    route: '/(tabs)/know/videos',
-  },
-] as const;
+import { fetchPublishedArticles } from '@/lib/articles';
+import { filterArticles, getArticleCategories } from '@/lib/articleContent';
+import type { Article } from '@/types';
 
 export default function KnowScreen() {
-  const router = useRouter();
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      setError(null);
+      const nextArticles = await fetchPublishedArticles();
+      setArticles(nextArticles);
+    } catch (err) {
+      console.warn('[Know] failed to load articles', err);
+      setError('We could not load the library right now.');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const categories = ['All', ...getArticleCategories(articles)];
+  const visibleArticles = filterArticles(articles, {
+    category: selectedCategory,
+    query,
+  });
+  const featuredArticle =
+    (selectedCategory === 'All' && !query.trim()
+      ? articles.find((article) => article.isFeatured)
+      : visibleArticles.find((article) => article.isFeatured)) ?? null;
+  const listArticles = featuredArticle
+    ? visibleArticles.filter((article) => article.slug !== featuredArticle.slug)
+    : visibleArticles;
+  const hasOnlyFeaturedResult = visibleArticles.length === 1 && listArticles.length === 0 && featuredArticle;
 
   return (
     <SafeScreen>
       <ScrollView
+        refreshControl={
+          <RefreshControl
+            tintColor={colors.brand.primary}
+            refreshing={isRefreshing}
+            onRefresh={() => {
+              setIsRefreshing(true);
+              load();
+            }}
+          />
+        }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.md,
+          paddingTop: spacing.md,
+          paddingBottom: spacing.xxl * 2,
+          gap: spacing.lg,
+        }}
       >
-        {/* Header */}
-        <View
-          style={{
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-            paddingBottom: spacing.sm,
-          }}
-        >
+        <View style={{ gap: 4 }}>
           <Text variant="h2">Know</Text>
-          <Text variant="body" color={colors.text.secondary} style={{ marginTop: 4 }}>
-            Training resources and your video library.
+          <Text variant="body" color={colors.text.secondary}>
+            Clear, practical dog training guides
           </Text>
         </View>
 
-        <View style={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
-          {SECTIONS.map((section) => (
-            <Pressable
-              key={section.id}
-              onPress={() => router.push(section.route)}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? '#DCFCE7' : colors.bg.surface,
-                borderRadius: radii.md,
-                padding: spacing.md,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.md,
-                borderWidth: 1,
-                borderColor: pressed ? colors.brand.primary : colors.border.soft,
-                ...shadows.card,
-              })}
-            >
-              <View
+        <View
+          style={{
+            borderRadius: radii.lg,
+            borderWidth: 1,
+            borderColor: colors.border.default,
+            backgroundColor: colors.bg.surface,
+            paddingHorizontal: spacing.md,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.sm,
+          }}
+        >
+          <Ionicons name="search" size={18} color={colors.text.secondary} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search articles, topics, or skills"
+            placeholderTextColor={colors.text.secondary + '80'}
+            style={{
+              flex: 1,
+              minHeight: 52,
+              color: colors.text.primary,
+              fontSize: 16,
+            }}
+          />
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {categories.map((category) => {
+            const isSelected = category === selectedCategory;
+            return (
+              <Pressable
+                key={category}
+                onPress={() => setSelectedCategory(category)}
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: radii.md,
-                  backgroundColor: colors.bg.surfaceAlt,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: radii.pill,
+                  backgroundColor: isSelected ? colors.brand.primary : colors.bg.surface,
+                  borderWidth: 1,
+                  borderColor: isSelected ? colors.brand.primary : colors.border.default,
                 }}
               >
-                <AppIcon name={section.emoji as AppIconName} size={26} color={colors.text.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyStrong" color={colors.text.primary}>
-                  {section.title}
+                <Text
+                  variant="caption"
+                  style={{
+                    color: isSelected ? colors.text.inverse : colors.text.secondary,
+                    fontWeight: '700',
+                  }}
+                >
+                  {category}
                 </Text>
-                <Text variant="caption" color={colors.text.secondary} style={{ marginTop: 2 }}>
-                  {section.description}
-                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {isLoading ? (
+          <View style={{ paddingTop: spacing.xxl, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={colors.brand.primary} />
+          </View>
+        ) : error ? (
+          <EmptyState
+            icon="library"
+            title="Library unavailable"
+            subtitle={error}
+            action={{ label: 'Try again', onPress: load }}
+          />
+        ) : (
+          <View style={{ gap: spacing.lg }}>
+            {featuredArticle ? (
+              <View style={{ gap: spacing.sm }}>
+                <Text variant="bodyStrong">Featured</Text>
+                <ArticleCard
+                  article={featuredArticle}
+                  featuredStyle
+                  onPress={() => router.push(`/know/article/${featuredArticle.slug}` as never)}
+                />
               </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.text.secondary} />
-            </Pressable>
-          ))}
-        </View>
+            ) : null}
+
+            <View style={{ gap: spacing.sm }}>
+              <Text variant="bodyStrong">
+                {selectedCategory === 'All' ? 'Library' : `${selectedCategory} Articles`}
+              </Text>
+
+              {visibleArticles.length === 0 ? (
+                <EmptyState
+                  icon="search"
+                  title="No articles found"
+                  subtitle="Try a different keyword or switch categories."
+                />
+              ) : hasOnlyFeaturedResult ? (
+                <Text variant="caption" color={colors.text.secondary}>
+                  You&apos;re viewing the only matching article above.
+                </Text>
+              ) : (
+                <View style={{ gap: spacing.md }}>
+                  {listArticles.map((article) => (
+                    <ArticleCard
+                      key={article.id}
+                      article={article}
+                      onPress={() => router.push(`/know/article/${article.slug}` as never)}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeScreen>
   );

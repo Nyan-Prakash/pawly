@@ -25,7 +25,7 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
   const router = useRouter();
   const fetchDog = useDogStore((s) => s.fetchDog);
   const fetchDogLearningState = useDogStore((s) => s.fetchDogLearningState);
-  const fetchActivePlan = usePlanStore((s) => s.fetchActivePlan);
+  const fetchActivePlan = usePlanStore((s) => s.fetchActivePlans);
 
   useEffect(() => {
     let mounted = true;

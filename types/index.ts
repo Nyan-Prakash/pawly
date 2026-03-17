@@ -151,6 +151,45 @@ export interface Plan {
   sessions: PlanSession[];
   metadata?: PlanMetadata;
   createdAt: string;
+  // ── Multi-course fields (PR-18) ──────────────────────────────────────────
+  /** Human-readable course name shown in multi-plan UI (e.g. "Loose Leash Walking"). */
+  courseTitle: string | null;
+  /** Higher = shown first in lists; default 0. */
+  priority: number;
+  /** At most one active plan per dog should have this set to true. */
+  isPrimary: boolean;
+}
+
+/**
+ * Lightweight plan metadata for list UIs — avoids shipping full sessions array
+ * when only summary info is needed.
+ */
+export interface PlanSummary {
+  id: string;
+  dogId: string;
+  goal: string;
+  courseTitle: string | null;
+  status: Plan['status'];
+  isPrimary: boolean;
+  priority: number;
+  currentWeek: number;
+  durationWeeks: number;
+  sessionsPerWeek: number;
+  completionPercentage: number;
+  todaySession: PlanSession | null;
+  createdAt: string;
+}
+
+/**
+ * A PlanSession enriched with its parent plan's id and goal — used in
+ * multi-plan session lists so the UI can show which course each session
+ * belongs to.
+ */
+export interface EnrichedPlanSession extends PlanSession {
+  planId: string;
+  planGoal: string;
+  planCourseTitle: string | null;
+  isPrimaryPlan: boolean;
 }
 
 export interface BehaviorGoal {
@@ -380,6 +419,36 @@ export interface MilestoneCheckData {
   walkStreak: number;
   consecutiveWalkImprovements: number;
   videosUploaded: number;
+}
+
+// ─── Articles ───────────────────────────────────────────────────────────────
+
+export type ArticleDifficulty = 'beginner' | 'intermediate' | 'advanced';
+
+export type ArticleContentBlock =
+  | { type: 'paragraph'; text: string }
+  | { type: 'heading'; level: 2 | 3; text: string }
+  | { type: 'bullets'; items: string[] }
+  | { type: 'tip'; text: string }
+  | { type: 'warning'; text: string }
+  | { type: 'checklist'; items: string[] };
+
+export interface Article {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: ArticleContentBlock[];
+  category: string;
+  difficulty: ArticleDifficulty;
+  readTimeMinutes: number;
+  isFeatured: boolean;
+  isPublished: boolean;
+  coverImageUrl?: string | null;
+  tags: string[];
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Video & Expert Review ─────────────────────────────────────────────────

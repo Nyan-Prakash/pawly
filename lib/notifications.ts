@@ -6,6 +6,7 @@ import {
   getScheduledReminderTime,
   normalizeNotificationPrefs,
 } from '@/lib/scheduleEngine';
+import { mergeActivePlanSchedules, flattenMergedSchedule } from '@/lib/mergedSchedule';
 import type { Dog, NotificationPrefs, Plan, PlanSession } from '@/types';
 
 export { didUpcomingScheduleChange } from '@/lib/planScheduleDiff';
@@ -183,6 +184,129 @@ export async function scheduleUserNotifications(params: {
   captureEvent('plan_schedule_generated', {
     scheduledNotifications: scheduled.length,
     scheduledSessions: params.plan.sessions.filter((session) => session.scheduledDate).length,
+  });
+
+  return scheduled;
+}
+
+/**
+ * Multi-plan variant of scheduleUserNotifications.
+ *
+ * Collects upcoming/today sessions from ALL active plans via mergeActivePlanSchedules,
+ * then schedules reminders for the merged session list (up to 12 sessions per
+ * plan limit is preserved by the merge options).
+ *
+ * Falls back to calling the single-plan version when only one plan is active so
+ * no regression occurs for existing users.
+ */
+export async function scheduleUserNotificationsForPlans(params: {
+  dog: Dog;
+  plans: Plan[];
+  prefs?: Partial<NotificationPrefs> | null;
+}): Promise<ScheduledNotification[]> {
+  const activePlans = params.plans.filter((p) => p.status === 'active');
+
+  // Single-plan fast path: delegate to the existing function unchanged
+  if (activePlans.length <= 1) {
+    const plan = activePlans[0];
+    if (!plan) return [];
+    return scheduleUserNotifications({ dog: params.dog, plan, prefs: params.prefs });
+  }
+
+  const prefs = normalizeNotificationPrefs(params.prefs);
+  const scheduled: ScheduledNotification[] = [];
+
+  await cancelAllNotifications();
+
+  if (prefs.scheduledSessionReminders) {
+    // Merge all plans and collect the flat session list for reminder scheduling.
+    // We request a generous upcomingLimit; sessions are capped at 12 below.
+    const merged = mergeActivePlanSchedules(activePlans, { upcomingLimit: 30 });
+    const allSessions = flattenMergedSchedule(merged)
+      .filter((s) => !s.isCompleted && s.scheduledDate)
+      .slice(0, 12);
+
+    for (const session of allSessions) {
+      const scheduledTime = getScheduledReminderTime(session, prefs);
+      const sessionDate = parseLocalDateTime(session.scheduledDate!, scheduledTime);
+      const reminderDate = subtractMinutes(sessionDate, prefs.reminderLeadMinutes);
+      const id = `scheduled-session-${session.id}`;
+
+      const result = await scheduleNotification({
+        identifier: id,
+        title: 'Training reminder',
+        body: sessionReminderBody(params.dog, session),
+        date: reminderDate,
+        data: {
+          type: 'scheduled_session',
+          path: '/(tabs)/train',
+          sessionId: session.id,
+          planId: session.planId,
+        },
+      });
+
+      if (result) {
+        scheduled.push({
+          id,
+          type: 'scheduled_session',
+          title: 'Training reminder',
+          body: sessionReminderBody(params.dog, session),
+        });
+      }
+    }
+  }
+
+  // Walk reminders are dog-level, identical to the single-plan path
+  if (prefs.walkReminders) {
+    for (const [index, walkTime] of params.dog.usualWalkTimes.entries()) {
+      const date = new Date();
+      const [hour, minute] = walkTime.split(':').map(Number);
+      date.setHours(hour ?? 8, minute ?? 0, 0, 0);
+      if (date.getTime() <= Date.now()) {
+        date.setDate(date.getDate() + 1);
+      }
+
+      const id = `walk-reminder-${index}`;
+      const body = `Time for ${params.dog.name}'s walk. Keep an eye out for a quick training win.`;
+      const result = await scheduleNotification({
+        identifier: id,
+        title: 'Walk reminder',
+        body,
+        date,
+        data: { type: 'walk_reminder', path: '/(tabs)/train' },
+      });
+
+      if (result) {
+        scheduled.push({ id, type: 'walk_reminder', title: 'Walk reminder', body });
+      }
+
+      if (prefs.postWalkCheckIn) {
+        const checkInDate = new Date(date.getTime() + 45 * 60 * 1000);
+        const checkInId = `walk-check-in-${index}`;
+        const checkInBody = `How did that walk go with ${params.dog.name}? Log it while it's fresh.`;
+        const checkInResult = await scheduleNotification({
+          identifier: checkInId,
+          title: 'Post-walk check-in',
+          body: checkInBody,
+          date: checkInDate,
+          data: { type: 'post_walk_check_in', path: '/(tabs)/train' },
+        });
+
+        if (checkInResult) {
+          scheduled.push({
+            id: checkInId,
+            type: 'post_walk_check_in',
+            title: 'Post-walk check-in',
+            body: checkInBody,
+          });
+        }
+      }
+    }
+  }
+
+  captureEvent('plan_schedule_generated', {
+    scheduledNotifications: scheduled.length,
+    activePlanCount: activePlans.length,
   });
 
   return scheduled;

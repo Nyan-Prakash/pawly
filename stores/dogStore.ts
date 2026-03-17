@@ -7,20 +7,50 @@ import type { Dog, DogLearningState, Plan, BehaviorGoal } from '@/types';
 
 interface DogStore {
   dog: Dog | null;
-  activePlan: Plan | null;
+  /**
+   * All active plans for the current dog. Replaces the old singular `activePlan`.
+   * Sorted by priority DESC, then created_at DESC so the primary/highest-priority
+   * plan is always first.
+   */
+  activePlans: Plan[];
+  /**
+   * The plan id that should be treated as the "primary" course for UI emphasis.
+   * Derived from is_primary on fetch; can be overridden locally via setPrimaryPlan().
+   */
+  primaryPlanId: string | null;
   behaviorGoals: BehaviorGoal[];
   dogLearningState: DogLearningState | null;
   isLoading: boolean;
+
   fetchDog: (userId: string) => Promise<void>;
   updateDog: (updates: Partial<Dog>) => Promise<void>;
-  fetchActivePlan: () => Promise<void>;
+  /** Fetches all active plans for the current dog. */
+  fetchActivePlans: (dogId?: string) => Promise<void>;
   fetchDogLearningState: (dogId: string) => Promise<void>;
   setDog: (dog: Dog) => void;
+  /** Set or clear the primary plan id locally (does not persist to DB). */
+  setPrimaryPlan: (planId: string | null) => void;
+  /** Returns the primary plan object, or the first active plan if no primary is set. */
+  getPrimaryPlan: () => Plan | null;
+
+  // ── Backward-compatibility shims ──────────────────────────────────────────
+  /**
+   * @deprecated Use activePlans[0] or getPrimaryPlan() instead.
+   * Kept so screens that previously read dogStore.activePlan continue to work
+   * while they are migrated to multi-plan APIs.
+   */
+  activePlan: Plan | null;
+  /** @deprecated Use fetchActivePlans() instead. */
+  fetchActivePlan: () => Promise<void>;
+  /** @deprecated Use setPrimaryPlan() / getPrimaryPlan() instead. */
   setActivePlan: (plan: Plan) => void;
 }
 
 export const useDogStore = create<DogStore>((set, get) => ({
   dog: null,
+  activePlans: [],
+  primaryPlanId: null,
+  // Shim: derived from activePlans in real-time via getter pattern below
   activePlan: null,
   behaviorGoals: [],
   dogLearningState: null,
@@ -28,7 +58,16 @@ export const useDogStore = create<DogStore>((set, get) => ({
 
   setDog: (dog) => set({ dog }),
 
-  setActivePlan: (plan) => set({ activePlan: plan }),
+  // ── Compatibility shim: mirrors primary plan into activePlan ──────────────
+  setActivePlan: (plan) => {
+    const { activePlans } = get();
+    const alreadyInList = activePlans.some((p) => p.id === plan.id);
+    set({
+      activePlan: plan,
+      activePlans: alreadyInList ? activePlans : [plan, ...activePlans],
+      primaryPlanId: plan.id,
+    });
+  },
 
   fetchDog: async (userId: string) => {
     set({ isLoading: true });
@@ -94,29 +133,58 @@ export const useDogStore = create<DogStore>((set, get) => ({
     }
   },
 
-  fetchActivePlan: async () => {
-    const dog = get().dog;
-    if (!dog) return;
+  fetchActivePlans: async (dogId?: string) => {
+    const resolvedDogId = dogId ?? get().dog?.id;
+    if (!resolvedDogId) return;
 
     set({ isLoading: true });
     try {
       const { data, error } = await supabase
         .from('plans')
         .select('*')
-        .eq('dog_id', dog.id)
+        .eq('dog_id', resolvedDogId)
         .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        // Higher priority first; then most recently created
+        .order('priority', { ascending: false })
+        .order('created_at', { ascending: false });
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) throw error;
 
-      if (data) {
-        const plan = mapPlanRowToPlan(data);
-        set({ activePlan: plan });
-      }
+      const plans = (data ?? []).map(mapPlanRowToPlan);
+
+      // Derive primary: DB is_primary flag wins; fall back to first plan
+      const primaryFromDB = plans.find((p) => p.isPrimary);
+      const primaryPlanId = primaryFromDB?.id ?? plans[0]?.id ?? null;
+
+      set({
+        activePlans: plans,
+        primaryPlanId,
+        // Keep shim in sync
+        activePlan: plans.find((p) => p.id === primaryPlanId) ?? plans[0] ?? null,
+      });
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  // ── Backward-compat: single-plan fetch delegates to fetchActivePlans ───────
+  fetchActivePlan: async () => {
+    await get().fetchActivePlans();
+  },
+
+  setPrimaryPlan: (planId) => {
+    const { activePlans } = get();
+    set({
+      primaryPlanId: planId,
+      activePlan: planId ? (activePlans.find((p) => p.id === planId) ?? null) : null,
+    });
+  },
+
+  getPrimaryPlan: () => {
+    const { activePlans, primaryPlanId } = get();
+    if (primaryPlanId) {
+      return activePlans.find((p) => p.id === primaryPlanId) ?? activePlans[0] ?? null;
+    }
+    return activePlans[0] ?? null;
   },
 }));

@@ -112,6 +112,10 @@ export function compilePlan(
     sessions: scheduledSessions,
     metadata,
     createdAt: new Date().toISOString(),
+    // PR-18 multi-course defaults for newly compiled plans
+    courseTitle: null,
+    priority: 0,
+    isPrimary: false,
   };
 }
 

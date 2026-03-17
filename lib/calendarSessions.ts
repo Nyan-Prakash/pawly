@@ -1,4 +1,5 @@
-import type { PlanSession } from '@/types';
+import type { EnrichedPlanSession, PlanSession } from '@/types';
+export { groupEnrichedSessionsByDate } from './mergedSchedule.ts';
 
 export interface CalendarDay {
   date: Date;

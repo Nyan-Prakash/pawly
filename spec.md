@@ -69,7 +69,7 @@ Lifecycle Events Triggered as Dog Ages
 | 1 | Train | Behavior problem solving — acquisition wedge | ✅ Implemented |
 | 2 | Progress | Streaks, behavior scores, milestones, walk data | ✅ Implemented |
 | 3 | Coach | AI-powered conversational training coach | ✅ Implemented |
-| 4 | Know | Expert video library, articles, insights feed | ✅ Implemented (basic) |
+| 4 | Know | Supabase-backed article library and in-app reader for dog training education | ✅ Implemented |
 | 5 | Profile | Settings, notifications, theme, subscription | ✅ Implemented |
 
 ### 1.4 Platform Targets
@@ -179,9 +179,8 @@ pawly/
 │   │   ├── coach/
 │   │   │   └── index.tsx         # AI coach chat
 │   │   ├── know/
-│   │   │   ├── index.tsx         # Education hub
-│   │   │   ├── videos.tsx        # Video library and expert reviews
-│   │   │   └── video-player.tsx  # Video playback with timestamps
+│   │   │   ├── index.tsx         # Article library home
+│   │   │   └── article/[slug].tsx # Article reader
 │   │   └── profile/
 │   │       ├── index.tsx         # Profile screen
 │   │       └── notification-settings.tsx  # Notification preferences
@@ -716,12 +715,16 @@ Components:
 
 #### Know Tab (`app/(tabs)/know/`)
 
-Purpose: Expert content and video feedback.
+Purpose: Browse practical Pawly-written training articles and read them in-app.
 
 Screens:
-- `index.tsx` — Education hub landing
-- `videos.tsx` — Video library: user-uploaded videos and their expert review status
-- `video-player.tsx` — Video playback with expert-added timestamps and feedback
+- `index.tsx` — Article library: featured article, category chips, search, and browse list
+- `article/[slug].tsx` — Full article reader with metadata, structured content blocks, and related articles
+
+Data source:
+- `articles` table in Supabase
+- Block-based JSON content rendered natively in-app
+- Seeded with Pawly-authored dog training education content across core behavior categories
 
 #### Notification Settings Screen (`app/(tabs)/profile/notification-settings.tsx`)
 
@@ -2053,7 +2056,7 @@ Push notification to user via notify-expert-review Edge Function
 
 ### 9.3 Expert Review Viewing
 
-Users view completed reviews in `app/(tabs)/know/videos.tsx` and `app/(tabs)/know/video-player.tsx`. The video player renders trainer-added timestamp annotations alongside video playback.
+Expert review features remain part of the video workflow, but they are no longer surfaced through the Know tab. Video upload and review actions stay in the training flow.
 
 ### 9.4 Video Types
 
@@ -2692,13 +2695,13 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLi
 - Authentication (email, Apple Sign In, Google OAuth, password reset)
 - Subscription tier enforcement (free gating on plan preview)
 - On-device dog pose detection pipeline (TFLite, Vision Camera v4, one-euro filter, posture classifier, state machine, skeleton overlay — native build only)
-- Know tab (education hub, video library, video player)
+- Know tab (article library and article reader)
 
 ### 20.2 What V1 Explicitly Excludes (Not Yet Built)
 
 - Subscription purchase UI / RevenueCat initialization
 - Dog profile editing screen (post-onboarding)
-- Know tab content: training articles, insights feed display
+- Insights feed display inside Know
 - PostHog analytics initialization and event tracking to backend
 - Sentry error tracking initialization
 - Server-side push notification triggers (currently local-only; expert review uses Edge Function)

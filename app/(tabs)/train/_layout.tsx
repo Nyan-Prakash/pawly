@@ -30,6 +30,14 @@ export default function TrainLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="add-course"
+        options={{
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

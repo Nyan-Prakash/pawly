@@ -11,22 +11,27 @@ import { usePlanStore } from '@/stores/planStore';
 import { useDogStore } from '@/stores/dogStore';
 import { TrainingCalendar } from '@/components/train/TrainingCalendar';
 import { DaySessionList } from '@/components/train/DaySessionList';
-import { groupSessionsByDate, toDateKey } from '@/lib/calendarSessions';
+import { toDateKey } from '@/lib/calendarSessions';
+import type { EnrichedPlanSession } from '@/types';
 
 export default function CalendarScreen() {
-  const { activePlan, isLoading, fetchActivePlan } = usePlanStore();
+  const { isLoading, fetchActivePlans, getGroupedSessionsForCalendar, activePlanIds } = usePlanStore();
   const { dog } = useDogStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
-    if (dog?.id && !activePlan) {
-      fetchActivePlan(dog.id);
+    if (dog?.id && activePlanIds.length === 0) {
+      fetchActivePlans(dog.id);
     }
-  }, [activePlan, dog?.id, fetchActivePlan]);
+  }, [dog?.id, activePlanIds.length, fetchActivePlans]);
 
-  const groupedSessions = useMemo(() => {
-    return activePlan ? groupSessionsByDate(activePlan.sessions) : {};
-  }, [activePlan]);
+  // Merged sessions across all active plans, grouped by date
+  const groupedSessions = useMemo(
+    () => getGroupedSessionsForCalendar(),
+    // Re-derive when plan data changes (activePlanIds is the reactive signal)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activePlanIds, getGroupedSessionsForCalendar]
+  );
 
   useEffect(() => {
     const scheduledDates = Object.keys(groupedSessions).sort();
@@ -42,9 +47,13 @@ export default function CalendarScreen() {
     ));
   }, [groupedSessions]);
 
-  const selectedDateSessions = useMemo(() => {
-    return groupedSessions[toDateKey(selectedDate)] || [];
-  }, [groupedSessions, selectedDate]);
+  const selectedDateSessions: EnrichedPlanSession[] = useMemo(
+    () => (groupedSessions[toDateKey(selectedDate)] ?? []) as EnrichedPlanSession[],
+    [groupedSessions, selectedDate]
+  );
+
+  const hasPlans = activePlanIds.length > 0;
+  const multiplePlans = activePlanIds.length > 1;
 
   return (
     <SafeScreen>
@@ -69,7 +78,9 @@ export default function CalendarScreen() {
           <Text variant="title" style={{ fontSize: 20 }}>Training Calendar</Text>
           {dog?.name && (
             <Text variant="micro" color={colors.text.secondary}>
-              Stay on track with {dog.name}
+              {multiplePlans
+                ? `All active courses · ${dog.name}`
+                : `Stay on track with ${dog.name}`}
             </Text>
           )}
         </View>
@@ -79,11 +90,11 @@ export default function CalendarScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.xxl }}
       >
-        {isLoading && !activePlan ? (
+        {isLoading && !hasPlans ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 }}>
             <LoadingSpinner />
           </View>
-        ) : !activePlan ? (
+        ) : !hasPlans ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 }}>
             <Ionicons name="calendar-outline" size={64} color={colors.border.default} />
             <Text variant="h3" style={{ marginTop: spacing.md }}>No Active Plan</Text>
@@ -102,6 +113,7 @@ export default function CalendarScreen() {
             <DaySessionList
               date={selectedDate}
               sessions={selectedDateSessions}
+              showCourseBadge={multiplePlans}
             />
           </>
         )}
