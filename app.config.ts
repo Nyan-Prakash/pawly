@@ -8,7 +8,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
+  icon: './assets/app-icon.png',
   ios: {
+    icon: './assets/app-icon.png',
     bundleIdentifier: 'com.nyan.prakash.pawly',
     infoPlist: {
       NSCameraUsageDescription:
@@ -18,6 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     }
   },
   android: {
+    icon: './assets/app-icon.png',
     permissions: ['android.permission.CAMERA']
   },
   plugins: [

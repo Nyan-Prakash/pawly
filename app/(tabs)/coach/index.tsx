@@ -18,9 +18,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
 import { MessageBubble } from '@/components/coach/MessageBubble';
+import { QuickSuggestions } from '@/components/coach/QuickSuggestions';
 import { TypingIndicator } from '@/components/coach/TypingIndicator';
 import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { useTheme } from '@/lib/theme';
 import { useCoachStore } from '@/stores/coachStore';
@@ -149,6 +149,7 @@ export default function CoachScreen() {
 
   const showWelcome = messages.length === 0;
   const hasRecentAdaptation = recentAdaptations.length > 0 && recentAdaptations[0].status === 'applied';
+  const suggestions = hasRecentAdaptation ? ADAPTIVE_SUGGESTIONS : BASE_SUGGESTIONS;
 
   return (
     <SafeScreen style={styles.screen}>
@@ -173,11 +174,7 @@ export default function CoachScreen() {
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => <MessageBubble message={item} />}
             ListEmptyComponent={
-              <WelcomeState
-                dogName={dog.name}
-                onSelect={handleSuggestion}
-                hasRecentAdaptation={hasRecentAdaptation}
-              />
+              <WelcomeState dogName={dog.name} />
             }
             ListFooterComponent={
               isTyping ? <TypingIndicator /> : <View style={styles.listEndSpacer} />
@@ -202,11 +199,13 @@ export default function CoachScreen() {
           </Pressable>
         ) : null}
 
-        <View
-          style={[
-            styles.composerShell,
-          ]}
-        >
+        {showWelcome ? (
+          <View style={styles.suggestionTray}>
+            <QuickSuggestions suggestions={suggestions} onSelect={handleSuggestion} />
+          </View>
+        ) : null}
+
+        <View style={styles.composerShell}>
           <View style={styles.composerBar}>
             <Pressable style={styles.leadingAction}>
               <Ionicons name="add" size={24} color={colors.text.primary} />
@@ -275,25 +274,22 @@ const ADAPTIVE_SUGGESTIONS = [
 
 function WelcomeState({
   dogName,
-  onSelect,
-  hasRecentAdaptation,
 }: {
   dogName: string;
-  onSelect: (suggestion: string) => void;
-  hasRecentAdaptation: boolean;
 }) {
   const { isDark } = useTheme();
   const styles = createStyles(isDark);
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const suggestions = hasRecentAdaptation ? ADAPTIVE_SUGGESTIONS : BASE_SUGGESTIONS;
 
   return (
     <View style={styles.welcomeWrap}>
       <View style={styles.welcomeHero}>
-        <Text variant="caption" style={styles.welcomeEyebrow}>
-          Pawly Coach
-        </Text>
+        <View style={styles.welcomePill}>
+          <Text variant="caption" style={styles.welcomeEyebrow}>
+            Pawly Coach
+          </Text>
+        </View>
         <Text variant="display" style={styles.welcomeGreeting}>
           {greeting}
         </Text>
@@ -303,28 +299,6 @@ function WelcomeState({
         <Text style={styles.welcomeDescription}>
           Get quick guidance for behavior or a clear suggestion on what to work on next.
         </Text>
-      </View>
-
-      {/* Quick suggestion chips */}
-      <View style={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
-        {suggestions.map((s) => (
-          <Pressable
-            key={s}
-            onPress={() => onSelect(s)}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? colors.bg.surfaceAlt : colors.bg.elevated,
-              borderRadius: radii.lg,
-              borderWidth: 1,
-              borderColor: colors.border.soft,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm + 2,
-            })}
-          >
-            <Text style={{ fontSize: 14, color: colors.text.primary, lineHeight: 20 }}>
-              {s}
-            </Text>
-          </Pressable>
-        ))}
       </View>
     </View>
   );
@@ -492,24 +466,37 @@ function createStyles(isDark: boolean) {
       paddingTop: spacing.sm,
     },
     messageListEmpty: {
-      justifyContent: 'flex-end',
+      justifyContent: 'center',
     },
 
     welcomeWrap: {
       flexGrow: 1,
       justifyContent: 'center',
-      paddingBottom: spacing.xl,
+      paddingBottom: spacing.xl * 1.5,
     },
     welcomeHero: {
       alignItems: 'center',
       paddingHorizontal: spacing.lg,
-      marginBottom: spacing.xl,
+    },
+    welcomePill: {
+      alignSelf: 'center',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.95)',
+      borderRadius: 999,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      marginBottom: spacing.sm,
+      shadowColor: colors.brand.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      elevation: 4,
     },
     welcomeEyebrow: {
       color: colors.brand.primary,
-      marginBottom: spacing.sm,
-      letterSpacing: 0.5,
+      letterSpacing: 1,
       fontWeight: '700',
+      textTransform: 'uppercase',
+      fontSize: 11,
     },
     welcomeGreeting: {
       textAlign: 'center',
@@ -549,6 +536,12 @@ function createStyles(isDark: boolean) {
       flex: 1,
       fontSize: 13,
       color: colors.error,
+    },
+
+    suggestionTray: {
+      backgroundColor: colors.bg.app,
+      paddingTop: spacing.xs,
+      marginBottom: spacing.sm,
     },
 
     composerShell: {

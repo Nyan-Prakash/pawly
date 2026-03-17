@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
   Animated,
   Dimensions,
+  Image,
   Platform,
   Pressable,
   StatusBar,
@@ -19,6 +20,10 @@ import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const APP_LOGO = require('../../assets/app-icon.png');
+const HERO_GREEN = '#8CC63F';
+const HERO_GREEN_DEEP = '#76B82A';
+const HERO_GREEN_SHADOW = '#5F9E22';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Feature pill
@@ -191,14 +196,14 @@ export default function WelcomeScreen() {
   const bottomPad = Math.max(insets.bottom, spacing.lg);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#15803D' }}>
+    <View style={{ flex: 1, backgroundColor: HERO_GREEN }}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       {/* ── HERO — fills all space above the card ── */}
       <LinearGradient
-        colors={['#16A34A', '#15803D', '#14532D']}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
+        colors={[HERO_GREEN, HERO_GREEN_DEEP, HERO_GREEN_SHADOW]}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
         style={{ flex: 1 }}
       >
         {/* Radial glow */}
@@ -210,7 +215,7 @@ export default function WelcomeScreen() {
             width: SCREEN_WIDTH * 0.8,
             height: SCREEN_WIDTH * 0.8,
             borderRadius: SCREEN_WIDTH * 0.4,
-            backgroundColor: 'rgba(34,197,94,0.15)',
+            backgroundColor: 'rgba(255,255,255,0.16)',
           }}
         />
 
@@ -233,22 +238,43 @@ export default function WelcomeScreen() {
           <Animated.View style={{ alignItems: 'center', opacity: logoOpacity, transform: [{ scale: logoScale }] }}>
             <View
               style={{
-                width: 76,
-                height: 76,
-                borderRadius: 22,
-                backgroundColor: 'rgba(255,255,255,0.15)',
+                width: 126,
+                height: 126,
+                borderRadius: 34,
+                backgroundColor: 'rgba(255,255,255,0.18)',
                 borderWidth: 1.5,
-                borderColor: 'rgba(255,255,255,0.25)',
+                borderColor: 'rgba(255,255,255,0.28)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: spacing.md,
+                overflow: 'hidden',
                 ...Platform.select({
-                  ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.18, shadowRadius: 16 },
-                  android: { elevation: 8 },
+                  ios: {
+                    shadowColor: '#315F12',
+                    shadowOffset: { width: 0, height: 14 },
+                    shadowOpacity: 0.34,
+                    shadowRadius: 24,
+                  },
+                  android: { elevation: 14 },
                 }),
               }}
             >
-              <Ionicons name="paw" size={40} color="#FFFFFF" />
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  left: 10,
+                  right: 10,
+                  height: 28,
+                  borderRadius: 18,
+                  backgroundColor: 'rgba(255,255,255,0.18)',
+                }}
+              />
+              <Image
+                source={APP_LOGO}
+                style={{ width: 112, height: 112, borderRadius: 28 }}
+                resizeMode="cover"
+              />
             </View>
             <Text style={{ fontSize: 50, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1.5, lineHeight: 54 }}>
               Pawly
