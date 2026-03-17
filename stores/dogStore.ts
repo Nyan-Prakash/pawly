@@ -1,16 +1,20 @@
 import { create } from 'zustand';
 
 import { supabase } from '@/lib/supabase';
-import type { Dog, Plan, BehaviorGoal } from '@/types';
+import { mapDogRowToDog, mapPlanRowToPlan } from '@/lib/modelMappers';
+import { fetchDogLearningState } from '@/lib/adaptivePlanning/repositories';
+import type { Dog, DogLearningState, Plan, BehaviorGoal } from '@/types';
 
 interface DogStore {
   dog: Dog | null;
   activePlan: Plan | null;
   behaviorGoals: BehaviorGoal[];
+  dogLearningState: DogLearningState | null;
   isLoading: boolean;
   fetchDog: (userId: string) => Promise<void>;
   updateDog: (updates: Partial<Dog>) => Promise<void>;
   fetchActivePlan: () => Promise<void>;
+  fetchDogLearningState: (dogId: string) => Promise<void>;
   setDog: (dog: Dog) => void;
   setActivePlan: (plan: Plan) => void;
 }
@@ -19,6 +23,7 @@ export const useDogStore = create<DogStore>((set, get) => ({
   dog: null,
   activePlan: null,
   behaviorGoals: [],
+  dogLearningState: null,
   isLoading: false,
 
   setDog: (dog) => set({ dog }),
@@ -39,24 +44,7 @@ export const useDogStore = create<DogStore>((set, get) => ({
       if (error) throw error;
 
       if (data) {
-        const dog: Dog = {
-          id: data.id,
-          ownerId: data.owner_id,
-          name: data.name,
-          breed: data.breed,
-          breedGroup: data.breed_group ?? '',
-          ageMonths: data.age_months,
-          sex: data.sex,
-          neutered: data.neutered,
-          environmentType: data.environment_type,
-          behaviorGoals: data.behavior_goals ?? [],
-          trainingExperience: data.training_experience,
-          equipment: data.equipment ?? [],
-          availableDaysPerWeek: data.available_days_per_week,
-          availableMinutesPerDay: data.available_minutes_per_day,
-          lifecycleStage: data.lifecycle_stage ?? '',
-          createdAt: data.created_at,
-        };
+        const dog = mapDogRowToDog(data);
         set({ dog });
       }
     } finally {
@@ -76,11 +64,34 @@ export const useDogStore = create<DogStore>((set, get) => ({
     if (updates.neutered !== undefined) dbUpdates.neutered = updates.neutered;
     if (updates.environmentType !== undefined) dbUpdates.environment_type = updates.environmentType;
     if (updates.equipment !== undefined) dbUpdates.equipment = updates.equipment;
+    if (updates.availableDaysPerWeek !== undefined) dbUpdates.available_days_per_week = updates.availableDaysPerWeek;
+    if (updates.availableMinutesPerDay !== undefined) dbUpdates.available_minutes_per_day = updates.availableMinutesPerDay;
+    if (updates.preferredTrainingDays !== undefined) dbUpdates.preferred_training_days = updates.preferredTrainingDays;
+    if (updates.preferredTrainingWindows !== undefined) dbUpdates.preferred_training_windows = updates.preferredTrainingWindows;
+    if (updates.preferredTrainingTimes !== undefined) dbUpdates.preferred_training_times = updates.preferredTrainingTimes;
+    if (updates.usualWalkTimes !== undefined) dbUpdates.usual_walk_times = updates.usualWalkTimes;
+    if (updates.sessionStyle !== undefined) dbUpdates.session_style = updates.sessionStyle;
+    if (updates.scheduleFlexibility !== undefined) dbUpdates.schedule_flexibility = updates.scheduleFlexibility;
+    if (updates.scheduleIntensity !== undefined) dbUpdates.schedule_intensity = updates.scheduleIntensity;
+    if (updates.blockedDays !== undefined) dbUpdates.blocked_days = updates.blockedDays;
+    if (updates.blockedDates !== undefined) dbUpdates.blocked_dates = updates.blockedDates;
+    if (updates.scheduleNotes !== undefined) dbUpdates.schedule_notes = updates.scheduleNotes;
+    if (updates.scheduleVersion !== undefined) dbUpdates.schedule_version = updates.scheduleVersion;
+    if (updates.timezone !== undefined) dbUpdates.timezone = updates.timezone;
 
     const { error } = await supabase.from('dogs').update(dbUpdates).eq('id', current.id);
     if (error) throw error;
 
     set({ dog: { ...current, ...updates } });
+  },
+
+  fetchDogLearningState: async (dogId: string) => {
+    try {
+      const state = await fetchDogLearningState(dogId);
+      set({ dogLearningState: state });
+    } catch {
+      set({ dogLearningState: null });
+    }
   },
 
   fetchActivePlan: async () => {
@@ -101,18 +112,7 @@ export const useDogStore = create<DogStore>((set, get) => ({
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        const plan: Plan = {
-          id: data.id,
-          dogId: data.dog_id,
-          goal: data.goal,
-          status: data.status,
-          durationWeeks: data.duration_weeks,
-          sessionsPerWeek: data.sessions_per_week,
-          currentWeek: data.current_week,
-          currentStage: data.current_stage,
-          sessions: data.sessions ?? [],
-          createdAt: data.created_at,
-        };
+        const plan = mapPlanRowToPlan(data);
         set({ activePlan: plan });
       }
     } finally {

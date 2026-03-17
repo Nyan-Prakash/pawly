@@ -1,0 +1,5 @@
+[functions.generate-adaptive-plan]
+verify_jwt = false
+
+[functions.adapt-plan]
+verify_jwt = false

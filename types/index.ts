@@ -31,9 +31,62 @@ export interface Dog {
   equipment: string[];
   availableDaysPerWeek: number;
   availableMinutesPerDay: number;
+  preferredTrainingDays: Weekday[];
+  preferredTrainingWindows: Partial<Record<Weekday, TimeWindow[]>>;
+  preferredTrainingTimes: Partial<Record<Weekday, string[]>>;
+  usualWalkTimes: string[];
+  sessionStyle: SessionStyle;
+  scheduleFlexibility: ScheduleFlexibility;
+  scheduleIntensity: ScheduleIntensity;
+  blockedDays: Weekday[];
+  blockedDates: string[];
+  scheduleNotes: string | null;
+  scheduleVersion: number;
+  timezone: string;
   lifecycleStage: string;
   createdAt: string;
 }
+
+export type Weekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+export type TimeWindow =
+  | 'early_morning'
+  | 'morning'
+  | 'midday'
+  | 'afternoon'
+  | 'evening'
+  | 'late_evening';
+
+export type SessionStyle = 'micro' | 'balanced' | 'focused';
+export type ScheduleFlexibility = 'skip' | 'move_next_slot' | 'move_tomorrow';
+export type ScheduleIntensity = 'gentle' | 'balanced' | 'aggressive';
+
+export interface TrainingSchedulePrefs {
+  preferredTrainingDays: Weekday[];
+  preferredTrainingWindows: Partial<Record<Weekday, TimeWindow[]>>;
+  preferredTrainingTimes: Partial<Record<Weekday, string[]>>;
+  usualWalkTimes: string[];
+  sessionStyle: SessionStyle;
+  scheduleFlexibility: ScheduleFlexibility;
+  scheduleIntensity: ScheduleIntensity;
+  blockedDays: Weekday[];
+  blockedDates: string[];
+  timezone: string;
+}
+
+/** Type of support session inserted by the adaptation engine. */
+export type SupportSessionType =
+  | 'foundation'
+  | 'transition'
+  | 'duration_building'
+  | 'calm_reset';
 
 export interface PlanSession {
   id: string;
@@ -43,6 +96,47 @@ export interface PlanSession {
   title: string;
   durationMinutes: number;
   isCompleted: boolean;
+  scheduledDay?: Weekday;
+  scheduledTime?: string;
+  scheduledDate?: string;
+  isReschedulable?: boolean;
+  autoRescheduledFrom?: string | null;
+  schedulingReason?: string;
+  isMissed?: boolean;
+  skillId?: string;
+  parentSkillId?: string | null;
+  environment?: PlanEnvironment;
+  sessionKind?: 'core' | 'repeat' | 'regress' | 'advance' | 'detour' | 'proofing';
+  adaptationSource?: 'initial_plan' | 'adaptation_engine';
+  reasoningLabel?: string | null;
+  /**
+   * True when this session was inserted by the adaptation engine as an extra
+   * support session (not part of the original plan scaffold).
+   */
+  insertedByAdaptation?: boolean;
+  /**
+   * The support-session type when insertedByAdaptation is true.
+   * Describes the purpose of the inserted session.
+   */
+  supportSessionType?: SupportSessionType | null;
+  /** Reason code of the adaptation event that caused the insertion. */
+  insertionReasonCode?: string | null;
+}
+
+export interface PlanMetadata {
+  scheduleVersion?: number;
+  preferredDays?: Weekday[];
+  preferredWindows?: Partial<Record<Weekday, TimeWindow[]>>;
+  flexibility?: ScheduleFlexibility;
+  intensity?: ScheduleIntensity;
+  explanation?: string[];
+  scheduleSummary?: string;
+  timezone?: string;
+  adaptationCount?: number;
+  lastAdaptedAt?: string | null;
+  lastAdaptationSummary?: string | null;
+  activeSkillFocus?: string | null;
+  currentEnvironmentTrack?: PlanEnvironment | null;
 }
 
 export interface Plan {
@@ -55,6 +149,7 @@ export interface Plan {
   currentWeek: number;
   currentStage: string;
   sessions: PlanSession[];
+  metadata?: PlanMetadata;
   createdAt: string;
 }
 
@@ -89,6 +184,142 @@ export interface CoachConversation {
   updatedAt: string;
 }
 
+export interface NotificationPrefs {
+  dailyReminder: boolean;
+  dailyReminderTime: string;
+  walkReminders: boolean;
+  postWalkCheckIn: boolean;
+  streakAlerts: boolean;
+  milestoneAlerts: boolean;
+  insights: boolean;
+  expertReview: boolean;
+  lifecycle: boolean;
+  weeklySummary: boolean;
+  scheduledSessionReminders: boolean;
+  reminderLeadMinutes: number;
+  fallbackMissedSessionReminders: boolean;
+}
+
+export type InAppNotificationType = 'plan_updated';
+
+export interface InAppNotification {
+  id: string;
+  userId: string;
+  dogId: string | null;
+  type: InAppNotificationType;
+  title: string;
+  body: string;
+  metadata: Record<string, unknown>;
+  isRead: boolean;
+  createdAt: string;
+  readAt: string | null;
+}
+
+// ─── Post-Session Reflection ──────────────────────────────────────────────────
+
+/**
+ * Handler's perceived expectation relative to how the session actually went.
+ */
+export type ReflectionExpectationGap =
+  | 'better_than_expected'
+  | 'as_expected'
+  | 'worse_than_expected';
+
+/**
+ * The primary failure mode or issue observed during the session.
+ */
+export type ReflectionMainIssue =
+  | 'did_not_understand'
+  | 'broke_position'
+  | 'distracted'
+  | 'over_excited'
+  | 'tired_done'
+  | 'handler_inconsistent'
+  | 'no_major_issue';
+
+/**
+ * When during the session the dog started failing (if applicable).
+ */
+export type ReflectionFailureTiming =
+  | 'immediately'
+  | 'midway'
+  | 'near_end'
+  | 'never_stabilized';
+
+/**
+ * The type of external stimulus that drew the dog's attention.
+ */
+export type ReflectionDistractionType =
+  | 'dogs'
+  | 'people'
+  | 'smells'
+  | 'noise_movement'
+  | 'other';
+
+/**
+ * Whether the dog appeared to understand the cue being trained.
+ */
+export type ReflectionCueUnderstanding = 'yes' | 'not_yet' | 'unsure';
+
+/**
+ * Observed arousal / energy state of the dog during the session.
+ */
+export type ReflectionArousalLevel = 'calm' | 'slightly_up' | 'very_up';
+
+/**
+ * Self-identified handler error that may have contributed to difficulty.
+ */
+export type ReflectionHandlerIssue =
+  | 'timing_rewards'
+  | 'cue_consistency'
+  | 'leash_setup'
+  | 'session_focus'
+  | 'other';
+
+/**
+ * Identifier for each question in the post-session reflection flow.
+ * Used for validation and conditional branching logic.
+ */
+export type ReflectionQuestionId =
+  | 'overallExpectation'
+  | 'mainIssue'
+  | 'failureTiming'
+  | 'distractionType'
+  | 'cueUnderstanding'
+  | 'arousalLevel'
+  | 'handlerIssue'
+  | 'confidenceInAnswers'
+  | 'freeformNote';
+
+/**
+ * Structured post-session reflection captured from the handler after a
+ * training session completes. Stored as JSONB in session_logs and used as
+ * richer signal input for the adaptive planning engine.
+ *
+ * All answer fields are nullable so partially completed reflections can be
+ * stored safely. UI flow controls which questions are presented.
+ */
+export interface PostSessionReflection {
+  /** How the session compared to the handler's expectations. */
+  overallExpectation: ReflectionExpectationGap | null;
+  /** Primary issue observed during the session, if any. */
+  mainIssue: ReflectionMainIssue | null;
+  /** When during the session failures occurred (only relevant when mainIssue !== 'no_major_issue'). */
+  failureTiming: ReflectionFailureTiming | null;
+  /** What distracted the dog (only relevant when mainIssue === 'distracted'). */
+  distractionType: ReflectionDistractionType | null;
+  /** Whether the dog appeared to understand the cue. */
+  cueUnderstanding: ReflectionCueUnderstanding | null;
+  /** The dog's arousal level during the session. */
+  arousalLevel: ReflectionArousalLevel | null;
+  /** Handler error that may have contributed to difficulty (only relevant when mainIssue === 'handler_inconsistent'). */
+  handlerIssue: ReflectionHandlerIssue | null;
+  /** Handler's self-assessed confidence in the accuracy of these answers (1 = low, 5 = high). */
+  confidenceInAnswers: 1 | 2 | 3 | 4 | 5 | null;
+  /** Optional freeform note to supplement structured answers. */
+  freeformNote: string | null;
+}
+
 // ─── Progress & Walk Tracking ─────────────────────────────────────────────────
 
 export interface WalkLog {
@@ -98,6 +329,7 @@ export interface WalkLog {
   quality: 1 | 2 | 3; // 1=harder, 2=same, 3=better
   notes?: string;
   durationMinutes?: number;
+  goalAchieved?: boolean | null;
   loggedAt: string;
 }
 
@@ -192,4 +424,194 @@ export interface ExpertReview {
 export interface ReviewCredit {
   userId: string;
   creditsRemaining: number;
+}
+
+// ─── Adaptive Planning ───────────────────────────────────────────────────────
+
+export type AdaptationType =
+  | 'repeat'
+  | 'regress'
+  | 'advance'
+  | 'detour'
+  | 'difficulty_adjustment'
+  | 'schedule_adjustment'
+  | 'environment_adjustment';
+
+export type AdaptationStatus = 'applied' | 'skipped' | 'rolled_back';
+
+export type SkillNodeKind = 'foundation' | 'core' | 'proofing' | 'recovery' | 'diagnostic';
+
+export type SkillEdgeType = 'prerequisite' | 'advance' | 'regress' | 'detour' | 'proofing';
+
+export interface LearningHypothesis {
+  code: string;
+  summary: string;
+  evidence: string[];
+  confidence: 'low' | 'medium' | 'high';
+}
+
+export interface DogLearningState {
+  id: string;
+  dogId: string;
+  createdAt: string;
+  updatedAt: string;
+  motivationScore: number;
+  distractionSensitivity: number;
+  confidenceScore: number;
+  impulseControlScore: number;
+  handlerConsistencyScore: number;
+  fatigueRiskScore: number;
+  recoverySpeedScore: number;
+  environmentConfidence: Record<string, number>;
+  behaviorSignals: Record<string, unknown>;
+  recentTrends: Record<string, unknown>;
+  currentHypotheses: LearningHypothesis[];
+  lastEvaluatedAt: string | null;
+  version: number;
+}
+
+export interface PlanAdaptation {
+  id: string;
+  dogId: string;
+  planId: string;
+  triggeredBySessionLogId: string | null;
+  createdAt: string;
+  adaptationType: AdaptationType;
+  status: AdaptationStatus;
+  reasonCode: string;
+  reasonSummary: string;
+  evidence: Record<string, unknown>;
+  previousSnapshot: Record<string, unknown>;
+  newSnapshot: Record<string, unknown>;
+  changedSessionIds: string[];
+  changedFields: string[];
+  modelName: string | null;
+  latencyMs: number | null;
+  wasUserVisible: boolean;
+}
+
+export interface SkillNode {
+  id: string;
+  behavior: string;
+  skillCode: string;
+  title: string;
+  description: string | null;
+  stage: number;
+  difficulty: number;
+  kind: SkillNodeKind;
+  protocolId: string | null;
+  metadata: Record<string, unknown>;
+  isActive: boolean;
+}
+
+export interface SkillEdge {
+  id: string;
+  fromSkillId: string;
+  toSkillId: string;
+  edgeType: SkillEdgeType;
+  conditionSummary: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface AdaptivePlanFeatureFlags {
+  enableAdaptivePlanner: boolean;
+  enableAdaptivePlanPreview: boolean;
+  enableAdaptationEngine: boolean;
+  enableCoachAdaptationExplanations: boolean;
+  enableLearningStateUpdates: boolean;
+}
+
+export interface PlanReasoningSummary {
+  adaptationId: string;
+  reasonCode: string;
+  reasonSummary: string;
+  adaptationType: AdaptationType;
+  wasUserVisible: boolean;
+}
+
+export interface PlanChangeSummary {
+  adaptationId: string;
+  changedSessionIds: string[];
+  changedFields: string[];
+  previousSnapshot: Record<string, unknown>;
+  newSnapshot: Record<string, unknown>;
+}
+
+export interface AdaptationApiResult {
+  applied: boolean;
+  skipped: boolean;
+  adaptationId: string | null;
+  adaptationType: AdaptationType | null;
+  reasonCode: string | null;
+  reasonSummary: string | null;
+  changedSessionIds: string[];
+  changedFields: string[];
+}
+
+// ─── Adaptive Planner ─────────────────────────────────────────────────────────
+
+export type PlannerMode = 'adaptive_ai' | 'rules_fallback';
+
+export type PlanEnvironment =
+  | 'indoors_low_distraction'
+  | 'indoors_moderate_distraction'
+  | 'outdoors_low_distraction'
+  | 'outdoors_moderate_distraction'
+  | 'outdoors_high_distraction';
+
+export type PlanSessionKind = 'core' | 'repeat' | 'proofing';
+
+export interface AISkillSelection {
+  skillId: string;
+  sessionCount: number;
+  environment: PlanEnvironment;
+  sessionKind: PlanSessionKind;
+  reasoningLabel: string;
+}
+
+export interface AIWeekStructure {
+  weekNumber: number;
+  focus: string;
+  skillSequence: AISkillSelection[];
+}
+
+export interface AIPlanningSummary {
+  whyThisStart: string;
+  keyAssumptions: string[];
+  risksToWatch: string[];
+}
+
+export interface AIPlannerOutput {
+  primaryGoal: string;
+  startingSkillId: string;
+  planHorizonWeeks: number;
+  sessionsPerWeek: number;
+  weeklyStructure: AIWeekStructure[];
+  planningSummary: AIPlanningSummary;
+}
+
+export interface PlannerValidationError {
+  field: string;
+  message: string;
+}
+
+export interface AdaptivePlanMetadata extends PlanMetadata {
+  plannerVersion: string;
+  plannerMode: PlannerMode;
+  planningSummary?: AIPlanningSummary;
+  selectedSkillIds: string[];
+  validationWarnings: string[];
+  scheduleExplanation?: string;
+}
+
+export interface AdaptivePlanRequest {
+  dogId: string;
+  userId: string;
+}
+
+export interface AdaptivePlanResult {
+  plan: Plan;
+  plannerMode: PlannerMode;
+  planningSummary?: AIPlanningSummary;
+  fallbackReason?: string;
 }

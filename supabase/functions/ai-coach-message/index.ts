@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import OpenAI from 'https://esm.sh/openai@4';
+import { buildLearningStateCoachSummary } from '../../../lib/adaptivePlanning/learningStateSummary.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -44,15 +45,40 @@ interface SessionLogRow {
 }
 
 interface WalkLogRow {
-  quality_score: number | null;
+  quality: number | null;
   goal_achieved: boolean | null;
   logged_at: string;
   duration_minutes: number | null;
 }
 
+interface LearningHypothesisRow {
+  summary?: string;
+}
+
+interface LearningStateRow {
+  motivation_score: number;
+  distraction_sensitivity: number;
+  confidence_score: number;
+  impulse_control_score: number;
+  handler_consistency_score: number;
+  fatigue_risk_score: number;
+  recovery_speed_score: number;
+  environment_confidence: Record<string, number> | null;
+  behavior_signals: Record<string, unknown> | null;
+  recent_trends: Record<string, unknown> | null;
+  current_hypotheses: LearningHypothesisRow[] | null;
+  last_evaluated_at: string | null;
+}
+
 interface MessageRow {
   role: string;
   content: string;
+}
+
+interface AdaptationRow {
+  adaptation_type: string;
+  reason_summary: string;
+  created_at: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,6 +107,8 @@ function buildSystemPrompt(
   plan: PlanRow | null,
   sessions: SessionLogRow[],
   walks: WalkLogRow[],
+  learningState: LearningStateRow | null,
+  adaptations: AdaptationRow[],
 ): string {
   // Lifecycle label
   const ageMonths = dog.age_months ?? 0;
@@ -112,7 +140,7 @@ function buildSystemPrompt(
 
   // Walk trend
   const walkQualityAvg = walks.length
-    ? (walks.reduce((sum, w) => sum + (w.quality_score ?? 2), 0) / walks.length).toFixed(1)
+    ? (walks.reduce((sum, w) => sum + (w.quality ?? 2), 0) / walks.length).toFixed(1)
     : null;
   const walkTrend = walkQualityAvg
     ? `average quality ${walkQualityAvg}/3 over last ${walks.length} walks`
@@ -125,6 +153,41 @@ Current stage: ${plan.current_stage}
 Week ${plan.current_week} of ${plan.duration_weeks}`
     : `## Current Training Focus
 No active training plan. Encourage user to complete onboarding and start a plan.`;
+
+  const learningStateSummary = buildLearningStateCoachSummary(dog.name, learningState
+    ? {
+        id: 'edge',
+        dogId: dog.id,
+        createdAt: learningState.last_evaluated_at ?? new Date().toISOString(),
+        updatedAt: learningState.last_evaluated_at ?? new Date().toISOString(),
+        motivationScore: learningState.motivation_score,
+        distractionSensitivity: learningState.distraction_sensitivity,
+        confidenceScore: learningState.confidence_score,
+        impulseControlScore: learningState.impulse_control_score,
+        handlerConsistencyScore: learningState.handler_consistency_score,
+        fatigueRiskScore: learningState.fatigue_risk_score,
+        recoverySpeedScore: learningState.recovery_speed_score,
+        environmentConfidence: learningState.environment_confidence ?? {},
+        behaviorSignals: learningState.behavior_signals ?? {},
+        recentTrends: learningState.recent_trends ?? {},
+        currentHypotheses: (learningState.current_hypotheses ?? []).map((item, index) => ({
+          code: `edge_${index}`,
+          summary: item.summary ?? '',
+          evidence: [],
+          confidence: 'medium' as const,
+        })),
+        lastEvaluatedAt: learningState.last_evaluated_at,
+        version: 1,
+      }
+    : null);
+
+  const adaptationSummary = adaptations.length
+    ? adaptations
+        .map((item) =>
+          `${item.adaptation_type} on ${new Date(item.created_at).toLocaleDateString()}: ${item.reason_summary}`,
+        )
+        .join(' | ')
+    : 'No recent plan adaptations.';
 
   return `You are Pawly's AI training coach. You are warm, direct, knowledgeable, and always specific to this dog and owner.
 
@@ -148,15 +211,36 @@ ${avgScore !== null ? `Average success score: ${avgScore}/5` : ''}
 Walk quality trend: ${walkTrend}
 Last session: ${lastSessionSummary}
 
+## Learning Patterns
+${learningStateSummary.summary}
+${learningStateSummary.topHypotheses.length ? `Top 3 hypotheses: ${learningStateSummary.topHypotheses.join(' | ')}` : 'Top 3 hypotheses: none yet'}
+${learningStateSummary.environmentDeltas.length ? `Environment deltas: ${learningStateSummary.environmentDeltas.join(' | ')}` : 'Environment deltas: none yet'}
+${learningStateSummary.warnings.length ? `Warnings: ${learningStateSummary.warnings.join(' | ')}` : 'Warnings: none'}
+
+## Recent Plan Adjustments
+${adaptationSummary}
+
 ## Your Guidelines
 - Always address ${dog.name} by name
 - Ground all advice in the current training stage and plan
+- Treat learning-state signals as training patterns, not facts or diagnoses
+- You may say things like "seems to do better indoors" or "recent sessions suggest shorter reps may help"
 - Never diagnose medical conditions — refer to vet when behavior changes suggest health issues
 - Never recommend aversive, punishment-based, or dominance methods
 - For severe aggression, bite history, or extreme fear — strongly recommend in-person behaviorist
 - Keep responses concise and actionable — owners want to know what to do, not read essays
+- Use rich formatting to improve readability:
+    - Use **bold headers** for key sections (on their own lines)
+    - Use bulleted or numbered lists for steps and instructions
+    - Use bold inline for key labels or emphasis
+    - Use emoji callouts at the start of a line for important tips or warnings:
+        - 💡 for helpful tips
+        - ⚠️ for warnings or common mistakes
+        - ✅ for "do" items or confirmations
+        - 🐶 for dog-specific insights
+    - Use double line breaks between sections to ensure clear spacing
 - If uncertain, say so and offer the safest conservative approach
-- Always end advice with one clear next action`;
+- Always end advice with a clear section: **Try This Today** followed by one specific next action`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -260,7 +344,7 @@ serve(async (req) => {
 
   // ── 4. Fetch context ───────────────────────────────────────────────────────
 
-  const [dogResult, planResult, sessionsResult, walksResult, historyResult] = await Promise.all([
+  const [dogResult, planResult, sessionsResult, walksResult, learningStateResult, adaptationsResult, historyResult] = await Promise.all([
     // Dog profile
     adminClient
       .from('dogs')
@@ -291,11 +375,24 @@ serve(async (req) => {
     // Last 5 walk logs
     adminClient
       .from('walk_logs')
-      .select('quality_score, goal_achieved, logged_at, duration_minutes')
+      .select('quality, goal_achieved, logged_at, duration_minutes')
       .eq('dog_id', dogId)
       .eq('user_id', user.id)
       .order('logged_at', { ascending: false })
       .limit(5),
+
+    adminClient
+      .from('dog_learning_state')
+      .select('motivation_score, distraction_sensitivity, confidence_score, impulse_control_score, handler_consistency_score, fatigue_risk_score, recovery_speed_score, environment_confidence, behavior_signals, recent_trends, current_hypotheses, last_evaluated_at')
+      .eq('dog_id', dogId)
+      .maybeSingle(),
+
+    adminClient
+      .from('plan_adaptations')
+      .select('adaptation_type, reason_summary, created_at')
+      .eq('dog_id', dogId)
+      .order('created_at', { ascending: false })
+      .limit(3),
 
     // Last 20 messages in this conversation
     adminClient
@@ -314,10 +411,12 @@ serve(async (req) => {
   const plan = planResult.data as PlanRow | null;
   const sessions = (sessionsResult.data ?? []) as SessionLogRow[];
   const walks = (walksResult.data ?? []) as WalkLogRow[];
+  const learningState = (learningStateResult.data ?? null) as LearningStateRow | null;
+  const adaptations = (adaptationsResult.data ?? []) as AdaptationRow[];
   const history = (historyResult.data ?? []) as MessageRow[];
 
   // ── 5. Assemble system prompt ──────────────────────────────────────────────
-  const systemPrompt = buildSystemPrompt(dog, plan, sessions, walks);
+  const systemPrompt = buildSystemPrompt(dog, plan, sessions, walks, learningState, adaptations);
 
   // ── 6. Call OpenAI API ────────────────────────────────────────────────────
   const openai = new OpenAI({ apiKey: openaiApiKey });

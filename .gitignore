@@ -41,3 +41,6 @@ yarn-error.*
 
 # TypeScript
 *.tsbuildinfo
+
+# TFLite model binaries — download separately, do not commit large binaries
+*.tflite

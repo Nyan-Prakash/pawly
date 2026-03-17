@@ -1,8 +1,54 @@
 import { supabase } from '@/lib/supabase';
+import { updateLearningStateFromSessionLog } from '@/lib/adaptivePlanning/learningStateEngine';
+import type { AdaptationApiResult, PlanEnvironment, PlanSession, PostSessionReflection } from '@/types';
+import type { StepResult } from '@/stores/sessionStore';
+import type { TrackingQuality, PostureLabel } from '@/types/pose';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Typed payload for session_logs.live_coaching_summary (JSONB).
+ * High-level coaching outcome stored alongside the session log.
+ */
+export interface LiveCoachingSummary {
+  /** Always 'stationary_hold' for current protocols. */
+  coachingMode: string;
+  /** Protocol identifier used for this coaching session. */
+  protocolId: string;
+  /** Target postures the dog was coached toward. */
+  targetPostures: Exclude<PostureLabel, 'unknown'>[];
+  /** Number of successfully completed holds/reps. */
+  successCount: number;
+  /** Number of times a rep was reset (broke posture / motion / tracking). */
+  resetCount: number;
+  /** Average tracking quality expressed as a 0–1 score (good=1, fair=0.5, poor=0). */
+  averageTrackingQuality: number;
+  /** Human-readable session outcome: 'completed' | 'abandoned' | 'partial'. */
+  sessionAssessment: 'completed' | 'abandoned' | 'partial';
+}
+
+/**
+ * Typed payload for session_logs.pose_metrics (JSONB).
+ * Detailed per-frame pose pipeline statistics.
+ */
+export interface PoseMetrics {
+  /** Average keypoint detection confidence across all frames (0–1). */
+  averageTrackingConfidence: number;
+  /** Frame counts at each quality tier. */
+  trackingQualityBreakdown: Record<TrackingQuality, number>;
+  /** Time spent in each posture during the coached session (ms). */
+  postureDurations: Partial<Record<PostureLabel, number>>;
+  /** Duration of each successful hold (ms). */
+  holdDurations: number[];
+  /** Total reps detected (successful holds). */
+  repCountDetected: number;
+  /** Number of tracking_lost events during the session. */
+  lostTrackingEvents: number;
+  /** Number of significant_motion events during the session. */
+  significantMotionEvents: number;
+}
 
 export interface SaveSessionParams {
   userId: string;
@@ -15,12 +61,33 @@ export interface SaveSessionParams {
   difficulty: 'easy' | 'okay' | 'hard';
   notes: string;
   completedAt: string;
+  successScore?: number;
+  stepResults?: StepResult[];
+  sessionStatus?: 'completed' | 'abandoned';
+  skillId?: string | null;
+  sessionKind?: PlanSession['sessionKind'] | null;
+  environmentTag?: PlanEnvironment | null;
+  // PR16: live pose coaching fields (optional — defaults to disabled)
+  /** Set to true only when the camera coaching flow was used. */
+  liveCoachingUsed?: boolean;
+  /** High-level coaching outcome. Only set when liveCoachingUsed is true. */
+  liveCoachingSummary?: LiveCoachingSummary;
+  /** Detailed pose pipeline metrics. Only set when liveCoachingUsed is true. */
+  poseMetrics?: PoseMetrics;
+  // PR17: post-session reflection (optional — null when handler skips the flow)
+  /** Structured handler reflection captured after the session review step. */
+  postSessionReflection?: PostSessionReflection | null;
 }
 
 export interface CompletedSession {
   sessionId: string;
   dogId: string;
   planId: string;
+}
+
+export interface SaveSessionResult {
+  sessionLogId: string | null;
+  adaptation: AdaptationApiResult | null;
 }
 
 export interface Milestone {
@@ -33,24 +100,97 @@ export interface Milestone {
 // saveSession
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function saveSession(params: SaveSessionParams): Promise<void> {
-  const { error } = await supabase.from('session_logs').insert({
-    user_id: params.userId,
-    dog_id: params.dogId,
-    plan_id: params.planId,
-    session_id: params.sessionId,
-    exercise_id: params.exerciseId,
-    protocol_id: params.protocolId,
-    duration_seconds: params.durationSeconds,
-    difficulty: params.difficulty,
-    notes: params.notes || null,
-    completed_at: params.completedAt,
+async function invokeAdaptPlan(body: {
+  dogId: string;
+  planId: string;
+  triggeredBySessionLogId?: string | null;
+  triggeredByWalkLogId?: string | null;
+}): Promise<AdaptationApiResult | null> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const { data, error } = await supabase.functions.invoke('adapt-plan', {
+    body,
+    headers: session?.access_token
+      ? {
+          Authorization: `Bearer ${session.access_token}`,
+        }
+      : undefined,
   });
+  if (error) {
+    const errorDetails = {
+      name: error.name,
+      message: error.message,
+      context: 'context' in error ? (error as { context?: unknown }).context : undefined,
+    };
+    console.warn('[sessionManager] adapt-plan invoke error:', errorDetails);
+    return null;
+  }
+
+  console.log('[sessionManager] adapt-plan response:', data);
+  return (data ?? null) as AdaptationApiResult | null;
+}
+
+export async function triggerPlanAdaptation(params: {
+  dogId: string;
+  planId: string;
+  triggeredBySessionLogId?: string | null;
+  triggeredByWalkLogId?: string | null;
+}): Promise<AdaptationApiResult | null> {
+  return invokeAdaptPlan(params);
+}
+
+export async function saveSession(params: SaveSessionParams): Promise<SaveSessionResult> {
+  const { data, error } = await supabase
+    .from('session_logs')
+    .insert({
+      user_id: params.userId,
+      dog_id: params.dogId,
+      plan_id: params.planId,
+      session_id: params.sessionId,
+      exercise_id: params.exerciseId,
+      protocol_id: params.protocolId,
+      duration_seconds: params.durationSeconds,
+      difficulty: params.difficulty,
+      notes: params.notes || null,
+      completed_at: params.completedAt,
+      success_score: params.successScore ?? null,
+      step_results: params.stepResults ?? [],
+      session_status: params.sessionStatus ?? 'completed',
+      skill_id: params.skillId ?? null,
+      session_kind: params.sessionKind ?? null,
+      environment_tag: params.environmentTag ?? null,
+      live_coaching_used: params.liveCoachingUsed ?? false,
+      live_coaching_summary: params.liveCoachingSummary ?? {},
+      pose_metrics: params.poseMetrics ?? {},
+      post_session_reflection: params.postSessionReflection ?? null,
+    })
+    .select('id')
+    .single();
 
   if (error) {
     console.warn('[sessionManager] saveSession error:', error.message);
-    // Non-fatal — local state is already updated
+    return { sessionLogId: null, adaptation: null };
   }
+
+  let adaptation: AdaptationApiResult | null = null;
+  if (data?.id) {
+    try {
+      await updateLearningStateFromSessionLog(data.id);
+      if ((params.sessionStatus ?? 'completed') === 'completed') {
+        adaptation = await invokeAdaptPlan({
+          dogId: params.dogId,
+          planId: params.planId,
+          triggeredBySessionLogId: data.id,
+        });
+      }
+    } catch (updateError) {
+      console.warn('[sessionManager] learning state update error:', updateError);
+    }
+  }
+
+  return { sessionLogId: data?.id ?? null, adaptation };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

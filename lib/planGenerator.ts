@@ -1,4 +1,10 @@
-import type { Dog, Plan, PlanSession } from '@/types';
+import type { Dog, Plan, PlanSession } from '../types';
+import {
+  buildPlanMetadata,
+  buildWeeklySchedule,
+  chooseTrainingDays,
+  normalizeTrainingSchedulePrefs,
+} from './scheduleEngine';
 
 type GoalKey =
   | 'leash_pulling'
@@ -10,7 +16,15 @@ type GoalKey =
   | 'puppy_biting'
   | 'settling';
 
-const GOAL_MAP: Record<string, GoalKey> = {
+export const GOAL_MAP: Record<string, GoalKey> = {
+  leash_pulling: 'leash_pulling',
+  jumping_up: 'jumping_up',
+  barking: 'barking',
+  recall: 'recall',
+  potty_training: 'potty_training',
+  crate_anxiety: 'crate_anxiety',
+  puppy_biting: 'puppy_biting',
+  settling: 'settling',
   'Leash Pulling': 'leash_pulling',
   'Jumping Up': 'jumping_up',
   'Barking': 'barking',
@@ -138,6 +152,7 @@ function getStartingStage(goal: GoalKey, lifecycleStage: string): string {
   return 'Stage 2 — Building';
 }
 
+/** Rules-based plan generator. Also used as fallback when adaptive planner fails. */
 export function generatePlan(dog: Dog): Plan {
   const goalKey: GoalKey = GOAL_MAP[dog.behaviorGoals[0]] ?? 'leash_pulling';
   const lifecycleStage = getLifecycleStage(dog.ageMonths);
@@ -157,6 +172,22 @@ export function generatePlan(dog: Dog): Plan {
     isCompleted: false,
   }));
 
+  const prefs = normalizeTrainingSchedulePrefs(undefined, dog);
+  const trainingDays = chooseTrainingDays({
+    sessionsPerWeek,
+    availableDaysPerWeek: dog.availableDaysPerWeek,
+    prefs,
+  });
+  const scheduledSessions = buildWeeklySchedule({
+    sessions,
+    sessionsPerWeek,
+    durationWeeks: totalWeeks,
+    availableDaysPerWeek: dog.availableDaysPerWeek,
+    availableMinutesPerDay: dog.availableMinutesPerDay,
+    prefs,
+    goal: dog.behaviorGoals[0],
+  });
+
   return {
     id: '',
     dogId: dog.id,
@@ -166,7 +197,13 @@ export function generatePlan(dog: Dog): Plan {
     sessionsPerWeek,
     currentWeek: 1,
     currentStage,
-    sessions,
+    sessions: scheduledSessions,
+    metadata: buildPlanMetadata({
+      goal: dog.behaviorGoals[0] ?? 'General Training',
+      sessionsPerWeek,
+      prefs,
+      trainingDays,
+    }),
     createdAt: new Date().toISOString(),
   };
 }

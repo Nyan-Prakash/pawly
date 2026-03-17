@@ -5,6 +5,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": [
         "./*"
@@ -17,5 +18,10 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "supabase/functions/**/*",
+    "tests/**/*",
+    "test-edge-function.ts"
   ]
 }

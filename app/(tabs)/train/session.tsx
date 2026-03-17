@@ -7,7 +7,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  TextInput,
   View,
   Vibration,
 } from 'react-native';
@@ -21,14 +20,34 @@ import { Text } from '@/components/ui/Text';
 import { TimerRing } from '@/components/session/TimerRing';
 import { RepCounter } from '@/components/session/RepCounter';
 import { StepCard } from '@/components/session/StepCard';
+import { SessionModePicker } from '@/components/session/SessionModePicker';
+import { LiveCoachOverlay } from '@/components/vision/LiveCoachOverlay';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { useSessionStore } from '@/stores/sessionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { saveSession, checkMilestones, updateStreak } from '@/lib/sessionManager';
+import type { LiveCoachingSummary, PoseMetrics } from '@/lib/sessionManager';
 import { EXERCISE_TO_PROTOCOL } from '@/constants/protocols';
+import { didUpcomingScheduleChange } from '@/lib/notifications';
+import { useLiveCoachingSession } from '@/hooks/useLiveCoachingSession';
+import type { CoachingSessionMetrics } from '@/lib/liveCoach/liveCoachingTypes';
+import { buildPostSessionReflectionQuestions } from '@/lib/adaptivePlanning/reflectionQuestionEngine';
+import type { ReflectionQuestionConfig } from '@/lib/adaptivePlanning/reflectionQuestionTypes';
+import {
+  PostSessionReflectionCard,
+  applyReflectionAnswer,
+  makeEmptyReflection,
+} from '@/components/session/PostSessionReflectionCard';
+import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
+
+// ── Local UI state for live coaching (does not touch session store) ──────────
+// These two extra states sit on top of the store's SessionState and are
+// managed with a separate local useState to avoid any regression.
+type LocalOverlayState = 'NONE' | 'MODE_PICKER' | 'LIVE_COACHING';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -78,9 +97,11 @@ export default function SessionScreen() {
   const { id: sessionId } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
 
-  const { activePlan, fetchProtocol, markSessionComplete } = usePlanStore();
-  const { dog } = useDogStore();
+  const { activePlan, fetchProtocol, markSessionComplete, refreshPlan } = usePlanStore();
+  const { dog, fetchDogLearningState, dogLearningState } = useDogStore();
   const { user } = useAuthStore();
+  const ensureNotificationPermission = useNotificationStore((s) => s.ensurePermissionAfterMeaningfulAction);
+  const refreshNotificationSchedules = useNotificationStore((s) => s.refreshSchedules);
   const {
     activeSession,
     startSession,
@@ -105,20 +126,45 @@ export default function SessionScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [completedSessionCount, setCompletedSessionCount] = useState(0);
 
+  // ── Post-session reflection state ──────────────────────────────────────────
+  const [reflectionQuestions, setReflectionQuestions] = useState<ReflectionQuestionConfig[]>([]);
+  const [reflectionAnswers, setReflectionAnswers] = useState<PostSessionReflection>(makeEmptyReflection());
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // ── Live coaching local overlay state ──────────────────────────────────────
+  // Kept local so normal session flow (store state machine) is never touched.
+  const [overlayState, setOverlayState] = useState<LocalOverlayState>('NONE');
+  // Metrics captured when live coaching completes; passed to saveSession.
+  const liveMetricsRef = useRef<CoachingSessionMetrics | null>(null);
+
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const backgroundTimeRef = useRef<number | null>(null);
   const stepStartTimeRef = useRef<number>(Date.now());
+  const startedSessionIdRef = useRef<string | null>(null);
 
   // ── Load protocol & start session ──────────────────────────────────────────
 
   useEffect(() => {
-    if (!sessionId || !activePlan) return;
+    if (!sessionId) return;
+    if (activeSession?.sessionId === sessionId || startedSessionIdRef.current === sessionId) return;
+    if (!activePlan) return;
 
     const planSession = activePlan.sessions.find((s) => s.id === sessionId);
-    if (!planSession) return;
+    if (!planSession) {
+      setLoadError('This session was not found in your active plan.');
+      return;
+    }
+
+    let isCancelled = false;
+    setLoadError(null);
 
     fetchProtocol(planSession.exerciseId).then((protocol) => {
-      if (!protocol) return;
+      if (isCancelled) return;
+      if (!protocol) {
+        setLoadError('We could not load this session protocol.');
+        return;
+      }
+      startedSessionIdRef.current = sessionId;
       startSession(sessionId, planSession.exerciseId, protocol);
     });
 
@@ -126,9 +172,16 @@ export default function SessionScreen() {
     setCompletedSessionCount(completedCount + 1); // +1 for this session
 
     return () => {
+      isCancelled = true;
+    };
+  }, [sessionId, activePlan, activeSession?.sessionId, fetchProtocol, startSession, clearSession]);
+
+  useEffect(() => {
+    return () => {
+      startedSessionIdRef.current = null;
       clearSession();
     };
-  }, [sessionId]);
+  }, [clearSession]);
 
   // ── Tick interval ──────────────────────────────────────────────────────────
 
@@ -197,6 +250,50 @@ export default function SessionScreen() {
     }
   }, [activeSession?.currentStepIndex, activeSession?.state]);
 
+  // ── Build reflection questions once when entering SESSION_REVIEW ──────────
+  // Runs whenever the session state changes to SESSION_REVIEW.
+  // Uses safe fallbacks for any context not yet available locally:
+  //   - recentSessions: [] (session logs not held in local state)
+  //   - learningState: mapped from dogLearningState if present
+  // If question generation throws for any reason, we silently fall back to
+  // an empty list — the review still shows difficulty + notes normally.
+  useEffect(() => {
+    if (activeSession?.state !== 'SESSION_REVIEW') return;
+
+    try {
+      const durationSeconds = Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000);
+      const planSession = activePlan?.sessions.find((s) => s.id === activeSession.sessionId);
+
+      const questions = buildPostSessionReflectionQuestions({
+        difficulty: reviewDifficulty ?? 'okay',
+        sessionStatus: 'completed',
+        durationSeconds,
+        protocolId: EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId,
+        skillId: planSession?.skillId ?? null,
+        environmentTag: planSession?.environment ?? null,
+        recentSessions: [],
+        learningState: dogLearningState
+          ? {
+              distractionSensitivity: dogLearningState.distractionSensitivity,
+              handlerConsistencyScore: dogLearningState.handlerConsistencyScore,
+              confidenceScore: dogLearningState.confidenceScore,
+              inconsistencyIndex:
+                typeof (dogLearningState.behaviorSignals as Record<string, unknown>)?.inconsistencyIndex === 'number'
+                  ? ((dogLearningState.behaviorSignals as Record<string, unknown>).inconsistencyIndex as number)
+                  : null,
+            }
+          : null,
+      });
+
+      setReflectionQuestions(questions);
+      setReflectionAnswers(makeEmptyReflection());
+    } catch {
+      // Graceful fallback: no questions shown, difficulty + notes still work.
+      setReflectionQuestions([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession?.state]);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Actions
   // ─────────────────────────────────────────────────────────────────────────
@@ -235,9 +332,10 @@ export default function SessionScreen() {
           notes: reviewNotes || undefined,
         });
 
-        // Save log to Supabase (non-blocking)
+        const planSession = activePlan.sessions.find((session) => session.id === sid);
         const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
-        saveSession({
+        const liveMetrics = liveMetricsRef.current;
+        await saveSession({
           userId: user.id,
           dogId: dog.id,
           planId: activePlan.id,
@@ -248,7 +346,68 @@ export default function SessionScreen() {
           difficulty: reviewDifficulty,
           notes: reviewNotes,
           completedAt: new Date().toISOString(),
-        }).catch(() => {});
+          successScore: reviewDifficulty === 'easy' ? 5 : reviewDifficulty === 'okay' ? 3 : 2,
+          stepResults: activeSession.stepResults,
+          sessionStatus: 'completed',
+          skillId: planSession?.skillId ?? null,
+          sessionKind: planSession?.sessionKind ?? null,
+          environmentTag: planSession?.environment ?? null,
+          // Live coaching fields — only populated when camera mode was used
+          liveCoachingUsed: liveMetrics !== null,
+          liveCoachingSummary: liveMetrics
+            ? ((): LiveCoachingSummary => {
+                const totalFrames =
+                  liveMetrics.trackingQualityBreakdown.good +
+                  liveMetrics.trackingQualityBreakdown.fair +
+                  liveMetrics.trackingQualityBreakdown.poor;
+                const avgTrackingQuality = totalFrames > 0
+                  ? (liveMetrics.trackingQualityBreakdown.good * 1.0 +
+                     liveMetrics.trackingQualityBreakdown.fair * 0.5) / totalFrames
+                  : 0;
+                const sessionAssessment: LiveCoachingSummary['sessionAssessment'] =
+                  liveMetrics.repCountDetected >= (protocol.liveCoachingConfig?.requiredRepCount ?? protocol.repCount)
+                    ? 'completed'
+                    : liveMetrics.repCountDetected > 0
+                    ? 'partial'
+                    : 'abandoned';
+                return {
+                  coachingMode:           protocol.liveCoachingConfig?.mode ?? 'stationary_hold',
+                  protocolId,
+                  targetPostures:         (protocol.liveCoachingConfig?.targetPostures ?? []) as LiveCoachingSummary['targetPostures'],
+                  successCount:           liveMetrics.repCountDetected,
+                  resetCount:             liveMetrics.resetCount,
+                  averageTrackingQuality: Math.round(avgTrackingQuality * 100) / 100,
+                  sessionAssessment,
+                };
+              })()
+            : undefined,
+          poseMetrics: liveMetrics
+            ? ((): PoseMetrics => {
+                const totalFrames =
+                  liveMetrics.trackingQualityBreakdown.good +
+                  liveMetrics.trackingQualityBreakdown.fair +
+                  liveMetrics.trackingQualityBreakdown.poor;
+                // Approximate average confidence from quality breakdown
+                const avgConfidence = totalFrames > 0
+                  ? (liveMetrics.trackingQualityBreakdown.good * 0.80 +
+                     liveMetrics.trackingQualityBreakdown.fair * 0.55 +
+                     liveMetrics.trackingQualityBreakdown.poor * 0.20) / totalFrames
+                  : 0;
+                return {
+                  averageTrackingConfidence: Math.round(avgConfidence * 100) / 100,
+                  trackingQualityBreakdown:  liveMetrics.trackingQualityBreakdown,
+                  postureDurations:          liveMetrics.postureDurations,
+                  holdDurations:             liveMetrics.holdDurations,
+                  repCountDetected:          liveMetrics.repCountDetected,
+                  lostTrackingEvents:        liveMetrics.lostTrackingEvents,
+                  significantMotionEvents:   liveMetrics.significantMotionEvents,
+                };
+              })()
+            : undefined,
+          // Post-session reflection — pass answered object or null when no
+          // questions were shown (e.g. engine fallback or all skipped).
+          postSessionReflection: reflectionQuestions.length > 0 ? reflectionAnswers : null,
+        });
 
         // Update streak (non-blocking)
         updateStreak(user.id, dog.id).catch(() => {});
@@ -259,18 +418,67 @@ export default function SessionScreen() {
           dogId: dog.id,
           planId: activePlan.id,
         }).catch(() => {});
+
+        const planBeforeRefresh = usePlanStore.getState().activePlan;
+        await refreshPlan().catch(() => {});
+        ensureNotificationPermission().catch(() => {});
+        const latestPlan = usePlanStore.getState().activePlan;
+        if (dog && latestPlan && didUpcomingScheduleChange(planBeforeRefresh, latestPlan)) {
+          refreshNotificationSchedules(dog, latestPlan).catch(() => {});
+        }
+        fetchDogLearningState(dog.id).catch(() => {});
       });
     } finally {
       setIsSaving(false);
     }
-  }, [reviewDifficulty, reviewNotes, activeSession, user, dog, activePlan]);
+  }, [reviewDifficulty, reviewNotes, reflectionQuestions, reflectionAnswers, activeSession, user, dog, activePlan, fetchDogLearningState, refreshPlan]);
 
-  const handleAbandonConfirm = useCallback(() => {
+  const handleAbandonConfirm = useCallback(async () => {
+    if (activeSession && user && dog && activePlan) {
+      const planSession = activePlan.sessions.find((session) => session.id === activeSession.sessionId);
+      const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
+      const durationSeconds = Math.floor(
+        (Date.now() - activeSession.startedAt.getTime()) / 1000
+      );
+
+      await saveSession({
+        userId: user.id,
+        dogId: dog.id,
+        planId: activePlan.id,
+        sessionId: activeSession.sessionId,
+        exerciseId: activeSession.exerciseId,
+        protocolId,
+        durationSeconds,
+        difficulty: 'hard',
+        notes: reviewNotes,
+        completedAt: new Date().toISOString(),
+        successScore: 1,
+        stepResults: activeSession.stepResults,
+        sessionStatus: 'abandoned',
+        skillId: planSession?.skillId ?? null,
+        sessionKind: planSession?.sessionKind ?? null,
+        environmentTag: planSession?.environment ?? null,
+      }).catch(() => {});
+      fetchDogLearningState(dog.id).catch(() => {});
+    }
+
     abandonSession();
     setShowAbandonSheet(false);
     clearSession();
     router.back();
-  }, []);
+  }, [activeSession, activePlan, user, dog, reviewNotes, abandonSession, clearSession, fetchDogLearningState]);
+
+  // ── Setup → mode decision ──────────────────────────────────────────────────
+  // After the setup checklist, if the protocol supports live coaching and no
+  // overlay is active yet, show the mode picker instead of jumping straight to
+  // STEP_ACTIVE.  We keep the store state at 'SETUP' while the picker is shown.
+  const handleSetupStart = useCallback(() => {
+    if (activeSession?.protocol.supportsLivePoseCoaching && activeSession?.protocol.liveCoachingConfig) {
+      setOverlayState('MODE_PICKER');
+    } else {
+      setState('STEP_ACTIVE');
+    }
+  }, [activeSession?.protocol, setState]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Back press guard
@@ -290,13 +498,66 @@ export default function SessionScreen() {
   // ─────────────────────────────────────────────────────────────────────────
 
   if (!activeSession || activeSession.state === 'LOADING') {
-    return <LoadingView insets={insets} />;
+    return <LoadingView insets={insets} error={loadError} onBack={() => router.back()} />;
   }
 
   const { state, protocol, currentStepIndex } = activeSession;
   const currentStep = protocol.steps[currentStepIndex];
   const totalSteps = protocol.steps.length;
   const dogName = dog?.name ?? 'your dog';
+
+  // ── Live coaching screen renders as a full-screen replacement ────────────
+  // While MODE_PICKER or LIVE_COACHING is active we return early so the normal
+  // session JSX is never mounted.  This avoids any stacking / display issues.
+
+  if (overlayState === 'MODE_PICKER') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <StatusBar style="dark" />
+        <SessionModePicker
+          dogName={dogName}
+          onBack={() => {
+            setOverlayState('NONE');
+            setState('SETUP');
+          }}
+          onNormal={() => {
+            setOverlayState('NONE');
+            setState('STEP_ACTIVE');
+          }}
+          onCamera={() => {
+            setOverlayState('LIVE_COACHING');
+          }}
+        />
+      </View>
+    );
+  }
+
+  if (overlayState === 'LIVE_COACHING' && protocol.liveCoachingConfig) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <StatusBar style="light" />
+        <LiveCoachingScreen
+          protocol={protocol}
+          dogName={dogName}
+          onComplete={(metrics: CoachingSessionMetrics) => {
+            liveMetricsRef.current = metrics;
+            setOverlayState('NONE');
+            setState('SESSION_REVIEW');
+          }}
+          onExit={() => {
+            setOverlayState('NONE');
+            setShowAbandonSheet(true);
+          }}
+        />
+        {/* Abandon sheet is accessible from live coaching too */}
+        <AbandonSheet
+          visible={showAbandonSheet}
+          onKeepGoing={() => setShowAbandonSheet(false)}
+          onLeave={handleAbandonConfirm}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -327,7 +588,7 @@ export default function SessionScreen() {
           }}
           insets={insets}
           onBack={handleBackPress}
-          onStart={() => setState('STEP_ACTIVE')}
+          onStart={handleSetupStart}
         />
       )}
 
@@ -342,6 +603,10 @@ export default function SessionScreen() {
           onBack={handleBackPress}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
+          }}
+          onResetTimer={() => {
+            const step = protocol.steps[activeSession.currentStepIndex];
+            if (step?.durationSeconds) resetTimer(step.durationSeconds);
           }}
           onIncrementRep={incrementRep}
           onResetReps={resetReps}
@@ -370,8 +635,13 @@ export default function SessionScreen() {
           reviewDifficulty={reviewDifficulty}
           reviewNotes={reviewNotes}
           isSaving={isSaving}
+          reflectionQuestions={reflectionQuestions}
+          reflectionAnswers={reflectionAnswers}
           onSelectDifficulty={setReviewDifficulty}
           onNotesChange={setReviewNotes}
+          onReflectionAnswer={(qId, value) =>
+            setReflectionAnswers((prev) => applyReflectionAnswer(prev, qId, value))
+          }
           onSave={handleSubmitSession}
           insets={insets}
         />
@@ -407,7 +677,15 @@ export default function SessionScreen() {
 // Sub-views
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LoadingView({ insets }: { insets: ReturnType<typeof useSafeAreaInsets> }) {
+function LoadingView({
+  insets,
+  error,
+  onBack,
+}: {
+  insets: ReturnType<typeof useSafeAreaInsets>;
+  error?: string | null;
+  onBack?: () => void;
+}) {
   return (
     <View
       style={{
@@ -421,8 +699,23 @@ function LoadingView({ insets }: { insets: ReturnType<typeof useSafeAreaInsets> 
       <AppIcon name="paw" size={48} color={colors.primary} />
       <ActivityIndicator size="large" color={colors.primary} />
       <Text style={{ marginTop: spacing.lg, color: colors.textSecondary, fontSize: 16 }}>
-        Getting your session ready…
+        {error ?? 'Getting your session ready…'}
       </Text>
+      {error && onBack ? (
+        <Pressable
+          onPress={onBack}
+          style={({ pressed }) => ({
+            marginTop: spacing.lg,
+            opacity: pressed ? 0.7 : 1,
+            minHeight: 44,
+            justifyContent: 'center',
+          })}
+        >
+          <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
+            Back
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -548,101 +841,134 @@ interface SetupViewProps {
 function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }: SetupViewProps) {
   const checklist = buildChecklist(protocol.equipmentNeeded);
   const allChecked = checkedItems.size === checklist.length;
+  const checkedCount = checkedItems.size;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + spacing.md,
           paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + 140,
-          gap: spacing.xl,
+          paddingBottom: spacing.xl,
         }}
       >
         <BackButton onPress={onBack} />
 
-        <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary }}>
-          Quick setup
-        </Text>
+        {/* Header */}
+        <View style={{ marginTop: spacing.lg, marginBottom: spacing.xl, gap: spacing.sm }}>
+          <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5 }}>
+            Quick setup
+          </Text>
+          <Text style={{ fontSize: 15, color: colors.textSecondary, lineHeight: 22 }}>
+            Check off each item before you begin.
+          </Text>
+        </View>
 
-        <View style={{ gap: spacing.md }}>
-          {checklist.map((item, i) => (
-            <Pressable
-              key={i}
-              onPress={() => onToggle(i)}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.md,
-                backgroundColor: pressed ? '#F0FDF8' : colors.surface,
-                borderRadius: 12,
-                padding: spacing.lg,
-                borderWidth: 1.5,
-                borderColor: checkedItems.has(i) ? colors.primary : colors.border.default,
-                minHeight: 56,
-              })}
-            >
-              <View
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  borderWidth: 2,
-                  borderColor: checkedItems.has(i) ? colors.primary : colors.border.default,
-                  backgroundColor: checkedItems.has(i) ? colors.primary : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {checkedItems.has(i) && (
-                  <AppIcon name="checkmark" size={14} color="#fff" />
-                )}
-              </View>
-              <Text
-                style={{
-                  flex: 1,
-                  fontSize: 16,
-                  color: checkedItems.has(i) ? colors.textSecondary : colors.textPrimary,
-                  textDecorationLine: checkedItems.has(i) ? 'line-through' : 'none',
-                }}
-              >
-                {item}
+        {/* Progress indicator */}
+        <View style={{ marginBottom: spacing.lg, gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>
+              {checkedCount} of {checklist.length} ready
+            </Text>
+            {allChecked && (
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                All set!
               </Text>
-            </Pressable>
-          ))}
+            )}
+          </View>
+          <View style={{ height: 4, borderRadius: 99, backgroundColor: colors.border.soft, overflow: 'hidden' }}>
+            <View
+              style={{
+                height: 4,
+                borderRadius: 99,
+                backgroundColor: colors.primary,
+                width: `${(checkedCount / checklist.length) * 100}%`,
+              }}
+            />
+          </View>
+        </View>
+
+        {/* Checklist */}
+        <View style={{ gap: spacing.md }}>
+          {checklist.map((item, i) => {
+            const checked = checkedItems.has(i);
+            return (
+              <Pressable
+                key={i}
+                onPress={() => onToggle(i)}
+                style={({ pressed }) => ({
+                  borderRadius: 16,
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.lg,
+                  borderWidth: 1.5,
+                  backgroundColor: checked ? colors.status.successBg : colors.surface,
+                  borderColor: checked ? colors.status.successBorder : '#C5C9D0',
+                  opacity: pressed ? 0.75 : 1,
+                })}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 10,
+                      borderWidth: checked ? 0 : 2,
+                      borderColor: '#C5C9D0',
+                      backgroundColor: checked ? colors.primary : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {checked && <AppIcon name="checkmark" size={17} color="#fff" />}
+                  </View>
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: 17,
+                      fontWeight: checked ? '400' : '500',
+                      color: checked ? colors.textSecondary : colors.textPrimary,
+                      textDecorationLine: checked ? 'line-through' : 'none',
+                      lineHeight: 22,
+                    }}
+                  >
+                    {item}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
 
+      {/* Bottom CTA */}
       <View
         style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
           paddingHorizontal: spacing.lg,
           paddingBottom: insets.bottom + spacing.lg,
           paddingTop: spacing.md,
           backgroundColor: colors.background,
           borderTopWidth: 1,
-          borderTopColor: colors.border.default,
+          borderTopColor: colors.border.soft,
+          gap: spacing.sm,
         }}
       >
         <Pressable
           onPress={onStart}
-          disabled={!allChecked}
           style={({ pressed }) => ({
-            backgroundColor: allChecked
-              ? pressed
-                ? '#246158'
-                : colors.primary
-              : colors.border.default,
-            borderRadius: 14,
+            backgroundColor: pressed ? '#1aab50' : colors.primary,
+            borderRadius: 16,
             paddingVertical: spacing.lg,
             alignItems: 'center',
             minHeight: 54,
+            shadowColor: colors.shadow.success,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.2,
+            shadowRadius: 10,
+            elevation: 4,
           })}
         >
-          <Text style={{ fontSize: 17, fontWeight: '700', color: allChecked ? '#fff' : colors.textSecondary }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: '#9CA3AF' }}>
             Start session
           </Text>
         </Pressable>
@@ -661,6 +987,7 @@ interface StepActiveViewProps {
   activeSession: import('@/stores/sessionStore').ActiveSession;
   onBack: () => void;
   onToggleTimer: () => void;
+  onResetTimer: () => void;
   onIncrementRep: () => void;
   onResetReps: () => void;
   onStepDone: () => void;
@@ -675,6 +1002,7 @@ function StepActiveView({
   activeSession,
   onBack,
   onToggleTimer,
+  onResetTimer,
   onIncrementRep,
   onResetReps,
   onStepDone,
@@ -726,84 +1054,143 @@ function StepActiveView({
 
         {/* Timer */}
         {hasTimer && (
-          <View style={{ alignItems: 'center', gap: spacing.lg }}>
-            <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
-              <TimerRing
-                totalSeconds={step.durationSeconds!}
-                currentSeconds={activeSession.timerSeconds}
-                size={180}
-                color={timerDone ? colors.success : colors.primary}
-              />
-              <View style={{ position: 'absolute', alignItems: 'center' }}>
-                <Text
-                  style={{
-                    fontSize: 40,
-                    fontWeight: '700',
-                    color: timerDone ? colors.success : colors.textPrimary,
-                  }}
-                >
-                  {formatTimer(activeSession.timerSeconds)}
-                </Text>
-                {timerDone && (
-                  <Text style={{ fontSize: 13, color: colors.success, fontWeight: '600' }}>
-                    Done!
-                  </Text>
-                )}
-              </View>
-            </View>
+          <View
+        style={{
+          alignItems: 'center',
+          gap: spacing.lg,
+          marginTop: spacing.lg,
+        }}
+          >
+        <View
+          style={{
+            position: 'relative',
+            alignItems: 'center',
+            justifyContent: 'center',
+            // Extra padding so the text is never clipped by the ScrollView
+            paddingVertical: spacing.md,
+          }}
+        >
+          <TimerRing
+            totalSeconds={step.durationSeconds!}
+            currentSeconds={activeSession.timerSeconds}
+            size={200} // a bit bigger so text has more room
+            color={timerDone ? colors.success : colors.primary}
+          />
+          <View
+            style={{
+          position: 'absolute',
+          alignItems: 'center',
+          justifyContent: 'center',
+            }}
+          >
+            <Text
+          style={{
+            fontSize: 40,
+            fontWeight: '700',
+            lineHeight: 46, // make sure top isn’t cut
+            color: timerDone ? colors.success : colors.textPrimary,
+          }}
+            >
+          {formatTimer(activeSession.timerSeconds)}
+            </Text>
+            {timerDone && (
+          <Text
+            style={{
+              fontSize: 13,
+              color: colors.success,
+              fontWeight: '600',
+              marginTop: 4,
+            }}
+          >
+            Done!
+          </Text>
+            )}
+          </View>
+        </View>
 
+        {/* Timer controls */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 24,
+            marginTop: spacing.md,
+          }}
+        >
+          {/* Reset button */}
+          {(activeSession.isTimerRunning || activeSession.timerSeconds !== step.durationSeconds) && (
             <Pressable
-              onPress={onToggleTimer}
+              onPress={onResetTimer}
               style={({ pressed }) => ({
-                backgroundColor: pressed ? '#f0f0f0' : colors.surface,
-                borderRadius: 99,
-                paddingHorizontal: spacing.xl,
-                paddingVertical: spacing.md,
-                borderWidth: 1,
-                borderColor: colors.border.default,
-                flexDirection: 'row',
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: pressed ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)',
                 alignItems: 'center',
-                gap: spacing.sm,
-                minHeight: 44,
+                justifyContent: 'center',
               })}
             >
-              <AppIcon
-                name={activeSession.isTimerRunning ? 'pause' : 'play'}
-                size={18}
-                color={colors.textPrimary}
-              />
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textPrimary }}>
-                {activeSession.isTimerRunning ? 'Pause' : timerDone ? 'Restart' : 'Start timer'}
-              </Text>
+              <AppIcon name="refresh" size={20} color={colors.textSecondary} />
             </Pressable>
+          )}
 
-            {timerDone && (
-              <View
-                style={{
-                  backgroundColor: '#E6F4F1',
-                  borderRadius: 12,
-                  padding: spacing.md,
-                  borderLeftWidth: 3,
-                  borderLeftColor: colors.primary,
-                }}
-              >
-                <Text style={{ fontSize: 15, color: '#1A4A42', fontWeight: '500' }}>
-                  Timer done! How did it go? Tap "Step done" when ready.
-                </Text>
-              </View>
-            )}
+          {/* Play / Pause button */}
+          <Pressable
+            onPress={onToggleTimer}
+            style={({ pressed }) => ({
+              width: 72,
+              height: 72,
+              borderRadius: 36,
+              backgroundColor: pressed
+                ? (timerDone ? '#3DAD9A' : '#2D8A7C')
+                : (timerDone ? colors.success : colors.primary),
+              alignItems: 'center',
+              justifyContent: 'center',
+              shadowColor: timerDone ? colors.success : colors.primary,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 4,
+            })}
+          >
+            <AppIcon
+              name={activeSession.isTimerRunning ? 'pause' : 'play'}
+              size={28}
+              color="#FFFFFF"
+            />
+          </Pressable>
+        </View>
+
+        {/* Status label */}
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '600',
+            color: timerDone ? colors.success : colors.textSecondary,
+            textAlign: 'center',
+            marginTop: 12,
+            letterSpacing: 0.3,
+          }}
+        >
+          {activeSession.isTimerRunning
+            ? 'Running'
+            : timerDone
+              ? 'Complete!'
+              : 'Ready'}
+        </Text>
           </View>
         )}
 
         {/* Rep counter */}
         {hasReps && (
           <View style={{ height: 300 }}>
-            <RepCounter
-              count={activeSession.repCount}
-              target={step.reps}
-              onIncrement={onIncrementRep}
-              onReset={onResetReps}
-            />
+        <RepCounter
+          count={activeSession.repCount}
+          target={step.reps}
+          onIncrement={onIncrementRep}
+          onReset={onResetReps}
+        />
           </View>
         )}
       </ScrollView>
@@ -837,7 +1224,7 @@ function StepActiveView({
           })}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Step done</Text>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Step done</Text>
             <AppIcon name="checkmark" size={16} color="#fff" />
           </View>
         </Pressable>
@@ -910,7 +1297,7 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, onNex
             })}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Rate session</Text>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Rate session</Text>
               <AppIcon name="arrow-forward" size={16} color="#fff" />
             </View>
           </Pressable>
@@ -931,7 +1318,7 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, onNex
             })}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Next step</Text>
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#6B7280' }}>Next step</Text>
               <AppIcon name="arrow-forward" size={14} color="#fff" />
             </View>
           </Pressable>
@@ -952,8 +1339,11 @@ interface SessionReviewViewProps {
   reviewDifficulty: 'easy' | 'okay' | 'hard' | null;
   reviewNotes: string;
   isSaving: boolean;
+  reflectionQuestions: ReflectionQuestionConfig[];
+  reflectionAnswers: PostSessionReflection;
   onSelectDifficulty: (d: 'easy' | 'okay' | 'hard') => void;
   onNotesChange: (s: string) => void;
+  onReflectionAnswer: (qId: ReflectionQuestionId, value: string | number) => void;
   onSave: () => void;
   insets: ReturnType<typeof useSafeAreaInsets>;
 }
@@ -964,141 +1354,32 @@ function SessionReviewView({
   reviewDifficulty,
   reviewNotes,
   isSaving,
+  reflectionQuestions,
+  reflectionAnswers,
   onSelectDifficulty,
   onNotesChange,
+  onReflectionAnswer,
   onSave,
   insets,
 }: SessionReviewViewProps) {
   const durationSeconds = Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000);
-
-  const options: Array<{ value: 'easy' | 'okay' | 'hard'; emoji: AppIconName; label: string; sub: string }> = [
-    { value: 'easy', emoji: 'thumbs-up', label: 'Easy', sub: `${dogName} was a superstar` },
-    { value: 'okay', emoji: 'remove-circle', label: 'Okay', sub: 'Some good moments, some struggles' },
-    { value: 'hard', emoji: 'warning', label: 'Hard', sub: 'Tough session today' },
-  ];
+  const durationLabel = `Completed in ${formatDuration(durationSeconds)}`;
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + spacing.xl,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + 140,
-          gap: spacing.xl,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ alignItems: 'center', gap: spacing.sm }}>
-          <AppIcon name="ribbon" size={40} color={colors.primary} />
-          <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary }}>
-            Session complete!
-          </Text>
-          <Text style={{ fontSize: 16, color: colors.textSecondary }}>
-            Completed in {formatDuration(durationSeconds)}
-          </Text>
-        </View>
-
-        <Text style={{ fontSize: 20, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' }}>
-          How did it go?
-        </Text>
-
-        <View style={{ gap: spacing.md }}>
-          {options.map((opt) => (
-            <Pressable
-              key={opt.value}
-              onPress={() => onSelectDifficulty(opt.value)}
-              style={({ pressed }) => ({
-                backgroundColor: reviewDifficulty === opt.value
-                  ? '#E6F4F1'
-                  : pressed ? '#f5f5f5' : colors.surface,
-                borderRadius: 16,
-                padding: spacing.lg,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.md,
-                borderWidth: 2,
-                borderColor: reviewDifficulty === opt.value ? colors.primary : colors.border.default,
-                minHeight: 72,
-              })}
-            >
-              <AppIcon
-                name={opt.emoji}
-                size={32}
-                color={reviewDifficulty === opt.value ? colors.primary : colors.textSecondary}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 17, fontWeight: '600', color: colors.textPrimary }}>
-                  {opt.label}
-                </Text>
-                <Text style={{ fontSize: 14, color: colors.textSecondary }}>{opt.sub}</Text>
-              </View>
-              {reviewDifficulty === opt.value && (
-                <AppIcon name="checkmark" size={20} color={colors.primary} />
-              )}
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Notes */}
-        <TextInput
-          value={reviewNotes}
-          onChangeText={onNotesChange}
-          placeholder="Anything to note? (optional)"
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          style={{
-            backgroundColor: colors.surface,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            padding: spacing.lg,
-            fontSize: 15,
-            color: colors.textPrimary,
-            minHeight: 80,
-            textAlignVertical: 'top',
-          }}
-        />
-      </ScrollView>
-
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + spacing.lg,
-          paddingTop: spacing.md,
-          backgroundColor: colors.background,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.default,
-        }}
-      >
-        <Pressable
-          onPress={onSave}
-          disabled={!reviewDifficulty || isSaving}
-          style={({ pressed }) => ({
-            backgroundColor: !reviewDifficulty || isSaving
-              ? colors.border.default
-              : pressed
-              ? '#246158'
-              : colors.primary,
-            borderRadius: 14,
-            paddingVertical: spacing.lg,
-            alignItems: 'center',
-            minHeight: 54,
-          })}
-        >
-          {isSaving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={{ fontSize: 17, fontWeight: '700', color: !reviewDifficulty ? colors.textSecondary : '#fff' }}>
-              Save session
-            </Text>
-          )}
-        </Pressable>
-      </View>
-    </View>
+    <PostSessionReflectionCard
+      dogName={dogName}
+      durationLabel={durationLabel}
+      questions={reflectionQuestions}
+      answers={reflectionAnswers}
+      difficulty={reviewDifficulty}
+      notes={reviewNotes}
+      onSelectDifficulty={onSelectDifficulty}
+      onAnswer={onReflectionAnswer}
+      onNotesChange={onNotesChange}
+      onSubmit={onSave}
+      isSaving={isSaving}
+      insets={insets}
+    />
   );
 }
 
@@ -1114,17 +1395,18 @@ interface CompleteViewProps {
   insets: ReturnType<typeof useSafeAreaInsets>;
 }
 
-function CompleteView({ dogName, protocol, completedSessionCount, totalSessions, activeSession, onBack, insets }: CompleteViewProps) {
+function CompleteView({ dogName, protocol, completedSessionCount, totalSessions, activeSession, onBack }: CompleteViewProps) {
   const nextProtocol = protocol.nextProtocolId;
+  const insets = useSafeAreaInsets();
 
   return (
     <View
       style={{
         flex: 1,
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         paddingHorizontal: spacing.xl,
-        paddingTop: insets.top,
+        paddingTop: insets.top + spacing.xl * 2,
         paddingBottom: insets.bottom + spacing.xl,
         gap: spacing.xl,
         backgroundColor: '#F0FDF8',
@@ -1133,7 +1415,7 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
       {/* Celebration */}
       <View style={{ alignItems: 'center', gap: spacing.md }}>
         <AppIcon name="ribbon" size={72} color={colors.primary} />
-        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.primary, textAlign: 'center' }}>
+        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.primary, textAlign: 'center', lineHeight: 42 }}>
           {dogName} crushed it!
         </Text>
       </View>
@@ -1178,7 +1460,7 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
           width: '100%',
         })}
       >
-        <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Back to today</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Back to today</Text>
       </Pressable>
     </View>
   );
@@ -1348,5 +1630,76 @@ function Chip({
         {label}
       </Text>
     </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LiveCoachingScreen
+//
+// Self-contained sub-screen that mounts useLiveCoachingSession, feeds frames
+// into the coaching engine, and delegates UI to LiveCoachOverlay.
+//
+// Intentionally kept as a local component (not exported) — it only makes sense
+// inside session.tsx where protocol + dogName are already resolved.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface LiveCoachingScreenProps {
+  protocol: import('@/constants/protocols').Protocol;
+  dogName: string;
+  onComplete: (metrics: CoachingSessionMetrics) => void;
+  onExit: () => void;
+}
+
+function LiveCoachingScreen({
+  protocol,
+  dogName,
+  onComplete,
+  onExit,
+}: LiveCoachingScreenProps) {
+  const coaching = useLiveCoachingSession({ protocol, dogName });
+
+  // Start camera pipeline on mount; stop on unmount
+  useEffect(() => {
+    coaching.start();
+    return () => {
+      coaching.stop();
+    };
+  }, []);
+
+  // Watch for session completion
+  useEffect(() => {
+    if (coaching.isComplete && coaching.metrics) {
+      onComplete(coaching.metrics);
+    }
+  }, [coaching.isComplete]);
+
+  // ── Haptic feedback on meaningful state transitions ─────────────────────────
+  // Only fire once per transition; never on every frame.
+  const prevCoachingStateRef = useRef<string | null>(null);
+  useEffect(() => {
+    const state = coaching.coachingDecision?.state;
+    if (!state || state === prevCoachingStateRef.current) return;
+    prevCoachingStateRef.current = state;
+
+    if (state === 'good_rep' || state === 'complete') {
+      // Two short pulses — success feel
+      Vibration.vibrate([0, 60, 60, 120]);
+    } else if (state === 'reset') {
+      // Single soft pulse — prompt attention without alarm
+      Vibration.vibrate(80);
+    } else if (state === 'hold_in_progress') {
+      // Gentle single tick — "hold started"
+      Vibration.vibrate(40);
+    }
+  }, [coaching.coachingDecision?.state]);
+
+  return (
+    <LiveCoachOverlay
+      coaching={coaching}
+      stabilizedObservation={coaching.stabilizedObservation}
+      rawObservation={coaching.rawObservation}
+      trackingQuality={coaching.trackingQuality}
+      onExit={onExit}
+    />
   );
 }

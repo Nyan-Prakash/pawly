@@ -21,6 +21,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { MilestoneCard } from '@/components/progress/MilestoneCard';
+import { LearningInsightCard } from '@/components/adaptive/LearningInsightCard';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { shadows } from '@/constants/shadows';
@@ -412,6 +413,8 @@ function BehaviorScoreCard({ score }: { score: import('@/types').BehaviorScore }
   );
 }
 
+// LearningStateCard replaced by LearningInsightCard from components/adaptive/
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Milestone Celebration Modal
 // ─────────────────────────────────────────────────────────────────────────────
@@ -493,7 +496,7 @@ function MilestoneCelebration({
 
 export default function ProgressScreen() {
   const { user } = useAuthStore();
-  const { dog } = useDogStore();
+  const { dog, dogLearningState, fetchDogLearningState } = useDogStore();
   const {
     sessionStreak,
     walkStreak,
@@ -515,15 +518,20 @@ export default function ProgressScreen() {
     if (dog?.id && user?.id) {
       fetchProgressData(dog.id, user.id);
       fetchMilestones(dog.id, user.id);
+      fetchDogLearningState(dog.id).catch(() => {});
     }
-  }, [dog?.id, user?.id]);
+  }, [dog?.id, user?.id, fetchDogLearningState]);
 
   const onRefresh = useCallback(async () => {
     if (!dog?.id || !user?.id) return;
     setRefreshing(true);
-    await Promise.all([fetchProgressData(dog.id, user.id), fetchMilestones(dog.id, user.id)]);
+    await Promise.all([
+      fetchProgressData(dog.id, user.id),
+      fetchMilestones(dog.id, user.id),
+      fetchDogLearningState(dog.id),
+    ]);
     setRefreshing(false);
-  }, [dog?.id, user?.id]);
+  }, [dog?.id, user?.id, fetchDogLearningState]);
 
   function build7DayActivityDots(type: 'session' | 'walk'): boolean[] {
     const streak = type === 'session' ? sessionStreak : walkStreak;
@@ -622,6 +630,11 @@ export default function ProgressScreen() {
               ))}
             </View>
           )}
+
+          <LearningInsightCard
+            dogName={dog?.name ?? 'your dog'}
+            learningState={dogLearningState}
+          />
 
           {/* ── Sessions Chart ── */}
           <View

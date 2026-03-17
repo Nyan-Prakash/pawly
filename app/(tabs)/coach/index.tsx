@@ -13,24 +13,24 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
 import { MessageBubble } from '@/components/coach/MessageBubble';
+import { QuickSuggestions } from '@/components/coach/QuickSuggestions';
 import { TypingIndicator } from '@/components/coach/TypingIndicator';
 import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { useTheme } from '@/lib/theme';
 import { useCoachStore } from '@/stores/coachStore';
 import { useDogStore } from '@/stores/dogStore';
+import { usePlanStore } from '@/stores/planStore';
 
 export default function CoachScreen() {
-  const insets = useSafeAreaInsets();
   const { isDark } = useTheme();
   const { dog } = useDogStore();
+  const { recentAdaptations } = usePlanStore();
   const {
     messages,
     isTyping,
@@ -148,6 +148,8 @@ export default function CoachScreen() {
   }
 
   const showWelcome = messages.length === 0;
+  const hasRecentAdaptation = recentAdaptations.length > 0 && recentAdaptations[0].status === 'applied';
+  const suggestions = hasRecentAdaptation ? ADAPTIVE_SUGGESTIONS : BASE_SUGGESTIONS;
 
   return (
     <SafeScreen style={styles.screen}>
@@ -172,7 +174,7 @@ export default function CoachScreen() {
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => <MessageBubble message={item} />}
             ListEmptyComponent={
-              <WelcomeState dogName={dog.name} onSelect={handleSuggestion} />
+              <WelcomeState dogName={dog.name} />
             }
             ListFooterComponent={
               isTyping ? <TypingIndicator /> : <View style={styles.listEndSpacer} />
@@ -197,11 +199,13 @@ export default function CoachScreen() {
           </Pressable>
         ) : null}
 
-        <View
-          style={[
-            styles.composerShell,
-          ]}
-        >
+        {showWelcome ? (
+          <View style={styles.suggestionTray}>
+            <QuickSuggestions suggestions={suggestions} onSelect={handleSuggestion} />
+          </View>
+        ) : null}
+
+        <View style={styles.composerShell}>
           <View style={styles.composerBar}>
             <Pressable style={styles.leadingAction}>
               <Ionicons name="add" size={24} color={colors.text.primary} />
@@ -254,12 +258,24 @@ export default function CoachScreen() {
   );
 }
 
+const BASE_SUGGESTIONS = [
+  'Should I push through or make it easier?',
+  'How do I know when my dog is ready to progress?',
+  'What should I focus on in today\'s session?',
+  'My dog keeps getting distracted — what should I do?',
+];
+
+const ADAPTIVE_SUGGESTIONS = [
+  'Why did today\'s plan change?',
+  'What is Pawly learning about my dog?',
+  'Should I push through or make it easier?',
+  'How do I know when my dog is ready to progress?',
+];
+
 function WelcomeState({
   dogName,
-  onSelect,
 }: {
   dogName: string;
-  onSelect: (suggestion: string) => void;
 }) {
   const { isDark } = useTheme();
   const styles = createStyles(isDark);
@@ -269,9 +285,11 @@ function WelcomeState({
   return (
     <View style={styles.welcomeWrap}>
       <View style={styles.welcomeHero}>
-        <Text variant="caption" style={styles.welcomeEyebrow}>
-          Pawly Coach
-        </Text>
+        <View style={styles.welcomePill}>
+          <Text variant="caption" style={styles.welcomeEyebrow}>
+            Pawly Coach
+          </Text>
+        </View>
         <Text variant="display" style={styles.welcomeGreeting}>
           {greeting}
         </Text>
@@ -448,24 +466,37 @@ function createStyles(isDark: boolean) {
       paddingTop: spacing.sm,
     },
     messageListEmpty: {
-      justifyContent: 'flex-end',
+      justifyContent: 'center',
     },
 
     welcomeWrap: {
       flexGrow: 1,
       justifyContent: 'center',
-      paddingBottom: spacing.xl,
+      paddingBottom: spacing.xl * 1.5,
     },
     welcomeHero: {
       alignItems: 'center',
       paddingHorizontal: spacing.lg,
-      marginBottom: spacing.xl,
+    },
+    welcomePill: {
+      alignSelf: 'center',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.95)',
+      borderRadius: 999,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      marginBottom: spacing.sm,
+      shadowColor: colors.brand.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      elevation: 4,
     },
     welcomeEyebrow: {
       color: colors.brand.primary,
-      marginBottom: spacing.sm,
-      letterSpacing: 0.5,
+      letterSpacing: 1,
       fontWeight: '700',
+      textTransform: 'uppercase',
+      fontSize: 11,
     },
     welcomeGreeting: {
       textAlign: 'center',
@@ -505,6 +536,12 @@ function createStyles(isDark: boolean) {
       flex: 1,
       fontSize: 13,
       color: colors.error,
+    },
+
+    suggestionTray: {
+      backgroundColor: colors.bg.app,
+      paddingTop: spacing.xs,
+      marginBottom: spacing.sm,
     },
 
     composerShell: {
