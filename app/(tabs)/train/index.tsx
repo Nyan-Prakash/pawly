@@ -23,6 +23,7 @@ import { WalkLogModal } from '@/components/shared/WalkLogModal';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { ActiveCourseCard } from '@/components/train/ActiveCourseCard';
 import { colors } from '@/constants/colors';
+import { getCourseUiColors, hexToRgba } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { shadows } from '@/constants/shadows';
@@ -498,10 +499,85 @@ export default function TrainScreen() {
             </View>
           )}
 
-          {/* ── TODAY / HERO CARD ── */}
-          {hasPlans && heroSession && (
+          {/* ── Today's session done ── */}
+          {primaryPlanFull &&
+            primaryPlanFull.status === 'active' &&
+            !heroSession && (
+              <View
+                style={{
+                  backgroundColor: colors.bg.surface,
+                  borderRadius: radii.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border.default,
+                  ...shadows.card,
+                }}
+              >
+                <EmptyState
+                  icon="checkmark-circle"
+                  title={firstMissedSession ? 'A session needs a new spot' : "You're done for today!"}
+                  subtitle={
+                    firstMissedSession
+                      ? `${firstMissedSession.title} slipped past its scheduled time. You can keep it visible without rewriting the whole plan.`
+                      : 'Come back tomorrow — consistency is how great dogs are made.'
+                  }
+                />
+                {firstMissedSession ? (
+                  <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm }}>
+                    <View
+                      style={{
+                        backgroundColor: colors.bg.surfaceAlt,
+                        borderRadius: radii.md,
+                        padding: spacing.md,
+                      }}
+                    >
+                      <Text variant="micro" color={colors.text.secondary}>Missed session</Text>
+                      <Text variant="bodyStrong" style={{ marginTop: 2 }}>
+                        {firstMissedSession.title}
+                      </Text>
+                      <Text variant="caption">{formatScheduleLabel(firstMissedSession)}</Text>
+                    </View>
+                    {primaryPlanFull.metadata?.flexibility !== 'skip' ? (
+                      <Button
+                        size="md"
+                        label={
+                          primaryPlanFull.metadata?.flexibility === 'move_tomorrow'
+                            ? 'Move to tomorrow'
+                            : 'Move to next slot'
+                        }
+                        onPress={() => rescheduleMissedSession(firstMissedSession.planId, firstMissedSession.id)}
+                      />
+                    ) : null}
+                  </View>
+                ) : nextUpcomingSession ? (
+                  <View
+                    style={{
+                      backgroundColor: colors.bg.surfaceAlt,
+                      marginHorizontal: spacing.lg,
+                      marginBottom: spacing.lg,
+                      borderRadius: radii.md,
+                      padding: spacing.md,
+                    }}
+                  >
+                    <Text variant="micro" color={colors.text.secondary}>Next up</Text>
+                    <Text variant="bodyStrong" style={{ marginTop: 2 }}>
+                      {nextUpcomingSession.title}
+                    </Text>
+                    <Text variant="caption">
+                      {formatScheduleLabel(nextUpcomingSession)} · {nextUpcomingSession.durationMinutes} min
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            )}
+
+          {/* ── TODAY CARD ── */}
+          {primaryPlanFull && primaryPlanFull.status === 'active' && heroSession && (() => {
+            const uiColors = getCourseUiColors(primaryPlanFull.goal);
+            const planColor = primaryPlanFull.color || uiColors.solid;
+
+            return (
             <LinearGradient
-              colors={heroSessionIsOverdue ? ['#F59E0B', '#D97706'] : ['#22C55E', '#16A34A']}
+              colors={[planColor, hexToRgba(planColor, 0.85)]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{ borderRadius: radii.lg, overflow: 'hidden' }}
@@ -641,7 +717,7 @@ export default function TrainScreen() {
                 >
                   <Text
                     style={{
-                      color: heroSessionIsOverdue ? '#D97706' : colors.brand.primary,
+                      color: planColor,
                       fontWeight: '700',
                       fontSize: 16,
                     }}
@@ -673,7 +749,8 @@ export default function TrainScreen() {
                 </TouchableOpacity>
               </View>
             </LinearGradient>
-          )}
+            );
+          })()}
 
           {/* ── Missed session reschedule (when no hero and there are missed sessions) ── */}
           {hasPlans && !heroSession && firstMissedSession && primaryPlanFull?.metadata?.flexibility !== 'skip' && (

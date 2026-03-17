@@ -150,6 +150,7 @@ export interface Plan {
   currentStage: string;
   sessions: PlanSession[];
   metadata?: PlanMetadata;
+  color?: string;
   createdAt: string;
   // ── Multi-course fields (PR-18) ──────────────────────────────────────────
   /** Human-readable course name shown in multi-plan UI (e.g. "Loose Leash Walking"). */

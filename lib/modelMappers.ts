@@ -13,6 +13,7 @@ import type {
 } from '../types/index.ts';
 import type { Protocol, LiveCoachingConfig } from '../constants/protocols.ts';
 import { normalizeArticleContentBlocks, normalizeArticleDifficulty } from './articleContent.ts';
+import { getGoalColor } from '../constants/courseColors';
 
 function asWeekdayArray(value: unknown): Dog['preferredTrainingDays'] {
   return Array.isArray(value) ? (value.filter((item): item is Dog['preferredTrainingDays'][number] => typeof item === 'string') as Dog['preferredTrainingDays']) : [];
@@ -61,10 +62,11 @@ function mapPlanSessions(sessions: unknown): PlanSession[] {
 }
 
 export function mapPlanRowToPlan(data: Record<string, any>): Plan {
+  const goal = data.goal;
   return {
     id: data.id,
     dogId: data.dog_id,
-    goal: data.goal,
+    goal,
     status: data.status,
     durationWeeks: data.duration_weeks,
     sessionsPerWeek: data.sessions_per_week,
@@ -72,6 +74,7 @@ export function mapPlanRowToPlan(data: Record<string, any>): Plan {
     currentStage: data.current_stage,
     sessions: mapPlanSessions(data.sessions),
     metadata: (data.metadata ?? {}) as PlanMetadata,
+    color: data.color ?? getGoalColor(goal),
     createdAt: data.created_at,
     // PR-18 multi-course fields (columns may not exist on old rows → safe defaults)
     courseTitle: data.course_title ?? null,
