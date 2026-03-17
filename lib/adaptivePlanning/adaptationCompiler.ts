@@ -1,5 +1,18 @@
-import type { Plan, PlanEnvironment, PlanMetadata, PlanSession, SkillNode, Weekday } from '../../types/index.ts';
-import { DEFAULT_ADAPTATION_WINDOW, MAX_ADAPTATION_WINDOW, type AdaptationCandidate } from './adaptationRules.ts';
+import type {
+  Plan,
+  PlanEnvironment,
+  PlanMetadata,
+  PlanSession,
+  SkillNode,
+  SupportSessionType,
+  Weekday,
+} from '../../types/index.ts';
+import {
+  DEFAULT_ADAPTATION_WINDOW,
+  MAX_ADAPTATION_WINDOW,
+  MAX_INSERTED_SUPPORT_SESSIONS,
+  type AdaptationCandidate,
+} from './adaptationRules.ts';
 
 export interface CompileAdaptationInput {
   plan: Plan;
@@ -11,7 +24,55 @@ export interface CompileAdaptationInput {
 export interface CompiledAdaptation {
   nextPlan: Plan;
   touchedSessionIds: string[];
+  /** ID of the inserted support session, or null when none was inserted. */
+  insertedSupportSessionId: string | null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Support-session definitions
+//
+// Each type maps to a deterministic title, duration delta, and environment
+// preference.  We do NOT invent new protocol families — instead we reuse the
+// current skill's protocol and flag the session via insertedByAdaptation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SupportSessionSpec {
+  title: (baseTitle: string) => string;
+  durationDeltaMinutes: number;
+  preferLowerEnvironment: boolean;
+  sessionKind: PlanSession['sessionKind'];
+}
+
+const SUPPORT_SESSION_SPECS: Record<SupportSessionType, SupportSessionSpec> = {
+  foundation: {
+    title: (base) => `${base} — Foundation Reinforcement`,
+    durationDeltaMinutes: -3,
+    preferLowerEnvironment: true,
+    sessionKind: 'repeat',
+  },
+  transition: {
+    title: (base) => `${base} — Distraction Transition`,
+    durationDeltaMinutes: -2,
+    preferLowerEnvironment: true,
+    sessionKind: 'repeat',
+  },
+  duration_building: {
+    title: (base) => `${base} — Duration Builder`,
+    durationDeltaMinutes: -4,
+    preferLowerEnvironment: false,
+    sessionKind: 'repeat',
+  },
+  calm_reset: {
+    title: (base) => `${base} — Calm Reset`,
+    durationDeltaMinutes: -5,
+    preferLowerEnvironment: true,
+    sessionKind: 'repeat',
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 function clampDuration(current: number, deltaMinutes = 0) {
   return Math.max(4, current + deltaMinutes);
@@ -122,6 +183,96 @@ function buildMetadata(plan: Plan, candidate: AdaptationCandidate, targetSkill: 
   };
 }
 
+/**
+ * Finds a good insertion date for the support session: the first preferred day
+ * after the last touched session's date, or the day after the last touched
+ * session if no preferred day is available within 7 days.
+ */
+function findInsertionDate(
+  plan: Plan,
+  afterSession: PlanSession,
+): { date: string; day: Weekday; time: string } | null {
+  const baseDate = afterSession.scheduledDate;
+  if (!baseDate) return null;
+
+  const occupied = new Set(
+    plan.sessions
+      .filter((s) => !s.isCompleted && s.scheduledDate)
+      .map((s) => s.scheduledDate!),
+  );
+
+  let candidate = new Date(`${baseDate}T12:00:00`);
+  for (let offset = 1; offset <= 10; offset++) {
+    candidate.setDate(candidate.getDate() + 1);
+    const day = getWeekdayFromDate(candidate);
+    const date = candidate.toISOString().split('T')[0]!;
+    if (occupied.has(date)) continue;
+    if (
+      plan.metadata?.preferredDays?.length &&
+      !plan.metadata.preferredDays.includes(day)
+    ) {
+      // Allow anyway after 7 days if nothing else found
+      if (offset <= 7) continue;
+    }
+    return { date, day, time: chooseTimeForDay(day, afterSession.scheduledTime) };
+  }
+
+  return null;
+}
+
+/**
+ * Builds a new support PlanSession to be inserted after the adapted window.
+ * Returns null when a suitable date cannot be found.
+ */
+function buildSupportSession(
+  candidate: AdaptationCandidate,
+  supportType: SupportSessionType,
+  targetSkill: SkillNode | null,
+  referenceSession: PlanSession,
+  plan: Plan,
+  now: string,
+): PlanSession | null {
+  const spec = SUPPORT_SESSION_SPECS[supportType];
+  const dateSlot = findInsertionDate(plan, referenceSession);
+  if (!dateSlot) return null;
+
+  const baseTitle = targetSkill?.title ?? referenceSession.title ?? 'Session';
+  const protocolId = targetSkill?.protocolId ?? referenceSession.exerciseId;
+  const skillId = targetSkill?.id ?? referenceSession.skillId;
+  const env = spec.preferLowerEnvironment
+    ? (candidate.targetEnvironment ?? referenceSession.environment ?? 'indoors_low_distraction')
+    : (referenceSession.environment ?? candidate.targetEnvironment ?? 'indoors_low_distraction');
+
+  const id = `inserted_${supportType}_${now.replace(/[^0-9]/g, '').slice(0, 14)}`;
+
+  return {
+    id,
+    exerciseId: protocolId,
+    weekNumber: referenceSession.weekNumber,
+    dayNumber: referenceSession.dayNumber + 1,
+    title: spec.title(baseTitle),
+    durationMinutes: clampDuration(referenceSession.durationMinutes, spec.durationDeltaMinutes),
+    isCompleted: false,
+    scheduledDay: dateSlot.day,
+    scheduledTime: dateSlot.time,
+    scheduledDate: dateSlot.date,
+    isReschedulable: true,
+    skillId,
+    parentSkillId: referenceSession.skillId ?? null,
+    environment: env as PlanEnvironment,
+    sessionKind: spec.sessionKind,
+    adaptationSource: 'adaptation_engine',
+    reasoningLabel: candidate.reasonSummary,
+    insertedByAdaptation: true,
+    supportSessionType: supportType,
+    insertionReasonCode: candidate.reasonCode,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main compiler
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function compileAdaptation(input: CompileAdaptationInput): CompiledAdaptation | null {
   const upcoming = getUpcomingIncompleteSessions(input.plan, MAX_ADAPTATION_WINDOW);
   if (upcoming.length === 0) return null;
@@ -138,6 +289,42 @@ export function compileAdaptation(input: CompileAdaptationInput): CompiledAdapta
     return next;
   });
 
+  // ── Support session insertion ─────────────────────────────────────────────
+  let insertedSupportSessionId: string | null = null;
+
+  if (
+    input.candidate.insertSupportSession &&
+    MAX_INSERTED_SUPPORT_SESSIONS >= 1
+  ) {
+    const supportType = input.candidate.insertSupportSession;
+    // Use the last touched session as the anchor for date placement.
+    const lastTouchedSession = nextSessions.find(
+      (s) => s.id === touchedIds[touchedIds.length - 1],
+    ) ?? nextSessions[nextSessions.length - 1];
+
+    if (lastTouchedSession) {
+      // Build the support session against the updated plan (with touched sessions already mutated)
+      const planWithMutations: Plan = {
+        ...input.plan,
+        sessions: nextSessions,
+      };
+
+      const supportSession = buildSupportSession(
+        input.candidate,
+        supportType,
+        input.targetSkill,
+        lastTouchedSession,
+        planWithMutations,
+        input.now,
+      );
+
+      if (supportSession) {
+        nextSessions.push(supportSession);
+        insertedSupportSessionId = supportSession.id;
+      }
+    }
+  }
+
   const currentStage = input.targetSkill
     ? `Stage ${input.targetSkill.stage} — ${input.targetSkill.kind.charAt(0).toUpperCase()}${input.targetSkill.kind.slice(1)}`
     : input.plan.currentStage;
@@ -150,5 +337,6 @@ export function compileAdaptation(input: CompileAdaptationInput): CompiledAdapta
       sessions: nextSessions,
     },
     touchedSessionIds: touchedIds,
+    insertedSupportSessionId,
   };
 }

@@ -40,9 +40,32 @@ function adaptationTitle(adaptation: PlanAdaptation, dogName: string): string {
 }
 
 function adaptationBody(adaptation: PlanAdaptation): string {
-  // Prefer the human-written reasonSummary from the DB
+  // Prefer the stored reasonSummary — it's already user-facing copy from the rules.
   if (adaptation.reasonSummary) return adaptation.reasonSummary;
 
+  // Fallback copy keyed by reason code for older records that lack a summary.
+  switch (adaptation.reasonCode) {
+    case 'reflection_understanding_gap':
+      return 'Recent feedback suggests the cue may not be fully clear yet — Pawly added extra foundation practice.';
+    case 'reflection_distraction_blocker':
+      return 'Distraction appears to be the main blocker right now — Pawly lowered the environment challenge for the next sessions.';
+    case 'reflection_duration_breakdown':
+      return 'Recent sessions seem to fall apart near the end — Pawly shortened the target duration.';
+    case 'reflection_over_arousal':
+      return 'Over-excitement seems to be getting in the way — Pawly simplified and shortened upcoming sessions.';
+    case 'reflection_handler_friction':
+      return 'Pawly kept this adjustment small — recent feedback was mixed, so changes are being kept conservative.';
+    case 'outdoor_breakdown':
+      return 'Recent results suggest this skill is holding indoors but breaking down outside.';
+    case 'consistency_drop':
+      return 'The last few sessions were too difficult — the next sessions step back to an easier foundation.';
+    case 'fatigue_risk_high':
+      return 'Recent patterns suggest fatigue risk is elevated — the next session is shorter and spaced out.';
+    case 'high_consistent_success':
+      return 'Recent sessions have been consistently easy — moving to the next challenge.';
+  }
+
+  // Final fallback by type
   switch (adaptation.adaptationType) {
     case 'regress':
       return 'We stepped back to an easier version so your dog can build confidence again.';

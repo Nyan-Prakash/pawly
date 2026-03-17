@@ -7,7 +7,17 @@ import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { formatDisplayTime } from '@/lib/scheduleEngine';
-import type { PlanSession } from '@/types';
+import type { PlanSession, SupportSessionType } from '@/types';
+
+function supportSessionLabel(type: SupportSessionType | null | undefined): string {
+  switch (type) {
+    case 'foundation':       return 'Added by Pawly · Foundation practice';
+    case 'transition':       return 'Added by Pawly · Lower-distraction practice';
+    case 'duration_building': return 'Added by Pawly · Duration building';
+    case 'calm_reset':       return 'Added by Pawly · Calm reset';
+    default:                 return 'Added by Pawly';
+  }
+}
 
 interface DaySessionListProps {
   date: Date;
@@ -82,29 +92,28 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions }
               <Text variant="caption" color={colors.text.secondary}>
                 {session.scheduledTime ? formatDisplayTime(session.scheduledTime) : 'Not timed'} · {session.durationMinutes} min
               </Text>
+              {session.insertedByAdaptation && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    marginTop: 4,
+                  }}
+                >
+                  <Ionicons name="sparkles" size={11} color={colors.brand.secondary} />
+                  <Text
+                    variant="micro"
+                    style={{ color: colors.brand.secondary, fontWeight: '600' }}
+                  >
+                    {supportSessionLabel(session.supportSessionType)}
+                  </Text>
+                </View>
+              )}
             </View>
 
             <View style={{ alignItems: 'flex-end', gap: 4 }}>
-              <View
-                style={{
-                  backgroundColor: session.isCompleted
-                    ? colors.status.successBg
-                    : colors.status.warningBg,
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: radii.pill,
-                }}
-              >
-                <Text
-                  variant="micro"
-                  style={{
-                    color: session.isCompleted ? colors.brand.primary : colors.brand.secondary,
-                    fontWeight: '700',
-                  }}
-                >
-                  {session.isCompleted ? 'COMPLETED' : 'UPCOMING'}
-                </Text>
-              </View>
+             
               <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
             </View>
           </TouchableOpacity>

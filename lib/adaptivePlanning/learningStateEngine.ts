@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { mapPlanRowToPlan } from '../modelMappers';
+import { mapPlanRowToPlan, normalizePostSessionReflection } from '../modelMappers';
 import { fetchDogLearningState, upsertDogLearningState } from './repositories';
 import {
   aggregateRecentSignals,
@@ -78,8 +78,18 @@ async function fetchSourceLogs(dogId: string) {
   if (sessionsResult.error) throw sessionsResult.error;
   if (walksResult.error) throw walksResult.error;
 
+  // Normalize post_session_reflection on each row so the learning signals
+  // engine always receives a validated PostSessionReflection | null rather
+  // than a raw DB object that may contain unknown enum values or bad shapes.
+  const sessions: SessionLogInput[] = (sessionsResult.data ?? []).map((row) => ({
+    ...(row as SessionLogInput),
+    post_session_reflection: normalizePostSessionReflection(
+      (row as Record<string, unknown>).post_session_reflection,
+    ),
+  }));
+
   return {
-    sessions: (sessionsResult.data ?? []) as SessionLogInput[],
+    sessions,
     walks: (walksResult.data ?? []) as WalkLogInput[],
   };
 }

@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildAdaptationAuditRecord, toAdaptationApiResult } from '../../../lib/adaptivePlanning/adaptationAudit.ts';
 import { runAdaptationEngine } from '../../../lib/adaptivePlanning/adaptationEngine.ts';
 import { aggregateRecentSignals, extractSessionSignals, extractWalkSignals } from '../../../lib/adaptivePlanning/learningSignals.ts';
+import { normalizePostSessionReflection } from '../../../lib/adaptivePlanning/reflectionNormalizer.ts';
 import { mapDogLearningStateRowToModel, mapPlanAdaptationRowToModel, mapPlanRowToPlan, mapSkillEdgeRowToModel, mapSkillNodeRowToModel } from '../../../lib/modelMappers.ts';
 
 const corsHeaders = {
@@ -164,7 +165,16 @@ serve(async (req) => {
     return jsonResponse({ error: 'Failed to load skill graph context' }, 500);
   }
 
-  const sessionLogs = sessionLogsResult.data ?? [];
+  // Normalize post_session_reflection on each raw session log row before any
+  // adaptation logic runs.  This ensures malformed / unknown-enum values coming
+  // from the database never crash the adaptation pipeline, and that all
+  // reflection-aware rules see clean, typed data.
+  const sessionLogs = (sessionLogsResult.data ?? []).map((row) => ({
+    ...row,
+    post_session_reflection: normalizePostSessionReflection(
+      row.post_session_reflection,
+    ),
+  }));
   const walkLogs = walkLogsResult.data ?? [];
   const aggregatedSignals = aggregateRecentSignals({
     sessions: sessionLogs,

@@ -1,5 +1,6 @@
 import type {
   DogLearningState,
+  LearningHypothesis,
   Plan,
   PlanAdaptation,
   PlanSession,
@@ -27,6 +28,13 @@ export interface AdaptationEngineInput {
   recentWalks: WalkLearningSignal[];
   recentAdaptations: PlanAdaptation[];
   now?: string;
+  /**
+   * Optional hypotheses derived externally (e.g. from deriveCurrentHypotheses).
+   * When provided they are forwarded to the rule context so reflection-backed
+   * hypothesis codes can be checked during candidate selection.
+   * When omitted the engine falls back to learningState.currentHypotheses.
+   */
+  currentHypotheses?: LearningHypothesis[];
 }
 
 export interface AdaptationEngineResult {
@@ -38,6 +46,8 @@ export interface AdaptationEngineResult {
   nextPlan: Plan;
   diff: PlanDiffResult;
   evidence: Record<string, unknown>;
+  /** ID of the extra support session inserted, or null if none was inserted. */
+  insertedSupportSessionId: string | null;
 }
 
 function getUpcomingSessions(plan: Plan): PlanSession[] {
@@ -65,6 +75,12 @@ export function runAdaptationEngine(input: AdaptationEngineInput): AdaptationEng
   const currentSkill = getCurrentSkill(graph, input.plan, input.recentSessions);
   if (!currentSkill) return null;
 
+  // Resolve hypotheses: prefer explicitly provided, fall back to learning state.
+  const currentHypotheses: LearningHypothesis[] =
+    input.currentHypotheses ??
+    input.learningState?.currentHypotheses ??
+    [];
+
   const candidate = chooseAdaptationCandidate({
     plan: input.plan,
     learningState: input.learningState,
@@ -78,6 +94,7 @@ export function runAdaptationEngine(input: AdaptationEngineInput): AdaptationEng
     detourOptions: getDetourOptions(graph, currentSkill.id).filter((node) => Boolean(node.protocolId)),
     recentAdaptations: input.recentAdaptations,
     now,
+    currentHypotheses,
   });
 
   if (!candidate) return null;
@@ -95,6 +112,7 @@ export function runAdaptationEngine(input: AdaptationEngineInput): AdaptationEng
       nextPlan: input.plan,
       diff: emptyDiff(input.plan),
       evidence: { candidate },
+      insertedSupportSessionId: null,
     };
   }
 
@@ -115,10 +133,16 @@ export function runAdaptationEngine(input: AdaptationEngineInput): AdaptationEng
       nextPlan: input.plan,
       diff: emptyDiff(input.plan),
       evidence: { candidate },
+      insertedSupportSessionId: null,
     };
   }
 
-  const diff = buildPlanDiff(input.plan, compiled.nextPlan, compiled.touchedSessionIds);
+  // Include the inserted support session in the diff tracking so audit records
+  // reflect the new session.
+  const trackedForDiff = compiled.insertedSupportSessionId
+    ? [...compiled.touchedSessionIds, compiled.insertedSupportSessionId]
+    : compiled.touchedSessionIds;
+  const diff = buildPlanDiff(input.plan, compiled.nextPlan, trackedForDiff);
   if (diff.changedSessionIds.length === 0) {
     return {
       applied: false,
@@ -129,6 +153,7 @@ export function runAdaptationEngine(input: AdaptationEngineInput): AdaptationEng
       nextPlan: input.plan,
       diff,
       evidence: { candidate },
+      insertedSupportSessionId: null,
     };
   }
 
@@ -140,6 +165,11 @@ export function runAdaptationEngine(input: AdaptationEngineInput): AdaptationEng
     adaptationType: candidate.type,
     nextPlan: compiled.nextPlan,
     diff,
-    evidence: candidate.evidence,
+    evidence: {
+      ...candidate.evidence,
+      insertedSupportSessionId: compiled.insertedSupportSessionId,
+      insertedSupportSessionType: candidate.insertSupportSession ?? null,
+    },
+    insertedSupportSessionId: compiled.insertedSupportSessionId,
   };
 }

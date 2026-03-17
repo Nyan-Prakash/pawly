@@ -7,7 +7,6 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  TextInput,
   View,
   Vibration,
 } from 'react-native';
@@ -36,6 +35,14 @@ import { EXERCISE_TO_PROTOCOL } from '@/constants/protocols';
 import { didUpcomingScheduleChange } from '@/lib/notifications';
 import { useLiveCoachingSession } from '@/hooks/useLiveCoachingSession';
 import type { CoachingSessionMetrics } from '@/lib/liveCoach/liveCoachingTypes';
+import { buildPostSessionReflectionQuestions } from '@/lib/adaptivePlanning/reflectionQuestionEngine';
+import type { ReflectionQuestionConfig } from '@/lib/adaptivePlanning/reflectionQuestionTypes';
+import {
+  PostSessionReflectionCard,
+  applyReflectionAnswer,
+  makeEmptyReflection,
+} from '@/components/session/PostSessionReflectionCard';
+import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
 
 // ── Local UI state for live coaching (does not touch session store) ──────────
 // These two extra states sit on top of the store's SessionState and are
@@ -91,7 +98,7 @@ export default function SessionScreen() {
   const insets = useSafeAreaInsets();
 
   const { activePlan, fetchProtocol, markSessionComplete, refreshPlan } = usePlanStore();
-  const { dog, fetchDogLearningState } = useDogStore();
+  const { dog, fetchDogLearningState, dogLearningState } = useDogStore();
   const { user } = useAuthStore();
   const ensureNotificationPermission = useNotificationStore((s) => s.ensurePermissionAfterMeaningfulAction);
   const refreshNotificationSchedules = useNotificationStore((s) => s.refreshSchedules);
@@ -118,6 +125,10 @@ export default function SessionScreen() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [completedSessionCount, setCompletedSessionCount] = useState(0);
+
+  // ── Post-session reflection state ──────────────────────────────────────────
+  const [reflectionQuestions, setReflectionQuestions] = useState<ReflectionQuestionConfig[]>([]);
+  const [reflectionAnswers, setReflectionAnswers] = useState<PostSessionReflection>(makeEmptyReflection());
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // ── Live coaching local overlay state ──────────────────────────────────────
@@ -239,6 +250,50 @@ export default function SessionScreen() {
     }
   }, [activeSession?.currentStepIndex, activeSession?.state]);
 
+  // ── Build reflection questions once when entering SESSION_REVIEW ──────────
+  // Runs whenever the session state changes to SESSION_REVIEW.
+  // Uses safe fallbacks for any context not yet available locally:
+  //   - recentSessions: [] (session logs not held in local state)
+  //   - learningState: mapped from dogLearningState if present
+  // If question generation throws for any reason, we silently fall back to
+  // an empty list — the review still shows difficulty + notes normally.
+  useEffect(() => {
+    if (activeSession?.state !== 'SESSION_REVIEW') return;
+
+    try {
+      const durationSeconds = Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000);
+      const planSession = activePlan?.sessions.find((s) => s.id === activeSession.sessionId);
+
+      const questions = buildPostSessionReflectionQuestions({
+        difficulty: reviewDifficulty ?? 'okay',
+        sessionStatus: 'completed',
+        durationSeconds,
+        protocolId: EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId,
+        skillId: planSession?.skillId ?? null,
+        environmentTag: planSession?.environment ?? null,
+        recentSessions: [],
+        learningState: dogLearningState
+          ? {
+              distractionSensitivity: dogLearningState.distractionSensitivity,
+              handlerConsistencyScore: dogLearningState.handlerConsistencyScore,
+              confidenceScore: dogLearningState.confidenceScore,
+              inconsistencyIndex:
+                typeof (dogLearningState.behaviorSignals as Record<string, unknown>)?.inconsistencyIndex === 'number'
+                  ? ((dogLearningState.behaviorSignals as Record<string, unknown>).inconsistencyIndex as number)
+                  : null,
+            }
+          : null,
+      });
+
+      setReflectionQuestions(questions);
+      setReflectionAnswers(makeEmptyReflection());
+    } catch {
+      // Graceful fallback: no questions shown, difficulty + notes still work.
+      setReflectionQuestions([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession?.state]);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Actions
   // ─────────────────────────────────────────────────────────────────────────
@@ -349,6 +404,9 @@ export default function SessionScreen() {
                 };
               })()
             : undefined,
+          // Post-session reflection — pass answered object or null when no
+          // questions were shown (e.g. engine fallback or all skipped).
+          postSessionReflection: reflectionQuestions.length > 0 ? reflectionAnswers : null,
         });
 
         // Update streak (non-blocking)
@@ -373,7 +431,7 @@ export default function SessionScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [reviewDifficulty, reviewNotes, activeSession, user, dog, activePlan, fetchDogLearningState, refreshPlan]);
+  }, [reviewDifficulty, reviewNotes, reflectionQuestions, reflectionAnswers, activeSession, user, dog, activePlan, fetchDogLearningState, refreshPlan]);
 
   const handleAbandonConfirm = useCallback(async () => {
     if (activeSession && user && dog && activePlan) {
@@ -577,8 +635,13 @@ export default function SessionScreen() {
           reviewDifficulty={reviewDifficulty}
           reviewNotes={reviewNotes}
           isSaving={isSaving}
+          reflectionQuestions={reflectionQuestions}
+          reflectionAnswers={reflectionAnswers}
           onSelectDifficulty={setReviewDifficulty}
           onNotesChange={setReviewNotes}
+          onReflectionAnswer={(qId, value) =>
+            setReflectionAnswers((prev) => applyReflectionAnswer(prev, qId, value))
+          }
           onSave={handleSubmitSession}
           insets={insets}
         />
@@ -1276,8 +1339,11 @@ interface SessionReviewViewProps {
   reviewDifficulty: 'easy' | 'okay' | 'hard' | null;
   reviewNotes: string;
   isSaving: boolean;
+  reflectionQuestions: ReflectionQuestionConfig[];
+  reflectionAnswers: PostSessionReflection;
   onSelectDifficulty: (d: 'easy' | 'okay' | 'hard') => void;
   onNotesChange: (s: string) => void;
+  onReflectionAnswer: (qId: ReflectionQuestionId, value: string | number) => void;
   onSave: () => void;
   insets: ReturnType<typeof useSafeAreaInsets>;
 }
@@ -1288,141 +1354,32 @@ function SessionReviewView({
   reviewDifficulty,
   reviewNotes,
   isSaving,
+  reflectionQuestions,
+  reflectionAnswers,
   onSelectDifficulty,
   onNotesChange,
+  onReflectionAnswer,
   onSave,
   insets,
 }: SessionReviewViewProps) {
   const durationSeconds = Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000);
-
-  const options: Array<{ value: 'easy' | 'okay' | 'hard'; emoji: AppIconName; label: string; sub: string }> = [
-    { value: 'easy', emoji: 'thumbs-up', label: 'Easy', sub: `${dogName} was a superstar` },
-    { value: 'okay', emoji: 'remove-circle', label: 'Okay', sub: 'Some good moments, some struggles' },
-    { value: 'hard', emoji: 'warning', label: 'Hard', sub: 'Tough session today' },
-  ];
+  const durationLabel = `Completed in ${formatDuration(durationSeconds)}`;
 
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + spacing.xl,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + 140,
-          gap: spacing.xl,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ alignItems: 'center', gap: spacing.sm }}>
-          <AppIcon name="ribbon" size={40} color={colors.primary} />
-          <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary }}>
-            Session complete!
-          </Text>
-          <Text style={{ fontSize: 16, color: colors.textSecondary }}>
-            Completed in {formatDuration(durationSeconds)}
-          </Text>
-        </View>
-
-        <Text style={{ fontSize: 20, fontWeight: '600', color: colors.textPrimary, textAlign: 'center' }}>
-          How did it go?
-        </Text>
-
-        <View style={{ gap: spacing.md }}>
-          {options.map((opt) => (
-            <Pressable
-              key={opt.value}
-              onPress={() => onSelectDifficulty(opt.value)}
-              style={({ pressed }) => ({
-                backgroundColor: reviewDifficulty === opt.value
-                  ? '#E6F4F1'
-                  : pressed ? '#f5f5f5' : colors.surface,
-                borderRadius: 16,
-                padding: spacing.lg,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.md,
-                borderWidth: 2,
-                borderColor: reviewDifficulty === opt.value ? colors.primary : colors.border.default,
-                minHeight: 72,
-              })}
-            >
-              <AppIcon
-                name={opt.emoji}
-                size={32}
-                color={reviewDifficulty === opt.value ? colors.primary : colors.textSecondary}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 17, fontWeight: '600', color: colors.textPrimary }}>
-                  {opt.label}
-                </Text>
-                <Text style={{ fontSize: 14, color: colors.textSecondary }}>{opt.sub}</Text>
-              </View>
-              {reviewDifficulty === opt.value && (
-                <AppIcon name="checkmark" size={20} color={colors.primary} />
-              )}
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Notes */}
-        <TextInput
-          value={reviewNotes}
-          onChangeText={onNotesChange}
-          placeholder="Anything to note? (optional)"
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          style={{
-            backgroundColor: colors.surface,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            padding: spacing.lg,
-            fontSize: 15,
-            color: colors.textPrimary,
-            minHeight: 80,
-            textAlignVertical: 'top',
-          }}
-        />
-      </ScrollView>
-
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + spacing.lg,
-          paddingTop: spacing.md,
-          backgroundColor: colors.background,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.default,
-        }}
-      >
-        <Pressable
-          onPress={onSave}
-          disabled={!reviewDifficulty || isSaving}
-          style={({ pressed }) => ({
-            backgroundColor: !reviewDifficulty || isSaving
-              ? colors.border.default
-              : pressed
-              ? '#246158'
-              : colors.primary,
-            borderRadius: 14,
-            paddingVertical: spacing.lg,
-            alignItems: 'center',
-            minHeight: 54,
-          })}
-        >
-          {isSaving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={{ fontSize: 17, fontWeight: '700', color: !reviewDifficulty ? colors.textSecondary : '#fff' }}>
-              Save session
-            </Text>
-          )}
-        </Pressable>
-      </View>
-    </View>
+    <PostSessionReflectionCard
+      dogName={dogName}
+      durationLabel={durationLabel}
+      questions={reflectionQuestions}
+      answers={reflectionAnswers}
+      difficulty={reviewDifficulty}
+      notes={reviewNotes}
+      onSelectDifficulty={onSelectDifficulty}
+      onAnswer={onReflectionAnswer}
+      onNotesChange={onNotesChange}
+      onSubmit={onSave}
+      isSaving={isSaving}
+      insets={insets}
+    />
   );
 }
 
@@ -1438,17 +1395,18 @@ interface CompleteViewProps {
   insets: ReturnType<typeof useSafeAreaInsets>;
 }
 
-function CompleteView({ dogName, protocol, completedSessionCount, totalSessions, activeSession, onBack, insets }: CompleteViewProps) {
+function CompleteView({ dogName, protocol, completedSessionCount, totalSessions, activeSession, onBack }: CompleteViewProps) {
   const nextProtocol = protocol.nextProtocolId;
+  const insets = useSafeAreaInsets();
 
   return (
     <View
       style={{
         flex: 1,
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         paddingHorizontal: spacing.xl,
-        paddingTop: insets.top,
+        paddingTop: insets.top + spacing.xl * 2,
         paddingBottom: insets.bottom + spacing.xl,
         gap: spacing.xl,
         backgroundColor: '#F0FDF8',
@@ -1457,7 +1415,7 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
       {/* Celebration */}
       <View style={{ alignItems: 'center', gap: spacing.md }}>
         <AppIcon name="ribbon" size={72} color={colors.primary} />
-        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.primary, textAlign: 'center' }}>
+        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.primary, textAlign: 'center', lineHeight: 42 }}>
           {dogName} crushed it!
         </Text>
       </View>
@@ -1502,7 +1460,7 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
           width: '100%',
         })}
       >
-        <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Back to today</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Back to today</Text>
       </Pressable>
     </View>
   );

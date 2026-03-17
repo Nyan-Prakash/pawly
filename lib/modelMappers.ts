@@ -6,6 +6,7 @@ import type {
   PlanAdaptation,
   PlanMetadata,
   PlanSession,
+  PostSessionReflection,
   SkillEdge,
   SkillNode,
 } from '../types/index.ts';
@@ -159,6 +160,119 @@ export function mapInAppNotificationRowToModel(data: Record<string, unknown>): I
     isRead: data.is_read === true,
     createdAt: String(data.created_at),
     readAt: typeof data.read_at === 'string' ? data.read_at : null,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Session log row mapper
+//
+// Maps a session_logs DB row to a plain app-layer object with camelCase fields.
+// Used wherever a typed session log model is needed outside of the raw
+// SessionLogInput (which stays snake_case for direct Supabase compat).
+//
+// post_session_reflection is stored as JSONB.  Rows written before this column
+// was added will return null — that is handled gracefully.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── Reflection normalization ─────────────────────────────────────────────────
+//
+// Guards against malformed or legacy DB rows reaching the app layer.
+// Strategy: if the top-level value is not a plain object, return null.
+// For each enum field: if the stored value is not in the known set, normalize
+// to null rather than forwarding an unknown string.
+// This lets the app-layer consumers rely on strong typing.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const VALID_OVERALL_EXPECTATION = new Set(['better_than_expected', 'as_expected', 'worse_than_expected']);
+const VALID_MAIN_ISSUE = new Set(['did_not_understand', 'broke_position', 'distracted', 'over_excited', 'tired_done', 'handler_inconsistent', 'no_major_issue']);
+const VALID_FAILURE_TIMING = new Set(['immediately', 'midway', 'near_end', 'never_stabilized']);
+const VALID_DISTRACTION_TYPE = new Set(['dogs', 'people', 'smells', 'noise_movement', 'other']);
+const VALID_CUE_UNDERSTANDING = new Set(['yes', 'not_yet', 'unsure']);
+const VALID_AROUSAL_LEVEL = new Set(['calm', 'slightly_up', 'very_up']);
+const VALID_HANDLER_ISSUE = new Set(['timing_rewards', 'cue_consistency', 'leash_setup', 'session_focus', 'other']);
+const VALID_CONFIDENCE = new Set([1, 2, 3, 4, 5]);
+
+function pickEnum<T>(value: unknown, validSet: Set<unknown>): T | null {
+  return validSet.has(value) ? (value as T) : null;
+}
+
+/**
+ * Normalizes a raw DB value for post_session_reflection into a typed
+ * PostSessionReflection or null.
+ *
+ * Returns null when:
+ *   - the value is null or undefined (missing column, legacy row)
+ *   - the value is not a plain object (e.g. an array, a string)
+ *
+ * For each field: unknown enum values are normalized to null rather than
+ * forwarded, so callers can rely on the declared union types.
+ */
+export function normalizePostSessionReflection(raw: unknown): PostSessionReflection | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null;
+
+  const r = raw as Record<string, unknown>;
+
+  return {
+    overallExpectation:  pickEnum(r.overallExpectation,  VALID_OVERALL_EXPECTATION),
+    mainIssue:           pickEnum(r.mainIssue,           VALID_MAIN_ISSUE),
+    failureTiming:       pickEnum(r.failureTiming,       VALID_FAILURE_TIMING),
+    distractionType:     pickEnum(r.distractionType,     VALID_DISTRACTION_TYPE),
+    cueUnderstanding:    pickEnum(r.cueUnderstanding,    VALID_CUE_UNDERSTANDING),
+    arousalLevel:        pickEnum(r.arousalLevel,        VALID_AROUSAL_LEVEL),
+    handlerIssue:        pickEnum(r.handlerIssue,        VALID_HANDLER_ISSUE),
+    confidenceInAnswers: pickEnum(r.confidenceInAnswers, VALID_CONFIDENCE),
+    freeformNote:        typeof r.freeformNote === 'string' ? r.freeformNote : null,
+  };
+}
+
+export interface SessionLogModel {
+  id: string;
+  userId: string;
+  dogId: string;
+  planId: string;
+  sessionId: string;
+  exerciseId: string;
+  protocolId: string;
+  durationSeconds: number;
+  difficulty: 'easy' | 'okay' | 'hard';
+  notes: string | null;
+  completedAt: string;
+  successScore: number | null;
+  sessionStatus: 'completed' | 'abandoned';
+  skillId: string | null;
+  sessionKind: PlanSession['sessionKind'] | null;
+  environmentTag: string | null;
+  liveCoachingUsed: boolean;
+  postSessionReflection: PostSessionReflection | null;
+}
+
+/**
+ * Maps a raw session_logs Supabase row to a typed camelCase model.
+ * Safe for rows that predate the post_session_reflection column (returns null).
+ */
+export function mapSessionLogRowToModel(data: Record<string, unknown>): SessionLogModel {
+  const postSessionReflection = normalizePostSessionReflection(data.post_session_reflection);
+
+  return {
+    id: String(data.id),
+    userId: String(data.user_id),
+    dogId: String(data.dog_id),
+    planId: String(data.plan_id),
+    sessionId: String(data.session_id),
+    exerciseId: String(data.exercise_id),
+    protocolId: String(data.protocol_id),
+    durationSeconds: typeof data.duration_seconds === 'number' ? data.duration_seconds : 0,
+    difficulty: (data.difficulty as 'easy' | 'okay' | 'hard') ?? 'okay',
+    notes: typeof data.notes === 'string' ? data.notes : null,
+    completedAt: String(data.completed_at),
+    successScore: typeof data.success_score === 'number' ? data.success_score : null,
+    sessionStatus: data.session_status === 'abandoned' ? 'abandoned' : 'completed',
+    skillId: typeof data.skill_id === 'string' ? data.skill_id : null,
+    sessionKind: (data.session_kind as PlanSession['sessionKind']) ?? null,
+    environmentTag: typeof data.environment_tag === 'string' ? data.environment_tag : null,
+    liveCoachingUsed: data.live_coaching_used === true,
+    postSessionReflection,
   };
 }
 

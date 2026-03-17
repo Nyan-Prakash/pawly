@@ -49,6 +49,16 @@ export function buildPlanDiff(previousPlan: Plan, nextPlan: Plan, trackedSession
     }
   }
 
+  // Sessions in the tracked set that exist only in nextPlan are newly inserted.
+  // Record them as changed so the audit trail surfaces them.
+  const previousIds = new Set(previousSessions.map((s) => s.id));
+  for (const next of nextSessions) {
+    if (!previousIds.has(next.id)) {
+      changedSessionIds.push(next.id);
+      changedFields.add('sessions.inserted');
+    }
+  }
+
   const previousSnapshot = {
     sessions: previousSessions.map(pickComparableSession),
     metadata: previousPlan.metadata ?? {},

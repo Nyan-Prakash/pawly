@@ -81,6 +81,13 @@ export interface TrainingSchedulePrefs {
   timezone: string;
 }
 
+/** Type of support session inserted by the adaptation engine. */
+export type SupportSessionType =
+  | 'foundation'
+  | 'transition'
+  | 'duration_building'
+  | 'calm_reset';
+
 export interface PlanSession {
   id: string;
   exerciseId: string;
@@ -102,6 +109,18 @@ export interface PlanSession {
   sessionKind?: 'core' | 'repeat' | 'regress' | 'advance' | 'detour' | 'proofing';
   adaptationSource?: 'initial_plan' | 'adaptation_engine';
   reasoningLabel?: string | null;
+  /**
+   * True when this session was inserted by the adaptation engine as an extra
+   * support session (not part of the original plan scaffold).
+   */
+  insertedByAdaptation?: boolean;
+  /**
+   * The support-session type when insertedByAdaptation is true.
+   * Describes the purpose of the inserted session.
+   */
+  supportSessionType?: SupportSessionType | null;
+  /** Reason code of the adaptation event that caused the insertion. */
+  insertionReasonCode?: string | null;
 }
 
 export interface PlanMetadata {
@@ -194,6 +213,111 @@ export interface InAppNotification {
   isRead: boolean;
   createdAt: string;
   readAt: string | null;
+}
+
+// ─── Post-Session Reflection ──────────────────────────────────────────────────
+
+/**
+ * Handler's perceived expectation relative to how the session actually went.
+ */
+export type ReflectionExpectationGap =
+  | 'better_than_expected'
+  | 'as_expected'
+  | 'worse_than_expected';
+
+/**
+ * The primary failure mode or issue observed during the session.
+ */
+export type ReflectionMainIssue =
+  | 'did_not_understand'
+  | 'broke_position'
+  | 'distracted'
+  | 'over_excited'
+  | 'tired_done'
+  | 'handler_inconsistent'
+  | 'no_major_issue';
+
+/**
+ * When during the session the dog started failing (if applicable).
+ */
+export type ReflectionFailureTiming =
+  | 'immediately'
+  | 'midway'
+  | 'near_end'
+  | 'never_stabilized';
+
+/**
+ * The type of external stimulus that drew the dog's attention.
+ */
+export type ReflectionDistractionType =
+  | 'dogs'
+  | 'people'
+  | 'smells'
+  | 'noise_movement'
+  | 'other';
+
+/**
+ * Whether the dog appeared to understand the cue being trained.
+ */
+export type ReflectionCueUnderstanding = 'yes' | 'not_yet' | 'unsure';
+
+/**
+ * Observed arousal / energy state of the dog during the session.
+ */
+export type ReflectionArousalLevel = 'calm' | 'slightly_up' | 'very_up';
+
+/**
+ * Self-identified handler error that may have contributed to difficulty.
+ */
+export type ReflectionHandlerIssue =
+  | 'timing_rewards'
+  | 'cue_consistency'
+  | 'leash_setup'
+  | 'session_focus'
+  | 'other';
+
+/**
+ * Identifier for each question in the post-session reflection flow.
+ * Used for validation and conditional branching logic.
+ */
+export type ReflectionQuestionId =
+  | 'overallExpectation'
+  | 'mainIssue'
+  | 'failureTiming'
+  | 'distractionType'
+  | 'cueUnderstanding'
+  | 'arousalLevel'
+  | 'handlerIssue'
+  | 'confidenceInAnswers'
+  | 'freeformNote';
+
+/**
+ * Structured post-session reflection captured from the handler after a
+ * training session completes. Stored as JSONB in session_logs and used as
+ * richer signal input for the adaptive planning engine.
+ *
+ * All answer fields are nullable so partially completed reflections can be
+ * stored safely. UI flow controls which questions are presented.
+ */
+export interface PostSessionReflection {
+  /** How the session compared to the handler's expectations. */
+  overallExpectation: ReflectionExpectationGap | null;
+  /** Primary issue observed during the session, if any. */
+  mainIssue: ReflectionMainIssue | null;
+  /** When during the session failures occurred (only relevant when mainIssue !== 'no_major_issue'). */
+  failureTiming: ReflectionFailureTiming | null;
+  /** What distracted the dog (only relevant when mainIssue === 'distracted'). */
+  distractionType: ReflectionDistractionType | null;
+  /** Whether the dog appeared to understand the cue. */
+  cueUnderstanding: ReflectionCueUnderstanding | null;
+  /** The dog's arousal level during the session. */
+  arousalLevel: ReflectionArousalLevel | null;
+  /** Handler error that may have contributed to difficulty (only relevant when mainIssue === 'handler_inconsistent'). */
+  handlerIssue: ReflectionHandlerIssue | null;
+  /** Handler's self-assessed confidence in the accuracy of these answers (1 = low, 5 = high). */
+  confidenceInAnswers: 1 | 2 | 3 | 4 | 5 | null;
+  /** Optional freeform note to supplement structured answers. */
+  freeformNote: string | null;
 }
 
 // ─── Progress & Walk Tracking ─────────────────────────────────────────────────

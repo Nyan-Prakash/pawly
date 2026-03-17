@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { updateLearningStateFromSessionLog } from '@/lib/adaptivePlanning/learningStateEngine';
-import type { AdaptationApiResult, PlanEnvironment, PlanSession } from '@/types';
+import type { AdaptationApiResult, PlanEnvironment, PlanSession, PostSessionReflection } from '@/types';
 import type { StepResult } from '@/stores/sessionStore';
 import type { TrackingQuality, PostureLabel } from '@/types/pose';
 
@@ -74,6 +74,9 @@ export interface SaveSessionParams {
   liveCoachingSummary?: LiveCoachingSummary;
   /** Detailed pose pipeline metrics. Only set when liveCoachingUsed is true. */
   poseMetrics?: PoseMetrics;
+  // PR17: post-session reflection (optional — null when handler skips the flow)
+  /** Structured handler reflection captured after the session review step. */
+  postSessionReflection?: PostSessionReflection | null;
 }
 
 export interface CompletedSession {
@@ -161,6 +164,7 @@ export async function saveSession(params: SaveSessionParams): Promise<SaveSessio
       live_coaching_used: params.liveCoachingUsed ?? false,
       live_coaching_summary: params.liveCoachingSummary ?? {},
       pose_metrics: params.poseMetrics ?? {},
+      post_session_reflection: params.postSessionReflection ?? null,
     })
     .select('id')
     .single();

@@ -1,4 +1,4 @@
-import type { Plan, PlanEnvironment, PlanSession } from '../../types/index.ts';
+import type { Plan, PlanEnvironment, PlanSession, PostSessionReflection } from '../../types/index.ts';
 
 export type SessionStatus = 'completed' | 'abandoned';
 
@@ -27,6 +27,8 @@ export interface SessionLogInput {
   environment_tag?: string | null;
   completed_at?: string | null;
   created_at?: string | null;
+  /** Structured post-session handler reflection. Present only when the handler completed the reflection flow. */
+  post_session_reflection?: PostSessionReflection | null;
 }
 
 export interface WalkLogInput {
@@ -38,6 +40,37 @@ export interface WalkLogInput {
   goal_achieved?: boolean | null;
   logged_at?: string | null;
   created_at?: string | null;
+}
+
+/**
+ * Reflection-derived evidence extracted from a single post-session reflection.
+ *
+ * All signal fields are in the range [0, 1] and are already confidence-weighted
+ * (multiplied by normalized reflectionConfidence before being stored here).
+ *
+ * When no reflection is present every field is 0 so downstream aggregation
+ * treats the session as neutral — identical to the pre-reflection behavior.
+ *
+ * reflectionConfidence is the raw normalized handler confidence (0–1) before
+ * weighting. It is kept separately so aggregation can track how many sessions
+ * have high-confidence reflections.
+ */
+export interface ReflectionSignals {
+  /** Cue/understanding problem signal, confidence-weighted [0, 1]. */
+  understandingIssue: number;
+  /** Distraction/environment stimulus signal, confidence-weighted [0, 1]. */
+  distractionIssue: number;
+  /** Near-end breakdown / duration signal, confidence-weighted [0, 1]. */
+  durationBreakdownIssue: number;
+  /** Over-arousal / excitement signal, confidence-weighted [0, 1]. */
+  arousalIssue: number;
+  /** Handler-side friction signal, confidence-weighted [0, 1]. */
+  handlerFrictionIssue: number;
+  /**
+   * Raw handler confidence (0–1, not confidence-weighted).
+   * 0 = no reflection; 0.2 = confidenceInAnswers 1; 1.0 = confidenceInAnswers 5.
+   */
+  reflectionConfidence: number;
 }
 
 export interface SessionLearningSignal {
@@ -69,6 +102,8 @@ export interface SessionLearningSignal {
   };
   similarityKey: string;
   isRecoverySession: boolean;
+  /** Reflection-derived evidence signals. All zeros when no reflection was recorded. */
+  reflection: ReflectionSignals;
 }
 
 export interface WalkLearningSignal {
@@ -85,6 +120,26 @@ export interface WalkLearningSignal {
     calm: boolean;
     outdoors: boolean;
   };
+}
+
+/**
+ * Weighted average of reflection-derived signals across recent sessions.
+ *
+ * Each pressure value is a weighted mean of the per-session signal, weighted
+ * by that session's reflectionConfidence. Values are [0, 1].
+ * sessionsWithReflection is the count of sessions in the window that had
+ * any reflection data (reflectionConfidence > 0).
+ * avgReflectionConfidence is the mean of all non-zero reflectionConfidence
+ * values in the window (null when no sessions have reflection data).
+ */
+export interface ReflectionEvidence {
+  understandingPressure: number;
+  distractionPressure: number;
+  durationBreakdownPressure: number;
+  arousalPressure: number;
+  handlerFrictionPressure: number;
+  sessionsWithReflection: number;
+  avgReflectionConfidence: number | null;
 }
 
 export interface AggregatedRecentSignals {
@@ -122,6 +177,8 @@ export interface AggregatedRecentSignals {
     motivationDropInLongSessions: boolean;
     notableEnvironmentDeltas: Record<string, number>;
     warnings: string[];
+    /** Aggregated reflection-derived evidence across the recent session window. */
+    reflectionEvidence: ReflectionEvidence;
   };
 }
 
@@ -208,6 +265,146 @@ function parseStage(currentStage?: string | null): number | null {
   return match ? Number(match[1]) : null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Reflection signal extraction
+//
+// Maps a PostSessionReflection to concrete, interpretable evidence signals.
+// All output values are in [0, 1].  The base signal is a deterministic boolean
+// mapping; the final value is multiplied by the normalized handler confidence
+// so lower-confidence reflections contribute less to aggregated evidence.
+//
+// When reflection is absent every field is 0 so aggregation remains neutral —
+// identical to behaviour before reflection existed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const REFLECTION_CONFIDENCE_DEFAULT = 0.5; // moderate fallback when confidence field absent
+
+function normalizeConfidence(raw: 1 | 2 | 3 | 4 | 5 | null | undefined): number {
+  if (raw == null) return REFLECTION_CONFIDENCE_DEFAULT;
+  // Maps 1→0.2, 2→0.4, 3→0.6, 4→0.8, 5→1.0
+  return raw / 5;
+}
+
+/**
+ * Derives interpretable evidence signals from a single post-session reflection.
+ * Returns all-zero ReflectionSignals when reflection is absent.
+ */
+export function extractReflectionSignals(
+  reflection: PostSessionReflection | null | undefined,
+): ReflectionSignals {
+  const zero: ReflectionSignals = {
+    understandingIssue:    0,
+    distractionIssue:      0,
+    durationBreakdownIssue: 0,
+    arousalIssue:          0,
+    handlerFrictionIssue:  0,
+    reflectionConfidence:  0,
+  };
+
+  if (!reflection) return zero;
+
+  const confidence = normalizeConfidence(reflection.confidenceInAnswers);
+
+  // ── Understanding issue ───────────────────────────────────────────────────
+  // Full signal: handler explicitly named a cue-understanding problem.
+  // Partial signal: cue understanding is "not_yet" (same weight as mainIssue).
+  // Lower signal: failure happened immediately, suggesting confusion (not fatigue).
+  const understandingBase =
+    reflection.mainIssue === 'did_not_understand'          ? 1.0
+    : reflection.cueUnderstanding === 'not_yet'            ? 1.0
+    : reflection.failureTiming === 'immediately' &&
+      reflection.cueUnderstanding !== 'yes'                ? 0.6
+    : 0;
+
+  // ── Distraction issue ─────────────────────────────────────────────────────
+  // Full signal: distraction named as main issue.
+  // Partial signal: a distraction type was identified (specific stimulus named).
+  const distractionBase =
+    reflection.mainIssue === 'distracted'  ? 1.0
+    : reflection.distractionType != null   ? 0.7
+    : 0;
+
+  // ── Duration breakdown issue ──────────────────────────────────────────────
+  // Full signal: failure happened near the end (typical of duration fatigue).
+  // Partial signal: position broke (not near_end, but position still broke).
+  const durationBreakdownBase =
+    reflection.failureTiming === 'near_end'           ? 1.0
+    : reflection.mainIssue === 'broke_position' &&
+      reflection.failureTiming !== 'immediately'       ? 0.6
+    : 0;
+
+  // ── Arousal issue ─────────────────────────────────────────────────────────
+  // Full signal: over-excitement named as main issue or arousal very_up.
+  // Partial signal: arousal slightly_up (lower weight — not a clear blocker).
+  const arousalBase =
+    reflection.mainIssue === 'over_excited'  ? 1.0
+    : reflection.arousalLevel === 'very_up'  ? 1.0
+    : reflection.arousalLevel === 'slightly_up' ? 0.4
+    : 0;
+
+  // ── Handler friction issue ────────────────────────────────────────────────
+  // Full signal: handler inconsistency named as main issue.
+  // Partial signal: a specific handler issue was identified.
+  const handlerFrictionBase =
+    reflection.mainIssue === 'handler_inconsistent'  ? 1.0
+    : reflection.handlerIssue != null               ? 0.7
+    : 0;
+
+  return {
+    understandingIssue:     Number((understandingBase    * confidence).toFixed(3)),
+    distractionIssue:       Number((distractionBase      * confidence).toFixed(3)),
+    durationBreakdownIssue: Number((durationBreakdownBase * confidence).toFixed(3)),
+    arousalIssue:           Number((arousalBase          * confidence).toFixed(3)),
+    handlerFrictionIssue:   Number((handlerFrictionBase  * confidence).toFixed(3)),
+    reflectionConfidence:   confidence,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reflection evidence aggregation
+//
+// Computes weighted-average pressures across a session window.
+// Uses reflectionConfidence as the per-session weight so high-confidence
+// reflections contribute more to the aggregate than low-confidence ones.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function aggregateReflectionEvidence(signals: SessionLearningSignal[]): ReflectionEvidence {
+  const withReflection = signals.filter((s) => s.reflection.reflectionConfidence > 0);
+  if (withReflection.length === 0) {
+    return {
+      understandingPressure:    0,
+      distractionPressure:      0,
+      durationBreakdownPressure: 0,
+      arousalPressure:          0,
+      handlerFrictionPressure:  0,
+      sessionsWithReflection:   0,
+      avgReflectionConfidence:  null,
+    };
+  }
+
+  const totalWeight = withReflection.reduce((sum, s) => sum + s.reflection.reflectionConfidence, 0);
+
+  function weightedAvg(field: keyof ReflectionSignals): number {
+    const val = withReflection.reduce(
+      (sum, s) => sum + (s.reflection[field] as number) * s.reflection.reflectionConfidence,
+      0,
+    );
+    return Number((val / totalWeight).toFixed(3));
+  }
+
+  const avgConfidence = average(withReflection.map((s) => s.reflection.reflectionConfidence));
+
+  return {
+    understandingPressure:    weightedAvg('understandingIssue'),
+    distractionPressure:      weightedAvg('distractionIssue'),
+    durationBreakdownPressure: weightedAvg('durationBreakdownIssue'),
+    arousalPressure:          weightedAvg('arousalIssue'),
+    handlerFrictionPressure:  weightedAvg('handlerFrictionIssue'),
+    sessionsWithReflection:   withReflection.length,
+    avgReflectionConfidence:  avgConfidence !== null ? Number(avgConfidence.toFixed(3)) : null,
+  };
+}
+
 export function extractSessionSignals(
   sessionLog: SessionLogInput,
   protocol?: { steps?: Array<{ order?: number }> } | null,
@@ -249,6 +446,7 @@ export function extractSessionSignals(
     notesFlags,
     similarityKey: `${sessionLog.skill_id ?? planSessionContext?.skillId ?? sessionLog.protocol_id ?? sessionLog.exercise_id ?? 'unknown'}:${environmentTag}`,
     isRecoverySession: isRecoverySession(sessionLog.session_kind ?? planSessionContext?.sessionKind ?? null, sessionLog.skill_id ?? planSessionContext?.skillId),
+    reflection: extractReflectionSignals(sessionLog.post_session_reflection),
   };
 }
 
@@ -387,6 +585,7 @@ export function aggregateRecentSignals({
       motivationDropInLongSessions,
       notableEnvironmentDeltas,
       warnings,
+      reflectionEvidence: aggregateReflectionEvidence(sessionSignals),
     },
   };
 }

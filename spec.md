@@ -1,7 +1,7 @@
 # Pawly — Technical Specification
-**Version:** 1.3
-**Date:** March 16, 2026
-**Status:** Current (updated to match implemented codebase including PR16 Live Pose Coaching)
+**Version:** 1.4
+**Date:** March 17, 2026
+**Status:** Current (updated to match implemented codebase including PR17 Post-Session Reflection)
 
 ---
 
@@ -34,7 +34,7 @@
 
 ### 1.1 What Pawly Is
 
-Pawly is a mobile-first subscription application that delivers personalized dog training plans, AI-powered coaching, video feedback, and a lifecycle content system across the full lifespan of a dog. The system maintains a persistent behavioral memory of each dog and adapts its guidance based on ongoing session outcomes, user-submitted video, and lifecycle stage. Sessions can be completed in manual mode or via a live camera coaching mode that uses on-device pose detection to count reps and provide real-time posture feedback.
+Pawly is a mobile-first subscription application that delivers personalized dog training plans, AI-powered coaching, video feedback, and a lifecycle content system across the full lifespan of a dog. The system maintains a persistent behavioral memory of each dog and adapts its guidance based on ongoing session outcomes, structured post-session handler reflections, user-submitted video, and lifecycle stage. Sessions can be completed in manual mode or via a live camera coaching mode that uses on-device pose detection to count reps and provide real-time posture feedback.
 
 ### 1.2 Core User Flow (Happy Path)
 
@@ -49,9 +49,11 @@ Plan Preview → Account Creation → First Session
      ↓
 Daily Session Loop (Manual Mode or Live Camera Coach Mode) + Walk Logging
      ↓
+Post-Session Reflection (structured handler feedback captured after each session)
+     ↓
 AI Coach Available Throughout
      ↓
-Plan Adapts Based on Session Outcomes
+Plan Adapts Based on Session Outcomes + Reflection Signals
      ↓
 Progress Tracked → Streaks → Milestones
      ↓
@@ -118,6 +120,7 @@ Lifecycle Events Triggered as Dog Ages
 - **Mobile-first data design:** All API responses optimized for mobile payload size and offline resilience
 - **AI-driven planning:** Plan generation uses Claude API via `generate-adaptive-plan` Edge Function; rules-based fallback available
 - **On-device ML inference:** Dog pose detection runs entirely on-device via TFLite (no server round-trip)
+- **Structured handler feedback:** Post-session reflection captures structured handler observations to enrich adaptation signals
 
 ### 2.3 Technology Stack Summary
 
@@ -164,7 +167,7 @@ pawly/
 │   │   ├── train/
 │   │   │   ├── index.tsx         # Today card / home screen
 │   │   │   ├── calendar.tsx      # Monthly training calendar view
-│   │   │   ├── session.tsx       # Active session screen (manual + live camera modes)
+│   │   │   ├── session.tsx       # Active session screen (manual + live camera modes + post-session reflection)
 │   │   │   ├── plan.tsx          # Full plan view (all sessions)
 │   │   │   ├── notifications.tsx # In-app notification center
 │   │   │   ├── pose-debug.tsx    # Dev-only: pose detection debug (entry)
@@ -185,12 +188,12 @@ pawly/
 │   └── _layout.tsx               # Root layout with navigation gate
 ├── components/                   # Reusable components
 │   ├── ui/                       # Button, Text, Input, Card, StreakBadge, etc.
-│   ├── session/                  # TimerRing, RepCounter, StepCard, SessionModePicker, LiveCoachOverlay
+│   ├── session/                  # TimerRing, RepCounter, StepCard, SessionModePicker, LiveCoachOverlay, PostSessionReflectionCard
 │   ├── coach/                    # MessageBubble, TypingIndicator, QuickSuggestions, FormattedCoachMessage
 │   ├── progress/                 # MilestoneCard, ShareCard
 │   ├── train/                    # TrainingCalendar, CalendarDayCell, DaySessionList
 │   ├── vision/                   # DogKeypointOverlay, LiveCoachOverlay, TrackingQualityBadge
-│   ├── adaptive/                 # LearningInsightCard, AdaptationNotice, WhyThisChangedSheet, etc.
+│   ├── adaptive/                 # LearningInsightCard, AdaptationNotice, WhyThisChangedSheet, PlanReasonCard, SessionChangeBadge
 │   ├── notifications/            # NotificationBell, NotificationItem
 │   ├── video/                    # VideoUploadProgress, ExpertReviewRequest
 │   ├── onboarding/               # OptionCard, QuestionScreen, ScheduleSelector
@@ -213,30 +216,31 @@ pawly/
 │   ├── supabase.ts               # Supabase client + createUserRecord()
 │   ├── planGenerator.ts          # Goal maps, sequences, plan building (rules-based fallback)
 │   ├── scheduleEngine.ts         # Schedule logic, session timing, rescheduling
-│   ├── sessionManager.ts         # Session saving, streak updates, milestone checks, live coaching metrics
+│   ├── sessionManager.ts         # Session saving, streak updates, milestone checks, live coaching metrics, reflection persistence
 │   ├── milestoneEngine.ts        # 13 milestone definitions and check functions
 │   ├── analytics.ts              # Event capture (console-only in dev; PostHog pending)
-│   ├── modelMappers.ts           # DB row → TypeScript type converters
+│   ├── modelMappers.ts           # DB row → TypeScript type converters (includes reflection normalization)
 │   ├── notifications.ts          # Expo Notifications wrapper, scheduling
 │   ├── inAppNotifications.ts     # In-app notification logic
 │   ├── videoUploader.ts          # Video upload utilities
 │   ├── calendarSessions.ts       # Calendar date ops, session grouping by date
 │   ├── planScheduleDiff.ts       # Plan change diffing
 │   ├── theme.ts                  # useTheme() hook
-│   ├── adaptivePlanning/         # Full adaptive planning engine (23 files)
+│   ├── reflectionAnswerHelpers.ts  # Pure functions for PostSessionReflection (testable without RN)
+│   ├── adaptivePlanning/         # Full adaptive planning engine (27 files)
 │   │   ├── types.ts              # Adaptation types and interfaces
 │   │   ├── config.ts             # Feature flags and configuration
 │   │   ├── featureFlags.ts       # Runtime feature control
 │   │   ├── initialPlanner.ts     # Rules-based fallback planner
-│   │   ├── adaptationEngine.ts   # Decides when & what to adapt
-│   │   ├── adaptationRules.ts    # Adaptation trigger rules and candidate scoring
+│   │   ├── adaptationEngine.ts   # Decides when & what to adapt (uses reflection signals)
+│   │   ├── adaptationRules.ts    # Adaptation trigger rules and candidate scoring (includes reflection-based rules)
 │   │   ├── adaptationCompiler.ts # Converts adaptations to plan updates
 │   │   ├── adaptationAudit.ts    # Audit trail for adaptations
-│   │   ├── hypothesisEngine.ts   # Learning hypothesis generation
-│   │   ├── learningStateEngine.ts    # Updates learning state from signals
+│   │   ├── hypothesisEngine.ts   # Learning hypothesis generation (incorporates reflection evidence)
+│   │   ├── learningStateEngine.ts    # Updates learning state from signals (includes reflection signals)
 │   │   ├── learningStateScoring.ts   # Scores 7 dog learning dimensions
 │   │   ├── learningStateSummary.ts   # Summarizes learning state
-│   │   ├── learningSignals.ts        # Extracts signals from session/walk logs
+│   │   ├── learningSignals.ts        # Extracts signals from session/walk logs and post-session reflections
 │   │   ├── skillGraph.ts             # Skill prerequisite/advancement graph
 │   │   ├── graphTraversal.ts         # Graph traversal for skill pathfinding
 │   │   ├── graphValidation.ts        # Validates skill graph integrity
@@ -244,7 +248,11 @@ pawly/
 │   │   ├── planDiff.ts               # Diff between plan versions
 │   │   ├── planCompiler.ts           # Compiles AI planner output to concrete plan
 │   │   ├── plannerPrompt.ts          # AI prompt engineering for plan generation
-│   │   └── repositories.ts           # Supabase queries for adaptation & learning state
+│   │   ├── repositories.ts           # Supabase queries for adaptation & learning state
+│   │   ├── reflectionQuestionTypes.ts    # Types for reflection questions and engine input
+│   │   ├── reflectionQuestionCatalog.ts  # 8 pre-defined question configs
+│   │   ├── reflectionQuestionEngine.ts   # Selects questions based on session context (Rules A–G)
+│   │   └── reflectionNormalizer.ts       # Validates/normalizes PostSessionReflection from raw DB JSONB
 │   ├── liveCoach/                # Live coaching engine (6 files)
 │   │   ├── liveCoachingTypes.ts  # CoachingEngineState, CoachingDecision, CoachingFrameInput, ResolvedCoachingConfig
 │   │   ├── liveCoachingEngine.ts # Per-frame coaching state machine
@@ -264,8 +272,17 @@ pawly/
 │       ├── poseOutlierRejection.ts  # Filters outlier keypoints
 │       └── oneEuroFilter.ts      # One-Euro adaptive smoothing filter
 ├── types/                        # TypeScript type definitions
-│   ├── index.ts                  # All app types (494 lines)
+│   ├── index.ts                  # All app types (~618 lines)
 │   └── pose.ts                   # Dog pose keypoint types
+├── tests/                        # Unit tests (Node.js test runner)
+│   ├── scheduleEngine.test.ts
+│   ├── postSessionReflection.test.ts
+│   ├── postSessionReflectionUI.test.ts
+│   ├── reflectionAdaptation.test.ts
+│   ├── reflectionPersistence.test.ts
+│   ├── reflectionPolish.test.ts
+│   ├── reflectionQuestionEngine.test.ts
+│   └── reflectionSignals.test.ts
 ├── constants/                    # App-wide constants
 │   ├── protocols.ts              # Full training protocol library (1,360+ lines)
 │   └── colors.ts                 # Brand color palette
@@ -291,7 +308,7 @@ Root Layout (RootNavigationGate)
     ├── Train Tab
     │   ├── Today Screen (home)
     │   ├── Calendar Screen (monthly plan view)
-    │   ├── Session Screen (step-by-step execution, manual or live camera)
+    │   ├── Session Screen (step-by-step execution, manual or live camera, post-session reflection)
     │   ├── Full Plan Screen (all sessions, week view)
     │   ├── Notifications Screen (in-app notification center)
     │   └── Upload Video Screen
@@ -388,16 +405,16 @@ type SessionState =
 
 interface SessionStore {
   activeSession: ActiveSession | null  // includes protocol, stepResults, timer, repCount, state
-  startSession: (exerciseId: string) => void
+  startSession: (sessionId: string, exerciseId: string, protocol: Protocol) => void
   setState: (state: SessionState) => void
   completeStep: (result: StepResult) => void
   startTimer: () => void
   pauseTimer: () => void
-  resetTimer: () => void
+  resetTimer: (seconds?: number) => void
   incrementRep: () => void
   resetReps: () => void
   advanceToNextStep: () => void
-  submitSession: (score: SessionScore) => Promise<void>
+  submitSession: (difficulty, notes, onComplete) => Promise<void>
   abandonSession: () => void
   tick: () => void
   clearSession: () => void
@@ -541,7 +558,7 @@ Purpose: Monthly overview of all scheduled and completed training sessions.
 Components:
 - `TrainingCalendar` — 6×7 monthly grid with navigation arrows
 - `CalendarDayCell` — individual day cell with status indicator (completed: green dot, upcoming: secondary color)
-- `DaySessionList` — session list for the selected date
+- `DaySessionList` — session list for the selected date; shows `insertedByAdaptation` support sessions with their `supportSessionType` when present
 
 Behavior:
 - Month navigation via prev/next arrows
@@ -553,7 +570,7 @@ Behavior:
 
 #### Session Screen (`app/(tabs)/train/session.tsx`)
 
-Purpose: Guide the user through a training session step by step. Supports two execution modes: Manual (step-by-step guided) and Live Camera Coach (on-device pose tracking with real-time rep counting and posture feedback).
+Purpose: Guide the user through a training session step by step. Supports two execution modes: Manual (step-by-step guided) and Live Camera Coach (on-device pose tracking with real-time rep counting and posture feedback). After completion, captures structured post-session reflection from the handler.
 
 **Session State Machine:**
 ```
@@ -570,7 +587,10 @@ STEP_ACTIVE     ← Show current step card, timer ring, rep counter
   ↓ completeStep() or timer expires
 STEP_COMPLETE   ← Show step summary
   ↓ next step or last step
-SESSION_REVIEW  ← Difficulty selector (easy/okay/hard) + notes input
+SESSION_REVIEW  ← PostSessionReflectionCard multi-step flow:
+                   1. Difficulty selector (easy/okay/hard)
+                   2. Dynamic reflection questions (2–4, selected by engine)
+                   3. Optional freeform notes
   ↓ submitSession()
 COMPLETE        ← Saved to DB, streaks updated, milestones checked
   ↓ navigate back to Today
@@ -583,12 +603,17 @@ ABANDONED       ← Logged as abandoned in DB
 - `LIVE_COACHING` — `LiveCoachOverlay` shown during camera-based session
 
 **Session completion flow:**
-1. Collects difficulty rating + optional notes
-2. Calls `sessionManager.saveSession()` with optional `liveCoachingUsed`, `liveCoachingSummary`, `poseMetrics`
-3. `saveSession()` persists to `session_logs`, calls `updateLearningStateFromSessionLog()`, invokes `adapt-plan` Edge Function
-4. `updateStreak()` + `checkMilestones()` run non-blocking
-5. `refreshPlan()` + `notificationStore.refreshSchedules()` update downstream state
-6. `dogStore.fetchDogLearningState()` refreshes coach context
+1. Handler selects difficulty rating (easy/okay/hard) — auto-advances after 180ms
+2. Reflection question engine selects 2–4 contextual questions based on session outcome, recent history, and learning state
+3. Handler answers questions (non-required questions can be skipped); optional freeform note
+4. Calls `sessionManager.saveSession()` with:
+   - `difficulty`, `notes`
+   - `liveCoachingUsed`, `liveCoachingSummary`, `poseMetrics` (if camera mode used)
+   - `postSessionReflection` (structured reflection answers, or null if skipped)
+5. `saveSession()` persists to `session_logs`, calls `updateLearningStateFromSessionLog()`, invokes `adapt-plan` Edge Function
+6. `updateStreak()` + `checkMilestones()` run non-blocking
+7. `refreshPlan()` + `notificationStore.refreshSchedules()` update downstream state
+8. `dogStore.fetchDogLearningState()` refreshes coach context
 
 Components:
 - `SessionModePicker` — mode selection after SETUP (see §3.5.1)
@@ -597,8 +622,7 @@ Components:
 - `TimerRing` — circular countdown timer with pause/resume
 - `RepCounter` — tap to increment reps (manual mode)
 - `LiveCoachOverlay` — camera + pose overlay for Live Camera mode
-- `DifficultySelector` — easy / okay / hard at completion
-- Notes input field
+- `PostSessionReflectionCard` — multi-step post-session reflection UI (see §3.5.2)
 
 ##### SessionModePicker (`components/session/SessionModePicker.tsx`)
 
@@ -618,6 +642,38 @@ UI:
   1. **Live Camera Coach** (featured, primary) — "Point your camera at {dogName}. The app tracks posture and counts reps in real time." Feature pills: Auto rep count, Posture feedback, Hands-free. Shows "NEW" badge.
   2. **Do Normally** (secondary, outlined) — "Follow the step-by-step guide and mark reps manually."
 - Footer note: "You can switch modes anytime from a session"
+
+##### PostSessionReflectionCard (`components/session/PostSessionReflectionCard.tsx`)
+
+Presented in the `SESSION_REVIEW` state as the primary completion UI. A multi-step form that captures structured handler feedback.
+
+```typescript
+interface PostSessionReflectionCardProps {
+  dogName: string
+  durationLabel: string              // pre-formatted e.g. "3 minutes 45 seconds"
+  questions: ReflectionQuestionConfig[]
+  answers: PostSessionReflection
+  difficulty: 'easy' | 'okay' | 'hard' | null
+  notes: string
+  onSelectDifficulty: (d: 'easy' | 'okay' | 'hard') => void
+  onAnswer: (questionId: ReflectionQuestionId, value: string | number) => void
+  onNotesChange: (text: string) => void
+  onSubmit: () => void
+  isSaving: boolean
+  insets: { top: number; bottom: number }
+}
+```
+
+**Steps:**
+1. **Difficulty Step** (always first) — "How did it go?" — Easy / Okay / Hard large button cards with icon, label, subtitle. Selection auto-advances after 180ms.
+2. **Question Steps** (1 per selected question) — rendered as `single_select` (chip options) or `scale` (numeric 1–N). Non-required questions show "Optional" badge and Skip button. Helper text shown when grounded in session history. Selection auto-advances after 180ms.
+3. **Notes Step** (always last) — large multiline text input, placeholder grounded in context. Submit button; shows "Saving…" while `isSaving`.
+
+**UI Features:**
+- Fixed header: back button + "Session complete" badge + `durationLabel`
+- Segmented progress bar (one segment per step)
+- Animated transitions (slide + opacity: 100ms out, 160ms spring in)
+- Safe-area-aware bottom padding
 
 #### AI Coach Screen (`app/(tabs)/coach/index.tsx`)
 
@@ -641,7 +697,7 @@ Components:
 - Completion ring (72px circular progress)
 - Session list grouped by week
 - Session rows: status icon (completed/locked/playable), title, scheduled day/time, duration
-- `AdaptationNotice` — shown when the plan has been recently adapted
+- `AdaptationNotice` — shown when the plan has been recently adapted; displays reason from `reasonCode` including reflection-based codes
 - "TODAY" badge for today's session
 - Tap to navigate to session screen
 
@@ -739,9 +795,16 @@ Falls back to rules-based `initialPlanner.ts` if Claude call fails.
 #### `adapt-plan`
 
 Triggered: after session completion (invoked by `sessionManager.saveSession()`)
-Input: plan ID, session outcome data
-Process: runs adaptation engine to check rules, generates adaptations, compiles plan updates
-Output: updated plan with adaptation audit record
+Input: plan ID, session outcome data (includes `post_session_reflection` JSONB)
+Process:
+1. Fetch session log including `post_session_reflection`
+2. Normalize reflection via `normalizePostSessionReflection()`
+3. Pass normalized reflection to adaptation engine
+4. Runs adaptation engine to check rules — including reflection-based rules (Rules A–G signals)
+5. Generates adaptations with `reasonCode` (may be `reflection_*` prefixed)
+6. Compiles plan updates and writes audit record
+
+Output: updated plan with adaptation audit record; reason codes may reference reflection signals (e.g., `reflection_understanding_gap`, `reflection_distraction_blocker`, `reflection_duration_breakdown`, `reflection_over_arousal`, `reflection_handler_friction`)
 
 #### `ai-coach-message`
 
@@ -798,6 +861,7 @@ Applied via Supabase migrations in `supabase/migrations/`. Migration files (in o
 - `pr14_plan_adaptation_flow.sql` — plan_adaptations and adaptation_audit tables
 - `pr15_in_app_notifications.sql` — in_app_notifications table
 - `pr16_live_pose_coaching.sql` — live_coaching_summary and pose_metrics columns on session_logs
+- `pr17_post_session_reflection.sql` — post_session_reflection column on session_logs
 
 #### `users` (managed by Supabase Auth + `user_profiles` table)
 
@@ -899,13 +963,22 @@ interface PlanSession {
   title: string
   durationMinutes: number
   isCompleted: boolean
-  scheduledDay: Weekday
-  scheduledTime: string         // "HH:MM"
-  scheduledDate: string         // "YYYY-MM-DD"
-  isReschedulable: boolean
-  autoRescheduledFrom?: string  // original date if rescheduled
+  scheduledDay?: Weekday
+  scheduledTime?: string         // "HH:MM"
+  scheduledDate?: string         // "YYYY-MM-DD"
+  isReschedulable?: boolean
+  autoRescheduledFrom?: string   // original date if rescheduled
   schedulingReason?: string
-  isMissed: boolean
+  isMissed?: boolean
+  skillId?: string
+  parentSkillId?: string
+  environment?: PlanEnvironment
+  sessionKind?: 'core' | 'repeat' | 'proofing'
+  adaptationSource?: 'initial_plan' | 'adaptation_engine'
+  reasoningLabel?: string | null
+  insertedByAdaptation?: boolean       // true if session was inserted by adaptation engine
+  supportSessionType?: SupportSessionType | null  // 'foundation' | 'transition' | 'duration_building' | 'calm_reset'
+  insertionReasonCode?: string | null  // reason code from adaptation that created this session
 }
 ```
 
@@ -930,7 +1003,9 @@ CREATE TABLE session_logs (
   -- Live coaching fields (added in pr16)
   live_coaching_used    BOOLEAN DEFAULT FALSE,
   live_coaching_summary JSONB,   -- LiveCoachingSummary: mode, targetPostures, successCount, resetCount, avgTrackingQuality, assessment
-  pose_metrics          JSONB    -- PoseMetrics: detailed keypoint confidence, hold durations, tracking events, quality breakdown
+  pose_metrics          JSONB,   -- PoseMetrics: detailed keypoint confidence, hold durations, tracking events, quality breakdown
+  -- Post-session reflection (added in pr17)
+  post_session_reflection JSONB  -- PostSessionReflection | null; null if handler skipped
 );
 ```
 
@@ -956,6 +1031,23 @@ interface PoseMetrics {
   trackingEvents: { type: string; timestamp: number }[]
 }
 ```
+
+**PostSessionReflection JSONB structure:**
+```typescript
+interface PostSessionReflection {
+  overallExpectation: 'better_than_expected' | 'as_expected' | 'worse_than_expected' | null
+  mainIssue: 'did_not_understand' | 'broke_position' | 'distracted' | 'over_excited' | 'tired_done' | 'handler_inconsistent' | 'no_major_issue' | null
+  failureTiming: 'immediately' | 'midway' | 'near_end' | 'never_stabilized' | null
+  distractionType: 'dogs' | 'people' | 'smells' | 'noise_movement' | 'other' | null
+  cueUnderstanding: 'yes' | 'not_yet' | 'unsure' | null
+  arousalLevel: 'calm' | 'slightly_up' | 'very_up' | null
+  handlerIssue: 'timing_rewards' | 'cue_consistency' | 'leash_setup' | 'session_focus' | 'other' | null
+  confidenceInAnswers: 1 | 2 | 3 | 4 | 5 | null
+  freeformNote: string | null  // max 2000 chars
+}
+```
+
+Null values mean the question was not asked or handler skipped it. A null `post_session_reflection` column means the reflection was skipped entirely. Validated and normalized by `reflectionNormalizer.ts` before use in the adaptation engine.
 
 #### `walk_logs`
 
@@ -1080,19 +1172,24 @@ CREATE TABLE coach_messages (
 CREATE TABLE skill_nodes (
   id          TEXT PRIMARY KEY,       -- e.g., 'llw_foundation_1'
   behavior    TEXT NOT NULL,           -- behavior goal this skill belongs to
+  skill_code  TEXT NOT NULL,
   stage       TEXT NOT NULL,           -- 'foundation', 'building', 'proofing', 'mastery'
   title       TEXT NOT NULL,
   description TEXT,
-  kind        TEXT NOT NULL,           -- 'exercise', 'milestone', 'prerequisite'
-  metadata    JSONB DEFAULT '{}'
+  kind        TEXT NOT NULL,           -- 'foundation' | 'core' | 'proofing' | 'recovery' | 'diagnostic'
+  difficulty  INTEGER,
+  protocol_id TEXT,
+  metadata    JSONB DEFAULT '{}',
+  is_active   BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE skill_edges (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  from_id     TEXT REFERENCES skill_nodes(id),
-  to_id       TEXT REFERENCES skill_nodes(id),
-  edge_type   TEXT NOT NULL,           -- 'prerequisite', 'progression', 'regression', 'parallel'
-  weight      DECIMAL DEFAULT 1.0
+  from_skill_id TEXT REFERENCES skill_nodes(id),
+  to_skill_id   TEXT REFERENCES skill_nodes(id),
+  edge_type   TEXT NOT NULL,           -- 'prerequisite' | 'advance' | 'regress' | 'detour' | 'proofing'
+  condition_summary TEXT,
+  metadata    JSONB DEFAULT '{}'
 );
 ```
 
@@ -1100,14 +1197,22 @@ CREATE TABLE skill_edges (
 
 ```sql
 CREATE TABLE dog_learning_state (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  dog_id         UUID REFERENCES dogs(id) NOT NULL UNIQUE,
-  updated_at     TIMESTAMPTZ DEFAULT NOW(),
-  overall_score  DECIMAL,
-  dimensions     JSONB DEFAULT '{}',  -- 7 per-behavior scoring dimensions
-  hypotheses     JSONB DEFAULT '[]',  -- LearningHypothesis[]
-  summary        TEXT,
-  last_signal_at TIMESTAMPTZ
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  dog_id                 UUID REFERENCES dogs(id) NOT NULL UNIQUE,
+  updated_at             TIMESTAMPTZ DEFAULT NOW(),
+  version                INTEGER DEFAULT 1,
+  motivation_score       DECIMAL,
+  distraction_sensitivity DECIMAL,
+  confidence_score       DECIMAL,
+  impulse_control_score  DECIMAL,
+  handler_consistency_score DECIMAL,
+  fatigue_risk_score     DECIMAL,
+  recovery_speed_score   DECIMAL,
+  environment_confidence JSONB DEFAULT '{}',  -- per-environment confidence scores
+  behavior_signals       JSONB DEFAULT '{}',
+  recent_trends          JSONB DEFAULT '{}',
+  current_hypotheses     JSONB DEFAULT '[]',  -- LearningHypothesis[]
+  last_evaluated_at      TIMESTAMPTZ
 );
 
 CREATE TABLE learning_signals (
@@ -1120,13 +1225,23 @@ CREATE TABLE learning_signals (
 ```
 
 **DogLearningState dimensions** (7 scored dimensions):
-- `motivation` — responsiveness to rewards
+- `motivationScore` — responsiveness to rewards
 - `distractionSensitivity` — reaction to environmental stimuli
-- `confidence` — willingness to attempt behaviors
-- `impulseControl` — ability to inhibit responses
-- `handlerConsistency` — consistency of handler cues
-- `fatigueRisk` — likelihood of mental/physical fatigue
-- `recoverySpeed` — ability to recover after errors
+- `confidenceScore` — willingness to attempt behaviors
+- `impulseControlScore` — ability to inhibit responses
+- `handlerConsistencyScore` — consistency of handler cues
+- `fatigueRiskScore` — likelihood of mental/physical fatigue
+- `recoverySpeedScore` — ability to recover after errors
+
+**Learning signals include reflection-derived signals** (when `post_session_reflection` is present):
+- `understandingIssue` (0–1, confidence-weighted) — cue comprehension problems
+- `distractionIssue` (0–1, confidence-weighted) — environmental distraction impact
+- `durationBreakdownIssue` (0–1, confidence-weighted) — session length issues
+- `arousalIssue` (0–1, confidence-weighted) — over-arousal during session
+- `handlerFrictionIssue` (0–1, confidence-weighted) — handler technique inconsistency
+- `reflectionConfidence` (0–1, raw) — handler's reported confidence in their own answers
+
+Each signal is weighted by the handler's `confidenceInAnswers` rating (1–5 → 0–1 scale) before being incorporated into learning state updates.
 
 #### `plan_adaptations` and `adaptation_audit`
 
@@ -1136,14 +1251,16 @@ CREATE TABLE plan_adaptations (
   plan_id                  UUID REFERENCES plans(id) NOT NULL,
   dog_id                   UUID REFERENCES dogs(id) NOT NULL,
   created_at               TIMESTAMPTZ DEFAULT NOW(),
-  type                     TEXT NOT NULL,          -- AdaptationType enum
-  status                   TEXT DEFAULT 'pending', -- 'applied', 'skipped', 'rolled_back'
-  reason                   TEXT,
-  triggered_by_session_log_id UUID,
+  adaptation_type          TEXT NOT NULL,   -- AdaptationType enum
+  status                   TEXT DEFAULT 'pending',  -- 'applied', 'skipped', 'rolled_back'
+  reason_code              TEXT,
+  reason_summary           TEXT,
   evidence                 JSONB,
-  before_state             JSONB,                  -- snapshot of plan before adaptation
-  after_state              JSONB,                  -- snapshot of plan after adaptation
+  previous_snapshot        JSONB,           -- snapshot of plan before adaptation
+  new_snapshot             JSONB,           -- snapshot of plan after adaptation
   changed_session_ids      TEXT[],
+  changed_fields           TEXT[],
+  triggered_by_session_log_id UUID,
   model_name               TEXT,
   latency_ms               INTEGER,
   was_user_visible         BOOLEAN DEFAULT FALSE,
@@ -1328,10 +1445,47 @@ Plan generation is AI-driven via the `generate-adaptive-plan` Edge Function, wit
 
 **AI Planning flow:**
 1. Dog profile + skill graph → AI prompt
-2. Claude generates `AIPlannerOutput` (ordered exercise IDs + reasoning)
+2. Claude generates `AIPlannerOutput` (ordered skill selections + reasoning)
 3. `planCompiler.ts` maps AI output to concrete `PlanSession[]`
 4. `scheduleEngine.buildWeeklySchedule()` assigns dates/times based on dog preferences
 5. Result stored in `plans.sessions` JSONB
+
+**AIPlannerOutput structure:**
+```typescript
+interface AIPlannerOutput {
+  primaryGoal: string
+  startingSkillId: string
+  planHorizonWeeks: number
+  sessionsPerWeek: number
+  weeklyStructure: AIWeekStructure[]
+  planningSummary: {
+    whyThisStart: string
+    keyAssumptions: string[]
+    risksToWatch: string[]
+  }
+}
+
+interface AIWeekStructure {
+  weekNumber: number
+  focus: string
+  skillSequence: AISkillSelection[]
+}
+
+interface AISkillSelection {
+  skillId: string
+  sessionCount: number
+  environment: PlanEnvironment
+  sessionKind: 'core' | 'repeat' | 'proofing'
+  reasoningLabel: string
+}
+
+type PlanEnvironment =
+  | 'indoors_low_distraction'
+  | 'indoors_moderate_distraction'
+  | 'outdoors_low_distraction'
+  | 'outdoors_moderate_distraction'
+  | 'outdoors_high_distraction'
+```
 
 **Rules-based fallback** (`lib/adaptivePlanning/initialPlanner.ts`): Used when Claude API call fails. Each goal maps to 6–8 protocol IDs cycled based on `sessionsPerWeek` and `durationWeeks`.
 
@@ -1345,19 +1499,24 @@ Plan generation is AI-driven via the `generate-adaptive-plan` Edge Function, wit
 
 ### 6.3 Adaptive Planning Engine (`lib/adaptivePlanning/`)
 
-An on-device engine that monitors training outcomes and adapts the active plan.
+An on-device engine that monitors training outcomes and adapts the active plan. In PR17 this engine was extended to incorporate structured post-session reflections as first-class signals.
 
 **Learning State System:**
-- `learningSignals.ts` — extracts signals from `session_logs` and `walk_logs`
-- `learningStateEngine.ts` — processes signals to update `DogLearningState`
+- `learningSignals.ts` — extracts signals from `session_logs` (including `post_session_reflection`), `walk_logs`
+- `learningStateEngine.ts` — processes signals to update `DogLearningState`; invokes reflection signal extraction when `post_session_reflection` is present
 - `learningStateScoring.ts` — scores 7 dimensions: motivation, distraction sensitivity, confidence, impulse control, handler consistency, fatigue risk, recovery speed
 - `learningStateSummary.ts` — generates human-readable learning state summary
-- `hypothesisEngine.ts` — generates learning hypotheses from patterns
+- `hypothesisEngine.ts` — generates learning hypotheses from patterns; incorporates reflection evidence
 
 **Adaptation Engine:**
-- `adaptationRules.ts` — defines triggers and candidate scoring: e.g., repeated hard sessions → regress; consistent easy sessions with high scores → advance
-- `adaptationEngine.ts` — evaluates rules against current learning state, selects adaptation candidate
-- `adaptationCompiler.ts` — converts adaptation decisions into plan mutations (rewrites session fields)
+- `adaptationRules.ts` — defines triggers and candidate scoring, including reflection-based rules:
+  - Repeated hard/abandoned sessions → regress; consistent easy sessions with high scores → advance
+  - `understandingIssue` signal above threshold → regress to foundation
+  - `distractionIssue` signal → lower environment difficulty
+  - `arousalIssue` signal → simplify and shorten sessions
+  - `handlerFrictionIssue` signal → conservative adjustments
+- `adaptationEngine.ts` — evaluates rules against current learning state and reflection signals, selects adaptation candidate
+- `adaptationCompiler.ts` — converts adaptation decisions into plan mutations (rewrites session fields; may insert support sessions with `insertedByAdaptation: true`)
 - `adaptationAudit.ts` — writes audit trail to `adaptation_audit` table with snapshots and evidence
 
 **Skill Graph:**
@@ -1370,16 +1529,150 @@ An on-device engine that monitors training outcomes and adapts the active plan.
 - `regress` — move back to an easier protocol
 - `advance` — move forward to a harder protocol
 - `detour` — substitute a parallel skill path
-- `difficulty` — adjust within-session difficulty parameters
-- `schedule` — reschedule sessions without changing content
-- `environment` — modify environment-related session parameters
+- `difficulty_adjustment` — adjust within-session difficulty parameters
+- `schedule_adjustment` — reschedule sessions without changing content
+- `environment_adjustment` — modify environment-related session parameters
+
+**Adaptation Reason Codes:**
+Standard codes:
+- `low_success_score`, `high_difficulty_reports`, `consistent_easy`, `consecutive_abandons`
+
+Reflection-derived codes (PR17):
+- `reflection_understanding_gap` — handler reported cue comprehension issues
+- `reflection_distraction_blocker` — handler reported environment too challenging
+- `reflection_duration_breakdown` — handler reported session length issues
+- `reflection_over_arousal` — handler reported dog was over-aroused
+- `reflection_handler_friction` — handler reported handler technique inconsistency
+
+**Support Sessions** (PR17): The adaptation compiler may insert additional support sessions into the plan with:
+- `insertedByAdaptation: true`
+- `supportSessionType`: `'foundation' | 'transition' | 'duration_building' | 'calm_reset'`
+- `insertionReasonCode`: the reason code that triggered insertion
 
 **Adaptation Status** (`AdaptationStatus`):
 - `applied` — adaptation was applied to the plan
 - `skipped` — adaptation was evaluated but not applied
 - `rolled_back` — applied adaptation was subsequently reversed
 
-### 6.4 Progress Adaptation Engine
+### 6.4 Post-Session Reflection System (`lib/adaptivePlanning/reflectionQuestion*`)
+
+A structured feedback capture system that asks handlers 2–4 targeted questions after each session. Answers are saved with the session log and used as training signals for the adaptive planning engine.
+
+#### Question Selection Engine (`reflectionQuestionEngine.ts`)
+
+```typescript
+function buildPostSessionReflectionQuestions(
+  input: ReflectionQuestionEngineInput
+): ReflectionQuestionConfig[]
+```
+
+**Engine Input:**
+```typescript
+interface ReflectionQuestionEngineInput {
+  difficulty: 'easy' | 'okay' | 'hard'
+  sessionStatus: 'completed' | 'abandoned'
+  durationSeconds?: number | null
+  protocolId?: string
+  skillId?: string
+  environmentTag?: string
+  recentSessions: RecentSessionSummary[]    // last 3–5 sessions
+  learningState: ReflectionLearningStateSnapshot | null
+}
+
+interface ReflectionLearningStateSnapshot {
+  distractionSensitivity: number
+  handlerConsistencyScore: number
+  confidenceScore: number
+  inconsistencyIndex?: number | null  // 0–1
+}
+```
+
+**Selection Rules (A–G):**
+- **Rule A (Core):** Always ask `overallExpectation`. Skip `mainIssue` only for clean easy sessions.
+- **Rule B (Failure Timing):** Ask `failureTiming` when session was hard or abandoned.
+- **Rule C (Distraction):** Ask `distractionType` when environment inconsistency detected or `distractionSensitivity >= 4`.
+- **Rule D (Cue Understanding):** Ask `cueUnderstanding` when failure appears early or repeated low-success on skill.
+- **Rule E (Arousal):** Ask `arousalLevel` when 3+ recent sessions abandoned/hard (over-excitement pattern).
+- **Rule F (Handler Issue):** Ask `handlerIssue` when `handlerConsistencyScore <= 2` or `inconsistencyIndex >= 0.35`.
+- **Rule G (Confidence):** Ask `confidenceInAnswers` when session abandoned OR mixed recent signals.
+
+Output: 2–4 questions max (required + at most 3 follow-ups). Helper text grounded in concrete session history when available.
+
+#### Question Catalog (`reflectionQuestionCatalog.ts`)
+
+8 pre-defined question configs exported:
+- `OVERALL_EXPECTATION_QUESTION` — required, single_select (3 options)
+- `MAIN_ISSUE_QUESTION` — required, single_select (7 options including "no major issue")
+- `FAILURE_TIMING_QUESTION` — optional, single_select (4 options)
+- `DISTRACTION_TYPE_QUESTION` — optional, single_select (5 options)
+- `CUE_UNDERSTANDING_QUESTION` — optional, single_select (3 options)
+- `AROUSAL_LEVEL_QUESTION` — optional, single_select (3 options)
+- `HANDLER_ISSUE_QUESTION` — optional, single_select (5 options)
+- `CONFIDENCE_IN_ANSWERS_QUESTION` — optional, scale 1–5
+
+#### Normalization (`reflectionNormalizer.ts`)
+
+```typescript
+function normalizePostSessionReflection(
+  raw: unknown
+): PostSessionReflection | null
+```
+
+- Shared between mobile app and Edge Function (no platform-specific imports)
+- Accepts raw DB JSONB (any type)
+- Returns `null` if input is null/undefined/not an object
+- Validates each enum field against known values; unknown values become `null`
+- Validates `confidenceInAnswers` is 1–5 range
+- Validates `freeformNote` length ≤ 2000 chars
+- Never throws; safe to call from Edge Functions
+
+#### Answer Helpers (`lib/reflectionAnswerHelpers.ts`)
+
+Pure functions, no React Native imports; testable with bare Node.js:
+
+```typescript
+function getAnswerValue(
+  answers: PostSessionReflection,
+  questionId: ReflectionQuestionId
+): string | number | null
+
+function applyReflectionAnswer(
+  current: PostSessionReflection,
+  questionId: ReflectionQuestionId,
+  value: string | number
+): PostSessionReflection  // immutable update
+
+function areRequiredQuestionsAnswered(
+  questions: ReflectionQuestionConfig[],
+  answers: PostSessionReflection
+): boolean
+
+function makeEmptyReflection(): PostSessionReflection  // all fields null
+```
+
+#### Reflection Signal Extraction (`learningSignals.ts`)
+
+When `post_session_reflection` is present on a session log:
+
+```typescript
+interface ReflectionSignals {
+  understandingIssue: number    // 0–1, confidence-weighted
+  distractionIssue: number      // 0–1, confidence-weighted
+  durationBreakdownIssue: number // 0–1, confidence-weighted
+  arousalIssue: number          // 0–1, confidence-weighted
+  handlerFrictionIssue: number  // 0–1, confidence-weighted
+  reflectionConfidence: number  // 0–1, raw (from confidenceInAnswers)
+}
+```
+
+Signal derivation examples:
+- `overallExpectation === 'worse_than_expected'` → negative signal across all dimensions
+- `mainIssue === 'distracted'` → `distractionIssue += confidence`
+- `failureTiming === 'immediately'` → `understandingIssue += confidence`
+- `arousalLevel === 'very_up'` → `arousalIssue += confidence`
+- `handlerIssue !== null` → `handlerFrictionIssue += confidence`
+
+### 6.5 Progress Adaptation Engine
 
 Adjusts session difficulty recommendations based on recent outcomes:
 
@@ -1401,7 +1694,7 @@ function computeNextSessionDifficulty(
 }
 ```
 
-### 6.5 Milestone Engine (`lib/milestoneEngine.ts`)
+### 6.6 Milestone Engine (`lib/milestoneEngine.ts`)
 
 13 milestone definitions, each with a `checkFn` that receives `MilestoneCheckData`:
 
@@ -1421,7 +1714,7 @@ function computeNextSessionDifficulty(
 | `walk_improvement` | Walk Quality Rising | Improving walk quality trend |
 | `first_video` | First Video Uploaded | 1 video uploaded |
 
-### 6.6 On-Device Dog Pose Detection
+### 6.7 On-Device Dog Pose Detection
 
 Real-time pose estimation runs on-device using a TFLite model, used by the Live Camera Coach session mode for rep counting and posture feedback.
 
@@ -1555,7 +1848,7 @@ Developer-only full-screen camera view with:
 - Detection confidence bar
 - Scanning pulse animation
 
-### 6.7 Insight Generation
+### 6.8 Insight Generation
 
 Weekly cron job generates personalized insights per dog using Claude (`generate-insights` Edge Function). Insights expire after 7 days. (Not yet displayed in-app; Know tab does not yet surface insights.)
 
@@ -1590,7 +1883,7 @@ PATCH  /rest/v1/dogs?id=eq.{id}  Update dog profile
 #### Plans
 ```
 POST   /functions/v1/generate-adaptive-plan   Generate AI-powered personalized plan
-POST   /functions/v1/adapt-plan               Trigger plan adaptation
+POST   /functions/v1/adapt-plan               Trigger plan adaptation (accepts post_session_reflection)
 GET    /rest/v1/plans?dog_id=eq.{id}          Get dog's plans
 PATCH  /rest/v1/plans?id=eq.{id}              Update plan (sessions JSONB, status)
 ```
@@ -1598,7 +1891,7 @@ PATCH  /rest/v1/plans?id=eq.{id}              Update plan (sessions JSONB, statu
 #### Sessions
 ```
 GET    /rest/v1/protocols?id=eq.{id}         Fetch session protocol
-POST   /rest/v1/session_logs                 Log completed session (includes live coaching fields)
+POST   /rest/v1/session_logs                 Log completed session (includes live coaching fields + post_session_reflection)
 GET    /rest/v1/session_logs?dog_id=eq.{id}  Session history
 ```
 
@@ -1845,7 +2138,7 @@ interface NotificationPrefs {
   weeklySummary: boolean
   scheduledSessionReminders: boolean
   reminderLeadTimeMinutes: number   // minutes before session to fire reminder
-  fallbackMissedSession: boolean
+  fallbackMissedSessionReminders: boolean
 }
 ```
 
@@ -1927,6 +2220,7 @@ session_mode_selected { mode: 'manual' | 'live_camera' }
 session_step_completed { step_index, success: boolean }
 session_completed { duration_seconds, success_score, difficulty, live_coaching_used }
 session_abandoned { step_index }
+post_session_reflection_submitted { question_count, difficulty, skipped: boolean }
 walk_logged { quality, goal_achieved }
 ```
 
@@ -1953,8 +2247,9 @@ expert_review_requested
 
 #### Adaptive Planning Events
 ```
-plan_adapted { adaptation_type, reason }
+plan_adapted { adaptation_type, reason_code }
 learning_state_updated { overall_score }
+reflection_signal_extracted { signal_type, magnitude }
 ```
 
 #### Live Coaching Events
@@ -2080,6 +2375,7 @@ jobs:
 | Dog profile data | Personal | PostgreSQL (RLS) | Until deletion |
 | Training videos | Personal | Supabase Storage (private) | 2 years or deletion |
 | Session logs | Personal | PostgreSQL (RLS) | 3 years or deletion |
+| Post-session reflections | Personal | PostgreSQL (RLS, JSONB in session_logs) | 3 years or deletion |
 | Chat messages | Personal | PostgreSQL (RLS) | 1 year rolling |
 | Analytics events | Pseudonymous | PostHog | 2 years |
 | Pose metrics | Personal | PostgreSQL (RLS, JSONB in session_logs) | 3 years or deletion |
@@ -2198,6 +2494,7 @@ export const supabase = createClient(
 | Session sync failure | Store locally, sync on next open | Silent — sync in background |
 | Auth expiry | Auto-refresh or redirect to login | "Session expired. Please log in again." |
 | Pose detection unavailable | Fall back to manual session mode | Mode picker omits Live Camera option |
+| Reflection normalization failure | Treat as null (no reflection) | Silent — session saved without reflection data |
 
 ### 16.2 Error Monitoring
 
@@ -2238,14 +2535,15 @@ Sentry.init({
 | Plan generation | < 4 seconds | > 10 seconds |
 | Pose detection inference | ~10 FPS (100ms/frame) | < 5 FPS |
 | Live coaching frame latency | < 150ms end-to-end | > 300ms |
+| Reflection question engine | < 5ms (pure function) | > 50ms |
 
 ### 17.2 API Response Optimization
 
 - Plan sessions stored as JSONB array in `plans.sessions` — no join needed to load today's session
 - `planStore` derives `todaySession` and `completionPercentage` client-side when plan is loaded
 - `calendarSessions.ts` groups sessions by date client-side for the calendar view
-- React Query used for data fetching; `planStore` and `progressStore` manage caching
 - Pose inference runs in a JS worklet on every 10th camera frame (throttled) to maintain UI responsiveness
+- Reflection question engine is a pure synchronous function; invoked client-side with no network round-trip
 
 ---
 
@@ -2271,11 +2569,19 @@ npm test
 # → node --test --experimental-strip-types tests/*.test.ts
 ```
 
-Current coverage: `tests/scheduleEngine.test.ts` — 6+ test cases for:
-- `chooseTrainingDays()` — day selection from preferences
-- `chooseTimeForDay()` — time assignment from windows/exact times
-- `getTodaySession()` — correct session lookup
-- `rescheduleMissedSession()` — missed session rescheduling logic
+Current coverage:
+
+| Test File | Coverage Area |
+|---|---|
+| `scheduleEngine.test.ts` | `chooseTrainingDays()`, `chooseTimeForDay()`, `getTodaySession()`, `rescheduleMissedSession()` |
+| `reflectionQuestionEngine.test.ts` | Rules A–G, question selection logic, edge cases |
+| `reflectionSignals.test.ts` | Signal extraction and confidence weighting |
+| `reflectionAdaptation.test.ts` | Reflection signal → adaptation rule mapping |
+| `reflectionPersistence.test.ts` | Saving and loading reflection data |
+| `reflectionNormalizer.test.ts` | Normalization of invalid/partial JSONB |
+| `postSessionReflection.test.ts` | Component render and interaction |
+| `postSessionReflectionUI.test.ts` | UI state, animations, step flow |
+| `reflectionPolish.test.ts` | Edge cases and polish scenarios |
 
 ### 18.3 Unit Test Coverage Targets
 
@@ -2288,6 +2594,8 @@ Current coverage: `tests/scheduleEngine.test.ts` — 6+ test cases for:
 | Auth token management | 90% |
 | Notification scheduling | 80% |
 | Adaptive planning engine | 80% |
+| Reflection question engine | 90% |
+| Reflection signal extraction | 90% |
 | Pose decoder | 75% |
 | Live coaching engine | 80% |
 | Posture classifier | 75% |
@@ -2297,14 +2605,16 @@ Current coverage: `tests/scheduleEngine.test.ts` — 6+ test cases for:
 1. Complete onboarding → generate plan → see today screen
 2. Complete a full training session end-to-end (manual mode)
 3. Complete a session using Live Camera Coach mode
-4. Send AI coach message → receive response
-5. Log walk → see streak update
-6. Hit paywall → complete subscription purchase
-7. Upload video → confirm receipt and processing state
-8. Achieve milestone → see shareable card
-9. Sign out → sign back in → data persists
-10. View training calendar → navigate months → tap session
-11. Plan adaptation → see adaptation notice → view reason
+4. Complete a session and submit post-session reflection
+5. Skip post-session reflection — confirm session saves correctly
+6. Send AI coach message → receive response
+7. Log walk → see streak update
+8. Hit paywall → complete subscription purchase
+9. Upload video → confirm receipt and processing state
+10. Achieve milestone → see shareable card
+11. Sign out → sign back in → data persists
+12. View training calendar → navigate months → tap session
+13. Plan adaptation → see adaptation notice → view reason
 
 ---
 
@@ -2342,7 +2652,7 @@ export default {
 }
 ```
 
-OTA updates: content updates, bug fixes, AI prompt updates, UI tweaks, coaching rule updates
+OTA updates: content updates, bug fixes, AI prompt updates, UI tweaks, coaching rule updates, reflection question catalog updates
 Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLite model updates
 
 ---
@@ -2361,12 +2671,19 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLi
   - **Live Camera Coach mode:** on-device TFLite pose detection, automatic rep counting, real-time posture feedback, tracking quality indicator
 - `SessionModePicker` presented after SETUP to choose execution mode
 - Live coaching metrics (`LiveCoachingSummary`, `PoseMetrics`) stored with each session log
+- **Post-session reflection system (PR17):**
+  - Multi-step `PostSessionReflectionCard` UI after every session
+  - Dynamic question selection engine (Rules A–G, 2–4 questions per session)
+  - 8 structured question types covering session outcome, distraction, cue understanding, arousal, handler technique
+  - `PostSessionReflection` stored as JSONB on session_logs (nullable, backward compatible)
+  - Reflection signals extracted and confidence-weighted into learning state updates
+  - Adaptation engine uses reflection-derived signals with specific reason codes
 - Walk integration (daily goal, 3-point quality logging, walk streak)
 - AI coach (Claude-powered, dog-context + learning state grounded, conversation history, formatted markdown responses)
 - Progress tracking (session streak, walk streak, behavior score progression)
 - Milestone system (13 milestones with shareable cards)
-- Training calendar (monthly view, session status indicators, day-level session list)
-- Adaptive planning engine (skill graph, 7-dimension learning state, adaptation rules, audit trail, hypothesis engine)
+- Training calendar (monthly view, session status indicators, day-level session list with support session metadata)
+- Adaptive planning engine (skill graph, 7-dimension learning state, adaptation rules, audit trail, hypothesis engine, reflection signal integration)
 - Video upload (storage, context tagging, expert review request)
 - Expert video reviews (review queue, trainer feedback, timestamp annotations, in-app viewer)
 - In-app notification center (notification bell, inbox with realtime updates, unread count)
@@ -2404,6 +2721,7 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLi
 | AI coach usage (at least 1 message) in first week | > 50% |
 | Expert review attach rate | > 8% |
 | Live Camera Coach mode adoption | > 30% of sessions |
+| Post-session reflection completion rate | > 60% of sessions |
 
 ---
 
@@ -2493,8 +2811,6 @@ supabase db push --project-ref $STAGING_PROJECT_REF
 supabase db push --project-ref $PRODUCTION_PROJECT_REF
 ```
 
-Migration files are version-controlled in Git and applied sequentially. Current migrations: pr03 through pr16.
+Migration files are version-controlled in Git and applied sequentially. Current migrations: pr03 through pr17.
 
 ---
-
-*End of Pawly Technical Specification v1.3*
