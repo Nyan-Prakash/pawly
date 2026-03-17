@@ -1,4 +1,5 @@
 import type { Dog, Plan, PlanSession } from '../types';
+import { getGoalColor } from '../constants/courseColors';
 import {
   buildPlanMetadata,
   buildWeeklySchedule,
@@ -188,11 +189,14 @@ export function generatePlan(dog: Dog): Plan {
     goal: dog.behaviorGoals[0],
   });
 
+  const goal = dog.behaviorGoals[0] ?? 'General Training';
+
   return {
     id: '',
     dogId: dog.id,
-    goal: dog.behaviorGoals[0] ?? 'General Training',
+    goal,
     status: 'active',
+    color: getGoalColor(goal),
     durationWeeks: totalWeeks,
     sessionsPerWeek,
     currentWeek: 1,

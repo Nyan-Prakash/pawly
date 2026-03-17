@@ -150,6 +150,7 @@ export interface Plan {
   currentStage: string;
   sessions: PlanSession[];
   metadata?: PlanMetadata;
+  color?: string;
   createdAt: string;
 }
 

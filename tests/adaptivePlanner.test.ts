@@ -1,6 +1,7 @@
-import { describe, it, expect } from '@jest/globals';
-import { validatePlannerOutput, parsePlannerJSON } from '../lib/adaptivePlanning/planValidation';
-import { buildSkillGraph } from '../lib/adaptivePlanning/skillGraph';
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
+import { validatePlannerOutput, parsePlannerJSON } from '../lib/adaptivePlanning/planValidation.ts';
+import { buildSkillGraph } from '../lib/adaptivePlanning/skillGraph.ts';
 import type { SkillNode, SkillEdge, AIPlannerOutput } from '../types';
 
 // ─── Test Fixtures ──────────────────────────────────────────────────────────
@@ -87,36 +88,36 @@ function makeValidOutput(overrides?: Partial<AIPlannerOutput>): AIPlannerOutput 
 describe('parsePlannerJSON', () => {
   it('parses valid JSON', () => {
     const { parsed, error } = parsePlannerJSON(JSON.stringify(makeValidOutput()));
-    expect(error).toBeNull();
-    expect(parsed).toBeTruthy();
-    expect(parsed!.primaryGoal).toBe('recall');
+    assert.strictEqual(error, null);
+    assert.ok(parsed);
+    assert.strictEqual(parsed!.primaryGoal, 'recall');
   });
 
   it('strips markdown fences', () => {
     const raw = '```json\n' + JSON.stringify(makeValidOutput()) + '\n```';
     const { parsed, error } = parsePlannerJSON(raw);
-    expect(error).toBeNull();
-    expect(parsed).toBeTruthy();
+    assert.strictEqual(error, null);
+    assert.ok(parsed);
   });
 
   it('returns error for invalid JSON', () => {
     const { parsed, error } = parsePlannerJSON('not json');
-    expect(parsed).toBeNull();
-    expect(error).toContain('Invalid JSON');
+    assert.strictEqual(parsed, null);
+    assert.ok(error?.includes('Invalid JSON'));
   });
 });
 
 describe('validatePlannerOutput', () => {
   it('accepts valid AI output', () => {
     const errors = validatePlannerOutput(makeValidOutput(), testGraph, 3, 4);
-    expect(errors).toHaveLength(0);
+    assert.strictEqual(errors.length, 0);
   });
 
   it('rejects invented skillId', () => {
     const output = makeValidOutput();
     output.weeklyStructure[0].skillSequence[0].skillId = 'invented_skill';
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.some((e) => e.message.includes('invented_skill'))).toBe(true);
+    assert.ok(errors.some((e) => e.message.includes('invented_skill')));
   });
 
   it('rejects missing prerequisite ordering', () => {
@@ -142,14 +143,14 @@ describe('validatePlannerOutput', () => {
       ],
     });
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.some((e) => e.field === 'prerequisiteOrdering')).toBe(true);
+    assert.ok(errors.some((e) => e.field === 'prerequisiteOrdering'));
   });
 
   it('rejects invalid session count', () => {
     const output = makeValidOutput();
     output.weeklyStructure[0].skillSequence[0].sessionCount = 10;
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.some((e) => e.message.includes('sessionCount'))).toBe(true);
+    assert.ok(errors.some((e) => e.message.includes('sessionCount')));
   });
 
   it('rejects wrong total sessions per week', () => {
@@ -157,39 +158,39 @@ describe('validatePlannerOutput', () => {
     // Make week 1 have 4 sessions instead of 3
     output.weeklyStructure[0].skillSequence[0].sessionCount = 3;
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.some((e) => e.message.includes('sessions, expected 3'))).toBe(true);
+    assert.ok(errors.some((e) => e.message.includes('sessions, expected 3')));
   });
 
   it('rejects recovery nodes in initial plans', () => {
     const output = makeValidOutput();
     output.weeklyStructure[0].skillSequence[0].skillId = 'skill_recovery';
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.some((e) => e.message.includes('recovery'))).toBe(true);
+    assert.ok(errors.some((e) => e.message.includes('recovery')));
   });
 
   it('rejects invalid environment', () => {
     const output = makeValidOutput();
     output.weeklyStructure[0].skillSequence[0].environment = 'moon_base' as any;
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.some((e) => e.message.includes('Invalid environment'))).toBe(true);
+    assert.ok(errors.some((e) => e.message.includes('Invalid environment')));
   });
 
   it('rejects invalid sessionKind', () => {
     const output = makeValidOutput();
     output.weeklyStructure[0].skillSequence[0].sessionKind = 'freestyle' as any;
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.some((e) => e.message.includes('Invalid sessionKind'))).toBe(true);
+    assert.ok(errors.some((e) => e.message.includes('Invalid sessionKind')));
   });
 
   it('rejects planHorizonWeeks > max', () => {
     const output = makeValidOutput({ planHorizonWeeks: 8 });
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.some((e) => e.field === 'planHorizonWeeks')).toBe(true);
+    assert.ok(errors.some((e) => e.field === 'planHorizonWeeks'));
   });
 
   it('rejects non-object input', () => {
     const errors = validatePlannerOutput(null, testGraph, 3, 4);
-    expect(errors.some((e) => e.message.includes('JSON object'))).toBe(true);
+    assert.ok(errors.some((e) => e.message.includes('JSON object')));
   });
 
   it('accepts proofing nodes without protocolId', () => {
@@ -200,7 +201,7 @@ describe('validatePlannerOutput', () => {
       { skillId: 'skill_d', sessionCount: 2, environment: 'outdoors_moderate_distraction', sessionKind: 'proofing', reasoningLabel: 'Proofing' },
     ];
     const errors = validatePlannerOutput(output, testGraph, 3, 4);
-    expect(errors.filter((e) => e.message.includes('no protocol'))).toHaveLength(0);
+    assert.strictEqual(errors.filter((e) => e.message.includes('no protocol')).length, 0);
   });
 });
 
@@ -240,9 +241,9 @@ describe('rules-based fallback', () => {
     };
 
     const plan = generatePlan(dog);
-    expect(plan.sessions.length).toBeGreaterThan(0);
-    expect(plan.durationWeeks).toBe(4);
-    expect(plan.sessionsPerWeek).toBe(3);
-    expect(plan.status).toBe('active');
+    assert.ok(plan.sessions.length > 0);
+    assert.strictEqual(plan.durationWeeks, 4);
+    assert.strictEqual(plan.sessionsPerWeek, 3);
+    assert.strictEqual(plan.status, 'active');
   });
 });

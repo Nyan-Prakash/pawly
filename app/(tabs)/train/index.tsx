@@ -22,6 +22,7 @@ import { Text } from '@/components/ui/Text';
 import { WalkLogModal } from '@/components/shared/WalkLogModal';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { colors } from '@/constants/colors';
+import { getCourseUiColors, hexToRgba } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { shadows } from '@/constants/shadows';
@@ -452,9 +453,13 @@ export default function TrainScreen() {
             )}
 
           {/* ── TODAY CARD ── */}
-          {activePlan && activePlan.status === 'active' && todaySession && (
+          {activePlan && activePlan.status === 'active' && todaySession && (() => {
+            const uiColors = getCourseUiColors(activePlan.goal);
+            const planColor = activePlan.color || uiColors.solid;
+
+            return (
             <LinearGradient
-              colors={['#22C55E', '#16A34A']}
+              colors={[planColor, hexToRgba(planColor, 0.85)]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{ borderRadius: radii.lg, overflow: 'hidden' }}
@@ -574,7 +579,7 @@ export default function TrainScreen() {
                 >
                   <Text
                     style={{
-                      color: colors.brand.primary,
+                      color: planColor,
                       fontWeight: '700',
                       fontSize: 16,
                     }}
@@ -601,7 +606,8 @@ export default function TrainScreen() {
                 </TouchableOpacity>
               </View>
             </LinearGradient>
-          )}
+            );
+          })()}
 
           {activePlan?.metadata?.explanation?.length ? (
             <View

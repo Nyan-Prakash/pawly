@@ -18,6 +18,7 @@ import { Text } from '@/components/ui/Text';
 import { SessionChangeBadge } from '@/components/adaptive/SessionChangeBadge';
 import { WhyThisChangedSheet } from '@/components/adaptive/WhyThisChangedSheet';
 import { colors } from '@/constants/colors';
+import { getCourseUiColors } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { useDogStore } from '@/stores/dogStore';
@@ -29,7 +30,7 @@ import type { PlanAdaptation, PlanSession } from '@/types';
 // Completion ring (SVG-free, drawn with Views)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function CompletionRing({ percentage }: { percentage: number }) {
+function CompletionRing({ percentage, color }: { percentage: number; color: string }) {
   const size = 72;
   const strokeWidth = 7;
 
@@ -53,15 +54,15 @@ function CompletionRing({ percentage }: { percentage: number }) {
           height: size,
           borderRadius: size / 2,
           borderWidth: strokeWidth,
-          borderColor: percentage > 0 ? colors.primary : 'transparent',
-          borderTopColor: percentage >= 25 ? colors.primary : 'transparent',
-          borderRightColor: percentage >= 50 ? colors.primary : 'transparent',
-          borderBottomColor: percentage >= 75 ? colors.primary : 'transparent',
-          borderLeftColor: percentage >= 100 ? colors.primary : 'transparent',
+          borderColor: percentage > 0 ? color : 'transparent',
+          borderTopColor: percentage >= 25 ? color : 'transparent',
+          borderRightColor: percentage >= 50 ? color : 'transparent',
+          borderBottomColor: percentage >= 75 ? color : 'transparent',
+          borderLeftColor: percentage >= 100 ? color : 'transparent',
           transform: [{ rotate: '-90deg' }],
         }}
       />
-      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.primary }}>
+      <Text style={{ fontSize: 15, fontWeight: '700', color: color }}>
         {percentage}%
       </Text>
     </View>
@@ -299,14 +300,18 @@ function SessionRow({
   isToday,
   isFuture,
   onPress,
+  planColor,
+  tintColor,
 }: {
   session: PlanSession;
   isToday: boolean;
   isFuture: boolean;
   onPress: () => void;
+  planColor: string;
+  tintColor: string;
 }) {
-  const bgColor = isToday ? '#EBF5F3' : colors.surface;
-  const borderColor = isToday ? colors.primary : colors.border.default;
+  const bgColor = isToday ? tintColor : colors.surface;
+  const borderColor = isToday ? planColor : colors.border.default;
   const kind = session.sessionKind ?? 'core';
   const isAdapted = session.adaptationSource === 'adaptation_engine';
 
@@ -336,8 +341,8 @@ function SessionRow({
           backgroundColor: session.isCompleted
             ? colors.success
             : isToday
-            ? colors.primary
-            : colors.secondary,
+            ? planColor
+            : colors.bg.surfaceAlt,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -357,7 +362,7 @@ function SessionRow({
           {isToday && (
             <View
               style={{
-                backgroundColor: colors.primary,
+                backgroundColor: planColor,
                 paddingHorizontal: 6,
                 paddingVertical: 1,
                 borderRadius: 4,
@@ -422,7 +427,15 @@ function SessionRow({
 // Week Section Header
 // ─────────────────────────────────────────────────────────────────────────────
 
-function WeekHeader({ weekNumber, isCurrentWeek }: { weekNumber: number; isCurrentWeek: boolean }) {
+function WeekHeader({
+  weekNumber,
+  isCurrentWeek,
+  color,
+}: {
+  weekNumber: number;
+  isCurrentWeek: boolean;
+  color: string;
+}) {
   return (
     <View
       style={{
@@ -437,7 +450,7 @@ function WeekHeader({ weekNumber, isCurrentWeek }: { weekNumber: number; isCurre
         style={{
           fontSize: 13,
           fontWeight: '700',
-          color: isCurrentWeek ? colors.primary : colors.textSecondary,
+          color: isCurrentWeek ? color : colors.text.secondary,
           textTransform: 'uppercase',
           letterSpacing: 0.8,
         }}
@@ -447,7 +460,7 @@ function WeekHeader({ weekNumber, isCurrentWeek }: { weekNumber: number; isCurre
       {isCurrentWeek && (
         <View
           style={{
-            backgroundColor: colors.primary,
+            backgroundColor: color,
             paddingHorizontal: 8,
             paddingVertical: 2,
             borderRadius: 99,
@@ -511,6 +524,8 @@ export default function PlanScreen() {
 
   const completionPct = getPlanCompletion(activePlan);
   const behaviorLabel = getBehaviorLabel(activePlan.goal);
+  const uiColors = getCourseUiColors(activePlan.goal);
+  const planColor = activePlan.color || uiColors.solid;
   const stageNumber = parseInt(activePlan.currentStage?.match(/\d/)?.[0] ?? '1', 10);
   const todaySessionId = todaySession?.id ?? null;
   const adaptedCount = activePlan.sessions.filter((s) => s.adaptationSource === 'adaptation_engine').length;
@@ -587,10 +602,10 @@ export default function PlanScreen() {
                 gap: spacing.md,
               }}
             >
-              <CompletionRing percentage={completionPct} />
+              <CompletionRing percentage={completionPct} color={planColor} />
               <View style={{ flex: 1 }}>
                 <Text
-                  style={{ fontSize: 16, fontWeight: '700', color: colors.textPrimary, lineHeight: 22 }}
+                  style={{ fontSize: 16, fontWeight: '700', color: colors.text.primary, lineHeight: 22 }}
                   numberOfLines={2}
                 >
                   {dog?.name ? `${dog.name}'s ` : ''}{behaviorLabel} Plan
@@ -606,37 +621,37 @@ export default function PlanScreen() {
                 <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap' }}>
                   <View
                     style={{
-                      backgroundColor: colors.secondary,
+                      backgroundColor: uiColors.tint,
                       paddingHorizontal: 8,
                       paddingVertical: 3,
                       borderRadius: 99,
                     }}
                   >
-                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                    <Text style={{ fontSize: 11, color: planColor, fontWeight: '600' }}>
                       {behaviorLabel}
                     </Text>
                   </View>
                   <View
                     style={{
-                      backgroundColor: colors.secondary,
+                      backgroundColor: uiColors.tint,
                       paddingHorizontal: 8,
                       paddingVertical: 3,
                       borderRadius: 99,
                     }}
                   >
-                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                    <Text style={{ fontSize: 11, color: planColor, fontWeight: '600' }}>
                       Stage {stageNumber}
                     </Text>
                   </View>
                   <View
                     style={{
-                      backgroundColor: colors.secondary,
+                      backgroundColor: uiColors.tint,
                       paddingHorizontal: 8,
                       paddingVertical: 3,
                       borderRadius: 99,
                     }}
                   >
-                    <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '600' }}>
+                    <Text style={{ fontSize: 11, color: planColor, fontWeight: '600' }}>
                       {activePlan.sessions.filter((s) => s.isCompleted).length}/{activePlan.sessions.length} done
                     </Text>
                   </View>
@@ -674,6 +689,7 @@ export default function PlanScreen() {
               <WeekHeader
                 weekNumber={item.weekNumber}
                 isCurrentWeek={item.isCurrentWeek}
+                color={planColor}
               />
             );
           }
@@ -684,6 +700,8 @@ export default function PlanScreen() {
                 session={item.session}
                 isToday={item.isToday}
                 isFuture={item.isFuture}
+                planColor={planColor}
+                tintColor={uiColors.tint}
                 onPress={() => {
                   if (!item.isFuture) {
                     setSelectedSession(item.session);
