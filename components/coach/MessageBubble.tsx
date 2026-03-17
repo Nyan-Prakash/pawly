@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 
-import { MascotCallout } from '@/components/ui/MascotCallout';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
@@ -30,7 +30,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     <View style={styles.assistantWrap}>
       <View style={styles.assistantRow}>
         <View style={styles.avatar}>
-          <MascotCallout state="happy" size={28} />
+          <Ionicons name="paw" size={20} color={colors.brand.primary} />
         </View>
 
         <View style={styles.assistantContent}>
