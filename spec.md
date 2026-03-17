@@ -1,7 +1,7 @@
 # Pawly — Technical Specification
-**Version:** 1.2
+**Version:** 1.3
 **Date:** March 16, 2026
-**Status:** Current (updated to match implemented codebase)
+**Status:** Current (updated to match implemented codebase including PR16 Live Pose Coaching)
 
 ---
 
@@ -34,20 +34,20 @@
 
 ### 1.1 What Pawly Is
 
-Pawly is a mobile-first subscription application that delivers personalized dog training plans, AI-powered coaching, video feedback, and a lifecycle content system across the full lifespan of a dog. The system maintains a persistent behavioral memory of each dog and adapts its guidance based on ongoing session outcomes, user-submitted video, and lifecycle stage.
+Pawly is a mobile-first subscription application that delivers personalized dog training plans, AI-powered coaching, video feedback, and a lifecycle content system across the full lifespan of a dog. The system maintains a persistent behavioral memory of each dog and adapts its guidance based on ongoing session outcomes, user-submitted video, and lifecycle stage. Sessions can be completed in manual mode or via a live camera coaching mode that uses on-device pose detection to count reps and provide real-time posture feedback.
 
 ### 1.2 Core User Flow (Happy Path)
 
 ```
 Download App
      ↓
-Onboarding (18-step wizard: dog profile + goal + schedule preferences)
+Onboarding (multi-step wizard: dog profile + goal + schedule preferences)
      ↓
 Plan Generated (AI-powered via Claude API, 4-week, 8 behavior goals supported)
      ↓
 Plan Preview → Account Creation → First Session
      ↓
-Daily Session Loop + Walk Logging
+Daily Session Loop (Manual Mode or Live Camera Coach Mode) + Walk Logging
      ↓
 AI Coach Available Throughout
      ↓
@@ -117,6 +117,7 @@ Lifecycle Events Triggered as Dog Ages
 - **Stateless API layer:** All application state lives in the database, not in server memory
 - **Mobile-first data design:** All API responses optimized for mobile payload size and offline resilience
 - **AI-driven planning:** Plan generation uses Claude API via `generate-adaptive-plan` Edge Function; rules-based fallback available
+- **On-device ML inference:** Dog pose detection runs entirely on-device via TFLite (no server round-trip)
 
 ### 2.3 Technology Stack Summary
 
@@ -154,19 +155,20 @@ pawly/
 │   │   ├── signup.tsx            # Email/password + OAuth signup
 │   │   └── forgot-password.tsx  # Password reset request
 │   ├── (onboarding)/             # Onboarding flow
-│   │   ├── dog-basics.tsx        # 18-step onboarding wizard (primary)
-│   │   ├── dog-problem.tsx       # Redirect → dog-basics (legacy route)
-│   │   ├── dog-environment.tsx   # Redirect → dog-basics (legacy route)
-│   │   ├── video-upload.tsx      # Redirect → dog-basics (legacy route)
+│   │   ├── dog-basics.tsx        # Primary onboarding wizard (dog name, breed, age, sex)
+│   │   ├── dog-problem.tsx       # Select primary behavior goal & severity
+│   │   ├── dog-environment.tsx   # Home environment type, household members, other pets
+│   │   ├── video-upload.tsx      # Upload video of dog's current behavior
 │   │   └── plan-preview.tsx      # Plan summary + paywall gate
 │   ├── (tabs)/                   # Main authenticated tab navigator
 │   │   ├── train/
 │   │   │   ├── index.tsx         # Today card / home screen
 │   │   │   ├── calendar.tsx      # Monthly training calendar view
-│   │   │   ├── session.tsx       # Active session screen
+│   │   │   ├── session.tsx       # Active session screen (manual + live camera modes)
 │   │   │   ├── plan.tsx          # Full plan view (all sessions)
 │   │   │   ├── notifications.tsx # In-app notification center
-│   │   │   ├── pose-debug.tsx    # Dev-only: pose detection debug
+│   │   │   ├── pose-debug.tsx    # Dev-only: pose detection debug (entry)
+│   │   │   ├── pose-debug-impl.tsx  # Dev-only: pose detection debug (implementation)
 │   │   │   └── upload-video.tsx  # Video submission for expert review
 │   │   ├── progress/
 │   │   │   ├── index.tsx         # Progress dashboard
@@ -183,11 +185,11 @@ pawly/
 │   └── _layout.tsx               # Root layout with navigation gate
 ├── components/                   # Reusable components
 │   ├── ui/                       # Button, Text, Input, Card, StreakBadge, etc.
-│   ├── session/                  # TimerRing, RepCounter, StepCard
-│   ├── coach/                    # MessageBubble, TypingIndicator, QuickSuggestions
+│   ├── session/                  # TimerRing, RepCounter, StepCard, SessionModePicker, LiveCoachOverlay
+│   ├── coach/                    # MessageBubble, TypingIndicator, QuickSuggestions, FormattedCoachMessage
 │   ├── progress/                 # MilestoneCard, ShareCard
 │   ├── train/                    # TrainingCalendar, CalendarDayCell, DaySessionList
-│   ├── vision/                   # DogKeypointOverlay (SVG skeleton rendering)
+│   ├── vision/                   # DogKeypointOverlay, LiveCoachOverlay, TrackingQualityBadge
 │   ├── adaptive/                 # LearningInsightCard, AdaptationNotice, WhyThisChangedSheet, etc.
 │   ├── notifications/            # NotificationBell, NotificationItem
 │   ├── video/                    # VideoUploadProgress, ExpertReviewRequest
@@ -205,12 +207,13 @@ pawly/
 │   ├── themeStore.ts
 │   └── onboardingStore.ts
 ├── hooks/
-│   └── usePoseSession.ts         # Real-time dog pose detection hook
+│   ├── usePoseSession.ts         # Real-time dog pose detection hook
+│   └── useLiveCoachingSession.ts # Live coaching session lifecycle hook
 ├── lib/                          # Utilities and service helpers
 │   ├── supabase.ts               # Supabase client + createUserRecord()
 │   ├── planGenerator.ts          # Goal maps, sequences, plan building (rules-based fallback)
 │   ├── scheduleEngine.ts         # Schedule logic, session timing, rescheduling
-│   ├── sessionManager.ts         # Session saving, streak updates, milestone checks
+│   ├── sessionManager.ts         # Session saving, streak updates, milestone checks, live coaching metrics
 │   ├── milestoneEngine.ts        # 13 milestone definitions and check functions
 │   ├── analytics.ts              # Event capture (console-only in dev; PostHog pending)
 │   ├── modelMappers.ts           # DB row → TypeScript type converters
@@ -220,33 +223,48 @@ pawly/
 │   ├── calendarSessions.ts       # Calendar date ops, session grouping by date
 │   ├── planScheduleDiff.ts       # Plan change diffing
 │   ├── theme.ts                  # useTheme() hook
-│   └── adaptivePlanning/         # Full adaptive planning engine (18 files)
-│       ├── types.ts              # Adaptation types and interfaces
-│       ├── config.ts             # Feature flags and configuration
-│       ├── featureFlags.ts       # Runtime feature control
-│       ├── initialPlanner.ts     # Rules-based fallback planner
-│       ├── adaptationEngine.ts   # Decides when & what to adapt
-│       ├── adaptationRules.ts    # Adaptation trigger rules
-│       ├── adaptationCompiler.ts # Converts adaptations to plan updates
-│       ├── adaptationAudit.ts    # Audit trail for adaptations
-│       ├── learningStateEngine.ts    # Updates learning state from signals
-│       ├── learningStateScoring.ts   # Scores dog learning dimensions
-│       ├── learningStateSummary.ts   # Summarizes learning state
-│       ├── learningSignals.ts        # Extracts signals from session/walk logs
-│       ├── skillGraph.ts             # Skill prerequisite/advancement graph
-│       ├── graphTraversal.ts         # Graph traversal for skill pathfinding
-│       ├── graphValidation.ts        # Validates skill graph integrity
-│       ├── planValidation.ts         # Validates generated plans
-│       ├── planDiff.ts               # Diff between plan versions
-│       ├── planCompiler.ts           # Compiles AI planner output to concrete plan
-│       ├── plannerPrompt.ts          # AI prompt engineering for plan generation
-│       └── repositories.ts           # Supabase queries for adaptation & learning state
-│   └── vision/                   # On-device vision utilities
+│   ├── adaptivePlanning/         # Full adaptive planning engine (23 files)
+│   │   ├── types.ts              # Adaptation types and interfaces
+│   │   ├── config.ts             # Feature flags and configuration
+│   │   ├── featureFlags.ts       # Runtime feature control
+│   │   ├── initialPlanner.ts     # Rules-based fallback planner
+│   │   ├── adaptationEngine.ts   # Decides when & what to adapt
+│   │   ├── adaptationRules.ts    # Adaptation trigger rules and candidate scoring
+│   │   ├── adaptationCompiler.ts # Converts adaptations to plan updates
+│   │   ├── adaptationAudit.ts    # Audit trail for adaptations
+│   │   ├── hypothesisEngine.ts   # Learning hypothesis generation
+│   │   ├── learningStateEngine.ts    # Updates learning state from signals
+│   │   ├── learningStateScoring.ts   # Scores 7 dog learning dimensions
+│   │   ├── learningStateSummary.ts   # Summarizes learning state
+│   │   ├── learningSignals.ts        # Extracts signals from session/walk logs
+│   │   ├── skillGraph.ts             # Skill prerequisite/advancement graph
+│   │   ├── graphTraversal.ts         # Graph traversal for skill pathfinding
+│   │   ├── graphValidation.ts        # Validates skill graph integrity
+│   │   ├── planValidation.ts         # Validates generated plans
+│   │   ├── planDiff.ts               # Diff between plan versions
+│   │   ├── planCompiler.ts           # Compiles AI planner output to concrete plan
+│   │   ├── plannerPrompt.ts          # AI prompt engineering for plan generation
+│   │   └── repositories.ts           # Supabase queries for adaptation & learning state
+│   ├── liveCoach/                # Live coaching engine (6 files)
+│   │   ├── liveCoachingTypes.ts  # CoachingEngineState, CoachingDecision, CoachingFrameInput, ResolvedCoachingConfig
+│   │   ├── liveCoachingEngine.ts # Per-frame coaching state machine
+│   │   ├── liveCoachingRules.ts  # Success/reset rule evaluation, feedback template selection
+│   │   ├── liveCoachingSession.ts # Session lifecycle management
+│   │   └── (additional support files)
+│   └── vision/                   # On-device vision utilities (11 files)
 │       ├── poseDecoder.ts        # Decodes TFLite output to PoseObservation
 │       ├── TFLitePoseProvider.ts # TFLite model wrapper
-│       └── nativeSupport.ts      # Platform support checks
+│       ├── nativeSupport.ts      # Platform support checks
+│       ├── poseStateMachine.ts   # Posture transition state machine
+│       ├── postureClassifier.ts  # Classifies keypoints into posture labels (sit/down/stand)
+│       ├── poseFeatureExtractor.ts  # Extracts geometric features from keypoints
+│       ├── poseStabilizer.ts     # One-Euro filter smoothing of keypoints over time
+│       ├── poseTrackingQuality.ts   # Computes per-frame tracking quality (good/fair/poor)
+│       ├── poseEventDetector.ts  # Detects motion/tracking events
+│       ├── poseOutlierRejection.ts  # Filters outlier keypoints
+│       └── oneEuroFilter.ts      # One-Euro adaptive smoothing filter
 ├── types/                        # TypeScript type definitions
-│   ├── index.ts                  # All app types
+│   ├── index.ts                  # All app types (494 lines)
 │   └── pose.ts                   # Dog pose keypoint types
 ├── constants/                    # App-wide constants
 │   ├── protocols.ts              # Full training protocol library (1,360+ lines)
@@ -264,12 +282,16 @@ Root Layout (RootNavigationGate)
 │   ├── Signup Screen
 │   └── Forgot Password Screen
 ├── Onboarding Stack (authenticated but no dog profile)
-│   └── Dog Basics (18-step wizard) → Plan Preview → Account creation
+│   ├── Dog Basics (dog name, breed, age, sex)
+│   ├── Dog Problem (behavior goal selection)
+│   ├── Dog Environment (environment type, household members, other pets)
+│   ├── Video Upload (optional onboarding video)
+│   └── Plan Preview → Account creation
 └── Main Tab Navigator (authenticated + dog profile exists)
     ├── Train Tab
     │   ├── Today Screen (home)
     │   ├── Calendar Screen (monthly plan view)
-    │   ├── Session Screen (step-by-step execution)
+    │   ├── Session Screen (step-by-step execution, manual or live camera)
     │   ├── Full Plan Screen (all sessions, week view)
     │   ├── Notifications Screen (in-app notification center)
     │   └── Upload Video Screen
@@ -323,6 +345,7 @@ interface AuthStore {
   hasDogProfile: boolean
   dogProfile: DogProfile | null
   isLoading: boolean
+  isInitialized: boolean
   initialize: () => Promise<void>
   signUp: (email, password) => Promise<void>
   signIn: (email, password) => Promise<void>
@@ -330,6 +353,7 @@ interface AuthStore {
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   setSubscriptionTier: (tier) => void
+  setDogProfile: (profile) => void
 }
 ```
 
@@ -340,6 +364,7 @@ interface DogStore {
   dog: Dog | null
   activePlan: Plan | null
   behaviorGoals: BehaviorGoal[]
+  dogLearningState: DogLearningState | null
   isLoading: boolean
   setDog: (dog: Dog) => void
   setActivePlan: (plan: Plan) => void
@@ -448,10 +473,19 @@ interface NotificationStore {
   pendingNotifications: ScheduledNotification[]
   permissionStatus: PermissionStatus | null
   hasRequestedPermission: boolean
+  isLoading: boolean
+  items: InAppNotification[]        // in-app inbox
+  unreadCount: number
+  isLoadingInbox: boolean
   loadPrefs: (userId: string) => Promise<void>
   updatePrefs: (userId: string, updates: Partial<NotificationPrefs>) => Promise<void>
   refreshSchedules: (dog: Dog) => Promise<void>
   ensurePermissionAfterMeaningfulAction: () => Promise<boolean>
+  fetchInbox: (userId: string) => Promise<void>
+  addNotification: (notification: InAppNotification) => void
+  markAsRead: (id: string) => Promise<void>
+  markAllAsRead: (userId: string) => Promise<void>
+  hydrateRealtime: (userId: string) => void
 }
 ```
 
@@ -519,17 +553,20 @@ Behavior:
 
 #### Session Screen (`app/(tabs)/train/session.tsx`)
 
-Purpose: Guide the user through a training session step by step.
+Purpose: Guide the user through a training session step by step. Supports two execution modes: Manual (step-by-step guided) and Live Camera Coach (on-device pose tracking with real-time rep counting and posture feedback).
 
-State machine:
+**Session State Machine:**
 ```
 LOADING
   ↓ protocol fetched
 INTRO           ← Show exercise title, objective, duration
   ↓ tap "Start"
 SETUP           ← Show environment/equipment checklist
-  ↓ confirm ready
+  ↓ confirm ready → triggers SessionModePicker overlay
+MODE_PICKER     ← Choose Live Camera Coach or Do Normally (local overlay, not store state)
+  ↓ select mode
 STEP_ACTIVE     ← Show current step card, timer ring, rep counter
+                   (Live Camera mode: LiveCoachOverlay replaces manual controls)
   ↓ completeStep() or timer expires
 STEP_COMPLETE   ← Show step summary
   ↓ next step or last step
@@ -540,15 +577,47 @@ COMPLETE        ← Saved to DB, streaks updated, milestones checked
 ABANDONED       ← Logged as abandoned in DB
 ```
 
-Session is saved via `sessionManager.saveSession()`, streaks updated via `sessionManager.updateStreak()`, milestones checked via `milestoneEngine`.
+**Local overlay states** (managed outside sessionStore):
+- `NONE` — normal session view
+- `MODE_PICKER` — `SessionModePicker` component shown after SETUP confirms
+- `LIVE_COACHING` — `LiveCoachOverlay` shown during camera-based session
+
+**Session completion flow:**
+1. Collects difficulty rating + optional notes
+2. Calls `sessionManager.saveSession()` with optional `liveCoachingUsed`, `liveCoachingSummary`, `poseMetrics`
+3. `saveSession()` persists to `session_logs`, calls `updateLearningStateFromSessionLog()`, invokes `adapt-plan` Edge Function
+4. `updateStreak()` + `checkMilestones()` run non-blocking
+5. `refreshPlan()` + `notificationStore.refreshSchedules()` update downstream state
+6. `dogStore.fetchDogLearningState()` refreshes coach context
 
 Components:
+- `SessionModePicker` — mode selection after SETUP (see §3.5.1)
 - `ProgressBar` — steps N of total
 - `StepCard` — instruction text, timer mode indicator
 - `TimerRing` — circular countdown timer with pause/resume
-- `RepCounter` — tap to increment reps
+- `RepCounter` — tap to increment reps (manual mode)
+- `LiveCoachOverlay` — camera + pose overlay for Live Camera mode
 - `DifficultySelector` — easy / okay / hard at completion
 - Notes input field
+
+##### SessionModePicker (`components/session/SessionModePicker.tsx`)
+
+Presented as a full-screen overlay after the user confirms ready in SETUP state. Allows choosing session execution mode.
+
+```typescript
+interface SessionModePickerProps {
+  dogName: string
+  onNormal: () => void    // proceed with manual mode
+  onCamera: () => void    // proceed with live camera mode
+  onBack: () => void      // return to SETUP
+}
+```
+
+UI:
+- Two option cards:
+  1. **Live Camera Coach** (featured, primary) — "Point your camera at {dogName}. The app tracks posture and counts reps in real time." Feature pills: Auto rep count, Posture feedback, Hands-free. Shows "NEW" badge.
+  2. **Do Normally** (secondary, outlined) — "Follow the step-by-step guide and mark reps manually."
+- Footer note: "You can switch modes anytime from a session"
 
 #### AI Coach Screen (`app/(tabs)/coach/index.tsx`)
 
@@ -559,6 +628,7 @@ Components:
 - `TypingIndicator` — animated dots while waiting for response
 - `QuickSuggestions` — contextual suggestion chips above input
 - `MessageInput` — text input with send button
+- `FormattedCoachMessage` — renders markdown-formatted coach responses
 - Reset button (archive conversation and start fresh)
 
 Calls Supabase Edge Function `ai-coach-message` for each message. Coach context includes the dog's current `DogLearningState` and recent plan adaptations. Handles rate limit errors with `rateLimitError` state flag.
@@ -625,7 +695,7 @@ Components:
 - `NotificationItem` — individual notification row with icon, title, body, and timestamp
 - `NotificationBell` — badge indicator used in screen headers
 
-Notifications are stored in the `in_app_notifications` Supabase table and fetched by the notification store.
+Notifications are stored in the `in_app_notifications` Supabase table and managed by `notificationStore` (inbox + unread count + realtime subscription).
 
 ---
 
@@ -668,7 +738,7 @@ Falls back to rules-based `initialPlanner.ts` if Claude call fails.
 
 #### `adapt-plan`
 
-Triggered: manually or after session outcome signals
+Triggered: after session completion (invoked by `sessionManager.saveSession()`)
 Input: plan ID, session outcome data
 Process: runs adaptation engine to check rules, generates adaptations, compiles plan updates
 Output: updated plan with adaptation audit record
@@ -678,7 +748,7 @@ Output: updated plan with adaptation audit record
 Triggered: user sends message in coach chat
 Input: message content, conversation history, dog context (including `DogLearningState`)
 Process: assemble system prompt with full dog context → call Anthropic API → store response
-Output: assistant message stored and returned to client
+Output: assistant message stored and returned to client (with rich markdown formatting)
 
 #### `complete-expert-review`
 
@@ -689,10 +759,10 @@ Output: triggers push notification to user
 
 #### `notify-expert-review`
 
-Triggered: expert review status transitions to `complete`
+Triggered: expert review submission or status transition
 Input: review ID, user ID
-Process: sends push notification via Expo Push Service
-Output: notification delivered to user's device
+Process: creates expert_review record; sends email to trainer queue via Resend API; sends push notification to user device via Expo Push Service
+Output: notification delivered
 
 ### 4.3 Real-time Subscriptions
 
@@ -704,6 +774,7 @@ Mobile clients subscribe to relevant Supabase real-time channels:
 | `plan-updates` | plans | UPDATE | Refresh plan store |
 | `new-insight` | insights | INSERT | Show insight badge |
 | `session-sync` | session_logs | INSERT | Update progress charts |
+| in-app notifications | in_app_notifications | INSERT | Update notificationStore inbox + badge count |
 
 ---
 
@@ -726,6 +797,7 @@ Applied via Supabase migrations in `supabase/migrations/`. Migration files (in o
 - `pr13_learning_state_signals.sql` — dog_learning_state and learning_signals tables
 - `pr14_plan_adaptation_flow.sql` — plan_adaptations and adaptation_audit tables
 - `pr15_in_app_notifications.sql` — in_app_notifications table
+- `pr16_live_pose_coaching.sql` — live_coaching_summary and pose_metrics columns on session_logs
 
 #### `users` (managed by Supabase Auth + `user_profiles` table)
 
@@ -837,25 +909,52 @@ interface PlanSession {
 }
 ```
 
-#### `session_logs` (actual table name, not `sessions`)
+#### `session_logs`
 
 ```sql
 CREATE TABLE session_logs (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id          UUID REFERENCES users(id) NOT NULL,
-  dog_id           UUID REFERENCES dogs(id) NOT NULL,
-  plan_id          UUID REFERENCES plans(id),
-  plan_session_id  TEXT,           -- references PlanSession.id
-  exercise_id      TEXT NOT NULL,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  completed_at     TIMESTAMPTZ,
-  duration_seconds INTEGER,
-  success_score    INTEGER CHECK (success_score BETWEEN 1 AND 5),
-  difficulty       TEXT CHECK (difficulty IN ('easy', 'okay', 'hard')),
-  notes            TEXT,
-  step_results     JSONB DEFAULT '[]',
-  abandoned        BOOLEAN DEFAULT FALSE
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id               UUID REFERENCES users(id) NOT NULL,
+  dog_id                UUID REFERENCES dogs(id) NOT NULL,
+  plan_id               UUID REFERENCES plans(id),
+  plan_session_id       TEXT,           -- references PlanSession.id
+  exercise_id           TEXT NOT NULL,
+  created_at            TIMESTAMPTZ DEFAULT NOW(),
+  completed_at          TIMESTAMPTZ,
+  duration_seconds      INTEGER,
+  success_score         INTEGER CHECK (success_score BETWEEN 1 AND 5),
+  difficulty            TEXT CHECK (difficulty IN ('easy', 'okay', 'hard')),
+  notes                 TEXT,
+  step_results          JSONB DEFAULT '[]',
+  abandoned             BOOLEAN DEFAULT FALSE,
+  -- Live coaching fields (added in pr16)
+  live_coaching_used    BOOLEAN DEFAULT FALSE,
+  live_coaching_summary JSONB,   -- LiveCoachingSummary: mode, targetPostures, successCount, resetCount, avgTrackingQuality, assessment
+  pose_metrics          JSONB    -- PoseMetrics: detailed keypoint confidence, hold durations, tracking events, quality breakdown
 );
+```
+
+**LiveCoachingSummary JSONB structure:**
+```typescript
+interface LiveCoachingSummary {
+  mode: string
+  targetPostures: string[]
+  successCount: number
+  resetCount: number
+  avgTrackingQuality: number
+  assessment: string
+}
+```
+
+**PoseMetrics JSONB structure:**
+```typescript
+interface PoseMetrics {
+  keypointConfidence: Record<string, number>
+  qualityBreakdown: { good: number; fair: number; poor: number }
+  postureDurations: Record<string, number>
+  holdDurations: number[]
+  trackingEvents: { type: string; timestamp: number }[]
+}
 ```
 
 #### `walk_logs`
@@ -1005,7 +1104,7 @@ CREATE TABLE dog_learning_state (
   dog_id         UUID REFERENCES dogs(id) NOT NULL UNIQUE,
   updated_at     TIMESTAMPTZ DEFAULT NOW(),
   overall_score  DECIMAL,
-  dimensions     JSONB DEFAULT '{}',  -- per-behavior scores
+  dimensions     JSONB DEFAULT '{}',  -- 7 per-behavior scoring dimensions
   hypotheses     JSONB DEFAULT '[]',  -- LearningHypothesis[]
   summary        TEXT,
   last_signal_at TIMESTAMPTZ
@@ -1020,20 +1119,35 @@ CREATE TABLE learning_signals (
 );
 ```
 
+**DogLearningState dimensions** (7 scored dimensions):
+- `motivation` — responsiveness to rewards
+- `distractionSensitivity` — reaction to environmental stimuli
+- `confidence` — willingness to attempt behaviors
+- `impulseControl` — ability to inhibit responses
+- `handlerConsistency` — consistency of handler cues
+- `fatigueRisk` — likelihood of mental/physical fatigue
+- `recoverySpeed` — ability to recover after errors
+
 #### `plan_adaptations` and `adaptation_audit`
 
 ```sql
 CREATE TABLE plan_adaptations (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  plan_id      UUID REFERENCES plans(id) NOT NULL,
-  dog_id       UUID REFERENCES dogs(id) NOT NULL,
-  created_at   TIMESTAMPTZ DEFAULT NOW(),
-  type         TEXT NOT NULL,          -- AdaptationType enum
-  status       TEXT DEFAULT 'pending', -- 'pending', 'applied', 'rejected'
-  reason       TEXT,
-  before_state JSONB,
-  after_state  JSONB,
-  applied_at   TIMESTAMPTZ
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plan_id                  UUID REFERENCES plans(id) NOT NULL,
+  dog_id                   UUID REFERENCES dogs(id) NOT NULL,
+  created_at               TIMESTAMPTZ DEFAULT NOW(),
+  type                     TEXT NOT NULL,          -- AdaptationType enum
+  status                   TEXT DEFAULT 'pending', -- 'applied', 'skipped', 'rolled_back'
+  reason                   TEXT,
+  triggered_by_session_log_id UUID,
+  evidence                 JSONB,
+  before_state             JSONB,                  -- snapshot of plan before adaptation
+  after_state              JSONB,                  -- snapshot of plan after adaptation
+  changed_session_ids      TEXT[],
+  model_name               TEXT,
+  latency_ms               INTEGER,
+  was_user_visible         BOOLEAN DEFAULT FALSE,
+  applied_at               TIMESTAMPTZ
 );
 
 CREATE TABLE adaptation_audit (
@@ -1236,26 +1350,34 @@ An on-device engine that monitors training outcomes and adapts the active plan.
 **Learning State System:**
 - `learningSignals.ts` — extracts signals from `session_logs` and `walk_logs`
 - `learningStateEngine.ts` — processes signals to update `DogLearningState`
-- `learningStateScoring.ts` — scores dimensions: consistency, success rate, difficulty trend, walk quality
+- `learningStateScoring.ts` — scores 7 dimensions: motivation, distraction sensitivity, confidence, impulse control, handler consistency, fatigue risk, recovery speed
 - `learningStateSummary.ts` — generates human-readable learning state summary
+- `hypothesisEngine.ts` — generates learning hypotheses from patterns
 
 **Adaptation Engine:**
-- `adaptationRules.ts` — defines triggers: e.g., 3+ consecutive hard sessions → regress; avg score ≥4 + all easy → advance
-- `adaptationEngine.ts` — evaluates rules against current learning state
-- `adaptationCompiler.ts` — converts adaptation decisions into plan mutations
-- `adaptationAudit.ts` — writes audit trail to `adaptation_audit` table
+- `adaptationRules.ts` — defines triggers and candidate scoring: e.g., repeated hard sessions → regress; consistent easy sessions with high scores → advance
+- `adaptationEngine.ts` — evaluates rules against current learning state, selects adaptation candidate
+- `adaptationCompiler.ts` — converts adaptation decisions into plan mutations (rewrites session fields)
+- `adaptationAudit.ts` — writes audit trail to `adaptation_audit` table with snapshots and evidence
 
 **Skill Graph:**
-- `skillGraph.ts` — directed graph of skills with prerequisite/progression/regression edges
-- `graphTraversal.ts` — pathfinding for next/previous skill recommendations
+- `skillGraph.ts` — directed graph of skills with prerequisite/progression/regression/detour edges
+- `graphTraversal.ts` — pathfinding for next/previous/detour skill recommendations
 - Stored in `skill_nodes` and `skill_edges` tables (seeded in pr11–pr12 migrations)
 
 **Adaptation Types** (`AdaptationType`):
+- `repeat` — repeat current skill level with more sessions
 - `regress` — move back to an easier protocol
 - `advance` — move forward to a harder protocol
-- `extend` — add more sessions at current level
-- `reorder` — change session sequence
-- `substitute` — swap one protocol for a more suitable one
+- `detour` — substitute a parallel skill path
+- `difficulty` — adjust within-session difficulty parameters
+- `schedule` — reschedule sessions without changing content
+- `environment` — modify environment-related session parameters
+
+**Adaptation Status** (`AdaptationStatus`):
+- `applied` — adaptation was applied to the plan
+- `skipped` — adaptation was evaluated but not applied
+- `rolled_back` — applied adaptation was subsequently reversed
 
 ### 6.4 Progress Adaptation Engine
 
@@ -1301,7 +1423,7 @@ function computeNextSessionDifficulty(
 
 ### 6.6 On-Device Dog Pose Detection
 
-Real-time pose estimation runs on-device using a TFLite model, enabling session coaching features.
+Real-time pose estimation runs on-device using a TFLite model, used by the Live Camera Coach session mode for rep counting and posture feedback.
 
 #### Architecture
 
@@ -1318,7 +1440,25 @@ poseDecoder.ts (D-first tensor layout)
     ↓
 PoseObservation { keypoints: PoseKeypoint[], bbox: NormalizedBBox }
     ↓
-DogKeypointOverlay (SVG skeleton rendering)
+poseOutlierRejection.ts (filter outliers)
+    ↓
+poseStabilizer.ts (One-Euro filter smoothing)
+    ↓
+poseFeatureExtractor.ts (geometric features)
+    ↓
+postureClassifier.ts → PostureLabel (sit / down / stand / unknown)
+    ↓
+poseStateMachine.ts (posture transition state machine)
+    ↓
+poseTrackingQuality.ts → TrackingQuality (good / fair / poor)
+    ↓
+poseEventDetector.ts (motion/tracking events)
+    ↓
+liveCoachingEngine.ts (rep counting + posture feedback state machine)
+    ↓
+CoachingDecision { state, message, cue, incrementRep, holdTimerMs, ... }
+    ↓
+LiveCoachOverlay (UI feedback to user)
 ```
 
 #### Model I/O
@@ -1363,7 +1503,51 @@ function usePoseSession(options: PoseSessionOptions): {
 
 Runs at ~10 FPS (throttled, every 10th frame). Module-level dispatch pattern for worklet-to-React communication. Requires native dev build (not Expo Go).
 
-#### Pose Debug Screen (`app/(tabs)/train/pose-debug.tsx`)
+#### `useLiveCoachingSession` hook (`hooks/useLiveCoachingSession.ts`)
+
+Manages the live coaching session lifecycle:
+- Creates and drives the `liveCoachingEngine` with pose frames
+- Aggregates `CoachingSessionMetrics` over the session duration
+- Exposes current `CoachingDecision` to the `LiveCoachOverlay`
+- On session end, returns `CoachingSessionMetrics` for storage in `session_logs`
+
+#### Live Coaching Engine (`lib/liveCoach/`)
+
+State machine with the following states:
+- `waiting` — no dog detected or pose not ready
+- `hold_in_progress` — dog in target posture, counting hold duration
+- `good_rep` — successful rep completed (displayed briefly)
+- `reset` — dog broke posture (displayed briefly)
+- `lost_tracking` — tracking quality too low
+- `complete` — required reps reached
+
+Per-frame processing:
+```typescript
+interface CoachingFrameInput {
+  postureState: PostureLabel
+  poseEvents: PoseEvent[]
+  trackingQuality: TrackingQuality
+  postureConfidence: number
+  elapsedSessionMs: number
+  timestamp: number
+}
+
+interface CoachingDecision {
+  state: CoachingEngineState
+  message: string
+  cue: string
+  incrementRep: boolean
+  markSuccess: boolean
+  activePosture: PostureLabel
+  holdTimerMs: number
+  targetHoldMs: number
+  trackingBlocked: boolean
+  repCount: number
+  requiredReps: number
+}
+```
+
+#### Pose Debug Screen (`app/(tabs)/train/pose-debug.tsx` + `pose-debug-impl.tsx`)
 
 Developer-only full-screen camera view with:
 - Real-time skeleton overlay
@@ -1414,7 +1598,7 @@ PATCH  /rest/v1/plans?id=eq.{id}              Update plan (sessions JSONB, statu
 #### Sessions
 ```
 GET    /rest/v1/protocols?id=eq.{id}         Fetch session protocol
-POST   /rest/v1/session_logs                 Log completed session
+POST   /rest/v1/session_logs                 Log completed session (includes live coaching fields)
 GET    /rest/v1/session_logs?dog_id=eq.{id}  Session history
 ```
 
@@ -1603,7 +1787,7 @@ lib/notifications.scheduleUserNotifications() creates Expo local notifications
 Expo Notifications delivers via APNs (iOS) or FCM (Android)
 ```
 
-In-app notifications are written to the `in_app_notifications` Supabase table by Edge Functions and displayed in the notification center screen via `NotificationBell` badge.
+In-app notifications are written to the `in_app_notifications` Supabase table by Edge Functions and displayed in the notification center screen. `notificationStore` subscribes to realtime inserts and maintains an in-memory inbox with unread count.
 
 Note: In v1, push notifications are **local** (scheduled on-device). Server-side triggers (Supabase webhooks → Expo Push Service) are designed but not fully wired (expert review notifications use the `notify-expert-review` Edge Function).
 
@@ -1739,8 +1923,9 @@ subscription_purchased { tier, period, price }
 #### Training Events
 ```
 session_started { exercise_id, plan_id }
+session_mode_selected { mode: 'manual' | 'live_camera' }
 session_step_completed { step_index, success: boolean }
-session_completed { duration_seconds, success_score, difficulty }
+session_completed { duration_seconds, success_score, difficulty, live_coaching_used }
 session_abandoned { step_index }
 walk_logged { quality, goal_achieved }
 ```
@@ -1770,6 +1955,13 @@ expert_review_requested
 ```
 plan_adapted { adaptation_type, reason }
 learning_state_updated { overall_score }
+```
+
+#### Live Coaching Events
+```
+live_coaching_session_started { exercise_id }
+live_coaching_rep_counted { rep_count }
+live_coaching_session_completed { success_count, reset_count, avg_tracking_quality }
 ```
 
 ### 12.3 North Star Metric
@@ -1836,7 +2028,7 @@ Auth: Supabase Auth
 }
 ```
 
-**Note:** The pose detection feature (react-native-vision-camera, react-native-fast-tflite) requires a native dev build. It does not work in Expo Go.
+**Note:** The pose detection feature (react-native-vision-camera, react-native-fast-tflite) and the Live Camera Coach session mode require a native dev build. They do not work in Expo Go.
 
 ### 13.4 CI/CD Pipeline
 
@@ -1890,6 +2082,7 @@ jobs:
 | Session logs | Personal | PostgreSQL (RLS) | 3 years or deletion |
 | Chat messages | Personal | PostgreSQL (RLS) | 1 year rolling |
 | Analytics events | Pseudonymous | PostHog | 2 years |
+| Pose metrics | Personal | PostgreSQL (RLS, JSONB in session_logs) | 3 years or deletion |
 
 ### 14.2 Video Security
 
@@ -1950,6 +2143,7 @@ HARD LIMITS — Never violate these regardless of user request:
 | Apple Authentication | Apple Sign In | `expo-apple-authentication` | ✅ Active |
 | Vision Camera | Camera frame processing | `react-native-vision-camera` | ✅ Active (native build only) |
 | TFLite | Dog pose inference | `react-native-fast-tflite` | ✅ Active (native build only) |
+| Resend | Email delivery (expert review queue) | Used in Edge Functions | ✅ Active |
 
 ### 15.2 Anthropic API Configuration
 
@@ -2003,6 +2197,7 @@ export const supabase = createClient(
 | Video upload failure | Queue and retry on reconnect | "Video saved to retry when connection improves." |
 | Session sync failure | Store locally, sync on next open | Silent — sync in background |
 | Auth expiry | Auto-refresh or redirect to login | "Session expired. Please log in again." |
+| Pose detection unavailable | Fall back to manual session mode | Mode picker omits Live Camera option |
 
 ### 16.2 Error Monitoring
 
@@ -2042,6 +2237,7 @@ Sentry.init({
 | API response (p95) | < 400ms | > 1 second |
 | Plan generation | < 4 seconds | > 10 seconds |
 | Pose detection inference | ~10 FPS (100ms/frame) | < 5 FPS |
+| Live coaching frame latency | < 150ms end-to-end | > 300ms |
 
 ### 17.2 API Response Optimization
 
@@ -2049,6 +2245,7 @@ Sentry.init({
 - `planStore` derives `todaySession` and `completionPercentage` client-side when plan is loaded
 - `calendarSessions.ts` groups sessions by date client-side for the calendar view
 - React Query used for data fetching; `planStore` and `progressStore` manage caching
+- Pose inference runs in a JS worklet on every 10th camera frame (throttled) to maintain UI responsiveness
 
 ---
 
@@ -2092,19 +2289,22 @@ Current coverage: `tests/scheduleEngine.test.ts` — 6+ test cases for:
 | Notification scheduling | 80% |
 | Adaptive planning engine | 80% |
 | Pose decoder | 75% |
+| Live coaching engine | 80% |
+| Posture classifier | 75% |
 
 ### 18.4 Critical E2E Test Flows (Maestro)
 
 1. Complete onboarding → generate plan → see today screen
-2. Complete a full training session end-to-end
-3. Send AI coach message → receive response
-4. Log walk → see streak update
-5. Hit paywall → complete subscription purchase
-6. Upload video → confirm receipt and processing state
-7. Achieve milestone → see shareable card
-8. Sign out → sign back in → data persists
-9. View training calendar → navigate months → tap session
-10. Plan adaptation → see adaptation notice → view reason
+2. Complete a full training session end-to-end (manual mode)
+3. Complete a session using Live Camera Coach mode
+4. Send AI coach message → receive response
+5. Log walk → see streak update
+6. Hit paywall → complete subscription purchase
+7. Upload video → confirm receipt and processing state
+8. Achieve milestone → see shareable card
+9. Sign out → sign back in → data persists
+10. View training calendar → navigate months → tap session
+11. Plan adaptation → see adaptation notice → view reason
 
 ---
 
@@ -2116,13 +2316,13 @@ Current coverage: `tests/scheduleEngine.test.ts` — 6+ test cases for:
 - Minimum iOS 16.0
 - Privacy manifest required (iOS 17+)
 - Apple Sign In required (third-party auth offered)
-- Camera usage description required (pose detection feature)
+- Camera usage description required (pose detection / live coaching feature)
 
 **Android:**
 - Minimum API level 31 (Android 12)
 - Target API level 34 (Android 14)
 - Google Play Billing for subscriptions
-- Camera permission required (pose detection feature)
+- Camera permission required (pose detection / live coaching feature)
 
 ### 19.2 OTA Update Strategy
 
@@ -2142,7 +2342,7 @@ export default {
 }
 ```
 
-OTA updates: content updates, bug fixes, AI prompt updates, UI tweaks
+OTA updates: content updates, bug fixes, AI prompt updates, UI tweaks, coaching rule updates
 Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLite model updates
 
 ---
@@ -2151,26 +2351,30 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLi
 
 ### 20.1 What V1 Includes (Implemented)
 
-- Full onboarding wizard (18 steps: dog profile, goals, schedule preferences)
+- Full onboarding wizard (multi-step: dog profile, goals, environment, optional video upload, schedule preferences)
 - Dog profile with full breed/age/behavior/schedule data
 - AI-powered plan generation (Claude API via `generate-adaptive-plan` Edge Function)
 - Rules-based plan generation fallback
 - Schedule engine (preferred days/windows, automatic rescheduling of missed sessions)
-- Session execution engine (step-by-step, timer, rep counter, difficulty scoring)
+- Session execution engine — dual mode:
+  - **Manual mode:** step-by-step guide, timer ring, tap-to-count reps, difficulty scoring
+  - **Live Camera Coach mode:** on-device TFLite pose detection, automatic rep counting, real-time posture feedback, tracking quality indicator
+- `SessionModePicker` presented after SETUP to choose execution mode
+- Live coaching metrics (`LiveCoachingSummary`, `PoseMetrics`) stored with each session log
 - Walk integration (daily goal, 3-point quality logging, walk streak)
-- AI coach (Claude-powered, dog-context + learning state grounded, conversation history)
+- AI coach (Claude-powered, dog-context + learning state grounded, conversation history, formatted markdown responses)
 - Progress tracking (session streak, walk streak, behavior score progression)
 - Milestone system (13 milestones with shareable cards)
 - Training calendar (monthly view, session status indicators, day-level session list)
-- Adaptive planning engine (skill graph, learning state, adaptation rules, audit trail)
+- Adaptive planning engine (skill graph, 7-dimension learning state, adaptation rules, audit trail, hypothesis engine)
 - Video upload (storage, context tagging, expert review request)
 - Expert video reviews (review queue, trainer feedback, timestamp annotations, in-app viewer)
-- In-app notification center (notification bell, notification list screen)
+- In-app notification center (notification bell, inbox with realtime updates, unread count)
 - Notification preferences UI (13 configurable notification types, local scheduling)
 - Theme selection (system / light / dark)
 - Authentication (email, Apple Sign In, Google OAuth, password reset)
 - Subscription tier enforcement (free gating on plan preview)
-- On-device dog pose detection (TFLite, Vision Camera v4, skeleton overlay — native build only)
+- On-device dog pose detection pipeline (TFLite, Vision Camera v4, one-euro filter, posture classifier, state machine, skeleton overlay — native build only)
 - Know tab (education hub, video library, video player)
 
 ### 20.2 What V1 Explicitly Excludes (Not Yet Built)
@@ -2186,7 +2390,6 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLi
 - Lifecycle curriculum automation
 - Annual report
 - Multi-dog support
-- Pose detection in-session coaching integration (pose detection exists but is not wired into session flows)
 - Dog personality profile (field exists in schema, not yet populated or displayed)
 
 ### 20.3 V1 Success Criteria
@@ -2200,6 +2403,7 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLi
 | Video upload rate in first 14 days | > 25% |
 | AI coach usage (at least 1 message) in first week | > 50% |
 | Expert review attach rate | > 8% |
+| Live Camera Coach mode adoption | > 30% of sessions |
 
 ---
 
@@ -2238,7 +2442,7 @@ EXPO_PUBLIC_APP_VERSION=
     "expo": "~52.0.37",
     "expo-router": "~4.0.19",
     "react-native": "0.76.7",
-    "typescript": "^5.7.0",
+    "typescript": "~5.7.2",
     "@supabase/supabase-js": "^2.49.8",
     "zustand": "^5.0.3",
     "@tanstack/react-query": "^5.66.9",
@@ -2250,17 +2454,21 @@ EXPO_PUBLIC_APP_VERSION=
     "react-native-vision-camera": "^4.6.4",
     "react-native-fast-tflite": "^2.0.0",
     "vision-camera-resize-plugin": "^3.2.0",
+    "react-native-worklets-core": "^1.6.3",
     "react-native-purchases": "^8.0.0",
     "posthog-react-native": "^3.8.0",
     "@sentry/react-native": "^7.4.0",
     "expo-secure-store": "~14.0.1",
-    "expo-notifications": "~0.29.0",
+    "expo-notifications": "^0.29.14",
     "expo-image-picker": "~16.0.6",
-    "expo-file-system": "~18.0.2",
+    "expo-image-manipulator": "~13.0.6",
+    "expo-file-system": "~18.0.11",
     "expo-apple-authentication": "~7.1.3",
     "expo-av": "~15.0.2",
     "expo-video-thumbnails": "~8.0.0",
     "expo-linear-gradient": "~14.0.2",
+    "react-native-view-shot": "^3.8.0",
+    "jpeg-js": "^0.4.4",
     "@react-native-community/datetimepicker": "8.2.0",
     "@react-native-async-storage/async-storage": "1.23.1"
   }
@@ -2285,8 +2493,8 @@ supabase db push --project-ref $STAGING_PROJECT_REF
 supabase db push --project-ref $PRODUCTION_PROJECT_REF
 ```
 
-Migration files are version-controlled in Git and applied sequentially. Current migrations: pr03 through pr15.
+Migration files are version-controlled in Git and applied sequentially. Current migrations: pr03 through pr16.
 
 ---
 
-*End of Pawly Technical Specification v1.2*
+*End of Pawly Technical Specification v1.3*

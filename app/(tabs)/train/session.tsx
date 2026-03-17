@@ -458,6 +458,10 @@ export default function SessionScreen() {
         <StatusBar style="dark" />
         <SessionModePicker
           dogName={dogName}
+          onBack={() => {
+            setOverlayState('NONE');
+            setState('SETUP');
+          }}
           onNormal={() => {
             setOverlayState('NONE');
             setState('STEP_ACTIVE');
@@ -774,6 +778,7 @@ interface SetupViewProps {
 function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }: SetupViewProps) {
   const checklist = buildChecklist(protocol.equipmentNeeded);
   const allChecked = checkedItems.size === checklist.length;
+  const checkedCount = checkedItems.size;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -782,63 +787,98 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
           paddingTop: insets.top + spacing.md,
           paddingHorizontal: spacing.lg,
           paddingBottom: spacing.xl,
-          gap: spacing.xl,
         }}
       >
         <BackButton onPress={onBack} />
 
-        <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary }}>
-          Quick setup
-        </Text>
+        {/* Header */}
+        <View style={{ marginTop: spacing.lg, marginBottom: spacing.xl, gap: spacing.sm }}>
+          <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5 }}>
+            Quick setup
+          </Text>
+          <Text style={{ fontSize: 15, color: colors.textSecondary, lineHeight: 22 }}>
+            Check off each item before you begin.
+          </Text>
+        </View>
 
-        <View style={{ gap: spacing.md }}>
-          {checklist.map((item, i) => (
-            <Pressable
-              key={i}
-              onPress={() => onToggle(i)}
-              style={({ pressed }) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.md,
-                backgroundColor: pressed ? '#F0FDF8' : colors.surface,
-                borderRadius: 12,
-                padding: spacing.lg,
-                borderWidth: 1.5,
-                borderColor: checkedItems.has(i) ? colors.primary : colors.border.default,
-                minHeight: 56,
-              })}
-            >
-              <View
-                style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
-                  borderWidth: 2,
-                  borderColor: checkedItems.has(i) ? colors.primary : colors.border.default,
-                  backgroundColor: checkedItems.has(i) ? colors.primary : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {checkedItems.has(i) && (
-                  <AppIcon name="checkmark" size={14} color="#fff" />
-                )}
-              </View>
-              <Text
-                style={{
-                  flex: 1,
-                  fontSize: 16,
-                  color: checkedItems.has(i) ? colors.textSecondary : colors.textPrimary,
-                  textDecorationLine: checkedItems.has(i) ? 'line-through' : 'none',
-                }}
-              >
-                {item}
+        {/* Progress indicator */}
+        <View style={{ marginBottom: spacing.lg, gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>
+              {checkedCount} of {checklist.length} ready
+            </Text>
+            {allChecked && (
+              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+                All set!
               </Text>
-            </Pressable>
-          ))}
+            )}
+          </View>
+          <View style={{ height: 4, borderRadius: 99, backgroundColor: colors.border.soft, overflow: 'hidden' }}>
+            <View
+              style={{
+                height: 4,
+                borderRadius: 99,
+                backgroundColor: colors.primary,
+                width: `${(checkedCount / checklist.length) * 100}%`,
+              }}
+            />
+          </View>
+        </View>
+
+        {/* Checklist */}
+        <View style={{ gap: spacing.md }}>
+          {checklist.map((item, i) => {
+            const checked = checkedItems.has(i);
+            return (
+              <Pressable
+                key={i}
+                onPress={() => onToggle(i)}
+                style={({ pressed }) => ({
+                  borderRadius: 16,
+                  paddingHorizontal: spacing.lg,
+                  paddingVertical: spacing.lg,
+                  borderWidth: 1.5,
+                  backgroundColor: checked ? colors.status.successBg : colors.surface,
+                  borderColor: checked ? colors.status.successBorder : '#C5C9D0',
+                  opacity: pressed ? 0.75 : 1,
+                })}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 10,
+                      borderWidth: checked ? 0 : 2,
+                      borderColor: '#C5C9D0',
+                      backgroundColor: checked ? colors.primary : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {checked && <AppIcon name="checkmark" size={17} color="#fff" />}
+                  </View>
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: 17,
+                      fontWeight: checked ? '400' : '500',
+                      color: checked ? colors.textSecondary : colors.textPrimary,
+                      textDecorationLine: checked ? 'line-through' : 'none',
+                      lineHeight: 22,
+                    }}
+                  >
+                    {item}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
         </View>
       </ScrollView>
 
+      {/* Bottom CTA */}
       <View
         style={{
           paddingHorizontal: spacing.lg,
@@ -846,25 +886,26 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
           paddingTop: spacing.md,
           backgroundColor: colors.background,
           borderTopWidth: 1,
-          borderTopColor: colors.border.default,
+          borderTopColor: colors.border.soft,
+          gap: spacing.sm,
         }}
       >
         <Pressable
           onPress={onStart}
-          disabled={!allChecked}
           style={({ pressed }) => ({
-            backgroundColor: allChecked
-              ? pressed
-                ? '#1aab50'
-                : colors.primary
-              : '#D1D5DB',
-            borderRadius: 14,
+            backgroundColor: pressed ? '#1aab50' : colors.primary,
+            borderRadius: 16,
             paddingVertical: spacing.lg,
             alignItems: 'center',
             minHeight: 54,
+            shadowColor: colors.shadow.success,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.2,
+            shadowRadius: 10,
+            elevation: 4,
           })}
         >
-          <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: '#9CA3AF' }}>
             Start session
           </Text>
         </Pressable>
