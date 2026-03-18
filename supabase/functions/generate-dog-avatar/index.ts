@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,28 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const { imageBase64, dogName } = await req.json();
 
     if (!imageBase64) {
@@ -52,27 +29,52 @@ serve(async (req) => {
       });
     }
 
-    // Decode base64 to binary
+    // Decode base64 → PNG binary
     const binaryString = atob(imageBase64);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    const blob = new Blob([bytes], { type: 'image/jpeg' });
+    const blob = new Blob([bytes], { type: 'image/png' });
+
+    // ✅ FLAT ICON HEADSHOT PROMPT
+    const prompt = `
+Convert this dog photo into a clean, standardized flat cartoon avatar.
+
+Style:
+- Flat vector icon style
+- No gradients, no shadows, no textures
+- Solid color fills only
+- Bold, uniform black outlines
+- Simple geometric shapes (circles, rounded shapes)
+- Limited color palette (4–6 muted pastel colors)
+- Consistent line weight across the entire image
+
+Composition:
+- Show ONLY the dog’s head and upper neck (no body)
+- Centered and facing forward (symmetrical)
+- Head fills ~70–80% of the frame
+- Eyes slightly above center line
+- Circular or square centered crop
+
+Background:
+- Plain white or very light neutral color
+- No patterns, no scenery
+
+Consistency rules:
+- Same simplification level across all breeds
+- Preserve key breed features (ears, snout shape, colors)
+- No accessories, no humans, no text
+
+The result must look like a standardized app avatar (similar to Material Design icon or emoji style).
+`;
 
     const formData = new FormData();
-    formData.append('image', blob, 'dog.jpg');
+    formData.append('image', blob, 'dog.png');
     formData.append('model', 'gpt-image-1');
-    formData.append('prompt', `Transform this dog photo into a flat vector illustration avatar.
-Style: clean flat design with bold outlines, simple geometric shapes,
-muted pastel color palette, sticker aesthetic with a subtle drop shadow,
-pure white background, circular composition centered on the dog's face and upper body.
-The illustration should feel like a hand-crafted app icon — charming, minimal, and friendly.
-Preserve the dog's breed characteristics and coat color.
-No text, no humans, no accessories. Suitable for use as a mobile app profile picture.`);
+    formData.append('prompt', prompt);
     formData.append('size', '1024x1024');
     formData.append('n', '1');
-    formData.append('response_format', 'b64_json');
 
     const response = await fetch('https://api.openai.com/v1/images/edits', {
       method: 'POST',
@@ -86,21 +88,30 @@ No text, no humans, no accessories. Suitable for use as a mobile app profile pic
 
     if (!response.ok) {
       console.error('OpenAI API error:', result);
-      return new Response(JSON.stringify({ error: result.error?.message || 'Avatar generation failed' }), {
-        status: response.status === 401 ? 500 : 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: result.error?.message || 'Avatar generation failed' }),
+        {
+          status: response.status === 401 ? 500 : 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
-    return new Response(JSON.stringify({ avatarBase64: result.data[0].b64_json }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ avatarBase64: result.data[0].b64_json }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Unexpected error:', error);
-    return new Response(JSON.stringify({ error: 'Avatar generation failed. Please try again.' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: 'Avatar generation failed. Please try again.' }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });

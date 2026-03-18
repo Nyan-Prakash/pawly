@@ -143,6 +143,7 @@ export default function DogBasicsScreen() {
   const router = useRouter();
   const { step } = useLocalSearchParams<{ step?: string }>();
   const setField = useOnboardingStore((s) => s.setField);
+  const stored = useOnboardingStore((s) => s);
 
   const [currentStepIndex, setCurrentStepIndex] = useState(step ? parseInt(step, 10) : 0);
 
@@ -155,26 +156,27 @@ export default function DogBasicsScreen() {
     }
   }, [step]);
 
-  // Local form state — written to store in batch at step 17
-  const [dogName, setDogName] = useState('');
-  const [ageMonths, setAgeMonths] = useState(12);
-  const [breed, setBreed] = useState('');
-  const [breedQuery, setBreedQuery] = useState('');
+  // Local form state — seeded from store so returning mid-flow preserves values
+  // Written back to store in batch at step 17 (generatingPlan)
+  const [dogName, setDogName] = useState(stored.dogName || '');
+  const [ageMonths, setAgeMonths] = useState(stored.ageMonths || 12);
+  const [breed, setBreed] = useState(stored.breed || '');
+  const [breedQuery, setBreedQuery] = useState(stored.breed || '');
   const [breedFocused, setBreedFocused] = useState(false);
-  const [sex, setSex] = useState<'male' | 'female'>('male');
-  const [neutered, setNeutered] = useState(false);
-  const [primaryGoal, setPrimaryGoal] = useState('');
-  const [secondaryGoals, setSecondaryGoals] = useState<string[]>([]);
-  const [severity, setSeverity] = useState<'mild' | 'moderate' | 'severe'>('moderate');
-  const [trainingExperience, setTrainingExperience] = useState<'none' | 'some' | 'experienced'>('none');
-  const [environmentType, setEnvironmentType] = useState<'apartment' | 'house_no_yard' | 'house_yard'>('house_yard');
-  const [hasKids, setHasKids] = useState(false);
-  const [hasOtherPets, setHasOtherPets] = useState(false);
-  const [availableDaysPerWeek, setAvailableDaysPerWeek] = useState(3);
-  const [availableMinutesPerDay, setAvailableMinutesPerDay] = useState(10);
-  const [preferredDays, setPreferredDays] = useState<Weekday[]>([]);
+  const [sex, setSex] = useState<'male' | 'female'>(stored.sex || 'male');
+  const [neutered, setNeutered] = useState(stored.neutered ?? false);
+  const [primaryGoal, setPrimaryGoal] = useState(stored.primaryGoal || '');
+  const [secondaryGoals, setSecondaryGoals] = useState<string[]>(stored.secondaryGoals || []);
+  const [severity, setSeverity] = useState<'mild' | 'moderate' | 'severe'>(stored.severity || 'moderate');
+  const [trainingExperience, setTrainingExperience] = useState<'none' | 'some' | 'experienced'>(stored.trainingExperience || 'none');
+  const [environmentType, setEnvironmentType] = useState<'apartment' | 'house_no_yard' | 'house_yard'>(stored.environmentType || 'house_yard');
+  const [hasKids, setHasKids] = useState(stored.hasKids ?? false);
+  const [hasOtherPets, setHasOtherPets] = useState(stored.hasOtherPets ?? false);
+  const [availableDaysPerWeek, setAvailableDaysPerWeek] = useState(stored.availableDaysPerWeek || 3);
+  const [availableMinutesPerDay, setAvailableMinutesPerDay] = useState(stored.availableMinutesPerDay || 10);
+  const [preferredDays, setPreferredDays] = useState<Weekday[]>(stored.preferredTrainingDays || []);
   const [timeWindow, setTimeWindow] = useState<string | null>(null);
-  const [sessionStyle, setSessionStyle] = useState<SessionStyle>('balanced');
+  const [sessionStyle, setSessionStyle] = useState<SessionStyle>(stored.sessionStyle || 'balanced');
 
   // Breed search
   const breedResults =

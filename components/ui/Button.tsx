@@ -15,7 +15,7 @@ import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'reward';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'reward';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 type ButtonProps = Omit<PressableProps, 'style'> & {
@@ -58,6 +58,12 @@ export function Button({
       borderWidth: 0,
     },
     secondary: {
+      backgroundColor: colors.bg.surface,
+      borderColor: colors.border.default,
+      textColor: colors.text.primary,
+      borderWidth: 1.5,
+    },
+    outline: {
       backgroundColor: colors.bg.surface,
       borderColor: colors.border.default,
       textColor: colors.text.primary,
