@@ -101,7 +101,7 @@ export function SessionModePicker({
             maxWidth: 300,
           }}
         >
-          Live Camera Coach tracks {dogName}'s posture automatically and counts reps for you.
+          Our expert AI watches and listens to provide real-time coaching for {dogName}.
         </Text>
       </View>
 
@@ -140,7 +140,7 @@ export function SessionModePicker({
             <View style={{ flex: 1, gap: 4 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>
-                  Live Camera Coach
+                  Live AI Trainer
                 </Text>
                 <View
                   style={{
@@ -156,7 +156,7 @@ export function SessionModePicker({
                 </View>
               </View>
               <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
-                Point your camera at {dogName}. The app tracks posture and counts reps in real time.
+                Point your camera at {dogName} and talk naturally. The AI gives live advice and judges progress.
               </Text>
             </View>
 
@@ -177,7 +177,7 @@ export function SessionModePicker({
 
           {/* Feature pills */}
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' }}>
-            {['Auto rep count', 'Posture feedback', 'Hands-free'].map((label) => (
+            {['Live Coaching', 'Voice Enabled', 'Hands-free'].map((label) => (
               <View
                 key={label}
                 style={{

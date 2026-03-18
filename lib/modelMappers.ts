@@ -11,6 +11,7 @@ import type {
   SkillEdge,
   SkillNode,
 } from '../types/index.ts';
+import type { LiveAiTrainerSummary } from './liveCoach/liveAiTrainerTypes.ts';
 import type { Protocol, LiveCoachingConfig } from '../constants/protocols.ts';
 import { normalizeArticleContentBlocks, normalizeArticleDifficulty } from './articleContent.ts';
 import { getGoalColor } from '../constants/courseColors.ts';
@@ -279,6 +280,7 @@ export interface SessionLogModel {
   sessionKind: PlanSession['sessionKind'] | null;
   environmentTag: string | null;
   liveCoachingUsed: boolean;
+  liveAiTrainerSummary: LiveAiTrainerSummary | null;
   postSessionReflection: PostSessionReflection | null;
 }
 
@@ -307,6 +309,7 @@ export function mapSessionLogRowToModel(data: Record<string, unknown>): SessionL
     sessionKind: (data.session_kind as PlanSession['sessionKind']) ?? null,
     environmentTag: typeof data.environment_tag === 'string' ? data.environment_tag : null,
     liveCoachingUsed: data.live_coaching_used === true,
+    liveAiTrainerSummary: (data.live_ai_trainer_summary as LiveAiTrainerSummary) ?? null,
     postSessionReflection,
   };
 }

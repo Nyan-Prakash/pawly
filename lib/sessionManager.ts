@@ -3,6 +3,7 @@ import { updateLearningStateFromSessionLog } from '@/lib/adaptivePlanning/learni
 import type { AdaptationApiResult, PlanEnvironment, PlanSession, PostSessionReflection } from '@/types';
 import type { StepResult } from '@/stores/sessionStore';
 import type { TrackingQuality, PostureLabel } from '@/types/pose';
+import type { LiveAiTrainerSummary } from './liveCoach/liveAiTrainerTypes';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -74,6 +75,8 @@ export interface SaveSessionParams {
   liveCoachingSummary?: LiveCoachingSummary;
   /** Detailed pose pipeline metrics. Only set when liveCoachingUsed is true. */
   poseMetrics?: PoseMetrics;
+  /** Summary of the Live AI Trainer interaction. */
+  liveAiTrainerSummary?: LiveAiTrainerSummary;
   // PR17: post-session reflection (optional — null when handler skips the flow)
   /** Structured handler reflection captured after the session review step. */
   postSessionReflection?: PostSessionReflection | null;
@@ -164,6 +167,7 @@ export async function saveSession(params: SaveSessionParams): Promise<SaveSessio
       live_coaching_used: params.liveCoachingUsed ?? false,
       live_coaching_summary: params.liveCoachingSummary ?? {},
       pose_metrics: params.poseMetrics ?? {},
+      live_ai_trainer_summary: params.liveAiTrainerSummary ?? null,
       post_session_reflection: params.postSessionReflection ?? null,
     })
     .select('id')

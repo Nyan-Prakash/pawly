@@ -21,7 +21,7 @@ import { TimerRing } from '@/components/session/TimerRing';
 import { RepCounter } from '@/components/session/RepCounter';
 import { StepCard } from '@/components/session/StepCard';
 import { SessionModePicker } from '@/components/session/SessionModePicker';
-import { LiveCoachOverlay } from '@/components/vision/LiveCoachOverlay';
+import { LiveAiTrainerOverlay } from '@/components/vision/LiveAiTrainerOverlay';
 import { colors } from '@/constants/colors';
 import { getCourseUiColors, hexToRgba, type CourseUiColors } from '@/constants/courseColors';
 import { spacing } from '@/constants/spacing';
@@ -34,8 +34,8 @@ import { saveSession, checkMilestones, updateStreak } from '@/lib/sessionManager
 import type { LiveCoachingSummary, PoseMetrics } from '@/lib/sessionManager';
 import { EXERCISE_TO_PROTOCOL } from '@/constants/protocols';
 import { didUpcomingScheduleChange } from '@/lib/notifications';
-import { useLiveCoachingSession } from '@/hooks/useLiveCoachingSession';
-import type { CoachingSessionMetrics } from '@/lib/liveCoach/liveCoachingTypes';
+import { useLiveAiTrainerSession } from '@/hooks/useLiveAiTrainerSession';
+import type { LiveAiTrainerSummary } from '@/lib/liveCoach/liveAiTrainerTypes';
 import { buildPostSessionReflectionQuestions } from '@/lib/adaptivePlanning/reflectionQuestionEngine';
 import type { ReflectionQuestionConfig } from '@/lib/adaptivePlanning/reflectionQuestionTypes';
 import {
@@ -146,7 +146,7 @@ export default function SessionScreen() {
   // Kept local so normal session flow (store state machine) is never touched.
   const [overlayState, setOverlayState] = useState<LocalOverlayState>('NONE');
   // Metrics captured when live coaching completes; passed to saveSession.
-  const liveMetricsRef = useRef<CoachingSessionMetrics | null>(null);
+  const liveAiSummaryRef = useRef<LiveAiTrainerSummary | null>(null);
 
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const backgroundTimeRef = useRef<number | null>(null);
@@ -345,7 +345,7 @@ export default function SessionScreen() {
 
         const planSession = activePlan.sessions.find((session) => session.id === sid);
         const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
-        const liveMetrics = liveMetricsRef.current;
+        const liveAiSummary = liveAiSummaryRef.current;
         await saveSession({
           userId: user.id,
           dogId: dog.id,
@@ -363,58 +363,9 @@ export default function SessionScreen() {
           skillId: planSession?.skillId ?? null,
           sessionKind: planSession?.sessionKind ?? null,
           environmentTag: planSession?.environment ?? null,
-          // Live coaching fields — only populated when camera mode was used
-          liveCoachingUsed: liveMetrics !== null,
-          liveCoachingSummary: liveMetrics
-            ? ((): LiveCoachingSummary => {
-                const totalFrames =
-                  liveMetrics.trackingQualityBreakdown.good +
-                  liveMetrics.trackingQualityBreakdown.fair +
-                  liveMetrics.trackingQualityBreakdown.poor;
-                const avgTrackingQuality = totalFrames > 0
-                  ? (liveMetrics.trackingQualityBreakdown.good * 1.0 +
-                     liveMetrics.trackingQualityBreakdown.fair * 0.5) / totalFrames
-                  : 0;
-                const sessionAssessment: LiveCoachingSummary['sessionAssessment'] =
-                  liveMetrics.repCountDetected >= (protocol.liveCoachingConfig?.requiredRepCount ?? protocol.repCount)
-                    ? 'completed'
-                    : liveMetrics.repCountDetected > 0
-                    ? 'partial'
-                    : 'abandoned';
-                return {
-                  coachingMode:           protocol.liveCoachingConfig?.mode ?? 'stationary_hold',
-                  protocolId,
-                  targetPostures:         (protocol.liveCoachingConfig?.targetPostures ?? []) as LiveCoachingSummary['targetPostures'],
-                  successCount:           liveMetrics.repCountDetected,
-                  resetCount:             liveMetrics.resetCount,
-                  averageTrackingQuality: Math.round(avgTrackingQuality * 100) / 100,
-                  sessionAssessment,
-                };
-              })()
-            : undefined,
-          poseMetrics: liveMetrics
-            ? ((): PoseMetrics => {
-                const totalFrames =
-                  liveMetrics.trackingQualityBreakdown.good +
-                  liveMetrics.trackingQualityBreakdown.fair +
-                  liveMetrics.trackingQualityBreakdown.poor;
-                // Approximate average confidence from quality breakdown
-                const avgConfidence = totalFrames > 0
-                  ? (liveMetrics.trackingQualityBreakdown.good * 0.80 +
-                     liveMetrics.trackingQualityBreakdown.fair * 0.55 +
-                     liveMetrics.trackingQualityBreakdown.poor * 0.20) / totalFrames
-                  : 0;
-                return {
-                  averageTrackingConfidence: Math.round(avgConfidence * 100) / 100,
-                  trackingQualityBreakdown:  liveMetrics.trackingQualityBreakdown,
-                  postureDurations:          liveMetrics.postureDurations,
-                  holdDurations:             liveMetrics.holdDurations,
-                  repCountDetected:          liveMetrics.repCountDetected,
-                  lostTrackingEvents:        liveMetrics.lostTrackingEvents,
-                  significantMotionEvents:   liveMetrics.significantMotionEvents,
-                };
-              })()
-            : undefined,
+          // Live AI Trainer fields
+          liveCoachingUsed: liveAiSummary !== null && liveAiSummary.used,
+          liveAiTrainerSummary: liveAiSummary ?? undefined,
           // Post-session reflection — pass answered object or null when no
           // questions were shown (e.g. engine fallback or all skipped).
           postSessionReflection: reflectionQuestions.length > 0 ? reflectionAnswers : null,
@@ -556,21 +507,28 @@ export default function SessionScreen() {
     );
   }
 
-  if (overlayState === 'LIVE_COACHING' && protocol.liveCoachingConfig) {
+  if (overlayState === 'LIVE_COACHING' && activeSession) {
     return (
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         <StatusBar style="light" />
-        <LiveCoachingScreen
-          protocol={protocol}
-          dogName={dogName}
-          onComplete={(metrics: CoachingSessionMetrics) => {
-            liveMetricsRef.current = metrics;
+        <LiveAiTrainerScreen
+          protocol={activeSession.protocol}
+          dogId={dog?.id ?? ''}
+          planId={activePlan?.id ?? ''}
+          sessionId={activeSession.sessionId}
+          currentStepIndex={activeSession.currentStepIndex}
+          onComplete={(summary: LiveAiTrainerSummary) => {
+            liveAiSummaryRef.current = summary;
             setOverlayState('NONE');
             setState('SESSION_REVIEW');
           }}
           onExit={() => {
             setOverlayState('NONE');
             setShowAbandonSheet(true);
+          }}
+          onManualSwitch={() => {
+            setOverlayState('NONE');
+            setState('STEP_ACTIVE');
           }}
         />
         {/* Abandon sheet is accessible from live coaching too */}
@@ -1708,31 +1666,36 @@ function Chip({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LiveCoachingScreen
+// LiveAiTrainerScreen
 //
-// Self-contained sub-screen that mounts useLiveCoachingSession, feeds frames
-// into the coaching engine, and delegates UI to LiveCoachOverlay.
-//
-// Intentionally kept as a local component (not exported) — it only makes sense
-// inside session.tsx where protocol + dogName are already resolved.
+// Self-contained sub-screen that mounts useLiveAiTrainerSession and
+// delegates UI to LiveAiTrainerOverlay.
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface LiveCoachingScreenProps {
+interface LiveAiTrainerScreenProps {
   protocol: import('@/constants/protocols').Protocol;
-  dogName: string;
-  onComplete: (metrics: CoachingSessionMetrics) => void;
+  dogId: string;
+  planId: string;
+  sessionId: string;
+  currentStepIndex: number;
+  onComplete: (summary: LiveAiTrainerSummary) => void;
   onExit: () => void;
+  onManualSwitch: () => void;
 }
 
-function LiveCoachingScreen({
+function LiveAiTrainerScreen({
   protocol,
-  dogName,
+  dogId,
+  planId,
+  sessionId,
+  currentStepIndex,
   onComplete,
   onExit,
-}: LiveCoachingScreenProps) {
-  const coaching = useLiveCoachingSession({ protocol, dogName });
+  onManualSwitch,
+}: LiveAiTrainerScreenProps) {
+  const coaching = useLiveAiTrainerSession({ protocol, dogId, planId, sessionId, currentStepIndex });
 
-  // Start camera pipeline on mount; stop on unmount
+  // Start coaching on mount; stop on unmount
   useEffect(() => {
     coaching.start();
     return () => {
@@ -1742,38 +1705,27 @@ function LiveCoachingScreen({
 
   // Watch for session completion
   useEffect(() => {
-    if (coaching.isComplete && coaching.metrics) {
-      onComplete(coaching.metrics);
+    if (coaching.isComplete) {
+      onComplete(coaching.getSummary());
     }
   }, [coaching.isComplete]);
 
-  // ── Haptic feedback on meaningful state transitions ─────────────────────────
-  // Only fire once per transition; never on every frame.
-  const prevCoachingStateRef = useRef<string | null>(null);
+  // Haptic feedback on coach messages
   useEffect(() => {
-    const state = coaching.coachingDecision?.state;
-    if (!state || state === prevCoachingStateRef.current) return;
-    prevCoachingStateRef.current = state;
-
-    if (state === 'good_rep' || state === 'complete') {
-      // Two short pulses — success feel
-      Vibration.vibrate([0, 60, 60, 120]);
-    } else if (state === 'reset') {
-      // Single soft pulse — prompt attention without alarm
-      Vibration.vibrate(80);
-    } else if (state === 'hold_in_progress') {
-      // Gentle single tick — "hold started"
-      Vibration.vibrate(40);
+    if (coaching.lastResponse?.coachMessage) {
+      Vibration.vibrate(60);
     }
-  }, [coaching.coachingDecision?.state]);
+  }, [coaching.lastResponse?.coachMessage]);
 
   return (
-    <LiveCoachOverlay
-      coaching={coaching}
-      stabilizedObservation={coaching.stabilizedObservation}
-      rawObservation={coaching.rawObservation}
-      trackingQuality={coaching.trackingQuality}
+    <LiveAiTrainerOverlay
+      status={coaching.status}
+      lastResponse={coaching.lastResponse}
+      cameraRef={coaching.cameraRef}
       onExit={onExit}
+      onAskCoach={coaching.askCoach}
+      onCheckPosture={coaching.checkPosture}
+      onManualSwitch={onManualSwitch}
     />
   );
 }
