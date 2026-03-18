@@ -1,7 +1,7 @@
 # Pawly — Technical Specification
-**Version:** 1.4
-**Date:** March 17, 2026
-**Status:** Current (updated to match implemented codebase including PR17 Post-Session Reflection)
+**Version:** 1.5
+**Date:** March 18, 2026
+**Status:** Current (updated to reflect multi-course plans, course color system, articles library, and all prior PRs through PR-21)
 
 ---
 
@@ -34,7 +34,7 @@
 
 ### 1.1 What Pawly Is
 
-Pawly is a mobile-first subscription application that delivers personalized dog training plans, AI-powered coaching, video feedback, and a lifecycle content system across the full lifespan of a dog. The system maintains a persistent behavioral memory of each dog and adapts its guidance based on ongoing session outcomes, structured post-session handler reflections, user-submitted video, and lifecycle stage. Sessions can be completed in manual mode or via a live camera coaching mode that uses on-device pose detection to count reps and provide real-time posture feedback.
+Pawly is a mobile-first subscription application that delivers personalized dog training plans, AI-powered coaching, video feedback, and a lifecycle content system across the full lifespan of a dog. The system maintains a persistent behavioral memory of each dog and adapts its guidance based on ongoing session outcomes, structured post-session handler reflections, user-submitted video, and lifecycle stage. Sessions can be completed in manual mode or via a live camera coaching mode that uses on-device pose detection to count reps and provide real-time posture feedback. A dog can have up to two simultaneously active training courses, each with its own plan and schedule that are merged into a unified daily view.
 
 ### 1.2 Core User Flow (Happy Path)
 
@@ -43,7 +43,7 @@ Download App
      ↓
 Onboarding (multi-step wizard: dog profile + goal + schedule preferences)
      ↓
-Plan Generated (AI-powered via Claude API, 4-week, 8 behavior goals supported)
+Plan Generated (AI-powered via Claude API, 8 behavior goals supported)
      ↓
 Plan Preview → Account Creation → First Session
      ↓
@@ -56,6 +56,8 @@ AI Coach Available Throughout
 Plan Adapts Based on Session Outcomes + Reflection Signals
      ↓
 Progress Tracked → Streaks → Milestones
+     ↓
+Add Second Course (optional — up to 2 active courses per dog)
      ↓
 Expert Video Review (optional, premium add-on)
      ↓
@@ -121,6 +123,8 @@ Lifecycle Events Triggered as Dog Ages
 - **AI-driven planning:** Plan generation uses Claude API via `generate-adaptive-plan` Edge Function; rules-based fallback available
 - **On-device ML inference:** Dog pose detection runs entirely on-device via TFLite (no server round-trip)
 - **Structured handler feedback:** Post-session reflection captures structured handler observations to enrich adaptation signals
+- **Multi-course scheduling:** A dog can have up to 2 active training plans; sessions are merged into a single prioritized daily view via `lib/mergedSchedule.ts`
+- **Deterministic course colors:** Colors are assigned from a fixed palette via hash of plan ID — no DB persistence required
 
 ### 2.3 Technology Stack Summary
 
@@ -156,7 +160,7 @@ pawly/
 │   │   ├── welcome.tsx           # Hero landing screen
 │   │   ├── login.tsx             # Email/password + OAuth login
 │   │   ├── signup.tsx            # Email/password + OAuth signup
-│   │   └── forgot-password.tsx  # Password reset request
+│   │   └── forgot-password.tsx   # Password reset request
 │   ├── (onboarding)/             # Onboarding flow
 │   │   ├── dog-basics.tsx        # Primary onboarding wizard (dog name, breed, age, sex)
 │   │   ├── dog-problem.tsx       # Select primary behavior goal & severity
@@ -165,14 +169,15 @@ pawly/
 │   │   └── plan-preview.tsx      # Plan summary + paywall gate
 │   ├── (tabs)/                   # Main authenticated tab navigator
 │   │   ├── train/
-│   │   │   ├── index.tsx         # Today card / home screen
-│   │   │   ├── calendar.tsx      # Monthly training calendar view
-│   │   │   ├── session.tsx       # Active session screen (manual + live camera modes + post-session reflection)
-│   │   │   ├── plan.tsx          # Full plan view (all sessions)
+│   │   │   ├── index.tsx         # Today card / home screen (multi-course aware)
+│   │   │   ├── calendar.tsx      # Monthly training calendar (merged multi-course view)
+│   │   │   ├── session.tsx       # Active session screen (manual + live camera + post-session reflection)
+│   │   │   ├── plan.tsx          # Full plan view with course switcher
+│   │   │   ├── add-course.tsx    # Add a second training course for the dog
 │   │   │   ├── notifications.tsx # In-app notification center
 │   │   │   ├── pose-debug.tsx    # Dev-only: pose detection debug (entry)
 │   │   │   ├── pose-debug-impl.tsx  # Dev-only: pose detection debug (implementation)
-│   │   │   └── upload-video.tsx  # Video submission for expert review
+│   │   │   └── upload-video.tsx  # Video upload
 │   │   ├── progress/
 │   │   │   ├── index.tsx         # Progress dashboard
 │   │   │   └── milestones.tsx    # All milestones screen
@@ -190,11 +195,11 @@ pawly/
 │   ├── session/                  # TimerRing, RepCounter, StepCard, SessionModePicker, LiveCoachOverlay, PostSessionReflectionCard
 │   ├── coach/                    # MessageBubble, TypingIndicator, QuickSuggestions, FormattedCoachMessage
 │   ├── progress/                 # MilestoneCard, ShareCard
-│   ├── train/                    # TrainingCalendar, CalendarDayCell, DaySessionList
+│   ├── train/                    # ActiveCourseCard, TrainingCalendar, CalendarDayCell, DaySessionList
 │   ├── vision/                   # DogKeypointOverlay, LiveCoachOverlay, TrackingQualityBadge
 │   ├── adaptive/                 # LearningInsightCard, AdaptationNotice, WhyThisChangedSheet, PlanReasonCard, SessionChangeBadge
 │   ├── notifications/            # NotificationBell, NotificationItem
-│   ├── video/                    # VideoUploadProgress, ExpertReviewRequest
+│   ├── video/                    # VideoUploadProgress
 │   ├── onboarding/               # OptionCard, QuestionScreen, ScheduleSelector
 │   └── shared/                   # WalkLogModal
 ├── stores/                       # Zustand state stores
@@ -214,67 +219,73 @@ pawly/
 ├── lib/                          # Utilities and service helpers
 │   ├── supabase.ts               # Supabase client + createUserRecord()
 │   ├── planGenerator.ts          # Goal maps, sequences, plan building (rules-based fallback)
-│   ├── scheduleEngine.ts         # Schedule logic, session timing, rescheduling
-│   ├── sessionManager.ts         # Session saving, streak updates, milestone checks, live coaching metrics, reflection persistence
+│   ├── scheduleEngine.ts         # Per-plan schedule logic, session timing, rescheduling
+│   ├── mergedSchedule.ts         # Cross-plan merge and recommendation layer (multi-course)
+│   ├── addCourse.ts              # Add-second-course flow orchestration
+│   ├── addCourseUtils.ts         # Course title building, duplicate detection, goal normalization
+│   ├── sessionManager.ts         # Session saving, streak updates, milestone checks, reflection persistence
 │   ├── milestoneEngine.ts        # 13 milestone definitions and check functions
 │   ├── analytics.ts              # Event capture (console-only in dev; PostHog pending)
-│   ├── modelMappers.ts           # DB row → TypeScript type converters (includes reflection normalization)
+│   ├── modelMappers.ts           # DB row → TypeScript type converters (includes multi-course fields)
 │   ├── notifications.ts          # Expo Notifications wrapper, scheduling
 │   ├── inAppNotifications.ts     # In-app notification logic
 │   ├── videoUploader.ts          # Video upload utilities
 │   ├── calendarSessions.ts       # Calendar date ops, session grouping by date
 │   ├── planScheduleDiff.ts       # Plan change diffing
 │   ├── theme.ts                  # useTheme() hook
-│   ├── reflectionAnswerHelpers.ts  # Pure functions for PostSessionReflection (testable without RN)
+│   ├── reflectionAnswerHelpers.ts  # Pure functions for PostSessionReflection
 │   ├── adaptivePlanning/         # Full adaptive planning engine (27 files)
-│   │   ├── types.ts              # Adaptation types and interfaces
-│   │   ├── config.ts             # Feature flags and configuration
-│   │   ├── featureFlags.ts       # Runtime feature control
-│   │   ├── initialPlanner.ts     # Rules-based fallback planner
-│   │   ├── adaptationEngine.ts   # Decides when & what to adapt (uses reflection signals)
-│   │   ├── adaptationRules.ts    # Adaptation trigger rules and candidate scoring (includes reflection-based rules)
-│   │   ├── adaptationCompiler.ts # Converts adaptations to plan updates
-│   │   ├── adaptationAudit.ts    # Audit trail for adaptations
-│   │   ├── hypothesisEngine.ts   # Learning hypothesis generation (incorporates reflection evidence)
-│   │   ├── learningStateEngine.ts    # Updates learning state from signals (includes reflection signals)
-│   │   ├── learningStateScoring.ts   # Scores 7 dog learning dimensions
-│   │   ├── learningStateSummary.ts   # Summarizes learning state
-│   │   ├── learningSignals.ts        # Extracts signals from session/walk logs and post-session reflections
-│   │   ├── skillGraph.ts             # Skill prerequisite/advancement graph
-│   │   ├── graphTraversal.ts         # Graph traversal for skill pathfinding
-│   │   ├── graphValidation.ts        # Validates skill graph integrity
-│   │   ├── planValidation.ts         # Validates generated plans
-│   │   ├── planDiff.ts               # Diff between plan versions
-│   │   ├── planCompiler.ts           # Compiles AI planner output to concrete plan
-│   │   ├── plannerPrompt.ts          # AI prompt engineering for plan generation
-│   │   ├── repositories.ts           # Supabase queries for adaptation & learning state
-│   │   ├── reflectionQuestionTypes.ts    # Types for reflection questions and engine input
-│   │   ├── reflectionQuestionCatalog.ts  # 8 pre-defined question configs
-│   │   ├── reflectionQuestionEngine.ts   # Selects questions based on session context (Rules A–G)
-│   │   └── reflectionNormalizer.ts       # Validates/normalizes PostSessionReflection from raw DB JSONB
+│   │   ├── types.ts
+│   │   ├── config.ts
+│   │   ├── featureFlags.ts
+│   │   ├── initialPlanner.ts
+│   │   ├── adaptationEngine.ts
+│   │   ├── adaptationRules.ts
+│   │   ├── adaptationCompiler.ts
+│   │   ├── adaptationAudit.ts
+│   │   ├── hypothesisEngine.ts
+│   │   ├── learningStateEngine.ts
+│   │   ├── learningStateScoring.ts
+│   │   ├── learningStateSummary.ts
+│   │   ├── learningSignals.ts
+│   │   ├── skillGraph.ts
+│   │   ├── graphTraversal.ts
+│   │   ├── graphValidation.ts
+│   │   ├── planValidation.ts
+│   │   ├── planDiff.ts
+│   │   ├── planCompiler.ts
+│   │   ├── plannerPrompt.ts
+│   │   ├── repositories.ts
+│   │   ├── reflectionQuestionTypes.ts
+│   │   ├── reflectionQuestionCatalog.ts
+│   │   ├── reflectionQuestionEngine.ts
+│   │   └── reflectionNormalizer.ts
 │   ├── liveCoach/                # Live coaching engine (6 files)
-│   │   ├── liveCoachingTypes.ts  # CoachingEngineState, CoachingDecision, CoachingFrameInput, ResolvedCoachingConfig
-│   │   ├── liveCoachingEngine.ts # Per-frame coaching state machine
-│   │   ├── liveCoachingRules.ts  # Success/reset rule evaluation, feedback template selection
-│   │   ├── liveCoachingSession.ts # Session lifecycle management
-│   │   └── (additional support files)
+│   │   ├── liveCoachingTypes.ts
+│   │   ├── liveCoachingEngine.ts
+│   │   ├── liveCoachingRules.ts
+│   │   └── liveCoachingSession.ts
 │   └── vision/                   # On-device vision utilities (11 files)
-│       ├── poseDecoder.ts        # Decodes TFLite output to PoseObservation
-│       ├── TFLitePoseProvider.ts # TFLite model wrapper
-│       ├── nativeSupport.ts      # Platform support checks
-│       ├── poseStateMachine.ts   # Posture transition state machine
-│       ├── postureClassifier.ts  # Classifies keypoints into posture labels (sit/down/stand)
-│       ├── poseFeatureExtractor.ts  # Extracts geometric features from keypoints
-│       ├── poseStabilizer.ts     # One-Euro filter smoothing of keypoints over time
-│       ├── poseTrackingQuality.ts   # Computes per-frame tracking quality (good/fair/poor)
-│       ├── poseEventDetector.ts  # Detects motion/tracking events
-│       ├── poseOutlierRejection.ts  # Filters outlier keypoints
-│       └── oneEuroFilter.ts      # One-Euro adaptive smoothing filter
+│       ├── poseDecoder.ts
+│       ├── TFLitePoseProvider.ts
+│       ├── nativeSupport.ts
+│       ├── poseStateMachine.ts
+│       ├── postureClassifier.ts
+│       ├── poseFeatureExtractor.ts
+│       ├── poseStabilizer.ts
+│       ├── poseTrackingQuality.ts
+│       ├── poseEventDetector.ts
+│       ├── poseOutlierRejection.ts
+│       └── oneEuroFilter.ts
 ├── types/                        # TypeScript type definitions
-│   ├── index.ts                  # All app types (~618 lines)
+│   ├── index.ts                  # All app types
 │   └── pose.ts                   # Dog pose keypoint types
 ├── tests/                        # Unit tests (Node.js test runner)
 │   ├── scheduleEngine.test.ts
+│   ├── mergedSchedule.test.ts
+│   ├── courseColors.test.ts
+│   ├── multiCourseUI.test.ts
+│   ├── addCourse.test.ts
 │   ├── postSessionReflection.test.ts
 │   ├── postSessionReflectionUI.test.ts
 │   ├── reflectionAdaptation.test.ts
@@ -284,6 +295,7 @@ pawly/
 │   └── reflectionSignals.test.ts
 ├── constants/                    # App-wide constants
 │   ├── protocols.ts              # Full training protocol library (1,360+ lines)
+│   ├── courseColors.ts           # Course color palette + goal color mapping + theming utilities
 │   └── colors.ts                 # Brand color palette
 └── assets/                       # Images, fonts, animations, TFLite model
 ```
@@ -305,10 +317,11 @@ Root Layout (RootNavigationGate)
 │   └── Plan Preview → Account creation
 └── Main Tab Navigator (authenticated + dog profile exists)
     ├── Train Tab
-    │   ├── Today Screen (home)
-    │   ├── Calendar Screen (monthly plan view)
+    │   ├── Today Screen (home — multi-course aware)
+    │   ├── Calendar Screen (merged monthly plan view)
     │   ├── Session Screen (step-by-step execution, manual or live camera, post-session reflection)
-    │   ├── Full Plan Screen (all sessions, week view)
+    │   ├── Full Plan Screen (course switcher, per-plan sessions, week view)
+    │   ├── Add Course Screen (enroll dog in a second training course)
     │   ├── Notifications Screen (in-app notification center)
     │   └── Upload Video Screen
     ├── Progress Tab
@@ -317,17 +330,14 @@ Root Layout (RootNavigationGate)
     ├── Coach Tab
     │   └── Chat Screen (AI coach, hides bottom nav bar)
     ├── Know Tab
-    │   ├── Education Hub
-    │   ├── Video Library
-    │   └── Video Player
+    │   ├── Article Library
+    │   └── Article Reader
     └── Profile Tab
         ├── Profile Screen (dog info, stats, theme)
         └── Notification Settings Screen
 ```
 
 #### Navigation Gate Logic (`app/_layout.tsx`)
-
-The `RootNavigationGate` component controls routing based on auth and dog profile state:
 
 ```
 App starts
@@ -344,8 +354,6 @@ Authenticated, no dog profile?
 Authenticated, dog profile exists?
   → Redirect to /(tabs)/train (Today screen)
 ```
-
-Also sets up a notification response listener to deep-link into the app when users tap push notifications.
 
 ### 3.3 State Management
 
@@ -391,7 +399,75 @@ interface DogStore {
 }
 ```
 
-Uses `modelMappers.mapDogRowToDog()` and `modelMappers.mapPlanRowToPlan()` to convert DB snake_case rows to TypeScript camelCase types.
+#### planStore
+
+The plan store was redesigned in PR-18 to support multiple simultaneous active plans per dog.
+
+```typescript
+interface PlanStore {
+  // ── Multi-plan state ──────────────────────────────────────────────────────
+  /** All active plans keyed by plan id. */
+  plansById: Record<string, Plan>
+  /** Ordered list of active plan ids (priority DESC, created_at DESC). */
+  activePlanIds: string[]
+  /**
+   * The plan id currently selected for deep-dive views (plan screen, session screen).
+   * Falls back to the primary plan if null.
+   */
+  selectedPlanId: string | null
+  /**
+   * All sessions scheduled for today across every active plan.
+   * The recommended session is always first; the rest follow tie-break order.
+   */
+  todaySessions: EnrichedPlanSession[]
+  /**
+   * The single session surfaced in the Today CTA. Chosen by mergeActivePlanSchedules:
+   *   1. Overdue sessions first (oldest overdue wins)
+   *   2. Today's session from primary/highest-priority plan
+   *   3. Nearest upcoming session if nothing due today
+   */
+  recommendedTodaySession: EnrichedPlanSession | null
+  /** All overdue (missed) sessions across active plans, sorted oldest first. */
+  missedSessions: EnrichedPlanSession[]
+  protocols: Record<string, Protocol>
+  recentAdaptations: PlanAdaptation[]
+  isLoading: boolean
+
+  // ── Multi-plan actions ────────────────────────────────────────────────────
+  fetchActivePlans: (dogId: string) => Promise<void>
+  refreshPlans: (dogId: string) => Promise<void>
+  setSelectedPlan: (planId: string | null) => void
+  getSelectedPlan: () => Plan | null
+  getPlanSessions: (planId: string) => PlanSession[]
+  getRecommendedTodaySession: () => EnrichedPlanSession | null
+  getUpcomingSessionsAcrossPlans: (limit?: number) => EnrichedPlanSession[]
+  getMissedSessionsAcrossPlans: () => EnrichedPlanSession[]
+  getGroupedSessionsForCalendar: () => Record<string, EnrichedPlanSession[]>
+
+  // ── Per-plan actions ──────────────────────────────────────────────────────
+  fetchProtocol: (exerciseId: string) => Promise<Protocol | null>
+  fetchRecentAdaptations: (planId: string) => Promise<void>
+  markSessionComplete: (planId: string, sessionId: string, score: SessionScore) => Promise<void>
+  rescheduleMissedSession: (planId: string, sessionId: string) => Promise<void>
+
+  // ── Backward-compatibility shims (deprecated) ────────────────────────────
+  activePlan: Plan | null          // derived from selectedPlanId → primary → first active
+  todaySession: PlanSession | null // derived from recommendedTodaySession
+  completionPercentage: number     // completion % for selected/primary plan only
+  fetchActivePlan: (dogId: string) => Promise<void>
+  refreshPlan: () => Promise<void>
+  setActivePlan: (plan: Plan | null) => void
+  getTodaySession: () => PlanSession | null
+  getUpcomingSessions: (limit?: number) => PlanSession[]
+  getMissedScheduledSessions: () => PlanSession[]
+}
+```
+
+Exported selectors:
+- `selectPlanSummaries(store)` — returns `PlanSummary[]` for course switcher and list UIs
+- `selectSelectedPlanTheme(store)` — returns `CourseUiColors | null` for the currently selected course
+
+If a loaded plan's sessions lack `scheduledDate` fields, the store calls `buildWeeklySchedule()` automatically and persists the result.
 
 #### sessionStore
 
@@ -419,31 +495,6 @@ interface SessionStore {
   clearSession: () => void
 }
 ```
-
-#### planStore
-
-```typescript
-interface PlanStore {
-  activePlan: Plan | null
-  protocols: Record<string, Protocol>
-  todaySession: PlanSession | null      // derived from activePlan
-  completionPercentage: number          // derived from activePlan
-  recentAdaptations: PlanAdaptation[]
-  isLoading: boolean
-  fetchActivePlan: (dogId: string) => Promise<void>
-  fetchProtocol: (exerciseId: string) => Promise<Protocol>
-  markSessionComplete: (sessionId: string, score?: SessionScore) => Promise<void>
-  getTodaySession: () => PlanSession | null
-  getUpcomingSessions: (limit?: number) => PlanSession[]
-  getMissedScheduledSessions: () => PlanSession[]
-  rescheduleMissedSession: (sessionId: string) => Promise<void>
-  refreshPlan: (dogId: string) => Promise<void>
-  setActivePlan: (plan: Plan | null) => void
-  fetchRecentAdaptations: (planId: string) => Promise<void>
-}
-```
-
-If a loaded plan's sessions lack `scheduledDate` fields, the store calls `buildWeeklySchedule()` automatically and persists the result.
 
 #### coachStore
 
@@ -532,13 +583,14 @@ V1 offline strategy: graceful degradation, not full offline-first.
 
 #### Today Screen (`app/(tabs)/train/index.tsx`)
 
-Purpose: The primary daily engagement surface. One clear action every day.
+Purpose: The primary daily engagement surface. One clear action every day, multi-course aware.
 
 Components:
-- Greeting header — time-based greeting + dog name (from `getGreeting()` in scheduleEngine)
-- `TodayCard` — primary CTA card with today's session (from `planStore.todaySession`)
+- Greeting header — time-based greeting + dog name
+- `TodayCard` — primary CTA card showing `recommendedTodaySession` from merged schedule across all active plans; shows course label and color when multiple courses are active
+- `ActiveCourseCard` — displayed for each active course; shows course title, completion %, primary badge, and next session
 - `QuickWinStrip` — horizontal scroll of 4 hardcoded enrichment quick wins (sniff walk, find it game, name drill, hand touch)
-- Upcoming sessions — next 3 sessions from plan
+- Upcoming sessions — next sessions from merged schedule across all active plans
 - `WalkLogModal` — tap to log a walk
 - Streak badge — current session streak
 - `NotificationBell` — header badge with unread in-app notification count
@@ -552,19 +604,20 @@ Session complete today → show walk check-in or enrichment
 
 #### Training Calendar Screen (`app/(tabs)/train/calendar.tsx`)
 
-Purpose: Monthly overview of all scheduled and completed training sessions.
+Purpose: Monthly overview of all scheduled and completed training sessions across all active courses.
 
 Components:
-- `TrainingCalendar` — 6×7 monthly grid with navigation arrows
-- `CalendarDayCell` — individual day cell with status indicator (completed: green dot, upcoming: secondary color)
-- `DaySessionList` — session list for the selected date; shows `insertedByAdaptation` support sessions with their `supportSessionType` when present
+- `TrainingCalendar` — 6×7 monthly grid with navigation arrows; sessions from all active plans are included
+- `CalendarDayCell` — individual day cell with status indicators (one per active course when multi-plan)
+- `DaySessionList` — session list for the selected date; shows course badges when multiple courses are active; shows `insertedByAdaptation` support sessions with their `supportSessionType` when present
 
 Behavior:
 - Month navigation via prev/next arrows
 - Today's date is highlighted with a border
 - Non-current-month dates are grayed out
-- Tapping a day shows sessions scheduled for that date
+- Tapping a day shows sessions scheduled for that date across all active plans
 - Sessions are grouped by `scheduledDate` (YYYY-MM-DD) and sorted by `scheduledTime`
+- Sessions carry `planId`, `planGoal`, and `planCourseTitle` via `EnrichedPlanSession`
 - Tapping a session navigates to `/(tabs)/train/session?id={sessionId}`
 
 #### Session Screen (`app/(tabs)/train/session.tsx`)
@@ -596,36 +649,17 @@ COMPLETE        ← Saved to DB, streaks updated, milestones checked
 ABANDONED       ← Logged as abandoned in DB
 ```
 
-**Local overlay states** (managed outside sessionStore):
-- `NONE` — normal session view
-- `MODE_PICKER` — `SessionModePicker` component shown after SETUP confirms
-- `LIVE_COACHING` — `LiveCoachOverlay` shown during camera-based session
-
 **Session completion flow:**
 1. Handler selects difficulty rating (easy/okay/hard) — auto-advances after 180ms
 2. Reflection question engine selects 2–4 contextual questions based on session outcome, recent history, and learning state
 3. Handler answers questions (non-required questions can be skipped); optional freeform note
-4. Calls `sessionManager.saveSession()` with:
-   - `difficulty`, `notes`
-   - `liveCoachingUsed`, `liveCoachingSummary`, `poseMetrics` (if camera mode used)
-   - `postSessionReflection` (structured reflection answers, or null if skipped)
+4. Calls `sessionManager.saveSession()` with `difficulty`, `notes`, `liveCoachingUsed`, `liveCoachingSummary`, `poseMetrics`, and `postSessionReflection`
 5. `saveSession()` persists to `session_logs`, calls `updateLearningStateFromSessionLog()`, invokes `adapt-plan` Edge Function
 6. `updateStreak()` + `checkMilestones()` run non-blocking
-7. `refreshPlan()` + `notificationStore.refreshSchedules()` update downstream state
+7. `refreshPlans()` + `notificationStore.refreshSchedules()` update downstream state
 8. `dogStore.fetchDogLearningState()` refreshes coach context
 
-Components:
-- `SessionModePicker` — mode selection after SETUP (see §3.5.1)
-- `ProgressBar` — steps N of total
-- `StepCard` — instruction text, timer mode indicator
-- `TimerRing` — circular countdown timer with pause/resume
-- `RepCounter` — tap to increment reps (manual mode)
-- `LiveCoachOverlay` — camera + pose overlay for Live Camera mode
-- `PostSessionReflectionCard` — multi-step post-session reflection UI (see §3.5.2)
-
 ##### SessionModePicker (`components/session/SessionModePicker.tsx`)
-
-Presented as a full-screen overlay after the user confirms ready in SETUP state. Allows choosing session execution mode.
 
 ```typescript
 interface SessionModePickerProps {
@@ -638,13 +672,11 @@ interface SessionModePickerProps {
 
 UI:
 - Two option cards:
-  1. **Live Camera Coach** (featured, primary) — "Point your camera at {dogName}. The app tracks posture and counts reps in real time." Feature pills: Auto rep count, Posture feedback, Hands-free. Shows "NEW" badge.
-  2. **Do Normally** (secondary, outlined) — "Follow the step-by-step guide and mark reps manually."
-- Footer note: "You can switch modes anytime from a session"
+  1. **Live Camera Coach** (featured, primary) — \"Point your camera at {dogName}. The app tracks posture and counts reps in real time.\" Feature pills: Auto rep count, Posture feedback, Hands-free. Shows \"NEW\" badge.
+  2. **Do Normally** (secondary, outlined) — \"Follow the step-by-step guide and mark reps manually.\"
+- Footer note: \"You can switch modes anytime from a session\"
 
 ##### PostSessionReflectionCard (`components/session/PostSessionReflectionCard.tsx`)
-
-Presented in the `SESSION_REVIEW` state as the primary completion UI. A multi-step form that captures structured handler feedback.
 
 ```typescript
 interface PostSessionReflectionCardProps {
@@ -664,15 +696,37 @@ interface PostSessionReflectionCardProps {
 ```
 
 **Steps:**
-1. **Difficulty Step** (always first) — "How did it go?" — Easy / Okay / Hard large button cards with icon, label, subtitle. Selection auto-advances after 180ms.
-2. **Question Steps** (1 per selected question) — rendered as `single_select` (chip options) or `scale` (numeric 1–N). Non-required questions show "Optional" badge and Skip button. Helper text shown when grounded in session history. Selection auto-advances after 180ms.
-3. **Notes Step** (always last) — large multiline text input, placeholder grounded in context. Submit button; shows "Saving…" while `isSaving`.
+1. **Difficulty Step** (always first) — Easy / Okay / Hard large button cards. Selection auto-advances after 180ms.
+2. **Question Steps** (1 per selected question) — `single_select` (chip options) or `scale` (numeric 1–N). Non-required questions show \"Optional\" badge and Skip button. Selection auto-advances after 180ms.
+3. **Notes Step** (always last) — large multiline text input. Submit button; shows \"Saving…\" while `isSaving`.
 
 **UI Features:**
-- Fixed header: back button + "Session complete" badge + `durationLabel`
+- Fixed header: back button + \"Session complete\" badge + `durationLabel`
 - Segmented progress bar (one segment per step)
 - Animated transitions (slide + opacity: 100ms out, 160ms spring in)
 - Safe-area-aware bottom padding
+
+#### Add Course Screen (`app/(tabs)/train/add-course.tsx`)
+
+Purpose: Allow a user to enroll their dog in a second simultaneous training course.
+
+- Enforces `MAX_ACTIVE_COURSES = 2`; shown only when dog has fewer than 2 active plans
+- Presents the 8 behavior goals; disables any goal already enrolled
+- On confirmation, calls `lib/addCourse.ts` which generates a plan (adaptive AI or rules-based fallback) and inserts it to DB with `is_primary = false` and appropriate `priority`
+- On success, navigates back and triggers `planStore.refreshPlans()`
+
+#### Plan Screen (`app/(tabs)/train/plan.tsx`)
+
+Purpose: Show the full training plan for the selected course, with completion status and course switcher.
+
+Components:
+- Course switcher pill tabs — one pill per active course, styled with `getCoursePillColors()`
+- Completion ring (72px circular progress) for the selected course
+- Session list grouped by week for the selected plan
+- Session rows: status icon (completed/locked/playable), title, scheduled day/time, duration
+- `AdaptationNotice` — shown when the plan has been recently adapted; displays reason from `reasonCode` including reflection-based codes
+- \"TODAY\" badge for today's session
+- Tap to navigate to session screen
 
 #### AI Coach Screen (`app/(tabs)/coach/index.tsx`)
 
@@ -688,21 +742,7 @@ Components:
 
 Calls Supabase Edge Function `ai-coach-message` for each message. Coach context includes the dog's current `DogLearningState` and recent plan adaptations. Handles rate limit errors with `rateLimitError` state flag.
 
-#### Plan Screen (`app/(tabs)/train/plan.tsx`)
-
-Purpose: Show the full training plan with completion status for all sessions.
-
-Components:
-- Completion ring (72px circular progress)
-- Session list grouped by week
-- Session rows: status icon (completed/locked/playable), title, scheduled day/time, duration
-- `AdaptationNotice` — shown when the plan has been recently adapted; displays reason from `reasonCode` including reflection-based codes
-- "TODAY" badge for today's session
-- Tap to navigate to session screen
-
 #### Progress Dashboard (`app/(tabs)/progress/index.tsx`)
-
-Purpose: Show training momentum and behavior improvement over time.
 
 Components:
 - Session streak card (flame icon, activity dots for 14 days)
@@ -715,46 +755,21 @@ Components:
 
 #### Know Tab (`app/(tabs)/know/`)
 
-Purpose: Browse practical Pawly-written training articles and read them in-app.
+Purpose: Browse Pawly-authored training articles and read them in-app.
+
+Data source: `articles` Supabase table (seeded via `pr21_seed_articles.sql`). Block-based JSON content rendered natively in-app.
 
 Screens:
 - `index.tsx` — Article library: featured article, category chips, search, and browse list
 - `article/[slug].tsx` — Full article reader with metadata, structured content blocks, and related articles
 
-Data source:
-- `articles` table in Supabase
-- Block-based JSON content rendered natively in-app
-- Seeded with Pawly-authored dog training education content across core behavior categories
-
 #### Notification Settings Screen (`app/(tabs)/profile/notification-settings.tsx`)
 
-Purpose: Let users control which alerts and reminders they receive.
-
-Controls all 13 `NotificationPrefs` fields:
-- Daily reminder (toggle + time picker)
-- Walk reminders
-- Post-walk check-in
-- Streak alerts
-- Milestone alerts
-- Insights
-- Expert review
-- Lifecycle alerts
-- Weekly summary
-- Scheduled session reminders
-- Reminder lead time (minutes before session)
-- Fallback missed session reminders
-
-Calls `notificationStore.refreshSchedules()` on every preference change.
+Controls all 13 `NotificationPrefs` fields. Calls `notificationStore.refreshSchedules()` on every preference change.
 
 #### In-App Notification Center (`app/(tabs)/train/notifications.tsx`)
 
-Purpose: Central list of all in-app notifications (plan adaptations, milestones, coach nudges, etc.).
-
-Components:
-- `NotificationItem` — individual notification row with icon, title, body, and timestamp
-- `NotificationBell` — badge indicator used in screen headers
-
-Notifications are stored in the `in_app_notifications` Supabase table and managed by `notificationStore` (inbox + unread count + realtime subscription).
+Notifications stored in `in_app_notifications` Supabase table. Managed by `notificationStore` (inbox + unread count + realtime subscription).
 
 ---
 
@@ -762,24 +777,20 @@ Notifications are stored in the `in_app_notifications` Supabase table and manage
 
 ### 4.1 Supabase Project Structure
 
-All backend logic in v1 runs through Supabase:
-
 | Supabase Feature | Used For |
 |---|---|
 | PostgreSQL | All relational data |
 | Auth | User authentication (email, Apple, Google) |
 | Storage | Video and image files (`pawly-videos` bucket) |
-| Edge Functions | Plan generation, AI coach calls, plan adaptation, expert review notifications |
+| Edge Functions | Plan generation, AI coach calls, plan adaptation |
 | Real-time | Live session sync, notification triggers |
 | Row Level Security | Data access control per user |
 
 ### 4.2 Edge Functions
 
-Edge functions are Deno-based serverless functions running at the Supabase edge.
-
 #### `generate-adaptive-plan`
 
-Triggered: after onboarding completion or when a new plan is requested
+Triggered: after onboarding completion or when a new plan is requested (including add-course flow)
 Input: `{ dogId: string, userId: string }`
 Process:
 1. Fetch dog profile from DB
@@ -789,7 +800,7 @@ Process:
 5. Call Claude API to generate `AIPlannerOutput`
 6. Compile output into concrete plan with scheduled sessions (server-side schedule engine)
 7. Assign dates/times respecting dog's preferred days, windows, and timezone
-8. Insert plan record to `plans` table
+8. Insert plan record to `plans` table with `course_title`, `priority`, and `is_primary` fields
 
 Output: `{ plan: Plan, plannerMode: 'adaptive_ai' | 'rules_fallback', planningSummary?, fallbackReason? }`
 
@@ -803,36 +814,21 @@ Process:
 1. Fetch session log including `post_session_reflection`
 2. Normalize reflection via `normalizePostSessionReflection()`
 3. Pass normalized reflection to adaptation engine
-4. Runs adaptation engine to check rules — including reflection-based rules (Rules A–G signals)
-5. Generates adaptations with `reasonCode` (may be `reflection_*` prefixed)
+4. Runs adaptation engine checking rules — including reflection-based rules (Rules A–G signals)
+5. Generates adaptations with `reasonCode`
 6. Compiles plan updates and writes audit record
 
-Output: updated plan with adaptation audit record; reason codes may reference reflection signals (e.g., `reflection_understanding_gap`, `reflection_distraction_blocker`, `reflection_duration_breakdown`, `reflection_over_arousal`, `reflection_handler_friction`)
+Output: updated plan with adaptation audit record
 
 #### `ai-coach-message`
 
 Triggered: user sends message in coach chat
 Input: message content, conversation history, dog context (including `DogLearningState`)
 Process: assemble system prompt with full dog context → call Anthropic API → store response
-Output: assistant message stored and returned to client (with rich markdown formatting)
+Output: assistant message stored and returned to client
 
-#### `complete-expert-review`
-
-Triggered: admin marks a video review as complete
-Input: review ID, trainer feedback, timestamps
-Process: updates `expert_reviews` record to `complete` status
-Output: triggers push notification to user
-
-#### `notify-expert-review`
-
-Triggered: expert review submission or status transition
-Input: review ID, user ID
-Process: creates expert_review record; sends email to trainer queue via Resend API; sends push notification to user device via Expo Push Service
-Output: notification delivered
 
 ### 4.3 Real-time Subscriptions
-
-Mobile clients subscribe to relevant Supabase real-time channels:
 
 | Channel | Table | Event | Mobile Action |
 |---|---|---|---|
@@ -854,7 +850,7 @@ Applied via Supabase migrations in `supabase/migrations/`. Migration files (in o
 - `pr05_session_logs.sql` — session completion logging
 - `pr06_coach.sql` — coach conversations and messages
 - `pr07_progress.sql` — streaks, walk_logs, walk_streaks, milestones
-- `pr08_videos.sql` — videos, expert_reviews, review_credits
+- `pr08_videos.sql` — videos table
 - `pr09_coach_conversation_active_unique.sql` — coach conversation constraints
 - `pr10_schedule_preferences.sql` — notification_prefs on user_profiles
 - `pr11_adaptive_planning_foundation.sql` — skill_nodes and skill_edges foundation tables
@@ -865,6 +861,11 @@ Applied via Supabase migrations in `supabase/migrations/`. Migration files (in o
 - `pr15_in_app_notifications.sql` — in_app_notifications table
 - `pr16_live_pose_coaching.sql` — live_coaching_summary and pose_metrics columns on session_logs
 - `pr17_post_session_reflection.sql` — post_session_reflection column on session_logs
+- `pr18_plan_color.sql` — color-related changes (superseded by pr18_multi_course_plans)
+- `pr18_multi_course_plans.sql` — course_title, priority, is_primary columns on plans; partial unique index for primary plan
+- `pr19_add_course_flow.sql` — data-quality backfill for is_primary on single-active-plan dogs
+- `pr20_articles_library.sql` — articles table
+- `pr21_seed_articles.sql` — Pawly-authored article content seed
 
 #### `users` (managed by Supabase Auth + `user_profiles` table)
 
@@ -882,12 +883,10 @@ CREATE TABLE users (
   onboarding_completed_at TIMESTAMPTZ
 );
 
--- user_profiles (extended user data including notification preferences)
 CREATE TABLE user_profiles (
   id               UUID PRIMARY KEY REFERENCES auth.users(id),
   notification_prefs JSONB DEFAULT '{}',
   push_token       TEXT,
-  -- additional profile fields
 );
 ```
 
@@ -897,30 +896,18 @@ CREATE TABLE user_profiles (
 CREATE TABLE dogs (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id              UUID REFERENCES users(id) NOT NULL,
-  household_id          UUID REFERENCES households(id),
-  created_at            TIMESTAMPTZ DEFAULT NOW(),
-  updated_at            TIMESTAMPTZ DEFAULT NOW(),
   name                  TEXT NOT NULL,
   breed                 TEXT,
   breed_group           TEXT,
   age_months            INTEGER,
   sex                   TEXT CHECK (sex IN ('male', 'female')),
   neutered              BOOLEAN,
-  weight_kg             DECIMAL(5,2),
-  adoption_date         DATE,
-  source                TEXT,
   environment_type      TEXT CHECK (environment_type IN ('apartment', 'house_no_yard', 'house_yard')),
-  household_members     JSONB DEFAULT '[]',
-  other_pets            JSONB DEFAULT '[]',
   behavior_goals        TEXT[] DEFAULT '{}',
   training_experience   TEXT CHECK (training_experience IN ('none', 'some', 'experienced')),
-  reactivity_level      INTEGER CHECK (reactivity_level BETWEEN 1 AND 5),
-  energy_level          INTEGER CHECK (energy_level BETWEEN 1 AND 5),
-  motivation_type       TEXT CHECK (motivation_type IN ('food', 'toy', 'praise', 'mixed')),
   equipment             TEXT[] DEFAULT '{}',
   available_minutes_day INTEGER,
   available_days_week   INTEGER,
-  -- Schedule preferences (stored as JSONB)
   preferred_days        TEXT[] DEFAULT '{}',
   preferred_windows     TEXT[] DEFAULT '{}',
   exact_times           JSONB DEFAULT '{}',
@@ -929,9 +916,10 @@ CREATE TABLE dogs (
   schedule_intensity    TEXT DEFAULT 'balanced',
   session_style         TEXT DEFAULT 'balanced',
   timezone              TEXT DEFAULT 'UTC',
-  personality_profile   JSONB DEFAULT '{}',
   lifecycle_stage       TEXT DEFAULT 'puppy',
-  avatar_url            TEXT
+  avatar_url            TEXT,
+  -- additional scheduling and profile fields
+  ...
 );
 ```
 
@@ -950,10 +938,18 @@ CREATE TABLE plans (
   current_week     INTEGER DEFAULT 1,
   current_stage    TEXT DEFAULT 'foundation',
   protocol_ids     TEXT[],
-  -- sessions stored as JSONB array of PlanSession objects
   sessions         JSONB DEFAULT '[]',
-  metadata         JSONB DEFAULT '{}'  -- includes schedule explanation, preferred days/windows, AI planning summary
+  metadata         JSONB DEFAULT '{}',
+  -- Multi-course fields (PR-18)
+  course_title     TEXT,                          -- human-readable course name
+  priority         INTEGER NOT NULL DEFAULT 0,    -- higher = shown first
+  is_primary       BOOLEAN NOT NULL DEFAULT false -- at most one active plan per dog
 );
+
+-- Partial unique index: only one active plan per dog may be primary
+CREATE UNIQUE INDEX plans_dog_primary_active_unique
+  ON plans (dog_id)
+  WHERE (is_primary = true AND status = 'active');
 ```
 
 **PlanSession JSONB structure:**
@@ -970,18 +966,57 @@ interface PlanSession {
   scheduledTime?: string         // "HH:MM"
   scheduledDate?: string         // "YYYY-MM-DD"
   isReschedulable?: boolean
-  autoRescheduledFrom?: string   // original date if rescheduled
+  autoRescheduledFrom?: string | null
   schedulingReason?: string
   isMissed?: boolean
   skillId?: string
-  parentSkillId?: string
+  parentSkillId?: string | null
   environment?: PlanEnvironment
-  sessionKind?: 'core' | 'repeat' | 'proofing'
+  sessionKind?: 'core' | 'repeat' | 'regress' | 'advance' | 'detour' | 'proofing'
   adaptationSource?: 'initial_plan' | 'adaptation_engine'
   reasoningLabel?: string | null
-  insertedByAdaptation?: boolean       // true if session was inserted by adaptation engine
+  insertedByAdaptation?: boolean
   supportSessionType?: SupportSessionType | null  // 'foundation' | 'transition' | 'duration_building' | 'calm_reset'
-  insertionReasonCode?: string | null  // reason code from adaptation that created this session
+  insertionReasonCode?: string | null
+}
+```
+
+**Plan multi-course fields (TypeScript):**
+```typescript
+interface Plan {
+  // ... existing fields ...
+  courseTitle: string | null   // e.g. "Loose Leash Walking"
+  priority: number             // 0+ (higher = shown first)
+  isPrimary: boolean           // at most one active plan per dog
+}
+```
+
+**Enriched session type (for multi-plan views):**
+```typescript
+interface EnrichedPlanSession extends PlanSession {
+  planId: string
+  planGoal: string
+  planCourseTitle: string | null
+  isPrimaryPlan: boolean
+}
+```
+
+**Lightweight plan summary (for list UIs):**
+```typescript
+interface PlanSummary {
+  id: string
+  dogId: string
+  goal: string
+  courseTitle: string | null
+  status: Plan['status']
+  isPrimary: boolean
+  priority: number
+  currentWeek: number
+  durationWeeks: number
+  sessionsPerWeek: number
+  completionPercentage: number
+  todaySession: PlanSession | null
+  createdAt: string
 }
 ```
 
@@ -993,7 +1028,7 @@ CREATE TABLE session_logs (
   user_id               UUID REFERENCES users(id) NOT NULL,
   dog_id                UUID REFERENCES dogs(id) NOT NULL,
   plan_id               UUID REFERENCES plans(id),
-  plan_session_id       TEXT,           -- references PlanSession.id
+  plan_session_id       TEXT,
   exercise_id           TEXT NOT NULL,
   created_at            TIMESTAMPTZ DEFAULT NOW(),
   completed_at          TIMESTAMPTZ,
@@ -1003,36 +1038,13 @@ CREATE TABLE session_logs (
   notes                 TEXT,
   step_results          JSONB DEFAULT '[]',
   abandoned             BOOLEAN DEFAULT FALSE,
-  -- Live coaching fields (added in pr16)
+  -- Live coaching fields (PR-16)
   live_coaching_used    BOOLEAN DEFAULT FALSE,
-  live_coaching_summary JSONB,   -- LiveCoachingSummary: mode, targetPostures, successCount, resetCount, avgTrackingQuality, assessment
-  pose_metrics          JSONB,   -- PoseMetrics: detailed keypoint confidence, hold durations, tracking events, quality breakdown
-  -- Post-session reflection (added in pr17)
-  post_session_reflection JSONB  -- PostSessionReflection | null; null if handler skipped
+  live_coaching_summary JSONB,
+  pose_metrics          JSONB,
+  -- Post-session reflection (PR-17)
+  post_session_reflection JSONB  -- PostSessionReflection | null
 );
-```
-
-**LiveCoachingSummary JSONB structure:**
-```typescript
-interface LiveCoachingSummary {
-  mode: string
-  targetPostures: string[]
-  successCount: number
-  resetCount: number
-  avgTrackingQuality: number
-  assessment: string
-}
-```
-
-**PoseMetrics JSONB structure:**
-```typescript
-interface PoseMetrics {
-  keypointConfidence: Record<string, number>
-  qualityBreakdown: { good: number; fair: number; poor: number }
-  postureDurations: Record<string, number>
-  holdDurations: number[]
-  trackingEvents: { type: string; timestamp: number }[]
-}
 ```
 
 **PostSessionReflection JSONB structure:**
@@ -1050,296 +1062,45 @@ interface PostSessionReflection {
 }
 ```
 
-Null values mean the question was not asked or handler skipped it. A null `post_session_reflection` column means the reflection was skipped entirely. Validated and normalized by `reflectionNormalizer.ts` before use in the adaptation engine.
-
-#### `walk_logs`
+#### `articles`
 
 ```sql
-CREATE TABLE walk_logs (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id       UUID REFERENCES users(id) NOT NULL,
-  dog_id        UUID REFERENCES dogs(id) NOT NULL,
-  logged_at     TIMESTAMPTZ DEFAULT NOW(),
-  quality       INTEGER CHECK (quality BETWEEN 1 AND 3),  -- 1=rough, 2=okay, 3=great
-  goal_achieved BOOLEAN,
-  notes         TEXT,
-  duration_minutes INTEGER
-);
-```
-
-#### `streaks`
-
-```sql
-CREATE TABLE streaks (
+CREATE TABLE articles (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id          UUID REFERENCES users(id) NOT NULL,
-  dog_id           UUID REFERENCES dogs(id) NOT NULL,
-  current_streak   INTEGER DEFAULT 0,
-  longest_streak   INTEGER DEFAULT 0,
-  last_activity_at TIMESTAMPTZ,
-  updated_at       TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE walk_streaks (
-  -- same structure as streaks, for walk activity
-);
-```
-
-#### `milestones`
-
-```sql
-CREATE TABLE milestones (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  dog_id       UUID REFERENCES dogs(id) NOT NULL,
-  user_id      UUID REFERENCES users(id) NOT NULL,
-  created_at   TIMESTAMPTZ DEFAULT NOW(),
-  milestone_id TEXT NOT NULL,   -- references MILESTONE_DEFINITIONS[].id
-  title        TEXT NOT NULL,
-  description  TEXT,
-  emoji        TEXT,
-  achieved_at  TIMESTAMPTZ DEFAULT NOW()
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  slug             TEXT NOT NULL UNIQUE,
+  title            TEXT NOT NULL,
+  excerpt          TEXT NOT NULL,
+  content          JSONB NOT NULL,           -- block-based content array
+  category         TEXT NOT NULL,
+  difficulty       TEXT NOT NULL CHECK (difficulty IN ('beginner', 'intermediate', 'advanced')),
+  read_time_minutes INTEGER NOT NULL,
+  is_featured      BOOLEAN NOT NULL DEFAULT false,
+  is_published     BOOLEAN NOT NULL DEFAULT true,
+  cover_image_url  TEXT,
+  tags             TEXT[] NOT NULL DEFAULT '{}',
+  sort_order       INTEGER NOT NULL DEFAULT 0
 );
 ```
 
-#### `videos`
+RLS: authenticated users can SELECT where `is_published = true`.
 
-```sql
-CREATE TABLE videos (
-  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id           UUID REFERENCES users(id) NOT NULL,
-  dog_id            UUID REFERENCES dogs(id) NOT NULL,
-  created_at        TIMESTAMPTZ DEFAULT NOW(),
-  storage_path      TEXT NOT NULL,
-  thumbnail_path    TEXT,
-  duration_seconds  INTEGER,
-  context           TEXT CHECK (context IN ('onboarding', 'session', 'behavior')),
-  behavior_context  TEXT,
-  before_context    TEXT,
-  goal_context      TEXT,
-  processing_status TEXT DEFAULT 'pending' CHECK (processing_status IN ('pending', 'processing', 'complete', 'failed')),
-  uploaded_at       TIMESTAMPTZ DEFAULT NOW()
-);
-```
+#### `walk_logs`, `streaks`, `walk_streaks`, `milestones`
 
-#### `expert_reviews`
-
-```sql
-CREATE TABLE expert_reviews (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  video_id        UUID REFERENCES videos(id) NOT NULL,
-  user_id         UUID REFERENCES users(id) NOT NULL,
-  created_at      TIMESTAMPTZ DEFAULT NOW(),
-  completed_at    TIMESTAMPTZ,
-  trainer_name    TEXT,
-  trainer_photo_url TEXT,
-  status          TEXT DEFAULT 'queued' CHECK (status IN ('queued', 'in_review', 'complete')),
-  feedback        TEXT,
-  timestamps      JSONB DEFAULT '[]',  -- array of { time, note }
-  requested_at    TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE review_credits (
-  user_id           UUID REFERENCES users(id) PRIMARY KEY,
-  credits_remaining INTEGER DEFAULT 0
-);
-```
+These tables are unchanged from prior PRs. See PR-07 migration for schema.
 
 #### `coach_conversations` and `coach_messages`
 
-```sql
-CREATE TABLE coach_conversations (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID REFERENCES users(id) NOT NULL,
-  dog_id     UUID REFERENCES dogs(id) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  is_active  BOOLEAN DEFAULT TRUE,
-  UNIQUE (user_id, dog_id, is_active)  -- enforced by pr09 migration
-);
+Unchanged from PR-06. One active conversation per (user, dog) pair enforced by partial unique index from PR-09.
 
-CREATE TABLE coach_messages (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  conversation_id  UUID REFERENCES coach_conversations(id) NOT NULL,
-  created_at       TIMESTAMPTZ DEFAULT NOW(),
-  role             TEXT CHECK (role IN ('user', 'assistant')),
-  content          TEXT NOT NULL,
-  tokens_used      INTEGER,
-  model_version    TEXT,
-  context_snapshot JSONB DEFAULT '{}'
-);
-```
+#### `skill_nodes` and `skill_edges`, `dog_learning_state`, `learning_signals`, `plan_adaptations`, `adaptation_audit`, `in_app_notifications`
 
-#### `skill_nodes` and `skill_edges` (adaptive planning foundation)
-
-```sql
-CREATE TABLE skill_nodes (
-  id          TEXT PRIMARY KEY,       -- e.g., 'llw_foundation_1'
-  behavior    TEXT NOT NULL,           -- behavior goal this skill belongs to
-  skill_code  TEXT NOT NULL,
-  stage       TEXT NOT NULL,           -- 'foundation', 'building', 'proofing', 'mastery'
-  title       TEXT NOT NULL,
-  description TEXT,
-  kind        TEXT NOT NULL,           -- 'foundation' | 'core' | 'proofing' | 'recovery' | 'diagnostic'
-  difficulty  INTEGER,
-  protocol_id TEXT,
-  metadata    JSONB DEFAULT '{}',
-  is_active   BOOLEAN DEFAULT TRUE
-);
-
-CREATE TABLE skill_edges (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  from_skill_id TEXT REFERENCES skill_nodes(id),
-  to_skill_id   TEXT REFERENCES skill_nodes(id),
-  edge_type   TEXT NOT NULL,           -- 'prerequisite' | 'advance' | 'regress' | 'detour' | 'proofing'
-  condition_summary TEXT,
-  metadata    JSONB DEFAULT '{}'
-);
-```
-
-#### `dog_learning_state` and `learning_signals`
-
-```sql
-CREATE TABLE dog_learning_state (
-  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  dog_id                 UUID REFERENCES dogs(id) NOT NULL UNIQUE,
-  updated_at             TIMESTAMPTZ DEFAULT NOW(),
-  version                INTEGER DEFAULT 1,
-  motivation_score       DECIMAL,
-  distraction_sensitivity DECIMAL,
-  confidence_score       DECIMAL,
-  impulse_control_score  DECIMAL,
-  handler_consistency_score DECIMAL,
-  fatigue_risk_score     DECIMAL,
-  recovery_speed_score   DECIMAL,
-  environment_confidence JSONB DEFAULT '{}',  -- per-environment confidence scores
-  behavior_signals       JSONB DEFAULT '{}',
-  recent_trends          JSONB DEFAULT '{}',
-  current_hypotheses     JSONB DEFAULT '[]',  -- LearningHypothesis[]
-  last_evaluated_at      TIMESTAMPTZ
-);
-
-CREATE TABLE learning_signals (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  dog_id     UUID REFERENCES dogs(id) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  source     TEXT NOT NULL,    -- 'session_log', 'walk_log', 'manual'
-  signal     JSONB NOT NULL
-);
-```
-
-**DogLearningState dimensions** (7 scored dimensions):
-- `motivationScore` — responsiveness to rewards
-- `distractionSensitivity` — reaction to environmental stimuli
-- `confidenceScore` — willingness to attempt behaviors
-- `impulseControlScore` — ability to inhibit responses
-- `handlerConsistencyScore` — consistency of handler cues
-- `fatigueRiskScore` — likelihood of mental/physical fatigue
-- `recoverySpeedScore` — ability to recover after errors
-
-**Learning signals include reflection-derived signals** (when `post_session_reflection` is present):
-- `understandingIssue` (0–1, confidence-weighted) — cue comprehension problems
-- `distractionIssue` (0–1, confidence-weighted) — environmental distraction impact
-- `durationBreakdownIssue` (0–1, confidence-weighted) — session length issues
-- `arousalIssue` (0–1, confidence-weighted) — over-arousal during session
-- `handlerFrictionIssue` (0–1, confidence-weighted) — handler technique inconsistency
-- `reflectionConfidence` (0–1, raw) — handler's reported confidence in their own answers
-
-Each signal is weighted by the handler's `confidenceInAnswers` rating (1–5 → 0–1 scale) before being incorporated into learning state updates.
-
-#### `plan_adaptations` and `adaptation_audit`
-
-```sql
-CREATE TABLE plan_adaptations (
-  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  plan_id                  UUID REFERENCES plans(id) NOT NULL,
-  dog_id                   UUID REFERENCES dogs(id) NOT NULL,
-  created_at               TIMESTAMPTZ DEFAULT NOW(),
-  adaptation_type          TEXT NOT NULL,   -- AdaptationType enum
-  status                   TEXT DEFAULT 'pending',  -- 'applied', 'skipped', 'rolled_back'
-  reason_code              TEXT,
-  reason_summary           TEXT,
-  evidence                 JSONB,
-  previous_snapshot        JSONB,           -- snapshot of plan before adaptation
-  new_snapshot             JSONB,           -- snapshot of plan after adaptation
-  changed_session_ids      TEXT[],
-  changed_fields           TEXT[],
-  triggered_by_session_log_id UUID,
-  model_name               TEXT,
-  latency_ms               INTEGER,
-  was_user_visible         BOOLEAN DEFAULT FALSE,
-  applied_at               TIMESTAMPTZ
-);
-
-CREATE TABLE adaptation_audit (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  adaptation_id  UUID REFERENCES plan_adaptations(id),
-  created_at     TIMESTAMPTZ DEFAULT NOW(),
-  actor          TEXT,   -- 'system', 'user', 'coach'
-  action         TEXT,
-  notes          TEXT
-);
-```
-
-#### `in_app_notifications`
-
-```sql
-CREATE TABLE in_app_notifications (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    UUID REFERENCES users(id) NOT NULL,
-  dog_id     UUID REFERENCES dogs(id),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  type       TEXT NOT NULL,
-  title      TEXT NOT NULL,
-  body       TEXT,
-  data       JSONB DEFAULT '{}',
-  read_at    TIMESTAMPTZ
-);
-```
-
-#### `protocols` (content table)
-
-```sql
-CREATE TABLE protocols (
-  id               TEXT PRIMARY KEY,
-  behavior         TEXT NOT NULL,
-  stage            TEXT NOT NULL,
-  title            TEXT NOT NULL,
-  description      TEXT,
-  objective        TEXT,
-  duration_minutes INTEGER,
-  rep_count        INTEGER,
-  steps            JSONB NOT NULL,
-  success_criteria TEXT,
-  common_mistakes  JSONB DEFAULT '[]',
-  equipment_needed TEXT[] DEFAULT '{}',
-  age_min_months   INTEGER,
-  age_max_months   INTEGER,
-  difficulty       INTEGER CHECK (difficulty BETWEEN 1 AND 5),
-  next_protocol_id TEXT,
-  regression_protocol_id TEXT,
-  version          INTEGER DEFAULT 1
-);
-```
+Unchanged from PRs 11–15. See respective migrations for schema.
 
 ### 5.2 Row Level Security Policies
 
-All tables have RLS enabled. Key policies:
-
-```sql
--- Users can only read/write their own data
-CREATE POLICY "Users own their data" ON dogs
-  FOR ALL USING (owner_id = auth.uid());
-
-CREATE POLICY "Users own their session logs" ON session_logs
-  FOR ALL USING (user_id = auth.uid());
-
-CREATE POLICY "Users own their conversations" ON coach_conversations
-  FOR ALL USING (user_id = auth.uid());
-
--- Protocols are readable by all authenticated users
-CREATE POLICY "Protocols are public to authenticated users" ON protocols
-  FOR SELECT USING (auth.role() = 'authenticated');
-```
+All tables have RLS enabled. Users can only read/write their own data. Protocols and published articles are readable by all authenticated users.
 
 ### 5.3 Indexes
 
@@ -1353,6 +1114,14 @@ CREATE INDEX idx_milestones_dog_id ON milestones(dog_id, achieved_at DESC);
 CREATE INDEX idx_in_app_notifications_user_id ON in_app_notifications(user_id, created_at DESC);
 CREATE INDEX idx_plan_adaptations_plan_id ON plan_adaptations(plan_id);
 CREATE INDEX idx_learning_signals_dog_id ON learning_signals(dog_id, created_at DESC);
+-- Articles
+CREATE INDEX articles_slug_idx ON articles (slug);
+CREATE INDEX articles_category_idx ON articles (category);
+CREATE INDEX articles_is_published_idx ON articles (is_published);
+CREATE INDEX articles_is_featured_idx ON articles (is_featured);
+-- Multi-course plans
+CREATE UNIQUE INDEX plans_dog_primary_active_unique ON plans (dog_id)
+  WHERE (is_primary = true AND status = 'active');
 ```
 
 ---
@@ -1361,70 +1130,22 @@ CREATE INDEX idx_learning_signals_dog_id ON learning_signals(dog_id, created_at 
 
 ### 6.1 AI Coach — Full Architecture
 
-The AI coach is a conversational system powered by the Anthropic Claude API, grounded in the user's dog profile, training history, learning state, and trainer-authored protocol knowledge.
-
-#### Context Assembly Pipeline
-
 Every message sent to Claude is preceded by context assembly in the `ai-coach-message` Edge Function:
 
 ```typescript
-async function assembleCoachContext(
-  userId: string,
-  dogId: string,
-  conversationId: string
-): Promise<CoachContext> {
+async function assembleCoachContext(userId, dogId, conversationId): Promise<CoachContext> {
   const dog = await fetchDog(dogId)
   const plan = await fetchActivePlan(dogId)
-  const recentSessions = await fetchRecentSessions(dogId, 7)  // last 7 days
+  const recentSessions = await fetchRecentSessions(dogId, 7)
   const recentWalks = await fetchRecentWalks(dogId, 7)
-  const history = await fetchConversationHistory(conversationId, 20)  // last 20 msgs
+  const history = await fetchConversationHistory(conversationId, 20)
   const learningState = await fetchDogLearningState(dogId)
-  const relevantProtocols = await retrieveRelevantProtocols(
-    dog.behavior_goals,
-    plan?.goal
-  )
-
+  const relevantProtocols = await retrieveRelevantProtocols(dog.behavior_goals, plan?.goal)
   return { dog, plan, recentSessions, recentWalks, history, learningState, relevantProtocols }
 }
 ```
 
-#### System Prompt Template
-
-```
-You are Pawly's AI training coach. You are warm, direct, knowledgeable,
-and always specific to this dog and owner.
-
-## Dog Profile
-Name: {{dog.name}}
-Breed: {{dog.breed}} ({{dog.breed_group}} group)
-Age: {{dog.age_months}} months ({{lifecycle_stage}})
-...
-
-## Current Training Focus
-Goal: {{plan.goal}}
-Week {{plan.current_week}} of {{plan.duration_weeks}}
-...
-
-## Dog's Learning State
-Overall progress: {{learningState.overall_score}}
-...
-
-## Recent Activity (Last 7 Days)
-Sessions completed: {{session_count}}
-Average success score: {{avg_success_score}}
-...
-
-## Your Guidelines
-- Always address {{dog.name}} by name
-- Never diagnose medical conditions — refer to vet
-- Never recommend aversive, punishment-based, or dominance methods
-- For severe aggression / bite history → strongly recommend in-person behaviorist
-- Keep responses concise and actionable
-- Always end advice with one clear next action
-```
-
-#### API Configuration
-
+**API Configuration:**
 ```typescript
 const COACH_CONFIG = {
   model: 'claude-sonnet-4-6',
@@ -1433,8 +1154,6 @@ const COACH_CONFIG = {
 ```
 
 ### 6.2 Adaptive Plan Generation Engine
-
-Plan generation is AI-driven via the `generate-adaptive-plan` Edge Function, with a rules-based fallback.
 
 **Supported behavior goals** (8 total):
 - `leash_pulling` — Loose Leash Walking
@@ -1451,115 +1170,97 @@ Plan generation is AI-driven via the `generate-adaptive-plan` Edge Function, wit
 2. Claude generates `AIPlannerOutput` (ordered skill selections + reasoning)
 3. `planCompiler.ts` maps AI output to concrete `PlanSession[]`
 4. `scheduleEngine.buildWeeklySchedule()` assigns dates/times based on dog preferences
-5. Result stored in `plans.sessions` JSONB
+5. Result stored in `plans.sessions` JSONB with `course_title`, `priority`, `is_primary`
 
-**AIPlannerOutput structure:**
-```typescript
-interface AIPlannerOutput {
-  primaryGoal: string
-  startingSkillId: string
-  planHorizonWeeks: number
-  sessionsPerWeek: number
-  weeklyStructure: AIWeekStructure[]
-  planningSummary: {
-    whyThisStart: string
-    keyAssumptions: string[]
-    risksToWatch: string[]
-  }
-}
-
-interface AIWeekStructure {
-  weekNumber: number
-  focus: string
-  skillSequence: AISkillSelection[]
-}
-
-interface AISkillSelection {
-  skillId: string
-  sessionCount: number
-  environment: PlanEnvironment
-  sessionKind: 'core' | 'repeat' | 'proofing'
-  reasoningLabel: string
-}
-
-type PlanEnvironment =
-  | 'indoors_low_distraction'
-  | 'indoors_moderate_distraction'
-  | 'outdoors_low_distraction'
-  | 'outdoors_moderate_distraction'
-  | 'outdoors_high_distraction'
-```
-
-**Rules-based fallback** (`lib/adaptivePlanning/initialPlanner.ts`): Used when Claude API call fails. Each goal maps to 6–8 protocol IDs cycled based on `sessionsPerWeek` and `durationWeeks`.
+**Rules-based fallback** (`lib/adaptivePlanning/initialPlanner.ts`): Used when Claude API call fails.
 
 **Schedule engine** (`lib/scheduleEngine.ts`):
-- `chooseTrainingDays()` — selects training days from user preferences
-- `chooseTimeForDay()` — assigns time based on preferred windows or exact times
+- `normalizeTrainingSchedulePrefs(prefs, fallback)` — per-plan schedule normalization
 - `buildWeeklySchedule()` — generates full week schedule with `PlanSession` objects
-- `rescheduleMissedSession()` — moves a missed session to the next available slot
-- `getMissedScheduledSessions()` — identifies sessions past their scheduled date that were not completed
-- `getTodaySession()` — returns the `PlanSession` scheduled for today
+- `getTodaySession(plan)` — today's session for a single plan
+- `getUpcomingSessions(plan, limit)` — future sessions for a single plan
+- `getMissedScheduledSessions(plan)` — overdue sessions for a single plan
+- `rescheduleMissedSession(plan, sessionId)` — moves a missed session to the next available slot
+- `getPlanCompletion(plan)` — completion percentage for a single plan
 
-### 6.3 Adaptive Planning Engine (`lib/adaptivePlanning/`)
+**Merged schedule** (`lib/mergedSchedule.ts`):
+- `mergeActivePlanSchedules(plans, options): MergedScheduleResult` — pure function; merges sessions across all active plans; applies recommendation algorithm:
+  1. Oldest overdue session across all plans (if any)
+  2. Highest-priority today session (primary plan wins, then `plan.priority`, then time, then stable ID)
+  3. Nearest upcoming session if nothing is due
+- `groupEnrichedSessionsByDate(sessions)` — groups by date for calendar
+- `getAllSessionsForCalendar(plans)` — all sessions (any status) for full calendar render
+- `flattenMergedSchedule(result)` — flattens missed + today + upcoming
+- `enrichSession(session, plan)` — adds `planId`, `planGoal`, `planCourseTitle`, `isPrimaryPlan` to a `PlanSession`
 
-An on-device engine that monitors training outcomes and adapts the active plan. In PR17 this engine was extended to incorporate structured post-session reflections as first-class signals.
+**Add-course flow** (`lib/addCourse.ts`, `lib/addCourseUtils.ts`):
+- `addCourse(options): Promise<AddCourseResult>` — orchestrates generating a plan and inserting it with correct multi-course fields
+- Enforces `MAX_ACTIVE_COURSES = 2`; rejects duplicate active goals
+- Calls `generate-adaptive-plan` Edge Function; falls back to rules-based generator
+
+### 6.3 Course Color System (`constants/courseColors.ts`)
+
+Colors are assigned deterministically per plan ID — never persisted to the database.
+
+```typescript
+// 10-color palette
+const COURSE_COLOR_PALETTE = [
+  '#2563EB', '#0F766E', '#7C3AED', '#DC2626', '#CA8A04',
+  '#0891B2', '#C2410C', '#BE185D', '#4F46E5', '#15803D',
+]
+
+// Goal → canonical color mapping
+const GOAL_COLORS = {
+  leash_pulling: '#4F46E5',   // Indigo
+  jumping_up:   '#0891B2',   // Cyan
+  barking:      '#BE185D',   // Rose
+  recall:       '#15803D',   // Green
+  potty_training:'#CA8A04',  // Amber
+  crate_anxiety: '#7C3AED',  // Violet
+  puppy_biting:  '#C2410C',  // Orange
+  settling:      '#0F766E',  // Teal
+  fallback:      '#6B7280',  // Gray
+}
+```
+
+**Key functions:**
+- `getCourseColor(source)` — primary solid color, assigned via hash of `plan.id` (or goal string for goal-based theming)
+- `getCourseUiColors(source): CourseUiColors` — full derived theme: `solid`, `tint`, `soft`, `border`, `text`, `contrastText`, `selectedSurface`, `selectedBorder`, `mutedDot`
+- `getCoursePillColors(source, isSelected): CoursePillColors` — pill UI theming (selected = solid fill, unselected = neutral with colored border/dot)
+- `getContrastTextColor(hex)` — WCAG-based contrast check → `'#FFFFFF'` or `'#0F172A'`
+- `hexToRgba(hex, alpha)` — tinted background utility
+- `normalizeGoalKey(goal)` — stable lowercase/underscore goal normalization
+- `resolveSelectedCourseTheme(plansById, activePlanIds, selectedPlanId)` — convenience selector for the currently displayed course theme
+
+### 6.4 Adaptive Planning Engine (`lib/adaptivePlanning/`)
 
 **Learning State System:**
-- `learningSignals.ts` — extracts signals from `session_logs` (including `post_session_reflection`), `walk_logs`
-- `learningStateEngine.ts` — processes signals to update `DogLearningState`; invokes reflection signal extraction when `post_session_reflection` is present
+- `learningSignals.ts` — extracts signals from `session_logs` (including `post_session_reflection`) and `walk_logs`
+- `learningStateEngine.ts` — processes signals to update `DogLearningState`
 - `learningStateScoring.ts` — scores 7 dimensions: motivation, distraction sensitivity, confidence, impulse control, handler consistency, fatigue risk, recovery speed
-- `learningStateSummary.ts` — generates human-readable learning state summary
 - `hypothesisEngine.ts` — generates learning hypotheses from patterns; incorporates reflection evidence
 
 **Adaptation Engine:**
-- `adaptationRules.ts` — defines triggers and candidate scoring, including reflection-based rules:
+- `adaptationRules.ts` — defines triggers including reflection-based rules:
   - Repeated hard/abandoned sessions → regress; consistent easy sessions with high scores → advance
-  - `understandingIssue` signal above threshold → regress to foundation
+  - `understandingIssue` signal → regress to foundation
   - `distractionIssue` signal → lower environment difficulty
   - `arousalIssue` signal → simplify and shorten sessions
   - `handlerFrictionIssue` signal → conservative adjustments
-- `adaptationEngine.ts` — evaluates rules against current learning state and reflection signals, selects adaptation candidate
-- `adaptationCompiler.ts` — converts adaptation decisions into plan mutations (rewrites session fields; may insert support sessions with `insertedByAdaptation: true`)
-- `adaptationAudit.ts` — writes audit trail to `adaptation_audit` table with snapshots and evidence
+- `adaptationEngine.ts` — evaluates rules against learning state and reflection signals
+- `adaptationCompiler.ts` — converts adaptation decisions into plan mutations; may insert support sessions with `insertedByAdaptation: true`
+- `adaptationAudit.ts` — writes audit trail to `adaptation_audit` table
 
-**Skill Graph:**
-- `skillGraph.ts` — directed graph of skills with prerequisite/progression/regression/detour edges
-- `graphTraversal.ts` — pathfinding for next/previous/detour skill recommendations
-- Stored in `skill_nodes` and `skill_edges` tables (seeded in pr11–pr12 migrations)
-
-**Adaptation Types** (`AdaptationType`):
-- `repeat` — repeat current skill level with more sessions
-- `regress` — move back to an easier protocol
-- `advance` — move forward to a harder protocol
-- `detour` — substitute a parallel skill path
-- `difficulty_adjustment` — adjust within-session difficulty parameters
-- `schedule_adjustment` — reschedule sessions without changing content
-- `environment_adjustment` — modify environment-related session parameters
+**Adaptation Types:**
+- `repeat`, `regress`, `advance`, `detour`, `difficulty_adjustment`, `schedule_adjustment`, `environment_adjustment`
 
 **Adaptation Reason Codes:**
-Standard codes:
-- `low_success_score`, `high_difficulty_reports`, `consistent_easy`, `consecutive_abandons`
+- Standard: `low_success_score`, `high_difficulty_reports`, `consistent_easy`, `consecutive_abandons`
+- Reflection-derived: `reflection_understanding_gap`, `reflection_distraction_blocker`, `reflection_duration_breakdown`, `reflection_over_arousal`, `reflection_handler_friction`
 
-Reflection-derived codes (PR17):
-- `reflection_understanding_gap` — handler reported cue comprehension issues
-- `reflection_distraction_blocker` — handler reported environment too challenging
-- `reflection_duration_breakdown` — handler reported session length issues
-- `reflection_over_arousal` — handler reported dog was over-aroused
-- `reflection_handler_friction` — handler reported handler technique inconsistency
+**Support Sessions:** The adaptation compiler may insert sessions with `insertedByAdaptation: true` and `supportSessionType`: `'foundation' | 'transition' | 'duration_building' | 'calm_reset'`.
 
-**Support Sessions** (PR17): The adaptation compiler may insert additional support sessions into the plan with:
-- `insertedByAdaptation: true`
-- `supportSessionType`: `'foundation' | 'transition' | 'duration_building' | 'calm_reset'`
-- `insertionReasonCode`: the reason code that triggered insertion
-
-**Adaptation Status** (`AdaptationStatus`):
-- `applied` — adaptation was applied to the plan
-- `skipped` — adaptation was evaluated but not applied
-- `rolled_back` — applied adaptation was subsequently reversed
-
-### 6.4 Post-Session Reflection System (`lib/adaptivePlanning/reflectionQuestion*`)
-
-A structured feedback capture system that asks handlers 2–4 targeted questions after each session. Answers are saved with the session log and used as training signals for the adaptive planning engine.
+### 6.5 Post-Session Reflection System (`lib/adaptivePlanning/reflectionQuestion*`)
 
 #### Question Selection Engine (`reflectionQuestionEngine.ts`)
 
@@ -1569,291 +1270,69 @@ function buildPostSessionReflectionQuestions(
 ): ReflectionQuestionConfig[]
 ```
 
-**Engine Input:**
-```typescript
-interface ReflectionQuestionEngineInput {
-  difficulty: 'easy' | 'okay' | 'hard'
-  sessionStatus: 'completed' | 'abandoned'
-  durationSeconds?: number | null
-  protocolId?: string
-  skillId?: string
-  environmentTag?: string
-  recentSessions: RecentSessionSummary[]    // last 3–5 sessions
-  learningState: ReflectionLearningStateSnapshot | null
-}
-
-interface ReflectionLearningStateSnapshot {
-  distractionSensitivity: number
-  handlerConsistencyScore: number
-  confidenceScore: number
-  inconsistencyIndex?: number | null  // 0–1
-}
-```
-
 **Selection Rules (A–G):**
 - **Rule A (Core):** Always ask `overallExpectation`. Skip `mainIssue` only for clean easy sessions.
 - **Rule B (Failure Timing):** Ask `failureTiming` when session was hard or abandoned.
 - **Rule C (Distraction):** Ask `distractionType` when environment inconsistency detected or `distractionSensitivity >= 4`.
 - **Rule D (Cue Understanding):** Ask `cueUnderstanding` when failure appears early or repeated low-success on skill.
-- **Rule E (Arousal):** Ask `arousalLevel` when 3+ recent sessions abandoned/hard (over-excitement pattern).
+- **Rule E (Arousal):** Ask `arousalLevel` when 3+ recent sessions abandoned/hard.
 - **Rule F (Handler Issue):** Ask `handlerIssue` when `handlerConsistencyScore <= 2` or `inconsistencyIndex >= 0.35`.
 - **Rule G (Confidence):** Ask `confidenceInAnswers` when session abandoned OR mixed recent signals.
 
-Output: 2–4 questions max (required + at most 3 follow-ups). Helper text grounded in concrete session history when available.
+Output: 2–4 questions max.
 
 #### Question Catalog (`reflectionQuestionCatalog.ts`)
 
-8 pre-defined question configs exported:
-- `OVERALL_EXPECTATION_QUESTION` — required, single_select (3 options)
-- `MAIN_ISSUE_QUESTION` — required, single_select (7 options including "no major issue")
-- `FAILURE_TIMING_QUESTION` — optional, single_select (4 options)
-- `DISTRACTION_TYPE_QUESTION` — optional, single_select (5 options)
-- `CUE_UNDERSTANDING_QUESTION` — optional, single_select (3 options)
-- `AROUSAL_LEVEL_QUESTION` — optional, single_select (3 options)
-- `HANDLER_ISSUE_QUESTION` — optional, single_select (5 options)
-- `CONFIDENCE_IN_ANSWERS_QUESTION` — optional, scale 1–5
-
-#### Normalization (`reflectionNormalizer.ts`)
-
-```typescript
-function normalizePostSessionReflection(
-  raw: unknown
-): PostSessionReflection | null
-```
-
-- Shared between mobile app and Edge Function (no platform-specific imports)
-- Accepts raw DB JSONB (any type)
-- Returns `null` if input is null/undefined/not an object
-- Validates each enum field against known values; unknown values become `null`
-- Validates `confidenceInAnswers` is 1–5 range
-- Validates `freeformNote` length ≤ 2000 chars
-- Never throws; safe to call from Edge Functions
-
-#### Answer Helpers (`lib/reflectionAnswerHelpers.ts`)
-
-Pure functions, no React Native imports; testable with bare Node.js:
-
-```typescript
-function getAnswerValue(
-  answers: PostSessionReflection,
-  questionId: ReflectionQuestionId
-): string | number | null
-
-function applyReflectionAnswer(
-  current: PostSessionReflection,
-  questionId: ReflectionQuestionId,
-  value: string | number
-): PostSessionReflection  // immutable update
-
-function areRequiredQuestionsAnswered(
-  questions: ReflectionQuestionConfig[],
-  answers: PostSessionReflection
-): boolean
-
-function makeEmptyReflection(): PostSessionReflection  // all fields null
-```
+8 pre-defined question configs: `overallExpectation` (required), `mainIssue` (required), `failureTiming`, `distractionType`, `cueUnderstanding`, `arousalLevel`, `handlerIssue`, `confidenceInAnswers`.
 
 #### Reflection Signal Extraction (`learningSignals.ts`)
 
-When `post_session_reflection` is present on a session log:
-
 ```typescript
 interface ReflectionSignals {
-  understandingIssue: number    // 0–1, confidence-weighted
-  distractionIssue: number      // 0–1, confidence-weighted
+  understandingIssue: number     // 0–1, confidence-weighted
+  distractionIssue: number       // 0–1, confidence-weighted
   durationBreakdownIssue: number // 0–1, confidence-weighted
-  arousalIssue: number          // 0–1, confidence-weighted
-  handlerFrictionIssue: number  // 0–1, confidence-weighted
-  reflectionConfidence: number  // 0–1, raw (from confidenceInAnswers)
+  arousalIssue: number           // 0–1, confidence-weighted
+  handlerFrictionIssue: number   // 0–1, confidence-weighted
+  reflectionConfidence: number   // 0–1, raw
 }
 ```
 
-Signal derivation examples:
-- `overallExpectation === 'worse_than_expected'` → negative signal across all dimensions
-- `mainIssue === 'distracted'` → `distractionIssue += confidence`
-- `failureTiming === 'immediately'` → `understandingIssue += confidence`
-- `arousalLevel === 'very_up'` → `arousalIssue += confidence`
-- `handlerIssue !== null` → `handlerFrictionIssue += confidence`
-
-### 6.5 Progress Adaptation Engine
-
-Adjusts session difficulty recommendations based on recent outcomes:
-
-```typescript
-function computeNextSessionDifficulty(
-  currentProtocol: Protocol,
-  recentSessions: SessionLog[]
-): 'regress' | 'maintain' | 'advance' {
-  const last3 = recentSessions.slice(-3)
-  if (last3.length < 2) return 'maintain'
-
-  const avgScore = average(last3.map(s => s.success_score))
-  const allEasy = last3.every(s => s.difficulty === 'easy')
-  const consecutiveHard = last3.every(s => s.difficulty === 'hard')
-
-  if (avgScore >= 4 && allEasy) return 'advance'
-  if (avgScore <= 2 || consecutiveHard) return 'regress'
-  return 'maintain'
-}
-```
+Each signal is weighted by the handler's `confidenceInAnswers` rating (1–5 → 0–1 scale).
 
 ### 6.6 Milestone Engine (`lib/milestoneEngine.ts`)
 
-13 milestone definitions, each with a `checkFn` that receives `MilestoneCheckData`:
-
-| Milestone ID | Title | Trigger |
-|---|---|---|
-| `first_session` | First Session Complete | 1 total session |
-| `streak_3` | 3-Day Streak | 3 consecutive session days |
-| `streak_7` | 7-Day Streak | 7 consecutive session days |
-| `streak_14` | 2-Week Warrior | 14-day streak |
-| `streak_30` | 30-Day Champion | 30-day streak |
-| `sessions_10` | 10 Sessions | 10 total sessions |
-| `sessions_25` | 25 Sessions | 25 total sessions |
-| `sessions_50` | 50 Sessions | 50 total sessions |
-| `stage_advance` | Stage Unlocked | Plan advances to next stage |
-| `walk_streak_5` | 5-Day Walk Streak | 5 consecutive walk days |
-| `walk_streak_14` | 2-Week Walker | 14-day walk streak |
-| `walk_improvement` | Walk Quality Rising | Improving walk quality trend |
-| `first_video` | First Video Uploaded | 1 video uploaded |
+13 milestones: `first_session`, `streak_3`, `streak_7`, `streak_14`, `streak_30`, `sessions_10`, `sessions_25`, `sessions_50`, `stage_advance`, `walk_streak_5`, `walk_streak_14`, `walk_improvement`, `first_video`.
 
 ### 6.7 On-Device Dog Pose Detection
 
-Real-time pose estimation runs on-device using a TFLite model, used by the Live Camera Coach session mode for rep counting and posture feedback.
+Real-time pose estimation runs on-device using TFLite, used by the Live Camera Coach session mode. Requires a native dev build (not Expo Go).
 
-#### Architecture
-
+**Pipeline:**
 ```
 Camera Frame (Vision Camera v4)
-    ↓
-Frame Processor (JS Worklet, every 10th frame)
-    ↓
-vision-camera-resize-plugin (640×640 RGB float32)
-    ↓
-react-native-fast-tflite (sync inference)
-    ↓
-poseDecoder.ts (D-first tensor layout)
-    ↓
-PoseObservation { keypoints: PoseKeypoint[], bbox: NormalizedBBox }
-    ↓
-poseOutlierRejection.ts (filter outliers)
-    ↓
-poseStabilizer.ts (One-Euro filter smoothing)
-    ↓
-poseFeatureExtractor.ts (geometric features)
-    ↓
-postureClassifier.ts → PostureLabel (sit / down / stand / unknown)
-    ↓
-poseStateMachine.ts (posture transition state machine)
-    ↓
-poseTrackingQuality.ts → TrackingQuality (good / fair / poor)
-    ↓
-poseEventDetector.ts (motion/tracking events)
-    ↓
-liveCoachingEngine.ts (rep counting + posture feedback state machine)
-    ↓
-CoachingDecision { state, message, cue, incrementRep, holdTimerMs, ... }
-    ↓
-LiveCoachOverlay (UI feedback to user)
+    ↓ Frame Processor (JS Worklet, every 10th frame)
+    ↓ vision-camera-resize-plugin (640×640 RGB float32)
+    ↓ react-native-fast-tflite (sync inference)
+    ↓ poseDecoder.ts → PoseObservation { keypoints, bbox }
+    ↓ poseOutlierRejection.ts
+    ↓ poseStabilizer.ts (One-Euro filter)
+    ↓ poseFeatureExtractor.ts
+    ↓ postureClassifier.ts → PostureLabel (sit/down/stand/unknown)
+    ↓ poseStateMachine.ts
+    ↓ poseTrackingQuality.ts → TrackingQuality (good/fair/poor)
+    ↓ poseEventDetector.ts
+    ↓ liveCoachingEngine.ts → CoachingDecision
+    ↓ LiveCoachOverlay (UI feedback)
 ```
 
-#### Model I/O
+**Model I/O:** Input `[1, 640, 640, 3]` float32; Output `[1, 77, 8400]` D-first tensor (24 keypoints × 3 values). Detection threshold ≥ 0.35; keypoint visibility threshold ≥ 0.35.
 
-- **Input:** `[1, 640, 640, 3]` float32 RGB tensor
-- **Output:** `[1, 77, 8400]` D-first tensor layout
-  - `d[0–3]`: bounding box (cx, cy, w, h) normalized [0, 1]
-  - `d[4]`: detection confidence
-  - `d[5–76]`: 24 keypoints × 3 values each (x, y, visibility)
-- **Thresholds:** detection confidence ≥ 0.35, keypoint visibility ≥ 0.35
-
-#### Keypoints (24 canonical dog keypoints)
-
-Defined in `types/pose.ts` as `DOG_KEYPOINT_NAMES`:
-- Head: nose, chin, left/right eye, left/right ear
-- Torso: throat, withers, tail base, back center
-- Front legs: left/right shoulder, elbow, wrist, front paw
-- Rear legs: left/right hip, knee, ankle, rear paw
-
-#### Skeleton Visualization (`components/vision/DogKeypointOverlay.tsx`)
-
-SVG overlay rendered atop the camera preview. Color-coded limb groups:
-- **Blue** — head connections (eyes, ears, nose, throat)
-- **Gold** — spine connections (withers, back, tail)
-- **Green** — front-left leg
-- **Purple** — front-right leg
-- **Pink** — rear-left leg
-- **Orange** — rear-right leg
-
-Dual-pass rendering: glow stroke + core stroke per bone, with joint dots and specular highlights.
-
-#### `usePoseSession` hook (`hooks/usePoseSession.ts`)
-
-```typescript
-function usePoseSession(options: PoseSessionOptions): {
-  frameProcessor: FrameProcessor
-  currentPose: PoseObservation | null
-  fps: number
-  isDetecting: boolean
-}
-```
-
-Runs at ~10 FPS (throttled, every 10th frame). Module-level dispatch pattern for worklet-to-React communication. Requires native dev build (not Expo Go).
-
-#### `useLiveCoachingSession` hook (`hooks/useLiveCoachingSession.ts`)
-
-Manages the live coaching session lifecycle:
-- Creates and drives the `liveCoachingEngine` with pose frames
-- Aggregates `CoachingSessionMetrics` over the session duration
-- Exposes current `CoachingDecision` to the `LiveCoachOverlay`
-- On session end, returns `CoachingSessionMetrics` for storage in `session_logs`
-
-#### Live Coaching Engine (`lib/liveCoach/`)
-
-State machine with the following states:
-- `waiting` — no dog detected or pose not ready
-- `hold_in_progress` — dog in target posture, counting hold duration
-- `good_rep` — successful rep completed (displayed briefly)
-- `reset` — dog broke posture (displayed briefly)
-- `lost_tracking` — tracking quality too low
-- `complete` — required reps reached
-
-Per-frame processing:
-```typescript
-interface CoachingFrameInput {
-  postureState: PostureLabel
-  poseEvents: PoseEvent[]
-  trackingQuality: TrackingQuality
-  postureConfidence: number
-  elapsedSessionMs: number
-  timestamp: number
-}
-
-interface CoachingDecision {
-  state: CoachingEngineState
-  message: string
-  cue: string
-  incrementRep: boolean
-  markSuccess: boolean
-  activePosture: PostureLabel
-  holdTimerMs: number
-  targetHoldMs: number
-  trackingBlocked: boolean
-  repCount: number
-  requiredReps: number
-}
-```
-
-#### Pose Debug Screen (`app/(tabs)/train/pose-debug.tsx` + `pose-debug-impl.tsx`)
-
-Developer-only full-screen camera view with:
-- Real-time skeleton overlay
-- FPS counter
-- Detection confidence bar
-- Scanning pulse animation
+**Skeleton Visualization:** SVG overlay with color-coded limb groups (blue=head, gold=spine, green=front-left, purple=front-right, pink=rear-left, orange=rear-right). Dual-pass rendering: glow stroke + core stroke.
 
 ### 6.8 Insight Generation
 
-Weekly cron job generates personalized insights per dog using Claude (`generate-insights` Edge Function). Insights expire after 7 days. (Not yet displayed in-app; Know tab does not yet surface insights.)
+Weekly cron job generates personalized insights per dog using Claude (`generate-insights` Edge Function). Not yet displayed in-app.
 
 ---
 
@@ -1861,82 +1340,37 @@ Weekly cron job generates personalized insights per dog using Claude (`generate-
 
 ### 7.1 API Design Principles
 
-- RESTful endpoints via Supabase auto-generated PostgREST API + custom Edge Functions
+- RESTful endpoints via Supabase PostgREST + custom Edge Functions
 - All requests authenticated via JWT from Supabase Auth
 - ISO 8601 timestamps throughout
-- Snake_case field naming in DB; camelCase in TypeScript (converted by `lib/modelMappers.ts`)
+- Snake_case in DB; camelCase in TypeScript (converted by `lib/modelMappers.ts`)
 
 ### 7.2 Key Endpoints
 
-#### Authentication
-```
-POST   /auth/v1/signup            Create account
-POST   /auth/v1/token             Login / refresh token
-POST   /auth/v1/logout            Invalidate session
-POST   /auth/v1/recover           Password reset
-```
-
-#### Dog Profile
-```
-GET    /rest/v1/dogs              Get user's dogs
-POST   /rest/v1/dogs              Create dog profile
-PATCH  /rest/v1/dogs?id=eq.{id}  Update dog profile
-```
-
 #### Plans
 ```
-POST   /functions/v1/generate-adaptive-plan   Generate AI-powered personalized plan
-POST   /functions/v1/adapt-plan               Trigger plan adaptation (accepts post_session_reflection)
-GET    /rest/v1/plans?dog_id=eq.{id}          Get dog's plans
-PATCH  /rest/v1/plans?id=eq.{id}              Update plan (sessions JSONB, status)
+POST   /functions/v1/generate-adaptive-plan   Generate AI-powered plan (used for first plan and add-course)
+POST   /functions/v1/adapt-plan               Trigger plan adaptation
+GET    /rest/v1/plans?dog_id=eq.{id}&status=eq.active&order=priority.desc  Get all active plans
+PATCH  /rest/v1/plans?id=eq.{id}             Update plan (sessions, status, course fields)
+```
+
+#### Articles
+```
+GET    /rest/v1/articles?is_published=eq.true         Article library
+GET    /rest/v1/articles?slug=eq.{slug}&single=true   Single article by slug
 ```
 
 #### Sessions
 ```
-GET    /rest/v1/protocols?id=eq.{id}         Fetch session protocol
-POST   /rest/v1/session_logs                 Log completed session (includes live coaching fields + post_session_reflection)
-GET    /rest/v1/session_logs?dog_id=eq.{id}  Session history
+GET    /rest/v1/protocols?id=eq.{id}                  Fetch session protocol
+POST   /rest/v1/session_logs                          Log completed session
+GET    /rest/v1/session_logs?dog_id=eq.{id}           Session history
 ```
 
-#### Walk Logs
-```
-POST   /rest/v1/walk_logs         Log walk
-GET    /rest/v1/walk_logs?dog_id=eq.{id}&order=logged_at.desc  Walk history
-```
+#### Authentication, Dog Profile, Walk Logs, AI Coach, Videos, Progress, Adaptive Planning, Notifications
 
-#### AI Coach
-```
-POST   /functions/v1/ai-coach-message   Send message, receive response
-GET    /rest/v1/coach_messages?conversation_id=eq.{id}  Message history
-```
-
-#### Videos
-```
-POST   /storage/v1/object/pawly-videos/{path}  Upload video
-GET    /rest/v1/videos?dog_id=eq.{id}          Video library
-```
-
-#### Progress
-```
-GET    /rest/v1/streaks?dog_id=eq.{id}       Streak data
-GET    /rest/v1/walk_logs?dog_id=eq.{id}     Walk history
-GET    /rest/v1/milestones?dog_id=eq.{id}    Milestones list
-```
-
-#### Adaptive Planning
-```
-GET    /rest/v1/dog_learning_state?dog_id=eq.{id}   Dog learning state
-GET    /rest/v1/plan_adaptations?plan_id=eq.{id}    Plan adaptation history
-GET    /rest/v1/skill_nodes                          Skill graph nodes
-GET    /rest/v1/skill_edges                          Skill graph edges
-```
-
-#### Notifications
-```
-PATCH  /rest/v1/user_profiles?id=eq.{id}              Update notification_prefs JSONB
-GET    /rest/v1/in_app_notifications?user_id=eq.{id}  Fetch in-app notifications
-PATCH  /rest/v1/in_app_notifications?id=eq.{id}       Mark notification as read
-```
+Unchanged from prior PRs — see existing endpoint patterns.
 
 ### 7.3 Rate Limiting
 
@@ -1953,51 +1387,9 @@ PATCH  /rest/v1/in_app_notifications?id=eq.{id}       Mark notification as read
 
 ### 8.1 Auth Flow
 
-```
-User enters email + password (or taps Apple/Google)
-        ↓
-Supabase Auth validates credentials
-        ↓
-Returns: access_token (JWT, 1 hour) + refresh_token (30 days)
-        ↓
-Mobile stores tokens in SecureStore (Expo)
-        ↓
-All API requests include: Authorization: Bearer {access_token}
-        ↓
-Token expired? → Auto-refresh using refresh_token
-        ↓
-Refresh expired? → Redirect to login
-```
+Email/password + Apple Sign In + Google OAuth. Tokens stored via `ExpoSecureStoreAdapter`. Access token: 1 hour; refresh token: 30 days.
 
-### 8.2 Social Auth
-
-Supported in v1:
-- Apple Sign In (required for iOS App Store; implemented via `expo-apple-authentication`)
-- Google Sign In (implemented via Supabase OAuth)
-
-### 8.3 Token Storage
-
-```typescript
-import * as SecureStore from 'expo-secure-store'
-
-// Configured in Supabase client as ExpoSecureStoreAdapter
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-}
-```
-
-### 8.4 Post-Auth Onboarding Flow
-
-When a user signs up from the onboarding flow (via `plan-preview.tsx` → `signup.tsx?from=onboarding`), the signup screen:
-1. Creates the account
-2. Detects `from=onboarding` query param
-3. Reads saved `onboardingStore` state
-4. Calls `onboardingStore.submitOnboarding()` to persist dog + plan to DB
-5. Redirects back to `plan-preview` to continue
-
-### 8.5 Authorization Model
+### 8.2 Authorization Model
 
 | Action | Free | Core | Premium |
 |---|---|---|---|
@@ -2008,11 +1400,15 @@ When a user signs up from the onboarding flow (via `plan-preview.tsx` → `signu
 | AI coach (limited) | 5/day | ✓ | ✓ |
 | AI coach (unlimited) | — | ✓ | ✓ |
 | Video upload | 1 total | 20/day | Unlimited |
-| Expert review | — | Add-on | 2/month |
+| Add second course | — | ✓ | ✓ |
 | Family mode | — | — | ✓ |
 | Annual report | — | ✓ | ✓ |
 
 *Note: Subscription purchase UI is not yet implemented. Subscription tier is tracked in the store and enforces free-tier gating in plan-preview.tsx.*
+
+### 8.3 Post-Auth Onboarding Flow
+
+When a user signs up from the onboarding flow (via `plan-preview.tsx` → `signup.tsx?from=onboarding`), the signup screen creates the account, reads saved `onboardingStore` state, calls `onboardingStore.submitOnboarding()` to persist dog + plan to DB, then redirects back to `plan-preview`.
 
 ---
 
@@ -2021,49 +1417,18 @@ When a user signs up from the onboarding flow (via `plan-preview.tsx` → `signu
 ### 9.1 Upload Flow
 
 ```
-User selects video via expo-image-picker (MediaTypeOptions.Videos)
+User selects video via expo-image-picker
         ↓
 Local file read via expo-file-system
         ↓
 Upload to Supabase Storage: pawly-videos/{userId}/{dogId}/{timestamp}_{uuid}.mp4
         ↓
-On upload complete → insert video record to videos table
-        ↓
-Trigger Edge Function: process-video
-        ↓
-Update video.processing_status = 'complete'
-        ↓
-If expert_review requested → create expert_review record + deduct credit
-        ↓
-Notify user: "Your video is ready for review"
+Insert video record to videos table
 ```
 
-### 9.2 Expert Review Queue
+### 9.2 Video Types
 
-```
-Video uploaded + user requests review (costs 1 credit from review_credits table)
-        ↓
-expert_reviews record created (status: 'queued')
-        ↓
-Admin dashboard shows review queue
-        ↓
-Trainer watches video, writes feedback with timestamps
-        ↓
-Review submitted via complete-expert-review Edge Function (status: 'complete')
-        ↓
-Push notification to user via notify-expert-review Edge Function
-```
-
-### 9.3 Expert Review Viewing
-
-Expert review features remain part of the video workflow, but they are no longer surfaced through the Know tab. Video upload and review actions stay in the training flow.
-
-### 9.4 Video Types
-
-Videos are tagged with a `context` field:
-- `onboarding` — recorded during onboarding to show current behavior
-- `session` — recorded at end of a training session
-- `behavior` — recorded to document a specific behavior for expert review
+Tagged with `context` field: `onboarding`, `session`, `behavior`.
 
 ---
 
@@ -2074,211 +1439,50 @@ Videos are tagged with a `context` field:
 ```
 User sets preferences in Notification Settings screen
         ↓
-notificationStore.updatePrefs() saves to user_profiles.notification_prefs (Supabase)
+notificationStore.updatePrefs() saves to user_profiles.notification_prefs
         ↓
-notificationStore.refreshSchedules(dog) cancels old + reschedules new local notifications
+notificationStore.refreshSchedules(dog) cancels + reschedules local notifications
         ↓
 lib/notifications.scheduleUserNotifications() creates Expo local notifications
         ↓
 Expo Notifications delivers via APNs (iOS) or FCM (Android)
 ```
 
-In-app notifications are written to the `in_app_notifications` Supabase table by Edge Functions and displayed in the notification center screen. `notificationStore` subscribes to realtime inserts and maintains an in-memory inbox with unread count.
+In-app notifications are written to `in_app_notifications` by Edge Functions and displayed in the notification center. `notificationStore` subscribes to realtime inserts.
 
-Note: In v1, push notifications are **local** (scheduled on-device). Server-side triggers (Supabase webhooks → Expo Push Service) are designed but not fully wired (expert review notifications use the `notify-expert-review` Edge Function).
-
-### 10.2 Push Token Management
-
-```typescript
-async function registerForPushNotifications(): Promise<void> {
-  const { status } = await Notifications.requestPermissionsAsync()
-  if (status !== 'granted') return
-
-  const token = await Notifications.getExpoPushTokenAsync({
-    projectId: Constants.expoConfig?.extra?.eas?.projectId
-  })
-
-  await supabase
-    .from('user_profiles')
-    .update({ push_token: token.data })
-    .eq('id', userId)
-}
-```
-
-The `notificationStore.ensurePermissionAfterMeaningfulAction()` method requests permission at a high-intent moment (e.g., after first session completion) rather than on app launch.
-
-### 10.3 Notification Types
-
-| Type | Trigger | Content Example |
-|---|---|---|
-| Daily training reminder | User-set time | "Max's loose leash session is waiting. 8 minutes today." |
-| Scheduled session reminder | N minutes before session time | "Your session with Max starts in 15 minutes." |
-| Walk reminder | Morning, based on walk_times preference | "Today's walk goal: hold focus at 3 crossings." |
-| Post-walk check-in | 30 min after walk time | "How was the walk? One tap to log it." |
-| Missed session follow-up | Fallback if session missed | "No pressure. One easy win today keeps the streak alive." |
-| Milestone celebration | After milestone achieved | "Max's first 3-day streak. That's real progress." |
-| Plan adaptation | After plan is adapted | "Max's plan was updated based on recent progress." |
-| New insight available | Weekly insight generation | "New insight about Max's energy pattern." |
-| Expert review complete | Review status → complete | "Your video review is ready." |
-| Streak at risk | Calculated based on last activity | "Your 7-day streak ends tonight." |
-| Weekly summary | Weekly cadence | Summary of sessions and walk quality |
-
-### 10.4 Notification Preferences Schema
-
-Stored in `user_profiles.notification_prefs` JSONB:
+### 10.2 Notification Preferences Schema
 
 ```typescript
 interface NotificationPrefs {
   dailyReminder: boolean
-  dailyReminderTime: string         // "HH:MM" format
+  dailyReminderTime: string         // "HH:MM"
   walkReminders: boolean
   postWalkCheckIn: boolean
   streakAlerts: boolean
   milestoneAlerts: boolean
   insights: boolean
-  expertReview: boolean
   lifecycle: boolean
   weeklySummary: boolean
   scheduledSessionReminders: boolean
-  reminderLeadTimeMinutes: number   // minutes before session to fire reminder
+  reminderLeadMinutes: number
   fallbackMissedSessionReminders: boolean
 }
 ```
-
-Default values defined in `lib/scheduleEngine.ts` as `DEFAULT_NOTIFICATION_PREFS`.
 
 ---
 
 ## 11. Payments & Subscriptions
 
-### 11.1 Current Implementation Status
-
-- RevenueCat dependency (`react-native-purchases`) is included in `package.json`
+- RevenueCat dependency (`react-native-purchases`) is included but **not initialized**
 - `authStore.subscriptionTier` tracks 'free' | 'core' | 'premium'
-- Free-tier gating is enforced in `plan-preview.tsx` (blurs weeks 2–4 for free users)
-- **No purchase UI or RevenueCat initialization is currently implemented**
-
-### 11.2 Planned RevenueCat Integration
-
-```typescript
-// Initialize on app start
-async function initializeRevenueCat(): Promise<void> {
-  if (Platform.OS === 'ios') {
-    await Purchases.configure({ apiKey: IOS_RC_KEY })
-  } else {
-    await Purchases.configure({ apiKey: ANDROID_RC_KEY })
-  }
-  await Purchases.logIn(userId)
-}
-```
-
-### 11.3 Entitlement Mapping (Planned)
-
-| RevenueCat Entitlement | Pawly Tier | Products |
-|---|---|---|
-| `core` | Core | Monthly $14.99, Annual $89.99 |
-| `premium` | Premium | Monthly $29.99, Annual $179.99 |
-| `expert_review_pack` | Add-on | 3-pack $29 (consumable) |
-
-### 11.4 Subscription Status Sync (Planned)
-
-RevenueCat webhooks → Supabase Edge Function → update `users.subscription_tier`
+- Free-tier gating enforced in `plan-preview.tsx` (blurs weeks 2–4 for free users)
+- No purchase UI or RevenueCat initialization is currently implemented
 
 ---
 
 ## 12. Analytics & Event Tracking
 
-### 12.1 Current Implementation
-
-`lib/analytics.ts` provides a `captureEvent(event, properties?)` utility. In development (`__DEV__`), events are logged to console only. PostHog and Sentry dependencies are included in `package.json` but not yet initialized.
-
-```typescript
-// lib/analytics.ts
-export function captureEvent(event: string, properties?: Record<string, unknown>) {
-  if (__DEV__) {
-    console.log('[Analytics]', event, properties)
-    return
-  }
-  // TODO: posthog.capture(event, properties)
-}
-```
-
-### 12.2 Planned Event Taxonomy
-
-#### Onboarding Events
-```
-onboarding_started
-onboarding_step_completed { step: string }
-dog_profile_created { breed, age_months, primary_goal }
-plan_generated { goal, difficulty, weeks, planner_mode }
-onboarding_completed
-paywall_viewed { source: 'onboarding' }
-subscription_purchased { tier, period, price }
-```
-
-#### Training Events
-```
-session_started { exercise_id, plan_id }
-session_mode_selected { mode: 'manual' | 'live_camera' }
-session_step_completed { step_index, success: boolean }
-session_completed { duration_seconds, success_score, difficulty, live_coaching_used }
-session_abandoned { step_index }
-post_session_reflection_submitted { question_count, difficulty, skipped: boolean }
-walk_logged { quality, goal_achieved }
-```
-
-#### AI Coach Events
-```
-coach_message_sent { message_length }
-coach_message_received { response_length, tokens_used }
-coach_quick_suggestion_used { suggestion_text }
-```
-
-#### Progress Events
-```
-milestone_achieved { type, milestone_id }
-streak_extended { streak_length, type }
-streak_broken { previous_length, type }
-```
-
-#### Video Events
-```
-video_upload_started { context }
-video_upload_completed { duration_seconds, file_size_mb }
-expert_review_requested
-```
-
-#### Adaptive Planning Events
-```
-plan_adapted { adaptation_type, reason_code }
-learning_state_updated { overall_score }
-reflection_signal_extracted { signal_type, magnitude }
-```
-
-#### Live Coaching Events
-```
-live_coaching_session_started { exercise_id }
-live_coaching_rep_counted { rep_count }
-live_coaching_session_completed { success_count, reset_count, avg_tracking_quality }
-```
-
-### 12.3 North Star Metric
-
-Weekly behavior sessions completed per active user:
-```sql
-SELECT
-  DATE_TRUNC('week', completed_at) AS week,
-  COUNT(*) AS sessions_completed,
-  COUNT(DISTINCT user_id) AS active_users,
-  COUNT(*)::FLOAT / COUNT(DISTINCT user_id) AS sessions_per_user
-FROM session_logs
-WHERE
-  completed_at IS NOT NULL
-  AND abandoned = FALSE
-  AND completed_at >= NOW() - INTERVAL '12 weeks'
-GROUP BY 1
-ORDER BY 1;
-```
+`lib/analytics.ts` provides `captureEvent(event, properties?)`. In development, events are logged to console only. PostHog and Sentry dependencies are included but not initialized.
 
 ---
 
@@ -2288,79 +1492,30 @@ ORDER BY 1;
 
 ```
 Project: pawly-production
-Region: us-east-1 (primary)
+Region: us-east-1
 Database: PostgreSQL 15
-Connection pooling: PgBouncer (transaction mode)
 Storage: Supabase Storage (S3-compatible), bucket: pawly-videos
 Edge Functions: Deno Deploy
 Auth: Supabase Auth
 ```
 
-### 13.2 Environment Strategy
+### 13.2 Expo EAS Configuration
 
-| Environment | Purpose | Database |
-|---|---|---|
-| `local` | Developer machines | Local Supabase via Docker |
-| `preview` | PR previews | Supabase branch databases |
-| `staging` | Pre-release testing | Dedicated Supabase project |
-| `production` | Live app | Production Supabase project |
+Three build profiles: `development` (dev client, internal), `preview` (internal, staging env), `production` (app store submission).
 
-### 13.3 Expo EAS Configuration
+**Note:** Pose detection (react-native-vision-camera, react-native-fast-tflite) requires a native dev build. Does not work in Expo Go.
 
-```json
-{
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "env": { "APP_ENV": "development" }
-    },
-    "preview": {
-      "distribution": "internal",
-      "env": { "APP_ENV": "staging" }
-    },
-    "production": {
-      "env": { "APP_ENV": "production" }
-    }
-  }
-}
-```
+### 13.3 CI/CD Pipeline
 
-**Note:** The pose detection feature (react-native-vision-camera, react-native-fast-tflite) and the Live Camera Coach session mode require a native dev build. They do not work in Expo Go.
+GitHub Actions on push to main: typecheck → test → lint → deploy edge functions → EAS build.
 
-### 13.4 CI/CD Pipeline
-
-```yaml
-# .github/workflows/main.yml
-jobs:
-  test:
-    steps:
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run lint
-
-  deploy-edge-functions:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
-
-  build-production:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - run: eas build --platform all --non-interactive --auto-submit
-```
-
-### 13.5 npm Scripts
+### 13.4 npm Scripts
 
 ```json
 {
   "start": "expo start",
   "ios": "expo run:ios",
   "android": "expo run:android",
-  "web": "expo start --web",
   "typecheck": "tsc --noEmit",
   "test": "node --test --experimental-strip-types tests/*.test.ts"
 }
@@ -2372,120 +1527,39 @@ jobs:
 
 ### 14.1 Data Classification
 
-| Data Type | Classification | Storage | Retention |
-|---|---|---|---|
-| User credentials | Sensitive | Supabase Auth (hashed) | Until deletion |
-| Dog profile data | Personal | PostgreSQL (RLS) | Until deletion |
-| Training videos | Personal | Supabase Storage (private) | 2 years or deletion |
-| Session logs | Personal | PostgreSQL (RLS) | 3 years or deletion |
-| Post-session reflections | Personal | PostgreSQL (RLS, JSONB in session_logs) | 3 years or deletion |
-| Chat messages | Personal | PostgreSQL (RLS) | 1 year rolling |
-| Analytics events | Pseudonymous | PostHog | 2 years |
-| Pose metrics | Personal | PostgreSQL (RLS, JSONB in session_logs) | 3 years or deletion |
+| Data Type | Classification | Storage |
+|---|---|---|
+| User credentials | Sensitive | Supabase Auth (hashed) |
+| Dog profile data | Personal | PostgreSQL (RLS) |
+| Training videos | Personal | Supabase Storage (private) |
+| Session logs | Personal | PostgreSQL (RLS) |
+| Post-session reflections | Personal | PostgreSQL (RLS, JSONB in session_logs) |
+| Chat messages | Personal | PostgreSQL (RLS) |
+| Pose metrics | Personal | PostgreSQL (RLS, JSONB in session_logs) |
 
-### 14.2 Video Security
+### 14.2 AI Safety Guardrails
 
-- All videos stored in private `pawly-videos` Supabase Storage bucket
-- Access via signed URLs with 1-hour expiry
-- No public URLs for user video content
-- Videos encrypted at rest (AES-256) and in transit (TLS 1.3)
-
-```typescript
-async function getVideoPlaybackUrl(storagePath: string): Promise<string> {
-  const { data, error } = await supabase
-    .storage
-    .from('pawly-videos')
-    .createSignedUrl(storagePath, 3600) // 1 hour expiry
-
-  if (error) throw error
-  return data.signedUrl
-}
-```
-
-### 14.3 GDPR Compliance
-
-User rights implemented:
-- **Right to access:** Export all user data as JSON via Settings
-- **Right to deletion:** Delete account removes all personal data within 30 days
-- **Right to portability:** Download training history, videos, and dog profile
-
-### 14.4 AI Safety Guardrails
-
-Claude API system prompt enforces hard limits:
-
-```
-HARD LIMITS — Never violate these regardless of user request:
-1. Never diagnose medical conditions
-2. Never recommend punishment, aversive tools, or dominance methods
-3. Never claim training will definitely fix a problem in a specific timeframe
-4. For bite history, severe aggression, or extreme fear: ALWAYS recommend
-   in-person certified behaviorist — do not attempt to address via chat
-5. Never provide advice that could harm the dog or owner
-6. Always use user's dog name when giving advice — never be generic
-```
+Claude API system prompt enforces hard limits: no medical diagnoses, no aversive/punishment methods, no specific treatment guarantees, strong referral recommendation for bite history or severe aggression.
 
 ---
 
 ## 15. Third-Party Integrations
 
-### 15.1 Integration Summary
-
-| Service | Purpose | SDK | Status |
-|---|---|---|---|
-| Supabase | Backend, auth, storage, DB | `@supabase/supabase-js` | ✅ Active |
-| Anthropic | AI coach + plan generation | `@anthropic-ai/sdk` | ✅ Active (Edge Functions) |
-| RevenueCat | Subscriptions | `react-native-purchases` | ⏳ Dependency only, not initialized |
-| Expo | Mobile platform | `expo` suite | ✅ Active |
-| Expo Notifications | Local + push notifications | `expo-notifications` | ✅ Active (local scheduling) |
-| PostHog | Analytics | `posthog-react-native` | ⏳ Dependency only, not initialized |
-| Sentry | Error tracking | `@sentry/react-native` | ⏳ Dependency only, not initialized |
-| Apple Authentication | Apple Sign In | `expo-apple-authentication` | ✅ Active |
-| Vision Camera | Camera frame processing | `react-native-vision-camera` | ✅ Active (native build only) |
-| TFLite | Dog pose inference | `react-native-fast-tflite` | ✅ Active (native build only) |
-| Resend | Email delivery (expert review queue) | Used in Edge Functions | ✅ Active |
-
-### 15.2 Anthropic API Configuration
-
-```typescript
-const COACH_CONFIG = {
-  model: 'claude-sonnet-4-6',
-  max_tokens: 600,
-}
-```
-
-Both the AI coach (`ai-coach-message`) and plan generation (`generate-adaptive-plan`) Edge Functions use `claude-sonnet-4-6`.
-
-### 15.3 Supabase Client Configuration
-
-```typescript
-import { createClient } from '@supabase/supabase-js'
-import * as SecureStore from 'expo-secure-store'
-
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-}
-
-export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      storage: ExpoSecureStoreAdapter,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-    },
-  }
-)
-```
+| Service | Purpose | Status |
+|---|---|---|
+| Supabase | Backend, auth, storage, DB | ✅ Active |
+| Anthropic (claude-sonnet-4-6) | AI coach + plan generation | ✅ Active (Edge Functions) |
+| RevenueCat | Subscriptions | ⏳ Dependency only, not initialized |
+| Expo Notifications | Local + push notifications | ✅ Active (local scheduling) |
+| PostHog | Analytics | ⏳ Dependency only, not initialized |
+| Sentry | Error tracking | ⏳ Dependency only, not initialized |
+| Apple Authentication | Apple Sign In | ✅ Active |
+| Vision Camera v4 | Camera frame processing | ✅ Active (native build only) |
+| react-native-fast-tflite | Dog pose inference | ✅ Active (native build only) |
 
 ---
 
 ## 16. Error Handling & Logging
-
-### 16.1 Error Classification
 
 | Error Type | Handling | User Message |
 |---|---|---|
@@ -2494,38 +1568,13 @@ export const supabase = createClient(
 | AI coach rate limit | Set `rateLimitError` flag in coachStore | "You've reached your coaching limit for today." |
 | Plan generation failure | Fall back to rules-based planner | Silent — user receives plan regardless |
 | Video upload failure | Queue and retry on reconnect | "Video saved to retry when connection improves." |
-| Session sync failure | Store locally, sync on next open | Silent — sync in background |
 | Auth expiry | Auto-refresh or redirect to login | "Session expired. Please log in again." |
 | Pose detection unavailable | Fall back to manual session mode | Mode picker omits Live Camera option |
-| Reflection normalization failure | Treat as null (no reflection) | Silent — session saved without reflection data |
-
-### 16.2 Error Monitoring
-
-Sentry dependency included but not yet initialized. To initialize:
-
-```typescript
-import * as Sentry from '@sentry/react-native'
-
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  environment: process.env.APP_ENV,
-  tracesSampleRate: 0.2,
-  beforeSend(event) {
-    // Strip PII before sending
-    if (event.user) {
-      delete event.user.email
-      delete event.user.username
-    }
-    return event
-  }
-})
-```
+| Reflection normalization failure | Treat as null | Silent — session saved without reflection data |
 
 ---
 
 ## 17. Performance Requirements
-
-### 17.1 Target Metrics
 
 | Metric | Target | Critical Threshold |
 |---|---|---|
@@ -2533,91 +1582,41 @@ Sentry.init({
 | Today screen load | < 500ms | > 1.5 seconds |
 | Session screen load | < 300ms | > 1 second |
 | AI coach first response | < 3 seconds | > 6 seconds |
-| Video upload start | < 1 second | > 3 seconds |
-| API response (p95) | < 400ms | > 1 second |
 | Plan generation | < 4 seconds | > 10 seconds |
 | Pose detection inference | ~10 FPS (100ms/frame) | < 5 FPS |
 | Live coaching frame latency | < 150ms end-to-end | > 300ms |
+| `mergeActivePlanSchedules()` | < 5ms (pure function) | > 50ms |
 | Reflection question engine | < 5ms (pure function) | > 50ms |
-
-### 17.2 API Response Optimization
-
-- Plan sessions stored as JSONB array in `plans.sessions` — no join needed to load today's session
-- `planStore` derives `todaySession` and `completionPercentage` client-side when plan is loaded
-- `calendarSessions.ts` groups sessions by date client-side for the calendar view
-- Pose inference runs in a JS worklet on every 10th camera frame (throttled) to maintain UI responsiveness
-- Reflection question engine is a pure synchronous function; invoked client-side with no network round-trip
 
 ---
 
 ## 18. Testing Strategy
 
-### 18.1 Testing Pyramid
+### 18.1 Test Runner
 
-```
-          ┌──────────┐
-          │  E2E     │  Maestro — 10 critical user flows
-          ├──────────┤
-          │Integration│  Supabase test environment — API + DB
-          ├──────────┤
-          │  Unit    │  Node.js test runner — business logic
-          └──────────┘
-```
+Node.js `test` module + `assert/strict`. No React Native dependencies for pure logic tests.
 
-### 18.2 Unit Tests
-
-Located in `tests/`. Run with:
 ```bash
 npm test
 # → node --test --experimental-strip-types tests/*.test.ts
 ```
 
-Current coverage:
+### 18.2 Test Coverage
 
 | Test File | Coverage Area |
 |---|---|
-| `scheduleEngine.test.ts` | `chooseTrainingDays()`, `chooseTimeForDay()`, `getTodaySession()`, `rescheduleMissedSession()` |
+| `scheduleEngine.test.ts` | Per-plan session logic: today, upcoming, missed, reschedule |
+| `mergedSchedule.test.ts` | Cross-plan merge, recommendation algorithm, tie-break order, deduplication |
+| `courseColors.test.ts` | Color utilities: goal normalization, contrast, pill colors, hash stability |
+| `multiCourseUI.test.ts` | Multi-course UI scenarios: course switcher, session lookup, calendar grouping |
+| `addCourse.test.ts` | Add-course flow: duplicate detection, max-courses enforcement, plan insertion |
 | `reflectionQuestionEngine.test.ts` | Rules A–G, question selection logic, edge cases |
 | `reflectionSignals.test.ts` | Signal extraction and confidence weighting |
 | `reflectionAdaptation.test.ts` | Reflection signal → adaptation rule mapping |
 | `reflectionPersistence.test.ts` | Saving and loading reflection data |
-| `reflectionNormalizer.test.ts` | Normalization of invalid/partial JSONB |
-| `postSessionReflection.test.ts` | Component render and interaction |
-| `postSessionReflectionUI.test.ts` | UI state, animations, step flow |
-| `reflectionPolish.test.ts` | Edge cases and polish scenarios |
-
-### 18.3 Unit Test Coverage Targets
-
-| Module | Coverage Target |
-|---|---|
-| Plan generation logic | 90% |
-| Schedule engine | 90% |
-| Milestone engine | 85% |
-| Streak calculation | 95% |
-| Auth token management | 90% |
-| Notification scheduling | 80% |
-| Adaptive planning engine | 80% |
-| Reflection question engine | 90% |
-| Reflection signal extraction | 90% |
-| Pose decoder | 75% |
-| Live coaching engine | 80% |
-| Posture classifier | 75% |
-
-### 18.4 Critical E2E Test Flows (Maestro)
-
-1. Complete onboarding → generate plan → see today screen
-2. Complete a full training session end-to-end (manual mode)
-3. Complete a session using Live Camera Coach mode
-4. Complete a session and submit post-session reflection
-5. Skip post-session reflection — confirm session saves correctly
-6. Send AI coach message → receive response
-7. Log walk → see streak update
-8. Hit paywall → complete subscription purchase
-9. Upload video → confirm receipt and processing state
-10. Achieve milestone → see shareable card
-11. Sign out → sign back in → data persists
-12. View training calendar → navigate months → tap session
-13. Plan adaptation → see adaptation notice → view reason
+| `postSessionReflection.test.ts` | Reflection UI state |
+| `postSessionReflectionUI.test.ts` | UI state, step flow |
+| `reflectionPolish.test.ts` | Edge cases |
 
 ---
 
@@ -2625,38 +1624,12 @@ Current coverage:
 
 ### 19.1 App Store Requirements
 
-**iOS:**
-- Minimum iOS 16.0
-- Privacy manifest required (iOS 17+)
-- Apple Sign In required (third-party auth offered)
-- Camera usage description required (pose detection / live coaching feature)
-
-**Android:**
-- Minimum API level 31 (Android 12)
-- Target API level 34 (Android 14)
-- Google Play Billing for subscriptions
-- Camera permission required (pose detection / live coaching feature)
+**iOS:** Minimum iOS 16.0; Apple Sign In required; camera usage description required.
+**Android:** Minimum API level 31; target API level 34; camera permission required.
 
 ### 19.2 OTA Update Strategy
 
-Expo Updates (EAS Update) for JavaScript-layer changes:
-
-```typescript
-// app.config.ts
-export default {
-  updates: {
-    url: 'https://u.expo.dev/{PROJECT_ID}',
-    fallbackToCacheTimeout: 0,
-    checkAutomatically: 'ON_LOAD'
-  },
-  runtimeVersion: {
-    policy: 'sdkVersion'
-  }
-}
-```
-
-OTA updates: content updates, bug fixes, AI prompt updates, UI tweaks, coaching rule updates, reflection question catalog updates
-Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLite model updates
+Expo Updates (EAS Update) for JavaScript-layer changes. Binary release required for native module changes, Expo SDK upgrades, new permissions, TFLite model updates.
 
 ---
 
@@ -2664,38 +1637,28 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLi
 
 ### 20.1 What V1 Includes (Implemented)
 
-- Full onboarding wizard (multi-step: dog profile, goals, environment, optional video upload, schedule preferences)
-- Dog profile with full breed/age/behavior/schedule data
-- AI-powered plan generation (Claude API via `generate-adaptive-plan` Edge Function)
-- Rules-based plan generation fallback
+- Full onboarding wizard (dog profile, goals, environment, optional video, schedule preferences)
+- AI-powered plan generation (Claude API) with rules-based fallback
+- **Multi-course training** — up to 2 simultaneous active plans per dog:
+  - Add-course screen and enrollment flow (`lib/addCourse.ts`)
+  - Per-goal color theming (`constants/courseColors.ts`) — deterministic, no DB persistence
+  - Merged daily view and calendar (`lib/mergedSchedule.ts`)
+  - Course switcher UI (plan screen, today screen)
+  - DB columns: `course_title`, `priority`, `is_primary` on `plans`
 - Schedule engine (preferred days/windows, automatic rescheduling of missed sessions)
-- Session execution engine — dual mode:
-  - **Manual mode:** step-by-step guide, timer ring, tap-to-count reps, difficulty scoring
-  - **Live Camera Coach mode:** on-device TFLite pose detection, automatic rep counting, real-time posture feedback, tracking quality indicator
-- `SessionModePicker` presented after SETUP to choose execution mode
-- Live coaching metrics (`LiveCoachingSummary`, `PoseMetrics`) stored with each session log
-- **Post-session reflection system (PR17):**
-  - Multi-step `PostSessionReflectionCard` UI after every session
-  - Dynamic question selection engine (Rules A–G, 2–4 questions per session)
-  - 8 structured question types covering session outcome, distraction, cue understanding, arousal, handler technique
-  - `PostSessionReflection` stored as JSONB on session_logs (nullable, backward compatible)
-  - Reflection signals extracted and confidence-weighted into learning state updates
-  - Adaptation engine uses reflection-derived signals with specific reason codes
+- Session execution — manual mode (timer, rep counter, step guide) and Live Camera Coach mode (on-device TFLite pose detection, real-time rep counting and posture feedback — native build only)
+- Post-session reflection system (structured handler feedback, dynamic question engine Rules A–G, reflection signals feeding adaptive planning)
 - Walk integration (daily goal, 3-point quality logging, walk streak)
-- AI coach (Claude-powered, dog-context + learning state grounded, conversation history, formatted markdown responses)
-- Progress tracking (session streak, walk streak, behavior score progression)
-- Milestone system (13 milestones with shareable cards)
-- Training calendar (monthly view, session status indicators, day-level session list with support session metadata)
-- Adaptive planning engine (skill graph, 7-dimension learning state, adaptation rules, audit trail, hypothesis engine, reflection signal integration)
-- Video upload (storage, context tagging, expert review request)
-- Expert video reviews (review queue, trainer feedback, timestamp annotations, in-app viewer)
-- In-app notification center (notification bell, inbox with realtime updates, unread count)
+- AI coach (Claude-powered, full dog context + learning state, conversation history, formatted markdown responses)
+- Progress tracking (session streak, walk streak, behavior score progression, 13 milestones, shareable milestone cards)
+- Training calendar (monthly view, merged multi-course sessions, support session metadata display)
+- Adaptive planning engine (skill graph, 7-dimension learning state, adaptation rules, audit trail, reflection signal integration, support session insertion)
+- Video upload (storage, context tagging)
+- In-app notification center (realtime inbox, unread count)
 - Notification preferences UI (13 configurable notification types, local scheduling)
 - Theme selection (system / light / dark)
 - Authentication (email, Apple Sign In, Google OAuth, password reset)
-- Subscription tier enforcement (free gating on plan preview)
-- On-device dog pose detection pipeline (TFLite, Vision Camera v4, one-euro filter, posture classifier, state machine, skeleton overlay — native build only)
-- Know tab (article library and article reader)
+- Know tab — Supabase-backed article library with block-based content renderer
 
 ### 20.2 What V1 Explicitly Excludes (Not Yet Built)
 
@@ -2704,27 +1667,12 @@ Binary releases: native module changes, Expo SDK upgrades, new permissions, TFLi
 - Insights feed display inside Know
 - PostHog analytics initialization and event tracking to backend
 - Sentry error tracking initialization
-- Server-side push notification triggers (currently local-only; expert review uses Edge Function)
+- Server-side push notification triggers (currently local-only)
 - Household / family sharing
 - AI video analysis
 - Lifecycle curriculum automation
 - Annual report
-- Multi-dog support
-- Dog personality profile (field exists in schema, not yet populated or displayed)
-
-### 20.3 V1 Success Criteria
-
-| Metric | Target |
-|---|---|
-| Onboarding completion rate | > 65% |
-| Activation rate (first session within 24h) | > 45% |
-| Trial-to-paid conversion | > 15% |
-| D30 paid retention | > 55% |
-| Video upload rate in first 14 days | > 25% |
-| AI coach usage (at least 1 message) in first week | > 50% |
-| Expert review attach rate | > 8% |
-| Live Camera Coach mode adoption | > 30% of sessions |
-| Post-session reflection completion rate | > 60% of sessions |
+- More than 2 simultaneous active courses per dog
 
 ---
 
@@ -2766,7 +1714,6 @@ EXPO_PUBLIC_APP_VERSION=
     "typescript": "~5.7.2",
     "@supabase/supabase-js": "^2.49.8",
     "zustand": "^5.0.3",
-    "@tanstack/react-query": "^5.66.9",
     "nativewind": "4.1.23",
     "react-native-reanimated": "~3.16.1",
     "react-native-gesture-handler": "~2.20.2",
@@ -2782,38 +1729,10 @@ EXPO_PUBLIC_APP_VERSION=
     "expo-secure-store": "~14.0.1",
     "expo-notifications": "^0.29.14",
     "expo-image-picker": "~16.0.6",
-    "expo-image-manipulator": "~13.0.6",
     "expo-file-system": "~18.0.11",
     "expo-apple-authentication": "~7.1.3",
     "expo-av": "~15.0.2",
-    "expo-video-thumbnails": "~8.0.0",
-    "expo-linear-gradient": "~14.0.2",
-    "react-native-view-shot": "^3.8.0",
-    "jpeg-js": "^0.4.4",
-    "@react-native-community/datetimepicker": "8.2.0",
     "@react-native-async-storage/async-storage": "1.23.1"
   }
 }
 ```
-
-## Appendix C: Database Migration Strategy
-
-All schema changes managed via Supabase migrations in `supabase/migrations/`:
-
-```bash
-# Create new migration
-supabase migration new add_personality_profile
-
-# Apply migrations to local
-supabase db reset
-
-# Push to staging
-supabase db push --project-ref $STAGING_PROJECT_REF
-
-# Push to production (after staging validation)
-supabase db push --project-ref $PRODUCTION_PROJECT_REF
-```
-
-Migration files are version-controlled in Git and applied sequentially. Current migrations: pr03 through pr17.
-
----
