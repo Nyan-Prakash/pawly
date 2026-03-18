@@ -116,7 +116,19 @@ export default function PlanPreviewScreen() {
           .maybeSingle();
 
         if (existingDog?.id) {
-          // Dog exists — check for plan
+          // Dog exists — fetch full dog row so avatarUrl is available in dogStore
+          const { data: existingDogRow } = await supabase
+            .from('dogs')
+            .select('*')
+            .eq('id', existingDog.id)
+            .single();
+
+          if (existingDogRow) {
+            const { mapDogRowToDog } = await import('@/lib/modelMappers');
+            useDogStore.getState().setDog(mapDogRowToDog(existingDogRow));
+          }
+
+          // Check for plan
           const { data: existingPlanRow } = await supabase
             .from('plans')
             .select('*')

@@ -5,7 +5,7 @@ import {
   buildWeeklySchedule,
   chooseTrainingDays,
   normalizeTrainingSchedulePrefs,
-} from './scheduleEngine';
+} from './scheduleEngine.ts';
 
 type GoalKey =
   | 'leash_pulling'

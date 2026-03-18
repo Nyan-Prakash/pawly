@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { generatePlan } from '../lib/planGenerator.ts';
 import { validatePlannerOutput, parsePlannerJSON } from '../lib/adaptivePlanning/planValidation.ts';
 import { buildSkillGraph } from '../lib/adaptivePlanning/skillGraph.ts';
 import type { SkillNode, SkillEdge, AIPlannerOutput } from '../types';
@@ -207,8 +208,6 @@ describe('validatePlannerOutput', () => {
 
 describe('rules-based fallback', () => {
   it('generatePlan produces a valid plan', () => {
-    // Dynamic import to avoid module resolution issues in test
-    const { generatePlan } = require('../lib/planGenerator');
     const dog = {
       id: 'test-dog',
       ownerId: 'test-owner',

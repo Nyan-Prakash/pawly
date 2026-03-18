@@ -15,6 +15,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       NSCameraUsageDescription:
         "Pawly uses the camera to analyze your dog's pose in real time during training sessions.",
+      NSPhotoLibraryUsageDescription:
+        "Pawly uses your photo library so you can choose photos and videos of your dog for avatars and training uploads.",
+      NSPhotoLibraryAddUsageDescription:
+        "Pawly may save generated dog avatars to your device when you choose to keep them.",
       NSMicrophoneUsageDescription:
         'Microphone access is requested by the camera framework; Pawly does not record audio.'
     }
@@ -27,6 +31,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-router',
     'expo-secure-store',
     'expo-asset',
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          "Pawly uses your photo library so you can choose photos and videos of your dog for avatars and training uploads.",
+        cameraPermission:
+          "Pawly uses the camera so you can take photos and videos of your dog for avatars and training uploads."
+      }
+    ],
     [
       'react-native-vision-camera',
       {

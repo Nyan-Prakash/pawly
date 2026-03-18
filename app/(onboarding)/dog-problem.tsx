@@ -5,7 +5,8 @@ import { useRouter } from 'expo-router';
 export default function DogProblemRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/(onboarding)/dog-basics');
+    // Redirect to dog-basics starting from the problem step (index 5)
+    router.replace('/(onboarding)/dog-basics?step=5');
   }, [router]);
   return null;
 }

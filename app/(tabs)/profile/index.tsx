@@ -1,4 +1,4 @@
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, TouchableOpacity, View } from 'react-native';
 
 import { AppIcon } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
@@ -61,9 +61,17 @@ export default function ProfileScreen() {
               borderColor: colors.mascot.fur,
               alignItems: 'center',
               justifyContent: 'center',
+              overflow: 'hidden',
             }}
           >
-            <AppIcon name="paw" size={48} color={colors.mascot.fur} />
+            {dog?.avatarUrl ? (
+              <Image
+                source={{ uri: dog.avatarUrl }}
+                style={{ width: 96, height: 96, borderRadius: 48 }}
+              />
+            ) : (
+              <AppIcon name="paw" size={48} color={colors.mascot.fur} />
+            )}
           </View>
 
           {/* Dog name */}

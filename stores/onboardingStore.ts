@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
@@ -52,11 +53,17 @@ export interface OnboardingData {
   videoUri: string | null;
   videoUploadPath: string | null;
   videoContext: string;
+  avatarUrl: string | null;
+  avatarBase64: string | null;
+  avatarFileUri: string | null;
   currentStep: number;
 }
 
 interface OnboardingStore extends OnboardingData {
   setField: <K extends keyof OnboardingData>(key: K, value: OnboardingData[K]) => void;
+  setAvatarUrl: (url: string | null) => void;
+  setAvatarBase64: (base64: string | null) => void;
+  setAvatarFileUri: (uri: string | null) => void;
   setScheduleDay: (day: Weekday, enabled: boolean) => void;
   togglePreferredDay: (day: Weekday) => void;
   toggleTrainingWindow: (day: Weekday, window: TimeWindow) => void;
@@ -108,6 +115,9 @@ const defaults: OnboardingData = {
   videoUri: null,
   videoUploadPath: null,
   videoContext: '',
+  avatarUrl: null,
+  avatarBase64: null,
+  avatarFileUri: null,
   currentStep: 1,
 };
 
@@ -115,7 +125,7 @@ function unique<T>(items: T[]): T[] {
   return Array.from(new Set(items));
 }
 
-function buildDogFromState(state: OnboardingData, userId: string, dogId: string, lifecycleStage: string): Dog {
+function buildDogFromState(state: OnboardingData, userId: string, dogId: string, lifecycleStage: string, avatarUrl: string | null = null): Dog {
   return {
     id: dogId,
     ownerId: userId,
@@ -144,6 +154,7 @@ function buildDogFromState(state: OnboardingData, userId: string, dogId: string,
     scheduleVersion: 1,
     timezone: state.timezone,
     lifecycleStage,
+    avatarUrl,
     createdAt: new Date().toISOString(),
   };
 }
@@ -154,6 +165,12 @@ export const useOnboardingStore = create<OnboardingStore>()(
       ...defaults,
 
       setField: (key, value) => set({ [key]: value } as Partial<OnboardingData>),
+
+      setAvatarUrl: (url) => set({ avatarUrl: url }),
+
+      setAvatarBase64: (base64) => set({ avatarBase64: base64 }),
+
+      setAvatarFileUri: (uri) => set({ avatarFileUri: uri }),
 
       setScheduleDay: (day, enabled) =>
         set((state) => ({
@@ -248,6 +265,39 @@ export const useOnboardingStore = create<OnboardingStore>()(
             ? 'adult'
             : 'senior';
 
+        // Upload avatar to Storage now that we have an authenticated user.
+        // Read as base64 via FileSystem then convert to Uint8Array — fetch(fileUri).blob()
+        // returns 0 bytes on React Native for cache directory files.
+        let resolvedAvatarUrl = state.avatarUrl;
+        const uploadUri = state.avatarFileUri;
+        if (uploadUri && !resolvedAvatarUrl) {
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(uploadUri);
+            if (fileInfo.exists) {
+              const base64 = await FileSystem.readAsStringAsync(uploadUri, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+              const binaryString = atob(base64);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              const path = `avatars/${userId}_${Date.now()}.png`;
+              const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(path, bytes, { upsert: true, contentType: 'image/png' });
+              if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+                resolvedAvatarUrl = publicUrl;
+              } else {
+                console.warn('[onboarding] Avatar upload failed (non-fatal):', uploadError.message);
+              }
+            }
+          } catch (avatarErr) {
+            console.warn('[onboarding] Avatar upload error (non-fatal):', avatarErr);
+          }
+        }
+
         const dogPayload = {
           owner_id: userId,
           name: state.dogName,
@@ -277,6 +327,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
           lifecycle_stage: lifecycleStage,
           has_kids: state.hasKids,
           has_other_pets: state.hasOtherPets,
+          avatar_url: resolvedAvatarUrl,
         };
 
         // Retry dog insert — auth.users row may not be immediately visible to FK checks
@@ -324,7 +375,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
           });
         }
 
-        const dog = buildDogFromState(state, userId, dogId, lifecycleStage);
+        const dog = buildDogFromState(state, userId, dogId, lifecycleStage, resolvedAvatarUrl);
 
         captureEvent('onboarding_schedule_preferences_set', {
           daysPerWeek: state.availableDaysPerWeek,

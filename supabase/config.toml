@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.adapt-plan]
 verify_jwt = false
+
+[functions.generate-dog-avatar]
+verify_jwt = false
