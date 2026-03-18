@@ -14,9 +14,16 @@ interface StepCardProps {
   stepNumber: number;
   totalSteps: number;
   commonMistake?: string;
+  accentColor?: string;
 }
 
-export function StepCard({ step, stepNumber, totalSteps, commonMistake }: StepCardProps) {
+export function StepCard({
+  step,
+  stepNumber,
+  totalSteps,
+  commonMistake,
+  accentColor = colors.brand.primary,
+}: StepCardProps) {
   const [mistakeExpanded, setMistakeExpanded] = useState(false);
 
   return (
@@ -26,7 +33,7 @@ export function StepCard({ step, stepNumber, totalSteps, commonMistake }: StepCa
         style={{
           fontSize: 11,
           fontWeight: '700',
-          color: colors.brand.primary,
+          color: accentColor,
           textTransform: 'uppercase',
           letterSpacing: 1.2,
         }}
@@ -61,7 +68,7 @@ export function StepCard({ step, stepNumber, totalSteps, commonMistake }: StepCa
         {/* Success look */}
         {step.successLook ? (
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs }}>
-            <AppIcon name="checkmark-circle" size={16} color={colors.brand.primary} />
+            <AppIcon name="checkmark-circle" size={16} color={accentColor} />
             <Text
               style={{
                 flex: 1,

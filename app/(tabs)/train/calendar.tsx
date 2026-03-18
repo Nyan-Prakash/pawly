@@ -6,8 +6,9 @@ import { SafeScreen } from '@/components/ui/SafeScreen';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { getCourseUiColors } from '@/constants/courseColors';
 import { spacing } from '@/constants/spacing';
-import { usePlanStore } from '@/stores/planStore';
+import { selectSelectedPlanTheme, usePlanStore } from '@/stores/planStore';
 import { useDogStore } from '@/stores/dogStore';
 import { TrainingCalendar } from '@/components/train/TrainingCalendar';
 import { DaySessionList } from '@/components/train/DaySessionList';
@@ -15,9 +16,12 @@ import { toDateKey } from '@/lib/calendarSessions';
 import type { EnrichedPlanSession } from '@/types';
 
 export default function CalendarScreen() {
-  const { isLoading, fetchActivePlans, getGroupedSessionsForCalendar, activePlanIds } = usePlanStore();
+  const planStore = usePlanStore();
+  const { isLoading, fetchActivePlans, getGroupedSessionsForCalendar, activePlanIds } = planStore;
   const { dog } = useDogStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const selectedPlanTheme = selectSelectedPlanTheme(planStore);
+  const accentColor = selectedPlanTheme?.solid ?? getCourseUiColors('fallback').solid;
 
   useEffect(() => {
     if (dog?.id && activePlanIds.length === 0) {
@@ -107,6 +111,7 @@ export default function CalendarScreen() {
             <TrainingCalendar
               groupedSessions={groupedSessions}
               selectedDate={selectedDate}
+              accentColor={accentColor}
               onDateSelect={setSelectedDate}
             />
 

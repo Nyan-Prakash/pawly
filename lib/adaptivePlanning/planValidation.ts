@@ -8,7 +8,7 @@ import type {
   SkillNode,
 } from '../../types';
 import type { SkillGraph } from './skillGraph';
-import { getPrerequisiteSkills } from './graphTraversal';
+import { getPrerequisiteSkills } from './graphTraversal.ts';
 
 const VALID_ENVIRONMENTS: PlanEnvironment[] = [
   'indoors_low_distraction',

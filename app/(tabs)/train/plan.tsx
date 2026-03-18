@@ -18,7 +18,7 @@ import { Text } from '@/components/ui/Text';
 import { SessionChangeBadge } from '@/components/adaptive/SessionChangeBadge';
 import { WhyThisChangedSheet } from '@/components/adaptive/WhyThisChangedSheet';
 import { colors } from '@/constants/colors';
-import { getCourseUiColors } from '@/constants/courseColors';
+import { getCoursePillColors, getCourseUiColors } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { useDogStore } from '@/stores/dogStore';
@@ -74,7 +74,7 @@ function CompletionRing({ percentage, color }: { percentage: number; color: stri
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CourseSwitcherProps {
-  plans: Array<{ id: string; label: string; isPrimary: boolean }>;
+  plans: Array<{ id: string; label: string; isPrimary: boolean; goal: string; createdAt?: string }>;
   selectedId: string;
   onSelect: (id: string) => void;
 }
@@ -94,6 +94,21 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
     >
       {plans.map((plan) => {
         const isSelected = plan.id === selectedId;
+        const theme = getCourseUiColors({
+          id: plan.id,
+          goal: plan.goal,
+          courseTitle: plan.label,
+          createdAt: plan.createdAt,
+        });
+        const pillColors = getCoursePillColors(
+          {
+            id: plan.id,
+            goal: plan.goal,
+            courseTitle: plan.label,
+            createdAt: plan.createdAt,
+          },
+          isSelected
+        );
         return (
           <TouchableOpacity
             key={plan.id}
@@ -102,11 +117,13 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
             style={{
               paddingHorizontal: spacing.md,
               borderRadius: radii.pill,
-              backgroundColor: isSelected ? colors.brand.primary : colors.bg.surfaceAlt,
+              backgroundColor: pillColors.backgroundColor,
               borderWidth: 1,
-              borderColor: isSelected ? colors.brand.primary : colors.border.default,
+              borderColor: pillColors.borderColor,
               alignItems: 'center',
               justifyContent: 'center',
+              flexDirection: 'row',
+              gap: 6,
               minHeight: 36,
             }}
           >
@@ -114,24 +131,11 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
               style={{
                 fontSize: 13,
                 fontWeight: '600',
-                color: isSelected ? '#fff' : colors.text.primary,
+                color: pillColors.textColor,
               }}
             >
               {plan.label}
             </Text>
-            {plan.isPrimary && !isSelected && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 5,
-                  right: 5,
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: colors.brand.primary,
-                }}
-              />
-            )}
           </TouchableOpacity>
         );
       })}
@@ -150,6 +154,7 @@ function SessionDetailSheet({
   onStart,
   dogName,
   recentAdaptations,
+  accentColor,
 }: {
   session: PlanSession | null;
   visible: boolean;
@@ -157,6 +162,7 @@ function SessionDetailSheet({
   onStart: () => void;
   dogName: string;
   recentAdaptations: PlanAdaptation[];
+  accentColor: string;
 }) {
   const [showWhySheet, setShowWhySheet] = useState(false);
   const insets = useSafeAreaInsets();
@@ -341,6 +347,10 @@ function SessionDetailSheet({
                 <Button
                   label={session.isCompleted ? 'Session completed' : 'Start this session'}
                   onPress={onStart}
+                  style={{
+                    backgroundColor: accentColor,
+                    borderColor: accentColor,
+                  }}
                 />
               </View>
             </View>
@@ -371,19 +381,18 @@ function SessionRow({
   isFuture,
   onPress,
   planColor,
-  tintColor,
 }: {
   session: PlanSession;
   isToday: boolean;
   isFuture: boolean;
   onPress: () => void;
   planColor: string;
-  tintColor: string;
 }) {
-  const bgColor = isToday ? tintColor : colors.surface;
-  const borderColor = isToday ? planColor : colors.border.default;
   const kind = session.sessionKind ?? 'core';
   const isAdapted = session.adaptationSource === 'adaptation_engine';
+  const iconBackgroundColor = session.isCompleted ? `${planColor}18` : colors.bg.surfaceAlt;
+  const iconColor = session.isCompleted ? planColor : colors.text.secondary;
+  const titleColor = session.isCompleted || isFuture ? colors.text.secondary : colors.text.primary;
 
   return (
     <TouchableOpacity
@@ -392,103 +401,110 @@ function SessionRow({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: bgColor,
-        borderRadius: 14,
+        backgroundColor: colors.surface,
+        borderRadius: 18,
         borderWidth: 1,
-        borderColor,
+        borderColor: colors.border.default,
         padding: spacing.md,
-        gap: spacing.sm,
-        minHeight: 68,
-        opacity: isFuture ? 0.55 : 1,
+        gap: spacing.md,
+        minHeight: 92,
+        opacity: isFuture ? 0.72 : 1,
+        shadowColor: colors.shadow.strong,
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 1,
       }}
     >
       {/* Status icon */}
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: session.isCompleted
-            ? colors.success
-            : isToday
-            ? planColor
-            : colors.bg.surfaceAlt,
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: iconBackgroundColor,
           alignItems: 'center',
           justifyContent: 'center',
+          marginTop: 2,
         }}
       >
         {session.isCompleted ? (
-          <Ionicons name="checkmark" size={18} color="#fff" />
+          <Ionicons name="checkmark" size={18} color={iconColor} />
         ) : isToday ? (
-          <Ionicons name="play" size={14} color="#fff" />
+          <Ionicons name="lock-closed" size={16} color={colors.text.secondary} />
         ) : (
-          <Ionicons name="lock-closed" size={14} color={colors.textSecondary} />
+          <Ionicons name="calendar-outline" size={18} color={iconColor} />
         )}
       </View>
 
       {/* Session info */}
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
-          {isToday && (
-            <View
+      <View style={{ flex: 1, gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs }}>
+          <View style={{ flex: 1, gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
+              {isAdapted && (
+                <SessionChangeBadge kind={kind} />
+              )}
+              {session.autoRescheduledFrom ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    backgroundColor: colors.status.warningBg,
+                    borderRadius: radii.pill,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <Ionicons name="refresh" size={11} color={colors.warning} />
+                  <Text style={{ fontSize: 11, color: colors.warning, fontWeight: '400', letterSpacing: 0.2 }}>
+                    Rescheduled
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <Text
               style={{
-                backgroundColor: planColor,
-                paddingHorizontal: 6,
-                paddingVertical: 1,
-                borderRadius: 4,
+                fontSize: 19,
+                fontWeight: '700',
+                color: titleColor,
+                lineHeight: 24,
               }}
+              numberOfLines={2}
             >
-              <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 0.5 }}>
-                TODAY
+              {session.title}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: colors.text.secondary,
+                }}
+                numberOfLines={1}
+              >
+                {formatScheduleLabel(session)} · {session.durationMinutes} min
               </Text>
             </View>
+          </View>
+          {!isFuture && (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: colors.bg.surfaceAlt,
+              }}
+            >
+              <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
+            </View>
           )}
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: session.isCompleted || isToday ? '600' : '400',
-              color: session.isCompleted ? colors.textSecondary : colors.textPrimary,
-              flex: 1,
-            }}
-            numberOfLines={2}
-          >
-            {session.title}
-          </Text>
         </View>
-
-        {/* Adaptation badge */}
-        {isAdapted && (
-          <View style={{ marginTop: 6 }}>
-            <SessionChangeBadge kind={kind} />
-          </View>
-        )}
-
-        <Text variant="caption" style={{ marginTop: 4 }}>
-          {formatScheduleLabel(session)} · {session.durationMinutes} min
-        </Text>
-
-        {session.autoRescheduledFrom ? (
-          <View
-            style={{
-              marginTop: 6,
-              alignSelf: 'flex-start',
-              backgroundColor: colors.status.warningBg,
-              borderRadius: radii.pill,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-            }}
-          >
-            <Text style={{ fontSize: 10, color: colors.warning, fontWeight: '700' }}>
-              Rescheduled
-            </Text>
-          </View>
-        ) : null}
       </View>
-
-      {/* Chevron */}
-      {!isFuture && (
-        <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-      )}
     </TouchableOpacity>
   );
 }
@@ -620,6 +636,8 @@ export default function PlanScreen() {
     id: s.id,
     label: s.courseTitle ?? getBehaviorLabel(s.goal),
     isPrimary: s.isPrimary,
+    goal: s.goal,
+    createdAt: s.createdAt,
   }));
 
   const todaySessionId = recommendedTodaySession?.planId === displayPlanId
@@ -660,8 +678,8 @@ export default function PlanScreen() {
 
   if (!displayPlan) return null;
 
-  const uiColors = getCourseUiColors(displayPlan.goal);
-  const planColor = displayPlan.color || uiColors.solid;
+  const uiColors = getCourseUiColors(displayPlan);
+  const planColor = uiColors.solid;
   const completionPct = getPlanCompletion(displayPlan);
   const behaviorLabel = getBehaviorLabel(displayPlan.goal);
   const courseTitle = displayPlan.courseTitle ?? behaviorLabel;
@@ -702,14 +720,14 @@ export default function PlanScreen() {
               paddingHorizontal: spacing.sm,
               paddingVertical: 8,
               borderRadius: radii.pill,
-              backgroundColor: colors.brand.primary + '12',
+              backgroundColor: uiColors.tint,
               borderWidth: 1,
-              borderColor: colors.brand.primary + '30',
+              borderColor: uiColors.selectedBorder,
               minHeight: 36,
             }}
           >
-            <AppIcon name="add-circle" size={14} color={colors.brand.primary} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand.primary }}>
+            <AppIcon name="add-circle" size={14} color={planColor} />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: planColor }}>
               Add goal
             </Text>
           </TouchableOpacity>
@@ -805,13 +823,13 @@ export default function PlanScreen() {
                   {displayPlan.isPrimary && switcherPlans.length > 1 && (
                     <View
                       style={{
-                        backgroundColor: colors.brand.primary + '18',
+                        backgroundColor: uiColors.tint,
                         paddingHorizontal: 8,
                         paddingVertical: 3,
                         borderRadius: 99,
                       }}
                     >
-                      <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '600' }}>
+                      <Text style={{ fontSize: 11, color: planColor, fontWeight: '600' }}>
                         Primary
                       </Text>
                     </View>
@@ -862,7 +880,7 @@ export default function PlanScreen() {
                 isToday={item.isToday}
                 isFuture={item.isFuture}
                 planColor={planColor}
-                tintColor={uiColors.tint}
+
                 onPress={() => {
                   if (!item.isFuture) {
                     setSelectedSession(item.session);
@@ -882,13 +900,14 @@ export default function PlanScreen() {
         onStart={() => {
           if (selectedSession && !selectedSession.isCompleted) {
             setSelectedSession(null);
-            router.push(`/(tabs)/train/session?id=${selectedSession.id}`);
+            router.push(`/(tabs)/train/session?id=${selectedSession.id}&planId=${displayPlanId ?? ''}`);
           } else {
             setSelectedSession(null);
           }
         }}
         dogName={dog?.name ?? 'your dog'}
         recentAdaptations={recentAdaptations}
+        accentColor={planColor}
       />
     </SafeScreen>
   );

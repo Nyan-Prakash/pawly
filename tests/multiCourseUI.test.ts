@@ -32,6 +32,7 @@ import {
   groupEnrichedSessionsByDate,
   flattenMergedSchedule,
 } from '../lib/mergedSchedule.ts';
+import { getCoursePillColors, resolveSelectedCourseTheme } from '../constants/courseColors.ts';
 import type { Plan, PlanSession } from '../types/index.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,25 +233,50 @@ test('today multi-session: todaySessions carries planId for each session', () =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('course switcher: selectPlanSummaries produces one entry per active plan', () => {
-  // selectPlanSummaries is tested indirectly via its inputs (plan data shapes).
-  // We verify the mapping logic matches what the UI expects.
-  const plans: Plan[] = [
-    makePlan({ id: 'p1', sessions: [], isPrimary: true,  courseTitle: 'Loose Leash Walking', goal: 'Leash Pulling' }),
-    makePlan({ id: 'p2', sessions: [], isPrimary: false, courseTitle: null, goal: 'Recall' }),
-  ];
+  const planA = makePlan({ id: 'p1', sessions: [], isPrimary: true,  courseTitle: 'Loose Leash Walking', goal: 'Leash Pulling' });
+  const planB = makePlan({ id: 'p2', sessions: [], isPrimary: false, courseTitle: null, goal: 'Recall' });
 
-  // Simulate what selectPlanSummaries does for courseTitle / label
-  const switcherEntries = plans.map((p) => ({
-    id: p.id,
-    label: p.courseTitle ?? p.goal,
-    isPrimary: p.isPrimary,
+  const switcherEntries = [planA, planB].map((plan) => ({
+    id: plan.id,
+    label: plan.courseTitle ?? plan.goal,
+    isPrimary: plan.isPrimary,
   }));
 
   assert.equal(switcherEntries.length, 2);
   assert.equal(switcherEntries[0].label, 'Loose Leash Walking');
-  assert.equal(switcherEntries[1].label, 'Recall'); // falls back to goal
+  assert.equal(switcherEntries[1].label, 'Recall');
   assert.equal(switcherEntries[0].isPrimary, true);
   assert.equal(switcherEntries[1].isPrimary, false);
+});
+
+test('selected course theme selector: selected course drives the active themed color', () => {
+  const planA = makePlan({ id: 'p1', sessions: [], isPrimary: true, goal: 'Recall' });
+  const planB = makePlan({ id: 'p2', sessions: [], isPrimary: false, goal: 'Barking' });
+
+  const beforeSwitch = resolveSelectedCourseTheme(
+    { [planA.id]: planA, [planB.id]: planB },
+    [planA.id, planB.id],
+    null
+  );
+
+  const afterSwitch = resolveSelectedCourseTheme(
+    { [planA.id]: planA, [planB.id]: planB },
+    [planA.id, planB.id],
+    planB.id
+  );
+
+  assert.ok(beforeSwitch);
+  assert.ok(afterSwitch);
+  assert.notEqual(beforeSwitch?.solid, afterSwitch?.solid);
+});
+
+test('course pill theming: each course pill keeps its own color identity', () => {
+  const courseASelected = getCoursePillColors({ id: 'p1', goal: 'Recall' }, true);
+  const courseBUnselected = getCoursePillColors({ id: 'p2', goal: 'Barking' }, false);
+
+  assert.notEqual(courseASelected.backgroundColor, courseBUnselected.dotColor);
+  assert.equal(courseBUnselected.backgroundColor, '#F5F7F9');
+  assert.notEqual(courseBUnselected.borderColor, '#F5F7F9');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

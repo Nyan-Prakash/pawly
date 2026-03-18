@@ -306,3 +306,22 @@ export function groupEnrichedSessionsByDate(
 export function flattenMergedSchedule(result: MergedScheduleResult): EnrichedPlanSession[] {
   return [...result.missedSessions, ...result.todaySessions, ...result.upcomingSessions];
 }
+
+/**
+ * Collect ALL sessions from all active plans for calendar display.
+ * Unlike mergeActivePlanSchedules, this does not apply any cap or filter —
+ * every session with a scheduledDate is included regardless of whether it is
+ * past, today, or future, and regardless of completion status.
+ * This ensures the calendar shows the full schedule for every active plan.
+ */
+export function getAllSessionsForCalendar(plans: Plan[]): EnrichedPlanSession[] {
+  const sessions: EnrichedPlanSession[] = [];
+  for (const plan of plans) {
+    if (plan.status !== 'active') continue;
+    for (const session of plan.sessions) {
+      if (!session.scheduledDate) continue;
+      sessions.push(enrichSession(session, plan));
+    }
+  }
+  return sessions;
+}

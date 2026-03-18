@@ -541,7 +541,7 @@ function createStyles(isDark: boolean) {
     suggestionTray: {
       backgroundColor: colors.bg.app,
       paddingTop: spacing.xs,
-      marginBottom: spacing.sm,
+      marginBottom: -10,
     },
 
     composerShell: {

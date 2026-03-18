@@ -1,5 +1,5 @@
 import type { Dog, Plan, PlanSession } from '../types';
-import { getGoalColor } from '../constants/courseColors';
+import { getGoalColor } from '../constants/courseColors.ts';
 import {
   buildPlanMetadata,
   buildWeeklySchedule,

@@ -13,7 +13,7 @@ import type {
 } from '../types/index.ts';
 import type { Protocol, LiveCoachingConfig } from '../constants/protocols.ts';
 import { normalizeArticleContentBlocks, normalizeArticleDifficulty } from './articleContent.ts';
-import { getGoalColor } from '../constants/courseColors';
+import { getGoalColor } from '../constants/courseColors.ts';
 
 function asWeekdayArray(value: unknown): Dog['preferredTrainingDays'] {
   return Array.isArray(value) ? (value.filter((item): item is Dog['preferredTrainingDays'][number] => typeof item === 'string') as Dog['preferredTrainingDays']) : [];

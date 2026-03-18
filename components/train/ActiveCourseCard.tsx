@@ -4,6 +4,7 @@ import { AppIcon } from '@/components/ui/AppIcon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { getCourseUiColors } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { shadows } from '@/constants/shadows';
@@ -23,6 +24,7 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
   const courseLabel = plan.courseTitle ?? getBehaviorLabel(plan.goal);
   const completionPct = plan.completionPercentage;
   const nextSession = plan.todaySession;
+  const courseColors = getCourseUiColors(plan);
 
   return (
     <TouchableOpacity
@@ -55,13 +57,13 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
         {plan.isPrimary && (
           <View
             style={{
-              backgroundColor: colors.brand.primary + '18',
+              backgroundColor: courseColors.tint,
               borderRadius: radii.pill,
               paddingHorizontal: 7,
               paddingVertical: 2,
             }}
           >
-            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.brand.primary, letterSpacing: 0.3 }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: courseColors.text, letterSpacing: 0.3 }}>
               Primary
             </Text>
           </View>
@@ -83,13 +85,13 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
         {nextSession && !nextSession.isCompleted && (
           <View
             style={{
-              backgroundColor: colors.status.successBg,
+              backgroundColor: courseColors.tint,
               borderRadius: radii.pill,
               paddingHorizontal: 7,
               paddingVertical: 2,
             }}
           >
-            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.brand.primary, letterSpacing: 0.3 }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: courseColors.text, letterSpacing: 0.3 }}>
               Today
             </Text>
           </View>
@@ -101,7 +103,7 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
         <ProgressBar
           progress={completionPct / 100}
           height={4}
-          color={colors.brand.primary}
+          color={courseColors.solid}
           trackColor={colors.border.soft}
         />
         <Text variant="micro" color={colors.text.secondary}>
@@ -121,8 +123,8 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
         </View>
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <AppIcon name="checkmark-circle" size={11} color={colors.brand.primary} />
-          <Text variant="micro" color={colors.brand.primary}>
+          <AppIcon name="checkmark-circle" size={11} color={courseColors.solid} />
+          <Text variant="micro" color={courseColors.text}>
             Plan complete
           </Text>
         </View>
