@@ -52,6 +52,7 @@ export function mapDogRowToDog(data: Record<string, any>): Dog {
     scheduleVersion: data.schedule_version ?? 1,
     timezone: data.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC',
     lifecycleStage: data.lifecycle_stage ?? '',
+    avatarUrl: data.avatar_url ?? null,
     createdAt: data.created_at,
   };
 }

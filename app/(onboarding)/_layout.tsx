@@ -12,6 +12,7 @@ export default function OnboardingLayout() {
       }}
     >
       <Stack.Screen name="dog-basics" />
+      <Stack.Screen name="dog-photo" />
       <Stack.Screen name="dog-problem" />
       <Stack.Screen name="dog-environment" />
       <Stack.Screen name="video-upload" />

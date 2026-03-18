@@ -14,7 +14,7 @@ import Animated, {
   withRepeat,
   runOnJS,
 } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -141,9 +141,19 @@ function timeWindowLabel(tw: string | null): string {
 
 export default function DogBasicsScreen() {
   const router = useRouter();
+  const { step } = useLocalSearchParams<{ step?: string }>();
   const setField = useOnboardingStore((s) => s.setField);
 
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState(step ? parseInt(step, 10) : 0);
+
+  useEffect(() => {
+    if (step) {
+      const idx = parseInt(step, 10);
+      if (!isNaN(idx)) {
+        setCurrentStepIndex(idx);
+      }
+    }
+  }, [step]);
 
   // Local form state — written to store in batch at step 17
   const [dogName, setDogName] = useState('');
@@ -391,7 +401,15 @@ export default function DogBasicsScreen() {
         <QuestionScreen
           title="Tell us a bit more"
           canContinue
-          onContinue={goForward}
+          onContinue={() => {
+            // Save current form state to store before leaving
+            setField('dogName', dogName.trim());
+            setField('ageMonths', ageMonths);
+            setField('breed', breed);
+            setField('sex', sex);
+            setField('neutered', neutered);
+            router.push('/(onboarding)/dog-photo');
+          }}
           onBack={goBack}
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}

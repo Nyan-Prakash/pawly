@@ -52,11 +52,13 @@ export interface OnboardingData {
   videoUri: string | null;
   videoUploadPath: string | null;
   videoContext: string;
+  avatarUrl: string | null;
   currentStep: number;
 }
 
 interface OnboardingStore extends OnboardingData {
   setField: <K extends keyof OnboardingData>(key: K, value: OnboardingData[K]) => void;
+  setAvatarUrl: (url: string | null) => void;
   setScheduleDay: (day: Weekday, enabled: boolean) => void;
   togglePreferredDay: (day: Weekday) => void;
   toggleTrainingWindow: (day: Weekday, window: TimeWindow) => void;
@@ -108,6 +110,7 @@ const defaults: OnboardingData = {
   videoUri: null,
   videoUploadPath: null,
   videoContext: '',
+  avatarUrl: null,
   currentStep: 1,
 };
 
@@ -154,6 +157,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
       ...defaults,
 
       setField: (key, value) => set({ [key]: value } as Partial<OnboardingData>),
+
+      setAvatarUrl: (url) => set({ avatarUrl: url }),
 
       setScheduleDay: (day, enabled) =>
         set((state) => ({
@@ -277,6 +282,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
           lifecycle_stage: lifecycleStage,
           has_kids: state.hasKids,
           has_other_pets: state.hasOtherPets,
+          avatar_url: state.avatarUrl,
         };
 
         // Retry dog insert — auth.users row may not be immediately visible to FK checks

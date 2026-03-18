@@ -44,6 +44,7 @@ export interface Dog {
   scheduleVersion: number;
   timezone: string;
   lifecycleStage: string;
+  avatarUrl?: string | null;
   createdAt: string;
 }
 
