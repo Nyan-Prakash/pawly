@@ -13,6 +13,7 @@ interface CalendarDayCellProps {
   hasSessions: boolean;
   allCompleted: boolean;
   hasUpcoming: boolean;
+  accentColor: string;
   onPress: () => void;
 }
 
@@ -24,6 +25,7 @@ export const CalendarDayCell: React.FC<CalendarDayCellProps> = ({
   hasSessions,
   allCompleted,
   hasUpcoming,
+  accentColor,
   onPress,
 }) => {
   const dayNumber = date.getDate();
@@ -39,13 +41,13 @@ export const CalendarDayCell: React.FC<CalendarDayCellProps> = ({
         justifyContent: 'center',
         borderRadius: radii.md,
         backgroundColor: isSelected
-          ? colors.brand.primary
+          ? accentColor
           : 'transparent',
         opacity: isCurrentMonth ? 1 : 0.3,
         margin: 2,
         position: 'relative',
         borderWidth: isToday && !isSelected ? 1.5 : 0,
-        borderColor: colors.brand.primary,
+        borderColor: accentColor,
       }}
     >
       <Text
@@ -55,7 +57,7 @@ export const CalendarDayCell: React.FC<CalendarDayCellProps> = ({
           color: isSelected
             ? '#FFF'
             : isToday
-              ? colors.brand.primary
+              ? accentColor
               : colors.text.primary,
         }}
       >
@@ -77,7 +79,7 @@ export const CalendarDayCell: React.FC<CalendarDayCellProps> = ({
                 width: 4,
                 height: 4,
                 borderRadius: 2,
-                backgroundColor: isSelected ? '#FFF' : colors.brand.primary
+                backgroundColor: isSelected ? '#FFF' : accentColor
               }}
             />
           ) : hasUpcoming ? (

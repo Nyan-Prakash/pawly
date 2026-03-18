@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { EXERCISE_TO_PROTOCOL, PROTOCOLS_BY_ID } from '@/constants/protocols';
+import { resolveSelectedCourseTheme } from '@/constants/courseColors';
 import { captureEvent } from '@/lib/analytics';
 import { mapDogRowToDog, mapPlanRowToPlan } from '@/lib/modelMappers';
 import { fetchRecentAdaptations as fetchAdaptations } from '@/lib/adaptivePlanning/repositories';
@@ -17,6 +18,7 @@ import {
   mergeActivePlanSchedules,
   flattenMergedSchedule,
   groupEnrichedSessionsByDate,
+  getAllSessionsForCalendar,
 } from '@/lib/mergedSchedule';
 import { supabase } from '@/lib/supabase';
 import type { Protocol } from '@/constants/protocols';
@@ -222,8 +224,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   getGroupedSessionsForCalendar: () => {
     const { plansById, activePlanIds } = get();
     const activePlans = activePlanIds.map((id) => plansById[id]).filter((p): p is Plan => p != null);
-    const merged = mergeActivePlanSchedules(activePlans, { upcomingLimit: 60 });
-    return groupEnrichedSessionsByDate(flattenMergedSchedule(merged));
+    return groupEnrichedSessionsByDate(getAllSessionsForCalendar(activePlans));
   },
 
   // ── fetchActivePlans ───────────────────────────────────────────────────────
@@ -497,4 +498,8 @@ export function selectPlanSummaries(store: ReturnType<typeof usePlanStore.getSta
     });
   }
   return summaries;
+}
+
+export function selectSelectedPlanTheme(store: ReturnType<typeof usePlanStore.getState>) {
+  return resolveSelectedCourseTheme(store.plansById, store.activePlanIds, store.selectedPlanId);
 }

@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { getCourseUiColors } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { formatDisplayTime } from '@/lib/scheduleEngine';
@@ -63,12 +64,25 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
           const enriched = isEnriched(session) ? session : null;
           const courseLabel = enriched?.planCourseTitle
             ?? (enriched ? getBehaviorLabel(enriched.planGoal) : null);
+          const courseColors = enriched
+            ? getCourseUiColors({
+                id: enriched.planId,
+                goal: enriched.planGoal,
+                courseTitle: enriched.planCourseTitle,
+              })
+            : null;
 
           return (
             <TouchableOpacity
               key={session.id}
               activeOpacity={0.8}
-              onPress={() => router.push(`/(tabs)/train/session?id=${session.id}`)}
+              onPress={() =>
+                router.push(
+                  enriched
+                    ? `/(tabs)/train/session?id=${session.id}&planId=${enriched.planId}`
+                    : `/(tabs)/train/session?id=${session.id}`
+                )
+              }
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -86,7 +100,7 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
                   height: 40,
                   borderRadius: 20,
                   backgroundColor: session.isCompleted
-                    ? colors.brand.primary + '20'
+                    ? (courseColors?.tint ?? colors.status.successBg)
                     : colors.brand.secondary + '20',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -95,7 +109,7 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
                 <Ionicons
                   name={session.isCompleted ? 'checkmark' : 'play'}
                   size={20}
-                  color={session.isCompleted ? colors.brand.primary : colors.brand.secondary}
+                  color={session.isCompleted ? (courseColors?.solid ?? colors.success) : colors.brand.secondary}
                 />
               </View>
 
@@ -105,20 +119,24 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
                   <View
                     style={{
                       alignSelf: 'flex-start',
-                      backgroundColor: enriched?.isPrimaryPlan
-                        ? colors.brand.primary + '18'
-                        : colors.bg.surfaceAlt,
+                      backgroundColor: colors.bg.surfaceAlt,
+                      borderWidth: 1,
+                      borderColor: courseColors?.border ?? colors.border.default,
                       borderRadius: radii.pill,
                       paddingHorizontal: 7,
                       paddingVertical: 2,
                       marginBottom: 4,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
                     }}
                   >
+                   
                     <Text
                       style={{
                         fontSize: 10,
                         fontWeight: '700',
-                        color: enriched?.isPrimaryPlan ? colors.brand.primary : colors.text.secondary,
+                        color: courseColors?.text ?? colors.text.secondary,
                         letterSpacing: 0.3,
                       }}
                     >

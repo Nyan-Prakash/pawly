@@ -29,12 +29,6 @@ export function QuickSuggestions({ suggestions, onSelect }: QuickSuggestionsProp
           onPress={() => onSelect(suggestion)}
         >
           <View style={styles.cardInner}>
-            <View style={styles.iconRow}>
-              <View style={styles.iconBadge}>
-                <Ionicons name="sparkles" size={12} color={isDark ? '#4ADE80' : '#16A34A'} />
-              </View>
-              <RNText style={styles.chipEyebrow}>Ask coach</RNText>
-            </View>
             <RNText numberOfLines={3} style={styles.chipText}>
               {suggestion}
             </RNText>
@@ -53,7 +47,7 @@ function createStyles(isDark: boolean) {
     },
     container: {
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.lg,
       gap: 12,
     },
     chipOuter: {
@@ -80,12 +74,6 @@ function createStyles(isDark: boolean) {
       paddingTop: spacing.sm + 4,
       paddingBottom: spacing.sm + 4,
       paddingHorizontal: spacing.md,
-    },
-    iconRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 10,
     },
     iconBadge: {
       width: 22,

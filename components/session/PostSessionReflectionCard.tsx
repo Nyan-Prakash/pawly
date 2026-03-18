@@ -10,6 +10,7 @@ import {
 import { Text } from '@/components/ui/Text';
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { colors } from '@/constants/colors';
+import type { CourseUiColors } from '@/constants/courseColors';
 import { spacing } from '@/constants/spacing';
 import type { ReflectionQuestionConfig, ReflectionAnswerOption } from '@/lib/adaptivePlanning/reflectionQuestionTypes';
 import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
@@ -42,6 +43,7 @@ export interface PostSessionReflectionCardProps {
   onSubmit: () => void;
   isSaving: boolean;
   insets: { top: number; bottom: number };
+  theme: CourseUiColors;
 }
 
 // Step indices:
@@ -62,6 +64,7 @@ export function PostSessionReflectionCard({
   onSubmit,
   isSaving,
   insets,
+  theme,
 }: PostSessionReflectionCardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -144,7 +147,7 @@ export function PostSessionReflectionCard({
         {/* Session complete badge */}
         <View style={{ alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <AppIcon name="ribbon" size={22} color={colors.primary} />
+            <AppIcon name="ribbon" size={22} color={theme.solid} />
             <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>
               Session complete
             </Text>
@@ -192,7 +195,7 @@ export function PostSessionReflectionCard({
                   flex: 1,
                   height: 3,
                   borderRadius: 2,
-                  backgroundColor: completed || active ? colors.primary : colors.border.default,
+                  backgroundColor: completed || active ? theme.solid : colors.border.default,
                   opacity: active ? 0.45 : 1,
                 }}
               />
@@ -232,6 +235,7 @@ export function PostSessionReflectionCard({
               onSubmit={onSubmit}
               isSaving={isSaving}
               canSubmit={allRequiredAnswered && !isSaving}
+              theme={theme}
             />
           ) : currentQuestion ? (
             <QuestionStep
@@ -481,9 +485,10 @@ interface NotesStepProps {
   onSubmit: () => void;
   isSaving: boolean;
   canSubmit: boolean;
+  theme: CourseUiColors;
 }
 
-function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit }: NotesStepProps) {
+function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, theme }: NotesStepProps) {
   return (
     <View style={{ gap: spacing.xl }}>
       <View style={{ gap: spacing.xs }}>
@@ -522,16 +527,18 @@ function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit }: Note
           backgroundColor: !canSubmit
             ? colors.border.default
             : pressed
-            ? '#1aab52'
-            : colors.primary,
+            ? theme.selectedBorder
+            : theme.solid,
+          borderWidth: canSubmit ? 1 : 0,
+          borderColor: canSubmit ? theme.selectedBorder : colors.border.default,
           borderRadius: 14,
           paddingVertical: spacing.md + 4,
           alignItems: 'center',
           justifyContent: 'center',
           minHeight: 56,
-          shadowColor: canSubmit ? '#15803d' : 'transparent',
+          shadowColor: canSubmit ? theme.solid : 'transparent',
           shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.22,
+          shadowOpacity: 0.18,
           shadowRadius: 10,
           elevation: canSubmit ? 4 : 0,
         })}
@@ -540,7 +547,7 @@ function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit }: Note
           style={{
             fontSize: 17,
             fontWeight: '700',
-            color: colors.textSecondary,
+            color: canSubmit ? colors.text.primary : colors.textSecondary,
             letterSpacing: 0.2,
           }}
         >

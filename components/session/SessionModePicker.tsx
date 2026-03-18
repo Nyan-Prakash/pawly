@@ -23,9 +23,20 @@ interface SessionModePickerProps {
   onNormal: () => void;
   onCamera: () => void;
   onBack: () => void;
+  accentColor?: string;
+  accentTint?: string;
+  contrastTextColor?: string;
 }
 
-export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: SessionModePickerProps) {
+export function SessionModePicker({
+  dogName,
+  onNormal,
+  onCamera,
+  onBack,
+  accentColor = colors.primary,
+  accentTint = colors.status.successBg,
+  contrastTextColor = '#fff',
+}: SessionModePickerProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -62,13 +73,13 @@ export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: Sessi
             width: 72,
             height: 72,
             borderRadius: 24,
-            backgroundColor: colors.status.successBg,
+            backgroundColor: accentTint,
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: spacing.xs,
           }}
         >
-          <AppIcon name="videocam" size={36} color={colors.primary} />
+          <AppIcon name="videocam" size={36} color={accentColor} />
         </View>
         <Text
           style={{
@@ -100,7 +111,7 @@ export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: Sessi
         <Pressable
           onPress={onCamera}
           style={({ pressed }) => ({
-            backgroundColor: pressed ? colors.status.successBg : colors.surface,
+            backgroundColor: pressed ? accentTint : colors.surface,
             borderRadius: 20,
             padding: spacing.lg,
             shadowColor: colors.shadow.success,
@@ -117,13 +128,13 @@ export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: Sessi
                 width: 56,
                 height: 56,
                 borderRadius: 18,
-                backgroundColor: colors.status.successBg,
+                backgroundColor: accentTint,
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}
             >
-              <AppIcon name="videocam" size={28} color={colors.primary} />
+              <AppIcon name="videocam" size={28} color={accentColor} />
             </View>
 
             <View style={{ flex: 1, gap: 4 }}>
@@ -133,13 +144,13 @@ export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: Sessi
                 </Text>
                 <View
                   style={{
-                    backgroundColor: colors.primary,
+                    backgroundColor: accentColor,
                     paddingHorizontal: 7,
                     paddingVertical: 2,
                     borderRadius: 99,
                   }}
                 >
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#fff', letterSpacing: 0.5 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: contrastTextColor, letterSpacing: 0.5 }}>
                     NEW
                   </Text>
                 </View>
@@ -154,13 +165,13 @@ export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: Sessi
                 width: 32,
                 height: 32,
                 borderRadius: 10,
-                backgroundColor: colors.primary,
+                backgroundColor: accentColor,
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}
             >
-              <AppIcon name="chevron-forward" size={16} color="#fff" />
+              <AppIcon name="chevron-forward" size={16} color={contrastTextColor} />
             </View>
           </View>
 
@@ -170,15 +181,15 @@ export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: Sessi
               <View
                 key={label}
                 style={{
-                  backgroundColor: colors.status.successBg,
+                  backgroundColor: accentTint,
                   borderRadius: 99,
                   paddingHorizontal: 10,
                   paddingVertical: 4,
                   borderWidth: 1,
-                  borderColor: colors.status.successBorder,
+                  borderColor: accentColor,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.primary }}>
+                <Text style={{ fontSize: 12, fontWeight: '600', color: accentColor }}>
                   {label}
                 </Text>
               </View>

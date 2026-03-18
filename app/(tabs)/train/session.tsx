@@ -23,6 +23,7 @@ import { StepCard } from '@/components/session/StepCard';
 import { SessionModePicker } from '@/components/session/SessionModePicker';
 import { LiveCoachOverlay } from '@/components/vision/LiveCoachOverlay';
 import { colors } from '@/constants/colors';
+import { getCourseUiColors, hexToRgba, type CourseUiColors } from '@/constants/courseColors';
 import { spacing } from '@/constants/spacing';
 import { useSessionStore } from '@/stores/sessionStore';
 import { usePlanStore } from '@/stores/planStore';
@@ -94,7 +95,7 @@ function buildChecklist(equipment: string[]): string[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function SessionScreen() {
-  const { id: sessionId } = useLocalSearchParams<{ id: string }>();
+  const { id: sessionId, planId } = useLocalSearchParams<{ id: string; planId?: string }>();
   const insets = useSafeAreaInsets();
 
   const { fetchProtocol, markSessionComplete, plansById } = usePlanStore();
@@ -106,7 +107,9 @@ export default function SessionScreen() {
   // Resolve the plan and session for this sessionId across ALL active plans.
   // This is the canonical multi-plan-safe lookup — avoids breaking when the
   // session belongs to a non-primary (secondary) plan.
-  const resolvedPlan = sessionId
+  const resolvedPlan = planId && plansById[planId]
+    ? plansById[planId]
+    : sessionId
     ? Object.values(plansById).find((p) => p.sessions.some((s) => s.id === sessionId)) ?? null
     : null;
   const activePlan = resolvedPlan; // alias used throughout the component
@@ -513,8 +516,10 @@ export default function SessionScreen() {
   // Render states
   // ─────────────────────────────────────────────────────────────────────────
 
+  const courseTheme = getCourseUiColors(activePlan ?? { id: sessionId ?? 'session-fallback' });
+
   if (!activeSession || activeSession.state === 'LOADING') {
-    return <LoadingView insets={insets} error={loadError} onBack={() => router.back()} />;
+    return <LoadingView insets={insets} error={loadError} onBack={() => router.back()} theme={courseTheme} />;
   }
 
   const { state, protocol, currentStepIndex } = activeSession;
@@ -532,6 +537,9 @@ export default function SessionScreen() {
         <StatusBar style="dark" />
         <SessionModePicker
           dogName={dogName}
+          accentColor={courseTheme.solid}
+          accentTint={courseTheme.tint}
+          contrastTextColor={courseTheme.contrastText}
           onBack={() => {
             setOverlayState('NONE');
             setState('SETUP');
@@ -568,6 +576,7 @@ export default function SessionScreen() {
         {/* Abandon sheet is accessible from live coaching too */}
         <AbandonSheet
           visible={showAbandonSheet}
+          theme={courseTheme}
           onKeepGoing={() => setShowAbandonSheet(false)}
           onLeave={handleAbandonConfirm}
         />
@@ -584,6 +593,7 @@ export default function SessionScreen() {
         <IntroView
           protocol={protocol}
           dogName={dogName}
+          theme={courseTheme}
           insets={insets}
           onBack={handleBackPress}
           onReady={() => setState('SETUP')}
@@ -595,6 +605,7 @@ export default function SessionScreen() {
         <SetupView
           protocol={protocol}
           checkedItems={checkedItems}
+          theme={courseTheme}
           onToggle={(i) => {
             setCheckedItems((prev) => {
               const next = new Set(prev);
@@ -616,6 +627,7 @@ export default function SessionScreen() {
           totalSteps={totalSteps}
           protocol={protocol}
           activeSession={activeSession}
+          theme={courseTheme}
           onBack={handleBackPress}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
@@ -638,6 +650,7 @@ export default function SessionScreen() {
           totalSteps={totalSteps}
           currentStep={currentStep}
           nextStep={protocol.steps[currentStepIndex + 1]}
+          theme={courseTheme}
           onNext={handleNextStep}
           insets={insets}
         />
@@ -660,6 +673,7 @@ export default function SessionScreen() {
           }
           onSave={handleSubmitSession}
           insets={insets}
+          theme={courseTheme}
         />
       )}
 
@@ -671,6 +685,7 @@ export default function SessionScreen() {
           completedSessionCount={completedSessionCount}
           totalSessions={activePlan?.sessions.length ?? 0}
           activeSession={activeSession}
+          theme={courseTheme}
           onBack={() => {
             clearSession();
             router.back();
@@ -682,6 +697,7 @@ export default function SessionScreen() {
       {/* ── Abandon Bottom Sheet ── */}
       <AbandonSheet
         visible={showAbandonSheet}
+        theme={courseTheme}
         onKeepGoing={() => setShowAbandonSheet(false)}
         onLeave={handleAbandonConfirm}
       />
@@ -697,11 +713,14 @@ function LoadingView({
   insets,
   error,
   onBack,
+  theme,
 }: {
   insets: ReturnType<typeof useSafeAreaInsets>;
   error?: string | null;
   onBack?: () => void;
+  theme?: CourseUiColors;
 }) {
+  const accentColor = theme?.solid ?? colors.primary;
   return (
     <View
       style={{
@@ -712,8 +731,8 @@ function LoadingView({
         paddingTop: insets.top,
       }}
     >
-      <AppIcon name="paw" size={48} color={colors.primary} />
-      <ActivityIndicator size="large" color={colors.primary} />
+      <AppIcon name="paw" size={48} color={accentColor} />
+      <ActivityIndicator size="large" color={accentColor} />
       <Text style={{ marginTop: spacing.lg, color: colors.textSecondary, fontSize: 16 }}>
         {error ?? 'Getting your session ready…'}
       </Text>
@@ -727,7 +746,7 @@ function LoadingView({
             justifyContent: 'center',
           })}
         >
-          <Text style={{ color: colors.primary, fontSize: 16, fontWeight: '600' }}>
+          <Text style={{ color: accentColor, fontSize: 16, fontWeight: '600' }}>
             Back
           </Text>
         </Pressable>
@@ -741,12 +760,13 @@ function LoadingView({
 interface IntroViewProps {
   protocol: import('@/constants/protocols').Protocol;
   dogName: string;
+  theme: CourseUiColors;
   insets: ReturnType<typeof useSafeAreaInsets>;
   onBack: () => void;
   onReady: () => void;
 }
 
-function IntroView({ protocol, dogName, insets, onBack, onReady }: IntroViewProps) {
+function IntroView({ protocol, dogName, theme, insets, onBack, onReady }: IntroViewProps) {
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -773,8 +793,8 @@ function IntroView({ protocol, dogName, insets, onBack, onReady }: IntroViewProp
 
         {/* Chips row */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          <Chip label={`${protocol.durationMinutes} minutes`} icon="time" />
-          <Chip label={`${protocol.steps.length} steps`} icon="list" />
+          <Chip label={`${protocol.durationMinutes} minutes`} icon="time" color={theme.solid} textColor={theme.text} />
+          <Chip label={`${protocol.steps.length} steps`} icon="list" color={theme.solid} textColor={theme.text} />
         </View>
 
         {/* Equipment */}
@@ -795,18 +815,18 @@ function IntroView({ protocol, dogName, insets, onBack, onReady }: IntroViewProp
         {protocol.trainerNote ? (
           <View
             style={{
-              backgroundColor: '#E6F4F1',
+              backgroundColor: theme.tint,
               borderRadius: 14,
               padding: spacing.lg,
               borderLeftWidth: 4,
-              borderLeftColor: colors.primary,
+              borderLeftColor: theme.solid,
               gap: spacing.xs,
             }}
           >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, textTransform: 'uppercase', letterSpacing: 0.6 }}>
               Trainer note
             </Text>
-            <Text style={{ fontSize: 15, lineHeight: 22, color: '#1A4A42' }}>
+            <Text style={{ fontSize: 15, lineHeight: 22, color: colors.textPrimary }}>
               {protocol.trainerNote}
             </Text>
           </View>
@@ -833,8 +853,8 @@ function IntroView({ protocol, dogName, insets, onBack, onReady }: IntroViewProp
           style={{
             minHeight: 58,
             borderRadius: 16,
-            backgroundColor: colors.brand.primary,
-            borderColor: colors.brand.primary,
+            backgroundColor: theme.solid,
+            borderColor: theme.solid,
             borderWidth: 1,
           }}
         />
@@ -848,13 +868,14 @@ function IntroView({ protocol, dogName, insets, onBack, onReady }: IntroViewProp
 interface SetupViewProps {
   protocol: import('@/constants/protocols').Protocol;
   checkedItems: Set<number>;
+  theme: CourseUiColors;
   onToggle: (i: number) => void;
   insets: ReturnType<typeof useSafeAreaInsets>;
   onBack: () => void;
   onStart: () => void;
 }
 
-function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }: SetupViewProps) {
+function SetupView({ protocol, checkedItems, theme, onToggle, insets, onBack, onStart }: SetupViewProps) {
   const checklist = buildChecklist(protocol.equipmentNeeded);
   const allChecked = checkedItems.size === checklist.length;
   const checkedCount = checkedItems.size;
@@ -887,7 +908,7 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
               {checkedCount} of {checklist.length} ready
             </Text>
             {allChecked && (
-              <Text style={{ fontSize: 13, fontWeight: '600', color: colors.primary }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text }}>
                 All set!
               </Text>
             )}
@@ -897,7 +918,7 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
               style={{
                 height: 4,
                 borderRadius: 99,
-                backgroundColor: colors.primary,
+                backgroundColor: theme.solid,
                 width: `${(checkedCount / checklist.length) * 100}%`,
               }}
             />
@@ -930,7 +951,7 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
                       borderRadius: 10,
                       borderWidth: checked ? 0 : 2,
                       borderColor: '#C5C9D0',
-                      backgroundColor: checked ? colors.primary : 'transparent',
+                      backgroundColor: checked ? theme.solid : 'transparent',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
@@ -972,19 +993,21 @@ function SetupView({ protocol, checkedItems, onToggle, insets, onBack, onStart }
         <Pressable
           onPress={onStart}
           style={({ pressed }) => ({
-            backgroundColor: pressed ? '#1aab50' : colors.primary,
+            backgroundColor: pressed ? theme.selectedBorder : theme.solid,
+            borderWidth: 1,
+            borderColor: pressed ? theme.solid : theme.selectedBorder,
             borderRadius: 16,
             paddingVertical: spacing.lg,
             alignItems: 'center',
             minHeight: 54,
-            shadowColor: colors.shadow.success,
+            shadowColor: theme.solid,
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.2,
-            shadowRadius: 10,
+            shadowOpacity: 0.18,
+            shadowRadius: 12,
             elevation: 4,
           })}
         >
-          <Text style={{ fontSize: 17, fontWeight: '700', color: '#9CA3AF' }}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>
             Start session
           </Text>
         </Pressable>
@@ -1001,6 +1024,7 @@ interface StepActiveViewProps {
   totalSteps: number;
   protocol: import('@/constants/protocols').Protocol;
   activeSession: import('@/stores/sessionStore').ActiveSession;
+  theme: CourseUiColors;
   onBack: () => void;
   onToggleTimer: () => void;
   onResetTimer: () => void;
@@ -1016,6 +1040,7 @@ function StepActiveView({
   totalSteps,
   protocol,
   activeSession,
+  theme,
   onBack,
   onToggleTimer,
   onResetTimer,
@@ -1045,7 +1070,7 @@ function StepActiveView({
           style={{
             height: 4,
             width: `${progressRatio * 100}%`,
-            backgroundColor: colors.primary,
+            backgroundColor: theme.solid,
           }}
         />
       </View>
@@ -1066,6 +1091,7 @@ function StepActiveView({
           stepNumber={stepNumber}
           totalSteps={totalSteps}
           commonMistake={commonMistake}
+          accentColor={theme.solid}
         />
 
         {/* Timer */}
@@ -1090,7 +1116,7 @@ function StepActiveView({
             totalSeconds={step.durationSeconds!}
             currentSeconds={activeSession.timerSeconds}
             size={200} // a bit bigger so text has more room
-            color={timerDone ? colors.success : colors.primary}
+            color={timerDone ? colors.success : theme.solid}
           />
           <View
             style={{
@@ -1158,12 +1184,12 @@ function StepActiveView({
               width: 72,
               height: 72,
               borderRadius: 36,
-              backgroundColor: pressed
-                ? (timerDone ? '#3DAD9A' : '#2D8A7C')
-                : (timerDone ? colors.success : colors.primary),
+                backgroundColor: pressed
+                ? (timerDone ? hexToRgba(colors.success, 0.85) : theme.selectedBorder)
+                : (timerDone ? colors.success : theme.solid),
               alignItems: 'center',
               justifyContent: 'center',
-              shadowColor: timerDone ? colors.success : colors.primary,
+              shadowColor: timerDone ? colors.success : theme.solid,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -1206,6 +1232,7 @@ function StepActiveView({
           target={step.reps}
           onIncrement={onIncrementRep}
           onReset={onResetReps}
+          accentColor={theme.solid}
         />
           </View>
         )}
@@ -1229,7 +1256,9 @@ function StepActiveView({
         <Pressable
           onPress={onStepDone}
           style={({ pressed }) => ({
-            backgroundColor: pressed ? '#246158' : colors.primary,
+            backgroundColor: pressed ? theme.selectedBorder : theme.solid,
+            borderWidth: 1,
+            borderColor: pressed ? theme.solid : theme.selectedBorder,
             borderRadius: 14,
             paddingVertical: spacing.lg,
             alignItems: 'center',
@@ -1237,11 +1266,16 @@ function StepActiveView({
             justifyContent: 'center',
             gap: spacing.sm,
             minHeight: 54,
+            shadowColor: theme.solid,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.14,
+            shadowRadius: 10,
+            elevation: 3,
           })}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Step done</Text>
-            <AppIcon name="checkmark" size={16} color="#fff" />
+            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Step done</Text>
+            <AppIcon name="checkmark" size={16} color={colors.text.primary} />
           </View>
         </Pressable>
       </View>
@@ -1256,11 +1290,12 @@ interface StepCompleteViewProps {
   totalSteps: number;
   currentStep: import('@/constants/protocols').ProtocolStep | undefined;
   nextStep: import('@/constants/protocols').ProtocolStep | undefined;
+  theme: CourseUiColors;
   onNext: () => void;
   insets: ReturnType<typeof useSafeAreaInsets>;
 }
 
-function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, onNext, insets }: StepCompleteViewProps) {
+function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, theme, onNext, insets }: StepCompleteViewProps) {
   const isLast = !nextStep;
 
   useEffect(() => {
@@ -1305,16 +1340,23 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, onNex
           <Pressable
             onPress={onNext}
             style={({ pressed }) => ({
-              backgroundColor: pressed ? '#246158' : colors.primary,
+              backgroundColor: pressed ? theme.selectedBorder : theme.solid,
+              borderWidth: 1,
+              borderColor: pressed ? theme.solid : theme.selectedBorder,
               borderRadius: 14,
               paddingVertical: spacing.lg,
               paddingHorizontal: spacing.xxl,
               minHeight: 54,
+              shadowColor: theme.solid,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.14,
+              shadowRadius: 10,
+              elevation: 3,
             })}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Rate session</Text>
-              <AppIcon name="arrow-forward" size={16} color="#fff" />
+              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Rate session</Text>
+              <AppIcon name="arrow-forward" size={16} color={colors.text.primary} />
             </View>
           </Pressable>
         </View>
@@ -1326,16 +1368,23 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, onNex
           <Pressable
             onPress={onNext}
             style={({ pressed }) => ({
-              backgroundColor: pressed ? '#246158' : colors.primary,
+              backgroundColor: pressed ? theme.selectedBorder : theme.solid,
+              borderWidth: 1,
+              borderColor: pressed ? theme.solid : theme.selectedBorder,
               borderRadius: 14,
               paddingVertical: spacing.md,
               paddingHorizontal: spacing.xl,
               minHeight: 44,
+              shadowColor: theme.solid,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.12,
+              shadowRadius: 8,
+              elevation: 2,
             })}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#6B7280' }}>Next step</Text>
-              <AppIcon name="arrow-forward" size={14} color="#fff" />
+              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text.primary }}>Next step</Text>
+              <AppIcon name="arrow-forward" size={14} color={colors.text.primary} />
             </View>
           </Pressable>
           <Text style={{ fontSize: 13, color: colors.textSecondary, opacity: 0.6 }}>
@@ -1362,6 +1411,7 @@ interface SessionReviewViewProps {
   onReflectionAnswer: (qId: ReflectionQuestionId, value: string | number) => void;
   onSave: () => void;
   insets: ReturnType<typeof useSafeAreaInsets>;
+  theme: CourseUiColors;
 }
 
 function SessionReviewView({
@@ -1377,6 +1427,7 @@ function SessionReviewView({
   onReflectionAnswer,
   onSave,
   insets,
+  theme,
 }: SessionReviewViewProps) {
   const durationSeconds = Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000);
   const durationLabel = `Completed in ${formatDuration(durationSeconds)}`;
@@ -1395,6 +1446,7 @@ function SessionReviewView({
       onSubmit={onSave}
       isSaving={isSaving}
       insets={insets}
+      theme={theme}
     />
   );
 }
@@ -1407,11 +1459,12 @@ interface CompleteViewProps {
   completedSessionCount: number;
   totalSessions: number;
   activeSession: import('@/stores/sessionStore').ActiveSession;
+  theme: CourseUiColors;
   onBack: () => void;
   insets: ReturnType<typeof useSafeAreaInsets>;
 }
 
-function CompleteView({ dogName, protocol, completedSessionCount, totalSessions, activeSession, onBack }: CompleteViewProps) {
+function CompleteView({ dogName, protocol, completedSessionCount, totalSessions, activeSession, theme, onBack }: CompleteViewProps) {
   const nextProtocol = protocol.nextProtocolId;
   const insets = useSafeAreaInsets();
 
@@ -1425,13 +1478,13 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
         paddingTop: insets.top + spacing.xl * 2,
         paddingBottom: insets.bottom + spacing.xl,
         gap: spacing.xl,
-        backgroundColor: '#F0FDF8',
+        backgroundColor: theme.tint,
       }}
     >
       {/* Celebration */}
       <View style={{ alignItems: 'center', gap: spacing.md }}>
-        <AppIcon name="ribbon" size={72} color={colors.primary} />
-        <Text style={{ fontSize: 30, fontWeight: '800', color: colors.primary, textAlign: 'center', lineHeight: 42 }}>
+        <AppIcon name="ribbon" size={72} color={theme.solid} />
+        <Text style={{ fontSize: 30, fontWeight: '800', color: theme.text, textAlign: 'center', lineHeight: 42 }}>
           {dogName} crushed it!
         </Text>
       </View>
@@ -1453,21 +1506,22 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
           elevation: 3,
         }}
       >
-        <StatRow emoji="analytics" label="Sessions completed" value={`${completedSessionCount} of ${totalSessions}`} />
+        <StatRow emoji="analytics" label="Sessions completed" value={`${completedSessionCount} of ${totalSessions}`} color={theme.solid} />
         <StatRow
           emoji="time"
           label="Time trained"
           value={formatDuration(Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000))}
+          color={theme.solid}
         />
         {nextProtocol && (
-          <StatRow emoji="arrow-forward" label="Next up" value={`Stage ${(protocol.stage + 1)} session`} />
+          <StatRow emoji="arrow-forward" label="Next up" value={`Stage ${(protocol.stage + 1)} session`} color={theme.solid} />
         )}
       </View>
 
       <Pressable
         onPress={onBack}
         style={({ pressed }) => ({
-          backgroundColor: pressed ? '#246158' : colors.primary,
+          backgroundColor: pressed ? theme.selectedBorder : theme.solid,
           borderRadius: 14,
           paddingVertical: spacing.lg,
           paddingHorizontal: spacing.xxl,
@@ -1476,16 +1530,16 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
           width: '100%',
         })}
       >
-        <Text style={{ fontSize: 17, fontWeight: '700', color: '#6B7280' }}>Back to today</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Back to today</Text>
       </Pressable>
     </View>
   );
 }
 
-function StatRow({ emoji, label, value }: { emoji: AppIconName; label: string; value: string }) {
+function StatRow({ emoji, label, value, color }: { emoji: AppIconName; label: string; value: string; color: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-      <AppIcon name={emoji} size={20} color={colors.primary} />
+      <AppIcon name={emoji} size={20} color={color} />
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 13, color: colors.textSecondary }}>{label}</Text>
         <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>{value}</Text>
@@ -1498,10 +1552,12 @@ function StatRow({ emoji, label, value }: { emoji: AppIconName; label: string; v
 
 function AbandonSheet({
   visible,
+  theme,
   onKeepGoing,
   onLeave,
 }: {
   visible: boolean;
+  theme?: CourseUiColors;
   onKeepGoing: () => void;
   onLeave: () => void;
 }) {
@@ -1557,14 +1613,14 @@ function AbandonSheet({
           <Pressable
             onPress={onKeepGoing}
             style={({ pressed }) => ({
-              backgroundColor: pressed ? '#246158' : colors.primary,
+              backgroundColor: pressed ? (theme?.selectedBorder ?? colors.primary) : (theme?.solid ?? colors.primary),
               borderRadius: 14,
               paddingVertical: spacing.lg,
               alignItems: 'center',
               minHeight: 54,
             })}
           >
-            <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Keep going</Text>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Keep going</Text>
           </Pressable>
 
           <Pressable
@@ -1615,18 +1671,20 @@ function BackButton({ onPress }: { onPress: () => void }) {
 function Chip({
   label,
   icon,
-  color = colors.primary,
-  textColor = '#fff',
+  color,
+  textColor,
 }: {
   label: string;
   icon?: AppIconName;
   color?: string;
   textColor?: string;
 }) {
+  const chipColor = color ?? colors.primary;
+  const chipTextColor = textColor ?? chipColor;
   return (
     <View
       style={{
-        backgroundColor: color === colors.primary ? '#E6F4F1' : color,
+        backgroundColor: hexToRgba(chipColor, 0.12),
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.xs + 2,
         borderRadius: 99,
@@ -1639,10 +1697,10 @@ function Chip({
         <AppIcon
           name={icon}
           size={14}
-          color={color === colors.primary ? colors.primary : textColor}
+          color={chipTextColor}
         />
       ) : null}
-      <Text style={{ fontSize: 14, color: color === colors.primary ? colors.primary : textColor, fontWeight: '500' }}>
+      <Text style={{ fontSize: 14, color: chipTextColor, fontWeight: '500' }}>
         {label}
       </Text>
     </View>

@@ -11,6 +11,7 @@ import type { PlanSession } from '@/types';
 interface TrainingCalendarProps {
   groupedSessions: Record<string, PlanSession[]>;
   selectedDate: Date;
+  accentColor: string;
   onDateSelect: (date: Date) => void;
 }
 
@@ -19,6 +20,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
   groupedSessions,
   selectedDate,
+  accentColor,
   onDateSelect,
 }) => {
   const [viewDate, setViewDate] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
@@ -116,6 +118,7 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                   hasSessions={status.hasSessions}
                   allCompleted={status.allCompleted}
                   hasUpcoming={status.hasUpcoming}
+                  accentColor={accentColor}
                   onPress={() => onDateSelect(day.date)}
                 />
               );

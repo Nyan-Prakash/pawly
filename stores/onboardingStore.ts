@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 import { captureEvent } from '@/lib/analytics';
+import { getGoalColor } from '@/constants/courseColors';
 import { generatePlan } from '@/lib/planGenerator';
 import { generateAdaptivePlanWithOptions } from '@/lib/adaptivePlanning/initialPlanner';
 import { isAdaptivePlanningEnabled } from '@/lib/adaptivePlanning/featureFlags';
@@ -342,6 +343,9 @@ export const useOnboardingStore = create<OnboardingStore>()(
               accessToken: options?.accessToken ?? null,
             });
             plan = result.plan;
+            if (!plan.color) {
+              plan.color = getGoalColor(plan.goal);
+            }
             planId = plan.id;
 
             // First plan for a new dog must be primary — patch the DB row now
@@ -373,6 +377,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
                 dog_id: dogId,
                 goal: plan.goal,
                 status: plan.status,
+                color: plan.color,
                 duration_weeks: plan.durationWeeks,
                 sessions_per_week: plan.sessionsPerWeek,
                 current_week: plan.currentWeek,
@@ -405,6 +410,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
               dog_id: dogId,
               goal: plan.goal,
               status: plan.status,
+              color: plan.color,
               duration_weeks: plan.durationWeeks,
               sessions_per_week: plan.sessionsPerWeek,
               current_week: plan.currentWeek,

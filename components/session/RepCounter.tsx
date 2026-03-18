@@ -10,9 +10,16 @@ interface RepCounterProps {
   target: number | null;
   onIncrement: () => void;
   onReset: () => void;
+  accentColor?: string;
 }
 
-export function RepCounter({ count, target, onIncrement, onReset }: RepCounterProps) {
+export function RepCounter({
+  count,
+  target,
+  onIncrement,
+  onReset,
+  accentColor = colors.brand.primary,
+}: RepCounterProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const targetReached = target !== null && count >= target;
 
@@ -54,8 +61,7 @@ export function RepCounter({ count, target, onIncrement, onReset }: RepCounterPr
             style={{
               fontSize: 96,
               fontWeight: '700',
-              // Gold when target reached (reward feel), green while counting
-              color: targetReached ? colors.brand.secondary : colors.brand.primary,
+              color: targetReached ? colors.brand.secondary : accentColor,
               lineHeight: 110,
             }}
           >
