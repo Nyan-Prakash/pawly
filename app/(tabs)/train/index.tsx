@@ -410,6 +410,23 @@ export default function TrainScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <TouchableOpacity
               activeOpacity={0.7}
+              onPress={() => router.push('/(tabs)/train/tools')}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 21,
+                backgroundColor: colors.bg.surface,
+                borderWidth: 1,
+                borderColor: colors.border.default,
+                alignItems: 'center',
+                justifyContent: 'center',
+                ...shadows.card,
+              }}
+            >
+              <AppIcon name="flash-outline" size={21} color={colors.text.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
               onPress={() => router.push('/(tabs)/train/calendar')}
               style={{
                 width: 42,
