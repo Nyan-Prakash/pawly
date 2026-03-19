@@ -12,7 +12,7 @@ import type {
   SkillNode,
 } from '../types/index.ts';
 import type { LiveAiTrainerSummary } from './liveCoach/liveAiTrainerTypes.ts';
-import type { Protocol, LiveCoachingConfig } from '../constants/protocols.ts';
+import type { Protocol } from '../constants/protocols.ts';
 import { normalizeArticleContentBlocks, normalizeArticleDifficulty } from './articleContent.ts';
 import { getGoalColor } from '../constants/courseColors.ts';
 
@@ -321,11 +321,6 @@ export function mapSessionLogRowToModel(data: Record<string, unknown>): SessionL
 // constants/protocols.ts.  Used when protocols are fetched from the DB rather
 // than imported from the constants file (e.g. for admin tooling or dynamic
 // protocol delivery).
-//
-// Legacy rows that predate PR16 will have:
-//   supports_live_pose_coaching = false  (column default)
-//   live_coaching_config = null          (column default)
-// Both cases are handled gracefully.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function mapProtocolRowToProtocol(data: Record<string, unknown>): Protocol {
@@ -346,14 +341,8 @@ export function mapProtocolRowToProtocol(data: Record<string, unknown>): Protoco
     difficulty:           (data.difficulty as Protocol['difficulty']),
     nextProtocolId:       typeof data.next_protocol_id === 'string' ? data.next_protocol_id : null,
     trainerNote:          String(data.trainer_note),
-    // PR16 live coaching fields — default to disabled for legacy rows
-    supportsLivePoseCoaching:
-      data.supports_live_pose_coaching === true,
-    liveCoachingConfig:
-      data.supports_live_pose_coaching === true &&
-      data.live_coaching_config !== null &&
-      typeof data.live_coaching_config === 'object'
-        ? (data.live_coaching_config as LiveCoachingConfig)
-        : null,
+    // Live AI Trainer fields
+    supportsLiveAiTrainer:
+      data.supports_live_ai_trainer === true,
   };
 }

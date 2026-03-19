@@ -1,12 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionModePicker
 //
-// Shown after SETUP when the protocol supports live pose coaching.
-// The user picks "Do Normally" or "Use Live Camera Coach".
+// Shown after SETUP when the protocol supports the Live AI Trainer.
+// The user picks "Do Normally" or "Use Live AI Trainer".
 //
 // Props:
 //   onNormal  — start session in normal (manual) mode
-//   onCamera  — start session in live camera coaching mode
+//   onCamera  — start session in Live AI Trainer mode
 //   dogName   — used in the description copy
 // ─────────────────────────────────────────────────────────────────────────────
 

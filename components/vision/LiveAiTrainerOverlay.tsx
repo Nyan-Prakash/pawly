@@ -16,7 +16,7 @@ interface LiveAiTrainerOverlayProps {
   lastResponse: LiveAiTrainerResponse | null;
   onExit: () => void;
   onAskCoach: (text: string) => void;
-  onCheckPosture: () => void;
+  onAnalyzeFrame: () => void;
   onManualSwitch: () => void;
   cameraRef: React.RefObject<Camera>;
 }
@@ -26,7 +26,7 @@ export function LiveAiTrainerOverlay({
   lastResponse,
   onExit,
   onAskCoach,
-  onCheckPosture,
+  onAnalyzeFrame,
   onManualSwitch,
   cameraRef,
 }: LiveAiTrainerOverlayProps) {
@@ -79,7 +79,8 @@ export function LiveAiTrainerOverlay({
               value={question}
               onChangeText={setQuestion}
               placeholder="Ask the coach..."
-              style={styles.input}
+              style={{ flex: 1 }}
+              inputStyle={styles.input}
               placeholderTextColor="rgba(255,255,255,0.5)"
             />
             <Button
@@ -99,9 +100,9 @@ export function LiveAiTrainerOverlay({
               <Text style={styles.actionButtonText}>Ask Coach</Text>
             </Pressable>
 
-            <Pressable style={styles.actionButton} onPress={onCheckPosture}>
+            <Pressable style={styles.actionButton} onPress={onAnalyzeFrame}>
               <AppIcon name="scan" size={24} color="#fff" />
-              <Text style={styles.actionButtonText}>Check Posture</Text>
+              <Text style={styles.actionButtonText}>Analyze Frame</Text>
             </Pressable>
           </View>
         )}
@@ -120,11 +121,11 @@ export function LiveAiTrainerOverlay({
 
 function getStatusColor(status: LiveAiTrainerStatus) {
   switch (status) {
-    case 'idle': return colors.status.success;
-    case 'thinking': return colors.status.warning;
-    case 'speaking': return colors.primary;
-    case 'listening': return colors.status.info;
-    case 'fallback': return colors.status.error;
+    case 'idle': return colors.status.successBorder;
+    case 'thinking': return colors.status.warningBorder;
+    case 'speaking': return colors.brand.primary;
+    case 'listening': return colors.status.infoBorder;
+    case 'fallback': return colors.status.dangerBorder;
     default: return '#ccc';
   }
 }

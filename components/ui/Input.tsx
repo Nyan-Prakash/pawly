@@ -32,6 +32,7 @@ type InputProps = {
   onSubmitEditing?: () => void;
   style?: StyleProp<ViewStyle>;
   inputStyle?: StyleProp<TextStyle>;
+  placeholderTextColor?: string;
 };
 
 export function Input({
@@ -52,6 +53,7 @@ export function Input({
   onSubmitEditing,
   style,
   inputStyle,
+  placeholderTextColor,
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -72,7 +74,7 @@ export function Input({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={colors.text.secondary + '80'}
+        placeholderTextColor={placeholderTextColor ?? (colors.text.secondary + '80')}
         multiline={multiline}
         numberOfLines={numberOfLines}
         keyboardType={keyboardType}
