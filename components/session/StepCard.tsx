@@ -7,6 +7,7 @@ import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
 import { AppIcon } from '@/components/ui/AppIcon';
 import { Text } from '@/components/ui/Text';
+import { ExerciseAnimation } from './ExerciseAnimation';
 import type { ProtocolStep } from '@/constants/protocols';
 
 interface StepCardProps {
@@ -15,6 +16,7 @@ interface StepCardProps {
   totalSteps: number;
   commonMistake?: string;
   accentColor?: string;
+  animationJson?: object | null;
 }
 
 export function StepCard({
@@ -23,6 +25,7 @@ export function StepCard({
   totalSteps,
   commonMistake,
   accentColor = colors.brand.primary,
+  animationJson,
 }: StepCardProps) {
   const [mistakeExpanded, setMistakeExpanded] = useState(false);
 
@@ -53,6 +56,9 @@ export function StepCard({
           ...shadows.card,
         }}
       >
+        {/* Animation */}
+        <ExerciseAnimation animationJson={animationJson} />
+
         {/* Primary instruction */}
         <Text
           style={{

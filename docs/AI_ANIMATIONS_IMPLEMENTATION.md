@@ -1,62 +1,47 @@
 # Exercise Animations Implementation Guide
 
-This document outlines how to implement flat, professional, simple animations for each exercise in the Pawly app. Instead of animating by hand, we leverage AI (specifically Claude) to generate **Lottie (JSON)** animations.
+This document outlines how to implement flat, professional, simple animations for each exercise in the Pawly app using AI-generated **Lottie (JSON)** animations.
 
-## 1. Why Lottie?
-Lottie is an industry-standard format for animations. It is:
-- **Vector-based:** Scales perfectly without pixelation.
-- **Lightweight:** Pure JSON data, much smaller than GIFs or videos.
-- **Dynamic:** Can be stored in a database or directly in code.
-- **AI-Friendly:** Claude is excellent at generating the specific JSON structure required for Lottie animations.
+## 1. Chosen Strategy: Local Code (`protocols.ts`)
+As requested, we have implemented the "Option B" strategy where animations are stored directly in the `constants/protocols.ts` file.
 
----
-
-## 2. Storage Strategy: Database vs. Local Code
-
-You have two primary options for where to store the Lottie JSON data.
-
-### Option A: Database (Supabase) - *Recommended for flexibility*
-Store the JSON string in a `JSONB` column in the `protocols` table.
-- **Pros:** Update animations anytime without an App Store release; keeps the app bundle smaller.
-- **Cons:** Tiny delay on first load while fetching from the database.
-
-### Option B: Local Code (`protocols.ts`) - *Recommended for performance*
-Store the JSON directly inside the `Protocol` object in `constants/protocols.ts`.
-- **Pros:** Animations load instantly with zero network delay; perfect for offline use.
-- **Cons:** Increases the JavaScript bundle size; requires a code push to update an animation.
+- **Status:** Core infrastructure implemented.
+- **Dependency:** `lottie-react-native` installed.
+- **UI:** `ExerciseAnimation.tsx` component created and integrated into `StepCard.tsx`.
+- **Data Structure:** `Protocol` interface updated with optional `animationJson` field.
 
 ---
 
-## 3. Implementation: Option A (Database)
+## 2. Shared UI Component
 
-### SQL Migration
-Run this in the Supabase SQL Editor:
-```sql
-ALTER TABLE protocols ADD COLUMN IF NOT EXISTS animation_json JSONB;
+Animations are rendered using the `ExerciseAnimation` component:
+
+```tsx
+import { ExerciseAnimation } from './ExerciseAnimation';
+
+// Usage in StepCard
+<ExerciseAnimation animationJson={protocol.animationJson} />
 ```
 
-### Frontend Integration
-Ensure the `animation_json` is included in your `Protocol` type and fetched via your data store.
-
 ---
 
-## 4. Implementation: Option B (Local Code)
+## 3. How to Add Animations
 
-### Update Protocol Type
-Modify `constants/protocols.ts`:
+To add an animation to an exercise, follow these steps:
+
+### Step 1: Generate the Lottie JSON
+Use an AI agent (like Claude) with the prompt below to generate the JSON code for a specific exercise.
+
+### Step 2: Add to `protocols.ts`
+1. Define the animation object in `constants/protocols.ts`.
+2. Assign it to the corresponding protocol.
+
 ```typescript
-export interface Protocol {
-  // ... existing fields
-  animationJson?: object | null; // Add this line
-}
-```
+// Example
+const sit_animation = { /* AI-generated JSON */ };
 
-### Add Animation Data
-```typescript
-const sit_animation = { /* ... Lottie JSON data ... */ };
-
-const recall_stage1: Protocol = {
-  id: 'recall_s1',
+const llw_stage1: Protocol = {
+  id: 'llw_s1',
   // ...
   animationJson: sit_animation,
 };
@@ -64,76 +49,23 @@ const recall_stage1: Protocol = {
 
 ---
 
-## 5. Shared UI Component
+## 4. AI Agent Prompt (Bulk Generation)
 
-Regardless of storage, use this component to render the animation.
+Give this prompt to an AI coding agent to fill the app with professional animations:
 
-### Dependency
-```bash
-npx expo install lottie-react-native
-```
-
-### Create `components/session/ExerciseAnimation.tsx`
-```tsx
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import LottieView from 'lottie-react-native';
-
-interface ExerciseAnimationProps {
-  animationJson: object | null | undefined;
-  size?: number;
-}
-
-export function ExerciseAnimation({ animationJson, size = 150 }: ExerciseAnimationProps) {
-  if (!animationJson) return null;
-
-  return (
-    <View style={[styles.container, { width: size, height: size }]}>
-      <LottieView
-        source={animationJson}
-        autoPlay
-        loop
-        style={{ width: '100%', height: '100%' }}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    alignSelf: 'center',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-});
-```
-
----
-
-## 6. AI Agent Prompts
-
-Use these prompts with an AI Coding Agent (like Claude) to implement the animations.
-
-### Prompt 1: Choose Strategy and Setup
-> "I want to add Lottie animations to my exercises. I have chosen **[OPTION A or B]** from `docs/AI_ANIMATIONS_IMPLEMENTATION.md`. Please:
-> 1. Perform the necessary setup (SQL migration or Interface update).
-> 2. Install `lottie-react-native`.
-> 3. Create the `ExerciseAnimation.tsx` component.
-> 4. Modify `StepCard.tsx` to render this component when `animationJson` is present."
-
-### Prompt 2: Animation Generation (Run for each exercise)
-> "You are an expert Lottie animator. Please generate a simple, flat-style, professional Lottie animation in JSON format for the dog training exercise: **[INSERT EXERCISE TITLE]**.
+> "You are an expert Lottie animator and TypeScript engineer. I want to populate my `constants/protocols.ts` file with minimalist, professional animations.
 >
-> **Requirements:**
-> - Style: Minimalist, flat icons, professional (using colors: #2563EB, #0F172A).
-> - Content: A simple dog icon performing: [INSERT BRIEF DESCRIPTION].
-> - Loop: The animation should loop smoothly.
-> - Output: Provide the raw JSON object and **[INSERT IT INTO protocols.ts / CREATE A SQL UPDATE]**."
+> Please iterate through every `Protocol` defined in `constants/protocols.ts`. For each one:
+> 1. Generate a valid, minimalist Lottie JSON object that represents the exercise (e.g., for 'Focus & Attention', show a simple dog looking up).
+> 2. Use the app's professional color palette: primary `#2563EB`, background `#FFFFFF`.
+> 3. Keep shapes extremely simple (circles/rectangles) to ensure the JSON is clean and valid.
+> 4. Modify `constants/protocols.ts` to include these JSON objects as constants (e.g., `const llw_s1_anim = { ... }`) and assign them to the `animationJson` field of each protocol.
+>
+> Please perform this for all 21 protocols in the file."
 
 ---
 
-## 7. Pro Tips
-- **Simplicity:** AI creates better Lottie code when the shapes are simple (circles, rectangles).
-- **Colors:** Explicitly tell the AI to use your brand colors from `constants/colors.ts`.
-- **Consistency:** Tell the AI to use the same "dog" character model for every animation.
+## 5. Pro Tips for AI Agents
+- **Looping:** Ensure the `op` (out point) and `ip` (in point) of the Lottie JSON allow for a smooth loop.
+- **Framerate:** Set `fr` to `30` or `60` for smooth motion.
+- **Character Consistency:** Instruct the AI to use the same path data for the "dog" across all animations to maintain a unified visual brand.

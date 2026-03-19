@@ -181,6 +181,8 @@ export interface Protocol {
   supportsLivePoseCoaching: boolean
   /** Full coaching configuration. Non-null iff supportsLivePoseCoaching = true. */
   liveCoachingConfig: LiveCoachingConfig | null
+  /** Lottie animation JSON for the exercise. */
+  animationJson?: object | null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

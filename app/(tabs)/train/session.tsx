@@ -1092,6 +1092,7 @@ function StepActiveView({
           totalSteps={totalSteps}
           commonMistake={commonMistake}
           accentColor={theme.solid}
+          animationJson={protocol.animationJson}
         />
 
         {/* Timer */}
