@@ -447,8 +447,37 @@ const recall_stage1: Protocol = {
   difficulty: 1,
   nextProtocolId: 'recall_s2',
   trainerNote: 'Never call your dog\'s name to do something they dislike until the recall is bombproof. Every time you call and they come to something bad, you lose a little reliability. Protect the name cue like it is gold.',
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'transition_detection',
+    targetPostures: ['sit', 'stand'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.4,
+    stabilizationProfile: 'transition',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'stand',
+        minHoldMs: 2000,
+        description: 'Dog arrives at handler and stands or sits in front of them',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'stand',
+        description: 'Dog turns away before reaching handler — rep resets',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} looked at you — jackpot that!',
+      '{dog_name} is coming toward you — great name response!',
+      '{dog_name} looked away — wait for a calm moment and try again.',
+      'Say the name once only — repeating poisons the cue.',
+    ],
+    holdDurationMs: 1000,
+    requiredRepCount: 20,
+  },
 }
 
 const recall_stage2: Protocol = {
@@ -506,8 +535,37 @@ const recall_stage2: Protocol = {
   difficulty: 2,
   nextProtocolId: 'recall_s3',
   trainerNote: 'The recall cue must be "charged" with many more positive reps than you think before going outdoors. Ten indoor sessions is a minimum before attempting outdoor recall.',
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'transition_detection',
+    targetPostures: ['sit', 'stand'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.4,
+    stabilizationProfile: 'transition',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'stand',
+        minHoldMs: 2000,
+        description: 'Dog arrives at handler from across the room',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'stand',
+        description: 'Dog turns away before reaching handler — rep resets',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} is coming — great recall!',
+      '{dog_name} arrived — jackpot that immediately!',
+      '{dog_name} didn\'t come — try clapping and running the other way.',
+      'Call once only. If they don\'t come, use movement to draw them in.',
+    ],
+    holdDurationMs: 2000,
+    requiredRepCount: 15,
+  },
 }
 
 const recall_stage3: Protocol = {
@@ -636,8 +694,37 @@ const jumping_stage1: Protocol = {
   difficulty: 1,
   nextProtocolId: 'jumping_s2',
   trainerNote: 'This protocol requires household-wide buy-in. The #1 reason it fails is one family member who "doesn\'t mind" the jumping. Address this directly with everyone in the home.',
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'transition_detection',
+    targetPostures: ['stand', 'sit'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.45,
+    stabilizationProfile: 'transition',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'stand',
+        minHoldMs: 3000,
+        description: 'Dog holds all four paws on floor for at least 3 seconds',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'stand',
+        description: 'Dog jumps — rep resets',
+      },
+    ],
+    feedbackTemplates: [
+      'Four paws on the floor — mark that!',
+      '{dog_name} jumped — turn your back and wait.',
+      'Great! {dog_name} chose the floor. Treat now.',
+      'Keep your energy calm so {dog_name} stays grounded.',
+    ],
+    holdDurationMs: 3000,
+    requiredRepCount: 15,
+  },
 }
 
 const jumping_stage2: Protocol = {
@@ -703,8 +790,37 @@ const jumping_stage2: Protocol = {
   difficulty: 2,
   nextProtocolId: 'jumping_s3',
   trainerNote: 'The auto-sit is one of the most practical behaviors you can teach. A dog that automatically sits for greetings is a social superstar. Celebrate this with your guests — it makes training feel real.',
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'transition_detection',
+    targetPostures: ['sit', 'stand'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.45,
+    stabilizationProfile: 'transition',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'sit',
+        minHoldMs: 3000,
+        description: 'Dog holds a sit for at least 3 seconds during greeting approach',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'sit',
+        description: 'Dog jumps or breaks sit — rep resets',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} sat! Great auto-sit.',
+      '{dog_name} jumped — turn away and wait for the sit.',
+      'Nice hold — drop the treat between their paws.',
+      'Keep your approach energy calm to help {dog_name} succeed.',
+    ],
+    holdDurationMs: 3000,
+    requiredRepCount: 12,
+  },
 }
 
 const jumping_stage3: Protocol = {
@@ -762,8 +878,37 @@ const jumping_stage3: Protocol = {
   difficulty: 3,
   nextProtocolId: null,
   trainerNote: 'Real-world generalization requires dozens of rehearsed interactions. Consider carrying treats on every walk for 4 weeks and asking strangers to participate in greeting rehearsals. This effort compounds — the dog gets better every single repetition.',
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'transition_detection',
+    targetPostures: ['sit', 'stand'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.4,
+    stabilizationProfile: 'transition',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'sit',
+        minHoldMs: 3000,
+        description: 'Dog holds a sit while stranger approaches and makes contact',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'sit',
+        description: 'Dog jumps on the approaching person — rep resets',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} held the sit — great real-world greeting!',
+      '{dog_name} jumped — have your helper turn away and reset.',
+      'Hold the leash loose — let {dog_name} choose to sit.',
+      'Good patience — this takes dozens of real-world reps.',
+    ],
+    holdDurationMs: 3000,
+    requiredRepCount: 8,
+  },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1014,8 +1159,37 @@ const crate_stage1: Protocol = {
   difficulty: 1,
   nextProtocolId: 'crate_s2',
   trainerNote: 'The right crate size is critical. The crate should be just large enough for the dog to stand fully, turn around, and lie down stretched out. A crate that is too large allows the dog to eliminate in one corner and sleep in another — undermining potty training.',
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'transition_detection',
+    targetPostures: ['stand', 'down'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.4,
+    stabilizationProfile: 'transition',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'down',
+        minHoldMs: 5000,
+        description: 'Dog enters crate and settles in a down for at least 5 seconds',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'down',
+        description: 'Dog exits crate or stands back up — rep resets',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} went in! Great voluntary entry.',
+      'Nice — {dog_name} is settling inside. Toss a treat in.',
+      '{dog_name} came back out — no pressure, try again.',
+      'Let {dog_name} choose to enter. Do not push or lure too hard.',
+    ],
+    holdDurationMs: 5000,
+    requiredRepCount: 10,
+  },
 }
 
 const crate_stage2: Protocol = {
@@ -1073,8 +1247,36 @@ const crate_stage2: Protocol = {
   difficulty: 2,
   nextProtocolId: 'crate_s3',
   trainerNote: 'Puppies under 4 months should not be crated for more than 1–2 hours at a time (not including overnight). Their bladders physically cannot hold longer. Adjust expectations based on age.',
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'stationary_hold',
+    targetPostures: ['down', 'sit'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.4,
+    stabilizationProfile: 'stationary',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'down',
+        minHoldMs: 30000,
+        description: 'Dog stays calm in the closed crate for at least 30 seconds',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'significant_motion',
+        description: 'Dog shows stress movement (pawing, spinning) — rep resets',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} is calm in the crate — great!',
+      '30 seconds of calm. Keep going!',
+      '{dog_name} looks unsettled — open before stress escalates.',
+      'Try a frozen KONG to help {dog_name} settle.',
+    ],
+    holdDurationMs: 30000,
+    requiredRepCount: 8,
+  },
 }
 
 const crate_stage3: Protocol = {
@@ -1132,8 +1334,36 @@ const crate_stage3: Protocol = {
   difficulty: 3,
   nextProtocolId: null,
   trainerNote: 'The goal of crate training is always a dog who chooses the crate voluntarily for naps and rest. Once this happens — and it will — the crate has become a true safe space. Many dogs continue to use their crate throughout their lives even when the door is left open.',
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'stationary_hold',
+    targetPostures: ['down'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.4,
+    stabilizationProfile: 'stationary',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'down',
+        minHoldMs: 120000,
+        description: 'Dog stays calm out of sight in the crate for at least 2 minutes',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'significant_motion',
+        description: 'Dog shows continuous distress movement — rep resets',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} is settled — stay out of sight.',
+      '2 minutes calm! Return casually, no drama.',
+      '{dog_name} looks stressed — return now and reduce duration.',
+      'Keep your arrival energy neutral so {dog_name} stays calm.',
+    ],
+    holdDurationMs: 120000,
+    requiredRepCount: 5,
+  },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1564,10 +1794,42 @@ const settle_stage3: Protocol = {
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'A dog that can place on cue from another room and hold for 10+ minutes is genuinely life-changing for most owners. It allows you to have guests, dinner parties, work calls, and veterinary visits without constant management. This is one of the highest-ROI behaviors in this entire program.'
-,
-  supportsLivePoseCoaching: false,
-  liveCoachingConfig: null,
+  trainerNote: 'A dog that can place on cue from another room and hold for 10+ minutes is genuinely life-changing for most owners. It allows you to have guests, dinner parties, work calls, and veterinary visits without constant management. This is one of the highest-ROI behaviors in this entire program.',
+  supportsLivePoseCoaching: true,
+  liveCoachingConfig: {
+    mode: 'stationary_hold',
+    targetPostures: ['down'],
+    minTrackingQuality: 'fair',
+    minPostureConfidence: 0.45,
+    stabilizationProfile: 'stationary',
+    successRules: [
+      {
+        type: 'hold_duration',
+        postureLabel: 'down',
+        minHoldMs: 60000,
+        description: 'Dog holds a down position for at least 60 seconds',
+      },
+    ],
+    resetRules: [
+      {
+        type: 'broke_posture',
+        postureLabel: 'down',
+        description: 'Dog breaks the down — rep resets',
+      },
+      {
+        type: 'significant_motion',
+        description: 'Dog moves significantly while in down',
+      },
+    ],
+    feedbackTemplates: [
+      '{dog_name} is on place — keep checking in with treats.',
+      '60 seconds! Great long hold.',
+      '{dog_name} got up — calmly send back and restart.',
+      'Try fading treat frequency as {dog_name} improves.',
+    ],
+    holdDurationMs: 60000,
+    requiredRepCount: 6,
+  },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

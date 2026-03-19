@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.generate-dog-avatar]
 verify_jwt = false
+
+[functions.live-ai-trainer]
+verify_jwt = false
