@@ -1,4 +1,5 @@
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useRef } from 'react';
+import { Animated, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors } from '@/constants/colors';
 
@@ -12,6 +13,7 @@ type IconButtonProps = {
   style?: StyleProp<ViewStyle>;
   hitSlop?: number;
   disabled?: boolean;
+  accessibilityLabel?: string;
 };
 
 export function IconButton({
@@ -22,7 +24,10 @@ export function IconButton({
   style,
   hitSlop = 4,
   disabled,
+  accessibilityLabel,
 }: IconButtonProps) {
+  const scale = useRef(new Animated.Value(1)).current;
+
   const variantStyle: ViewStyle = {
     ghost: {
       backgroundColor: 'transparent',
@@ -37,25 +42,48 @@ export function IconButton({
     },
   }[variant];
 
+  function handlePressIn() {
+    Animated.spring(scale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 0,
+    }).start();
+  }
+
+  function handlePressOut() {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 2,
+    }).start();
+  }
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={hitSlop}
-      style={({ pressed }) => [
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: pressed ? 0.7 : 1,
-          ...variantStyle,
-        },
-        style,
-      ]}
-    >
-      <View>{icon}</View>
-    </Pressable>
+    <Animated.View style={[{ transform: [{ scale }] }, style]}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled}
+        hitSlop={hitSlop}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: disabled ? 0.5 : pressed ? 0.8 : 1,
+            ...variantStyle,
+          },
+        ]}
+      >
+        <View>{icon}</View>
+      </Pressable>
+    </Animated.View>
   );
 }

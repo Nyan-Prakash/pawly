@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
 import { MessageBubble } from '@/components/coach/MessageBubble';
@@ -320,12 +321,13 @@ function CoachHeader({
     <View style={styles.header}>
       <View style={styles.headerSurface}>
         <View style={styles.headerRow}>
-          <Pressable
-            style={styles.headerIconButton}
+          <IconButton
+            icon={<Ionicons name="menu-outline" size={24} color={colors.text.primary} />}
             onPress={() => router.replace('/(tabs)/train')}
-          >
-            <Ionicons name="menu-outline" size={24} color={colors.text.primary} />
-          </Pressable>
+            size={42}
+            style={styles.headerIconButton}
+            accessibilityLabel="Main menu"
+          />
 
           <View style={styles.headerTitleWrap}>
             <Text variant="h2" style={styles.headerTitle}>
@@ -340,16 +342,17 @@ function CoachHeader({
           </View>
 
           <View style={styles.headerActions}>
-            <Pressable
+            <IconButton
+              icon={<Ionicons name="refresh-outline" size={21} color={colors.text.primary} />}
+              onPress={onReset ?? (() => {})}
+              size={42}
+              disabled={!onReset || isResetDisabled}
               style={[
                 styles.headerIconButton,
                 isResetDisabled ? styles.headerIconButtonDisabled : undefined,
               ]}
-              onPress={onReset}
-              disabled={!onReset || isResetDisabled}
-            >
-              <Ionicons name="refresh-outline" size={21} color={colors.text.primary} />
-            </Pressable>
+              accessibilityLabel="Reset conversation"
+            />
           </View>
         </View>
       </View>
