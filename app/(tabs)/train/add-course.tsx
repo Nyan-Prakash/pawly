@@ -559,7 +559,7 @@ type ScreenStep = 'select' | 'generating' | 'preview' | 'error';
 export default function AddCourseScreen() {
   const { dog, activePlans } = useDogStore();
   const { refreshPlans } = usePlanStore();
-  const scheduleNotifications = useNotificationStore((s) => s.scheduleNotifications);
+  const refreshSchedulesForPlans = useNotificationStore((s) => s.refreshSchedulesForPlans);
 
   const [step, setStep] = useState<ScreenStep>('select');
   const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
@@ -619,7 +619,11 @@ export default function AddCourseScreen() {
       // Reschedule notifications for the updated multi-plan set
       if (dog?.id) {
         try {
-          await scheduleNotifications(dog.id);
+          // Get the latest plans from the store after refresh
+          const latestPlans = usePlanStore.getState().activePlanIds
+            .map(id => usePlanStore.getState().plansById[id])
+            .filter((p): p is NonNullable<typeof p> => p != null);
+          await refreshSchedulesForPlans(dog, latestPlans);
         } catch {
           // Non-fatal — notifications may not be available
         }

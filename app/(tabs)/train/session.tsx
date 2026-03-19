@@ -31,7 +31,6 @@ import { useDogStore } from '@/stores/dogStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { saveSession, checkMilestones, updateStreak } from '@/lib/sessionManager';
-import type { LiveCoachingSummary, PoseMetrics } from '@/lib/sessionManager';
 import { EXERCISE_TO_PROTOCOL } from '@/constants/protocols';
 import { didUpcomingScheduleChange } from '@/lib/notifications';
 import { useLiveAiTrainerSession } from '@/hooks/useLiveAiTrainerSession';
@@ -443,7 +442,7 @@ export default function SessionScreen() {
   // overlay is active yet, show the mode picker instead of jumping straight to
   // STEP_ACTIVE.  We keep the store state at 'SETUP' while the picker is shown.
   const handleSetupStart = useCallback(() => {
-    if (activeSession?.protocol.supportsLivePoseCoaching && activeSession?.protocol.liveCoachingConfig) {
+    if (activeSession?.protocol.supportsLiveAiTrainer) {
       setOverlayState('MODE_PICKER');
     } else {
       setState('STEP_ACTIVE');
@@ -1724,7 +1723,7 @@ function LiveAiTrainerScreen({
       cameraRef={coaching.cameraRef}
       onExit={onExit}
       onAskCoach={coaching.askCoach}
-      onCheckPosture={coaching.checkPosture}
+      onAnalyzeFrame={coaching.analyzeFrame}
       onManualSwitch={onManualSwitch}
     />
   );

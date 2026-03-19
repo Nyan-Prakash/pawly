@@ -105,8 +105,7 @@ function buildInsertPayload(params: Partial<SaveSessionParams>): Record<string, 
     session_kind:            params.sessionKind ?? null,
     environment_tag:         params.environmentTag ?? null,
     live_coaching_used:      params.liveCoachingUsed ?? false,
-    live_coaching_summary:   params.liveCoachingSummary ?? {},
-    pose_metrics:            params.poseMetrics ?? {},
+    live_ai_trainer_summary: params.liveAiTrainerSummary ?? null,
     // This is the key field: mirrors  `params.postSessionReflection ?? null`
     post_session_reflection: params.postSessionReflection ?? null,
   };
@@ -132,8 +131,7 @@ test('write path: live_coaching_used and other fields are unaffected when reflec
     postSessionReflection: null,
   });
   assert.equal(payload.live_coaching_used, false);
-  assert.deepEqual(payload.live_coaching_summary, {});
-  assert.deepEqual(payload.pose_metrics, {});
+  assert.equal(payload.live_ai_trainer_summary, null);
   assert.equal(payload.post_session_reflection, null);
 });
 
@@ -173,26 +171,24 @@ test('write path: other session fields are unchanged when reflection is present'
 // 3. Write path — live-coaching session with reflection
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('write path: live-coaching session with reflection saves both sets of fields correctly', () => {
-  const liveCoachingSummary = {
-    coachingMode:           'stationary_hold',
-    protocolId:             'settle_s1',
-    targetPostures:         ['down'] as ['down'],
-    successCount:           3,
-    resetCount:             1,
-    averageTrackingQuality: 0.88,
-    sessionAssessment:      'completed' as const,
+test('write path: live-ai session with reflection saves both sets of fields correctly', () => {
+  const liveAiTrainerSummary = {
+    used: true,
+    outcome: 'success' as const,
+    durationSeconds: 300,
+    totalCues: 5,
+    successfulCues: 4,
   };
   const reflection = makeFullReflection();
 
   const payload = buildInsertPayload({
-    liveCoachingUsed:    true,
-    liveCoachingSummary,
+    liveCoachingUsed: true,
+    liveAiTrainerSummary,
     postSessionReflection: reflection,
   });
 
   assert.equal(payload.live_coaching_used, true);
-  assert.equal((payload.live_coaching_summary as typeof liveCoachingSummary).sessionAssessment, 'completed');
+  assert.equal((payload.live_ai_trainer_summary as typeof liveAiTrainerSummary).outcome, 'success');
   assert.equal((payload.post_session_reflection as PostSessionReflection).mainIssue, 'distracted');
 });
 

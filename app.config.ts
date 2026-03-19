@@ -14,7 +14,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: 'com.nyan.prakash.pawly',
     infoPlist: {
       NSCameraUsageDescription:
-        "Pawly uses the camera to analyze your dog's pose in real time during training sessions.",
+        "Pawly uses the camera to provide real-time AI feedback and coaching during your training sessions.",
       NSPhotoLibraryUsageDescription:
         "Pawly uses your photo library so you can choose photos and videos of your dog for avatars and training uploads.",
       NSPhotoLibraryAddUsageDescription:
@@ -44,16 +44,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'react-native-vision-camera',
       {
         cameraPermissionText:
-          "Pawly uses the camera to analyze your dog's pose in real time during training sessions.",
+          "Pawly uses the camera to provide real-time AI feedback and coaching during your training sessions.",
         enableMicrophonePermission: false
       }
-    ],
-    'react-native-fast-tflite'
+    ]
   ],
-  // expo-asset bundles extra files so Metro can resolve them at runtime.
-  // The TFLite model is gitignored (large binary) — place it at the path below
-  // before building. See assets/models/dog_pose/README.md.
-  assetBundlePatterns: ['assets/models/**/*'],
   experiments: {
     typedRoutes: true
   },

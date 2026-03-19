@@ -188,7 +188,7 @@ export function useLiveAiTrainerSession({
   }, [status]);
 
   const askCoach = (text: string) => callAiTrainer('question', text);
-  const checkPosture = () => callAiTrainer('burst');
+  const analyzeFrame = () => callAiTrainer('burst');
 
   const getSummary = (): LiveAiTrainerSummary => ({
     used: interactionCount.current > 0,
@@ -210,7 +210,7 @@ export function useLiveAiTrainerSession({
     start,
     stop,
     askCoach,
-    checkPosture,
+    analyzeFrame,
     getSummary,
   };
 }

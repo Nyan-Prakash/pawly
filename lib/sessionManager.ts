@@ -2,54 +2,11 @@ import { supabase } from '@/lib/supabase';
 import { updateLearningStateFromSessionLog } from '@/lib/adaptivePlanning/learningStateEngine';
 import type { AdaptationApiResult, PlanEnvironment, PlanSession, PostSessionReflection } from '@/types';
 import type { StepResult } from '@/stores/sessionStore';
-import type { TrackingQuality, PostureLabel } from '@/types/pose';
 import type { LiveAiTrainerSummary } from './liveCoach/liveAiTrainerTypes';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Typed payload for session_logs.live_coaching_summary (JSONB).
- * High-level coaching outcome stored alongside the session log.
- */
-export interface LiveCoachingSummary {
-  /** Always 'stationary_hold' for current protocols. */
-  coachingMode: string;
-  /** Protocol identifier used for this coaching session. */
-  protocolId: string;
-  /** Target postures the dog was coached toward. */
-  targetPostures: Exclude<PostureLabel, 'unknown'>[];
-  /** Number of successfully completed holds/reps. */
-  successCount: number;
-  /** Number of times a rep was reset (broke posture / motion / tracking). */
-  resetCount: number;
-  /** Average tracking quality expressed as a 0–1 score (good=1, fair=0.5, poor=0). */
-  averageTrackingQuality: number;
-  /** Human-readable session outcome: 'completed' | 'abandoned' | 'partial'. */
-  sessionAssessment: 'completed' | 'abandoned' | 'partial';
-}
-
-/**
- * Typed payload for session_logs.pose_metrics (JSONB).
- * Detailed per-frame pose pipeline statistics.
- */
-export interface PoseMetrics {
-  /** Average keypoint detection confidence across all frames (0–1). */
-  averageTrackingConfidence: number;
-  /** Frame counts at each quality tier. */
-  trackingQualityBreakdown: Record<TrackingQuality, number>;
-  /** Time spent in each posture during the coached session (ms). */
-  postureDurations: Partial<Record<PostureLabel, number>>;
-  /** Duration of each successful hold (ms). */
-  holdDurations: number[];
-  /** Total reps detected (successful holds). */
-  repCountDetected: number;
-  /** Number of tracking_lost events during the session. */
-  lostTrackingEvents: number;
-  /** Number of significant_motion events during the session. */
-  significantMotionEvents: number;
-}
 
 export interface SaveSessionParams {
   userId: string;
@@ -68,13 +25,9 @@ export interface SaveSessionParams {
   skillId?: string | null;
   sessionKind?: PlanSession['sessionKind'] | null;
   environmentTag?: PlanEnvironment | null;
-  // PR16: live pose coaching fields (optional — defaults to disabled)
-  /** Set to true only when the camera coaching flow was used. */
+  // Live AI Trainer fields
+  /** Set to true only when the Live AI Trainer flow was used. */
   liveCoachingUsed?: boolean;
-  /** High-level coaching outcome. Only set when liveCoachingUsed is true. */
-  liveCoachingSummary?: LiveCoachingSummary;
-  /** Detailed pose pipeline metrics. Only set when liveCoachingUsed is true. */
-  poseMetrics?: PoseMetrics;
   /** Summary of the Live AI Trainer interaction. */
   liveAiTrainerSummary?: LiveAiTrainerSummary;
   // PR17: post-session reflection (optional — null when handler skips the flow)
@@ -165,8 +118,6 @@ export async function saveSession(params: SaveSessionParams): Promise<SaveSessio
       session_kind: params.sessionKind ?? null,
       environment_tag: params.environmentTag ?? null,
       live_coaching_used: params.liveCoachingUsed ?? false,
-      live_coaching_summary: params.liveCoachingSummary ?? {},
-      pose_metrics: params.poseMetrics ?? {},
       live_ai_trainer_summary: params.liveAiTrainerSummary ?? null,
       post_session_reflection: params.postSessionReflection ?? null,
     })

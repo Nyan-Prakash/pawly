@@ -24,14 +24,6 @@ export default function TrainLayout() {
         }}
       />
       <Stack.Screen
-        name="pose-debug"
-        options={{
-          presentation: 'fullScreenModal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
         name="add-course"
         options={{
           presentation: 'modal',
