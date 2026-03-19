@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.adapt-plan]
 verify_jwt = false
+
+[functions.live-ai-trainer]
+verify_jwt = false

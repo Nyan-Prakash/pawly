@@ -99,17 +99,11 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) return jsonResponse({ error: 'Missing auth header' }, 401);
-
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!;
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
-  if (authError || !user) return jsonResponse({ error: 'Unauthorized' }, 401);
 
   let body: RequestBody;
   try {
