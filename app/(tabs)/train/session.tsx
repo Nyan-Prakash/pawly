@@ -434,7 +434,7 @@ export default function SessionScreen() {
     abandonSession();
     setShowAbandonSheet(false);
     clearSession();
-    router.back();
+    router.replace('/(tabs)/train');
   }, [activeSession, activePlan, user, dog, reviewNotes, abandonSession, clearSession, fetchDogLearningState]);
 
   // ── Setup → mode decision ──────────────────────────────────────────────────
@@ -456,7 +456,7 @@ export default function SessionScreen() {
   const handleBackPress = () => {
     if (activeSession?.state === 'COMPLETE') {
       clearSession();
-      router.back();
+      router.replace('/(tabs)/train');
       return;
     }
     setShowAbandonSheet(true);
@@ -645,7 +645,7 @@ export default function SessionScreen() {
           theme={courseTheme}
           onBack={() => {
             clearSession();
-            router.back();
+            router.replace('/(tabs)/train');
           }}
           insets={insets}
         />
