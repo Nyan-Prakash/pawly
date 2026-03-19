@@ -1,7 +1,7 @@
 # Pawly — Technical Specification
-**Version:** 1.6
-**Date:** March 19, 2026
-**Status:** Current (updated to reflect removal of on-device pose detection and migration to server-side Live AI Trainer)
+**Version:** 1.7
+**Date:** May 24, 2026
+**Status:** Current (Updated to reflect current codebase implementation)
 
 ---
 
@@ -34,7 +34,7 @@
 
 ### 1.1 What Pawly Is
 
-Pawly is a mobile-first subscription application that delivers personalized dog training plans, AI-powered coaching, video feedback, and a lifecycle content system across the full lifespan of a dog. The system maintains a persistent behavioral memory of each dog and adapts its guidance based on ongoing session outcomes, structured post-session handler reflections, user-submitted video, and lifecycle stage. Sessions can be completed in manual mode or via a **Live AI Trainer** mode that uses server-side analysis (Supabase Edge Functions) to provide real-time guidance and feedback. A dog can have up to two simultaneously active training courses, each with its own plan and schedule that are merged into a unified daily view.
+Pawly is a mobile-first subscription application that delivers personalized dog training plans, AI-powered coaching, video feedback, and a lifecycle content system across the full lifespan of a dog. The system maintains a persistent behavioral memory of each dog and adapts its guidance based on ongoing session outcomes, structured post-session handler reflections, user-submitted video, and lifecycle stage. Sessions can be completed in manual mode or via a **Live AI Trainer** mode that uses server-side analysis (Supabase Edge Functions) to provide real-time guidance and feedback. A dog can have up to two simultaneously active training courses, each with its own plan and schedule that are merged into a unified daily view via `lib/mergedSchedule.ts`.
 
 ### 1.2 Core User Flow (Happy Path)
 
@@ -51,26 +51,26 @@ Daily Session Loop (Manual Mode or Live AI Trainer Mode) + Walk Logging
      ↓
 Post-Session Reflection (structured handler feedback captured after each session)
      ↓
-AI Coach Available Throughout
+AI Coach Available Throughout (Coach Tab)
      ↓
-Plan Adapts Based on Session Outcomes + Reflection Signals
+Training Tools (Clicker & Whistle) available for reinforcement
+     ↓
+Plan Adapts Based on Session Outcomes + Reflection Signals (Adaptive Planning)
      ↓
 Progress Tracked → Streaks → Milestones
      ↓
 Add Second Course (optional — up to 2 active courses per dog)
-     ↓
-Lifecycle Events Triggered as Dog Ages
 ```
 
 ### 1.3 Product Zones
 
 | Zone | Name | Purpose | V1 Status |
 |---|---|---|---|
-| 1 | Train | Behavior problem solving — acquisition wedge | ✅ Implemented |
-| 2 | Progress | Streaks, behavior scores, milestones, walk data | ✅ Implemented |
+| 1 | Train | Behavior problem solving, daily schedules, and training tools | ✅ Implemented |
+| 2 | Progress | Streaks, behavior scores, milestones, walk data, and learning insights | ✅ Implemented |
 | 3 | Coach | AI-powered conversational training coach | ✅ Implemented |
 | 4 | Know | Supabase-backed article library and in-app reader for dog training education | ✅ Implemented |
-| 5 | Profile | Settings, notifications, theme, subscription | ✅ Implemented |
+| 5 | Profile | Settings, notifications, theme, and subscription management | ✅ Implemented |
 
 ### 1.4 Platform Targets
 
@@ -114,36 +114,29 @@ Lifecycle Events Triggered as Dog Ages
 
 ### 2.2 Architectural Principles
 
-- **Supabase-first for v1:** Use Supabase for database, auth, storage, and real-time instead of building custom microservices prematurely
-- **Edge functions for lightweight logic:** Supabase Edge Functions (Deno) handle plan generation, AI calls, and event processing
-- **Stateless API layer:** All application state lives in the database, not in server memory
-- **Mobile-first data design:** All API responses optimized for mobile payload size and offline resilience
-- **AI-driven planning:** Plan generation uses Claude API via `generate-adaptive-plan` Edge Function; rules-based fallback available
-- **Server-side Live AI Trainer:** Live coaching uses the `live-ai-trainer` Edge Function to analyze frames/context and return real-time feedback
-- **Structured handler feedback:** Post-session reflection captures structured handler observations to enrich adaptation signals
-- **Multi-course scheduling:** A dog can have up to 2 active training plans; sessions are merged into a single prioritized daily view via `lib/mergedSchedule.ts`
-- **Deterministic course colors:** Colors are assigned from a fixed palette via hash of plan ID — no DB persistence required
+- **Supabase-first for v1:** Use Supabase for database, auth, storage, and real-time.
+- **Edge functions for lightweight logic:** Supabase Edge Functions (Deno) handle plan generation, AI calls, and event processing.
+- **Stateless API layer:** All application state lives in the database or client-side persistent stores (Zustand + AsyncStorage).
+- **AI-driven adaptive planning:** Plan generation uses Claude API via `generate-adaptive-plan` Edge Function. The `lib/adaptivePlanning` module handles post-session reflection logic to provide high-quality signals for adaptation.
+- **Server-side Live AI Trainer:** Live coaching uses the `live-ai-trainer` Edge Function to analyze frames/context and return real-time feedback via vision models.
+- **Multi-course scheduling:** A dog can have up to 2 active training plans. `lib/mergedSchedule.ts` merges these into a single prioritized daily view (Overdue > Today > Upcoming).
+- **Deterministic course colors:** Colors are assigned from a fixed palette via `constants/courseColors.ts`.
 
 ### 2.3 Technology Stack Summary
 
 | Layer | Technology | Rationale |
 |---|---|---|
-| Mobile | Expo + React Native + TypeScript | Cross-platform, fast iteration, large AI tooling support |
-| Styling | NativeWind (Tailwind CSS for RN) | Utility-first styling with dark mode support |
+| Mobile | Expo + React Native + TypeScript | Cross-platform, fast iteration |
+| Styling | NativeWind (Tailwind CSS) | Utility-first styling with dark mode support |
 | State Management | Zustand | Lightweight, minimal boilerplate |
 | Navigation | Expo Router (file-based) | Native feel, deep linking support |
-| Backend | Supabase (PostgreSQL + Edge Functions) | Full backend in one service for v1 |
-| AI Coach | Anthropic Claude API (claude-sonnet-4-6) | Best conversational quality, context handling |
-| AI Planning | Anthropic Claude API (claude-sonnet-4-6) | Personalized plan generation |
+| Backend | Supabase | Full backend in one service for v1 |
+| AI Coach | Anthropic Claude API | Best conversational quality, context handling |
+| AI Planning | Anthropic Claude API | Personalized plan generation |
 | Live AI Trainer | Supabase Edge Function `live-ai-trainer` | Real-time analysis and feedback generation |
 | Camera | react-native-vision-camera v4 | High-performance camera capture |
-| Payments | RevenueCat | Cross-platform subscription management (dependency included, not yet initialized) |
-| Push Notifications | Expo Notifications + Supabase triggers | Integrated with existing stack |
-| In-App Notifications | Supabase table + in-app store | Notification center within the app |
-| Video Storage | Supabase Storage (S3-compatible) | Unified with backend stack |
-| Analytics | PostHog (dependency included, not yet initialized) | Product analytics with event tracking |
-| Error Monitoring | Sentry (dependency included, not yet initialized) | Mobile and backend error tracking |
-| CI/CD | GitHub Actions + EAS Build | Automated builds and submissions |
+| Audio | expo-av | Playback for training tools (Clicker/Whistle) |
+| Haptics | Vibration API | Immediate tactile feedback |
 
 ---
 
@@ -154,95 +147,63 @@ Lifecycle Events Triggered as Dog Ages
 ```
 pawly/
 ├── app/                          # Expo Router file-based navigation
-│   ├── (auth)/                   # Auth group — unauthenticated screens
-│   ├── (onboarding)/             # Onboarding flow
+│   ├── (auth)/                   # Welcome, Login, Signup, Forgot Password
+│   ├── (onboarding)/             # Dog Basics, Photo, Environment, Problems, Plan Preview
 │   └── (tabs)/                   # Main authenticated tab navigator
 │       ├── train/
 │       │   ├── index.tsx         # Today card / home screen (multi-course aware)
 │       │   ├── calendar.tsx      # Monthly training calendar
-│       │   ├── session.tsx       # Active session screen (Manual + Live AI Trainer)
+│       │   ├── session.tsx       # Active session screen
 │       │   ├── plan.tsx          # Full plan view with course switcher
-│       │   ├── add-course.tsx    # Add a second training course
-│       │   ├── notifications.tsx # In-app notification center
-│       │   └── upload-video.tsx  # Video upload
+│       │   ├── tools.tsx         # Training Tools (Clicker, Whistle)
+│       │   └── add-course.tsx    # Add a second training course
 │       ├── progress/
-│       ├── coach/
-│       ├── know/
-│       └── profile/
-├── components/                   # Reusable components
-│   ├── ui/                       # Button, Text, Input, Card, etc.
-│   ├── session/                  # TimerRing, RepCounter, StepCard, SessionModePicker, LiveAiTrainerOverlay
-│   ├── coach/                    # MessageBubble, FormattedCoachMessage
-│   ├── vision/                   # LiveAiTrainerOverlay
-│   └── adaptive/                 # LearningInsightCard, AdaptationNotice
-├── stores/                       # Zustand state stores
-│   ├── authStore.ts
-│   ├── dogStore.ts
-│   ├── sessionStore.ts
-│   ├── planStore.ts
-│   ├── coachStore.ts
-│   ├── progressStore.ts
-│   └── notificationStore.ts
-├── hooks/
-│   └── useLiveAiTrainerSession.ts # Live AI Trainer session hook
-├── lib/                          # Utilities and service helpers
-│   ├── supabase.ts               # Supabase client
-│   ├── planGenerator.ts          # Plan building logic
-│   ├── scheduleEngine.ts         # Per-plan schedule logic
-│   ├── mergedSchedule.ts         # Cross-plan merge layer
-│   ├── sessionManager.ts         # Session saving, streaks, milestones
-│   ├── modelMappers.ts           # DB row → TypeScript mappers
-│   ├── adaptivePlanning/         # Full adaptive planning engine
-│   └── liveCoach/                # Live AI Trainer types and helpers
-├── tests/                        # Unit tests
-├── constants/                    # App-wide constants
-└── assets/                       # Images, fonts, animations
+│       │   ├── index.tsx         # Streaks, Behavior Scores, Learning Insights
+│       │   └── milestones.tsx    # Achievement list
+│       ├── coach/                # AI Assistant chat
+│       ├── know/                 # Article library & [slug] reader
+│       └── profile/              # Settings & Notifications
+├── components/                   # UI components
+│   ├── adaptive/                 # LearningInsightCard
+│   ├── coach/                    # FormattedCoachMessage
+│   ├── session/                  # StepCard, RepCounter, TimerRing, PostSessionReflectionCard
+│   ├── ui/                       # Reusable primitives (Button, Text, etc.)
+│   └── vision/                   # LiveAiTrainerOverlay
+├── stores/                       # Zustand state stores (auth, dog, plan, session, etc.)
+├── hooks/                        # useLiveAiTrainerSession, useTrainingToolAudio, etc.
+├── lib/                          # Utilities (mergedSchedule, sessionManager, adaptivePlanning)
+├── constants/                    # colors, courseColors, protocols, spacing, etc.
+└── tests/                        # Unit tests
 ```
 
 ### 3.2 Navigation Architecture
 
-Unchanged from v1.5.
-
-### 3.3 State Management
-
-Unchanged from v1.5.
-
-### 3.4 Offline Handling
-
-Unchanged from v1.5.
+The app uses **Expo Router** with a root `_layout.tsx` managing the `RootNavigationGate`.
+- **(auth)**: Stack navigator for unauthenticated users.
+- **(onboarding)**: Sequential flow for new dog registration.
+- **(tabs)**: Main application interface with 5 tabs.
 
 ### 3.5 Core Screens — Detailed Spec
 
 #### Session Screen (`app/(tabs)/train/session.tsx`)
 
-Purpose: Guide the user through a training session. Supports two execution modes: Manual and Live AI Trainer.
+Supports **Manual** and **Live AI Trainer** modes.
+- **LocalOverlayState**: `NONE` | `MODE_PICKER` | `LIVE_COACHING`.
+- **Session State Machine**: `LOADING` → `INTRO` → `SETUP` → (`MODE_PICKER` if supported) → `STEP_ACTIVE` → `STEP_COMPLETE` → `SESSION_REVIEW` → `COMPLETE`.
+- **Post-Session Reflection**: Integrated at the end of every session to collect behavioral signals (difficulty, distraction types, arousal levels).
 
-**Session State Machine:**
-```
-LOADING
-  ↓
-INTRO
-  ↓
-SETUP
-  ↓
-MODE_PICKER     ← Choose Live AI Trainer or Do Normally
-  ↓
-STEP_ACTIVE     ← Show current step card
-                   (Live AI Trainer mode: LiveAiTrainerOverlay manages interaction)
-  ↓
-STEP_COMPLETE
-  ↓
-SESSION_REVIEW  ← Post-session structured reflection
-  ↓
-COMPLETE
-```
+#### Progress Screen (`app/(tabs)/progress/index.tsx`)
 
-##### SessionModePicker (`components/session/SessionModePicker.tsx`)
+- **Streaks**: Session and Walk streaks.
+- **Behavior Progress**: Track current stage vs. total stages for active goals.
+- **Learning Insights**: Dynamic cards showing `dogLearningState` (distraction sensitivity, confidence, etc.).
+- **Charts**: Session frequency (month) and Walk quality trends.
 
-UI:
-- Two option cards:
-  1. **Live AI Trainer** (featured, primary) — "Point your camera at {dogName}. Get real-time AI feedback and coaching."
-  2. **Do Normally** (secondary) — "Follow the step-by-step guide and mark reps manually."
+#### Training Tools (`app/(tabs)/train/tools.tsx`)
+
+- **Clicker**: Digital clicker with haptic feedback.
+- **Whistle**: Variable duration whistle sounds.
+- Uses `onPressIn` for zero-latency response.
 
 ---
 
@@ -250,12 +211,9 @@ UI:
 
 ### 4.2 Edge Functions
 
-#### `live-ai-trainer`
-
-Triggered: during Live AI Trainer session
-Input: frame data, dog context, current protocol step
-Process: analysis via AI model → returns feedback, coach message, and rep count adjustments
-Output: `{ feedback: string, coachMessage?: string, repsDetected?: number, status: 'ok' | 'error' }`
+- `generate-adaptive-plan`: Creates personalized training schedules.
+- `live-ai-trainer`: Analyzes camera frames during live sessions.
+- `ai-coach-message`: Powers the conversational assistant.
 
 ---
 
@@ -263,59 +221,34 @@ Output: `{ feedback: string, coachMessage?: string, repsDetected?: number, statu
 
 ### 5.1 Core Tables
 
-#### `plans`
-
-```sql
-ALTER TABLE plans
-  DROP COLUMN IF EXISTS supports_live_pose_coaching,
-  DROP COLUMN IF EXISTS live_coaching_config,
-  ADD COLUMN IF NOT EXISTS supports_live_ai_trainer BOOLEAN NOT NULL DEFAULT FALSE;
-```
-
-#### `session_logs`
-
-```sql
-ALTER TABLE session_logs
-  DROP COLUMN IF EXISTS live_coaching_summary,
-  DROP COLUMN IF EXISTS pose_metrics,
-  ADD COLUMN IF NOT EXISTS live_ai_trainer_summary JSONB;
-```
+- `dogs`: Profile, age, breed, environment, and learning state JSON.
+- `plans`: Course goal, status, sessions JSON, and `supports_live_ai_trainer` flag.
+- `session_logs`: Historical data, including `live_ai_trainer_summary` and `post_session_reflection`.
+- `milestones`: Tracked achievements for each dog.
+- `articles`: Educational content for the **Know** tab.
 
 ---
 
 ## 6. AI & ML Systems
 
-### 6.7 Live AI Trainer (Server-Side)
+### 6.1 Adaptive Planning Engine
 
-Live coaching utilizes a Supabase Edge Function (`live-ai-trainer`) powered by vision-capable models (e.g., Claude 3.5 Sonnet or GPT-4o) to analyze the dog's movement and provide real-time verbal and visual feedback.
+Located in `lib/adaptivePlanning/`.
+- **Reflection Engine**: `reflectionQuestionEngine.ts` dynamically selects post-session questions based on session outcome and `dogLearningState`.
+- **Signals**: Captures "Handler Consistency", "Distraction Sensitivity", and "Cue Understanding".
 
-**Pipeline:**
-```
-Camera Frame (Vision Camera v4)
-    ↓ App logic (sampling / trigger based)
-    ↓ Supabase Edge Function 'live-ai-trainer'
-    ↓ AI Model Analysis
-    ↓ Response JSON { coachMessage, feedback }
-    ↓ LiveAiTrainerOverlay (UI feedback + Audio)
-```
+### 6.7 Live AI Trainer
+
+Uses a vision-capable AI model via the `live-ai-trainer` Edge Function.
+- **Input**: Sampled frames + Protocol context.
+- **Output**: Real-time feedback messages and automatic rep detection.
 
 ---
 
-## 15. Third-Party Integrations
+## 18. Testing Strategy
 
-| Service | Purpose | Status |
-|---|---|---|
-| Supabase | Backend, auth, storage, DB, Live AI Trainer | ✅ Active |
-| Anthropic | AI coach + planning + Live AI Trainer | ✅ Active |
-| Vision Camera v4 | Camera frame capture | ✅ Active |
-
----
-
-## 16. Error Handling & Logging
-
-| Error Type | Handling | User Message |
-|---|---|---|
-| Live AI Trainer failure | Fall back to manual session mode | "I'm having trouble seeing clearly. Switching to manual mode." |
+- **Unit Tests**: Located in `tests/`, covering core logic like `mergedSchedule.test.ts`, `planGenerator.test.ts`.
+- **Runner**: Node.js native test runner with `--experimental-strip-types`.
 
 ---
 
@@ -323,11 +256,16 @@ Camera Frame (Vision Camera v4)
 
 ### 20.1 What V1 Includes (Implemented)
 
-- ...
-- Session execution — manual mode and **Live AI Trainer mode** (server-side AI feedback and guidance).
-- ...
+- Multi-course management (up to 2 concurrent plans).
+- Manual and Live AI Trainer session execution.
+- Adaptive post-session reflection engine.
+- Progress tracking with streaks, milestones, and learning insights.
+- Educational article library.
+- Digital training tools (Clicker/Whistle).
 
-### 20.2 What V1 Explicitly Excludes (Not Yet Built)
+### 20.2 What V1 Explicitly Excludes
 
-- On-device real-time pose estimation (deprecated and removed in v1.6 in favor of server-side Live AI Trainer).
-- ...
+- On-device TFLite pose detection (replaced by server-side vision).
+- Social features/Community.
+- Full e-commerce/Marketplace.
+- Multi-dog support (v1 is single dog per user).
