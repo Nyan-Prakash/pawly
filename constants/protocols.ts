@@ -160,6 +160,8 @@ export interface LiveCoachingConfig {
   requiredRepCount?: number
 }
 
+
+
 export interface Protocol {
   id: string
   behavior: string
@@ -190,6 +192,7 @@ export interface Protocol {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const llw_stage1: Protocol = {
+  animationJson: llw_s1_animation,
   id: 'llw_s1',
   behavior: 'leash_pulling',
   stage: 1,
@@ -257,6 +260,7 @@ const llw_stage1: Protocol = {
 }
 
 const llw_stage2: Protocol = {
+  animationJson: llw_s2_animation,
   id: 'llw_s2',
   behavior: 'leash_pulling',
   stage: 2,
@@ -324,6 +328,7 @@ const llw_stage2: Protocol = {
 }
 
 const llw_stage3: Protocol = {
+  animationJson: llw_s3_animation,
   id: 'llw_s3',
   behavior: 'leash_pulling',
   stage: 3,
@@ -395,6 +400,7 @@ const llw_stage3: Protocol = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const recall_stage1: Protocol = {
+  animationJson: recall_s1_animation,
   id: 'recall_s1',
   behavior: 'recall',
   stage: 1,
@@ -454,6 +460,7 @@ const recall_stage1: Protocol = {
 }
 
 const recall_stage2: Protocol = {
+  animationJson: recall_s2_animation,
   id: 'recall_s2',
   behavior: 'recall',
   stage: 2,
@@ -513,6 +520,7 @@ const recall_stage2: Protocol = {
 }
 
 const recall_stage3: Protocol = {
+  animationJson: recall_s3_animation,
   id: 'recall_s3',
   behavior: 'recall',
   stage: 3,
@@ -584,6 +592,7 @@ const recall_stage3: Protocol = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const jumping_stage1: Protocol = {
+  animationJson: jumping_s1_animation,
   id: 'jumping_s1',
   behavior: 'jumping_up',
   stage: 1,
@@ -643,6 +652,7 @@ const jumping_stage1: Protocol = {
 }
 
 const jumping_stage2: Protocol = {
+  animationJson: jumping_s2_animation,
   id: 'jumping_s2',
   behavior: 'jumping_up',
   stage: 2,
@@ -710,6 +720,7 @@ const jumping_stage2: Protocol = {
 }
 
 const jumping_stage3: Protocol = {
+  animationJson: jumping_s3_animation,
   id: 'jumping_s3',
   behavior: 'jumping_up',
   stage: 3,
@@ -773,6 +784,7 @@ const jumping_stage3: Protocol = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const potty_stage1: Protocol = {
+  animationJson: potty_s1_animation,
   id: 'potty_s1',
   behavior: 'potty_training',
   stage: 1,
@@ -840,6 +852,7 @@ const potty_stage1: Protocol = {
 }
 
 const potty_stage2: Protocol = {
+  animationJson: potty_s2_animation,
   id: 'potty_s2',
   behavior: 'potty_training',
   stage: 2,
@@ -899,6 +912,7 @@ const potty_stage2: Protocol = {
 }
 
 const potty_stage3: Protocol = {
+  animationJson: potty_s3_animation,
   id: 'potty_s3',
   behavior: 'potty_training',
   stage: 3,
@@ -962,6 +976,7 @@ const potty_stage3: Protocol = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const crate_stage1: Protocol = {
+  animationJson: crate_s1_animation,
   id: 'crate_s1',
   behavior: 'crate_anxiety',
   stage: 1,
@@ -1021,6 +1036,7 @@ const crate_stage1: Protocol = {
 }
 
 const crate_stage2: Protocol = {
+  animationJson: crate_s2_animation,
   id: 'crate_s2',
   behavior: 'crate_anxiety',
   stage: 2,
@@ -1080,6 +1096,7 @@ const crate_stage2: Protocol = {
 }
 
 const crate_stage3: Protocol = {
+  animationJson: crate_s3_animation,
   id: 'crate_s3',
   behavior: 'crate_anxiety',
   stage: 3,
@@ -1143,6 +1160,7 @@ const crate_stage3: Protocol = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const biting_stage1: Protocol = {
+  animationJson: biting_s1_animation,
   id: 'biting_s1',
   behavior: 'puppy_biting',
   stage: 1,
@@ -1210,6 +1228,7 @@ const biting_stage1: Protocol = {
 }
 
 const biting_stage2: Protocol = {
+  animationJson: biting_s2_animation,
   id: 'biting_s2',
   behavior: 'puppy_biting',
   stage: 2,
@@ -1269,6 +1288,7 @@ const biting_stage2: Protocol = {
 }
 
 const biting_stage3: Protocol = {
+  animationJson: biting_s3_animation,
   id: 'biting_s3',
   behavior: 'puppy_biting',
   stage: 3,
@@ -1331,6 +1351,7 @@ const biting_stage3: Protocol = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const settle_stage1: Protocol = {
+  animationJson: settle_s1_animation,
   id: 'settle_s1',
   behavior: 'settling',
   stage: 1,
@@ -1423,6 +1444,7 @@ const settle_stage1: Protocol = {
 }
 
 const settle_stage2: Protocol = {
+  animationJson: settle_s2_animation,
   id: 'settle_s2',
   behavior: 'settling',
   stage: 2,
@@ -1514,6 +1536,7 @@ const settle_stage2: Protocol = {
 }
 
 const settle_stage3: Protocol = {
+  animationJson: settle_s3_animation,
   id: 'settle_s3',
   behavior: 'settling',
   stage: 3,
