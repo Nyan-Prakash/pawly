@@ -59,8 +59,6 @@ Progress Tracked → Streaks → Milestones
      ↓
 Add Second Course (optional — up to 2 active courses per dog)
      ↓
-Expert Video Review (optional, premium add-on)
-     ↓
 Lifecycle Events Triggered as Dog Ages
 ```
 
