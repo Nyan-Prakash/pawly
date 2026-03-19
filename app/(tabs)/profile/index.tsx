@@ -16,12 +16,15 @@ import { useProgressStore } from '@/stores/progressStore';
 import { supabase } from '@/lib/supabase';
 import type { ThemePreference } from '@/stores/themeStore';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import { FeedbackModal } from '@/components/profile/FeedbackModal';
 
 export default function ProfileScreen() {
   const { user } = useAuthStore();
   const { dog } = useDogStore();
   const { sessionStreak, totalSessionsCompleted } = useProgressStore();
   const { preference, setPreference } = useTheme();
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   const themeOptions: ThemePreference[] = ['system', 'light', 'dark'];
   const ageLabel = dog
@@ -219,6 +222,28 @@ export default function ProfileScreen() {
             <AppIcon name="chevron-forward" size={18} color={colors.text.secondary} />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            onPress={() => setShowFeedbackModal(true)}
+            style={{
+              backgroundColor: colors.bg.surface,
+              borderRadius: radii.md,
+              padding: spacing.md,
+              borderWidth: 1,
+              borderColor: colors.border.soft,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <View>
+              <Text variant="bodyStrong">Send Feedback</Text>
+              <Text variant="caption" color={colors.text.secondary}>
+                Bugs, feature requests, or general thoughts
+              </Text>
+            </View>
+            <AppIcon name="chatbubble-outline" size={18} color={colors.text.secondary} />
+          </TouchableOpacity>
+
           <Button
             label="Sign out"
             variant="ghost"
@@ -227,6 +252,11 @@ export default function ProfileScreen() {
           />
         </View>
       </ScrollView>
+
+      <FeedbackModal
+        visible={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+      />
     </SafeScreen>
   );
 }
