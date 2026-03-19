@@ -1,11 +1,13 @@
 import '../global.css';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, View } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { getRouteFromNotification, trackNotificationOpened } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
@@ -15,7 +17,112 @@ import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { colors } from '@/constants/colors';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Text } from '@/components/ui/Text';
+import { MascotCallout } from '@/components/ui/MascotCallout';
+
+function BouncingDot({ delay }: { delay: number }) {
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(anim, {
+          toValue: -8,
+          duration: 400,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: 400,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.delay(600),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim, delay]);
+
+  return (
+    <Animated.View
+      style={{
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: colors.brand.primary,
+        marginHorizontal: 4,
+        transform: [{ translateY: anim }],
+      }}
+    />
+  );
+}
+
+function PrepLoadingScreen({ message, subMessage }: { message: string; subMessage?: string }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(24)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+
+  return (
+    <LinearGradient
+      colors={[colors.gradient.app[0], colors.gradient.app[1], colors.gradient.app[2]]}
+      style={{ flex: 1 }}
+    >
+      <Animated.View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 40,
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }}
+      >
+        <MascotCallout state="thinking" size={110} style={{ marginBottom: 36 }} />
+
+        <Text
+          variant="h2"
+          style={{ textAlign: 'center', fontWeight: '700', marginBottom: 8 }}
+        >
+          {message}
+        </Text>
+
+        {subMessage && (
+          <Text
+            variant="caption"
+            style={{ textAlign: 'center', opacity: 0.65, marginBottom: 32 }}
+          >
+            {subMessage}
+          </Text>
+        )}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          <BouncingDot delay={0} />
+          <BouncingDot delay={150} />
+          <BouncingDot delay={300} />
+        </View>
+      </Animated.View>
+    </LinearGradient>
+  );
+}
 
 function RootNavigationGate({ themeKey }: { themeKey: string }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -163,20 +270,18 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
   if (isBootstrapping || isSubmittingOnboarding) {
     if (isSubmittingOnboarding) {
       return (
-        <View className="flex-1 items-center justify-center bg-bg-app px-10">
-          <LoadingSpinner />
-          <View className="mt-8 items-center">
-            <Text variant="body" style={{ textAlign: 'center', fontWeight: '600' }}>
-              Creating your plan for {dogName}...
-            </Text>
-            <Text variant="caption" style={{ marginTop: 8, textAlign: 'center', opacity: 0.7 }}>
-              This can take a moment.
-            </Text>
-          </View>
-        </View>
+        <PrepLoadingScreen
+          message={`Building ${dogName}'s plan…`}
+          subMessage="Crafting a training programme tailored just for them."
+        />
       );
     }
-    return <LoadingSpinner />;
+    return (
+      <PrepLoadingScreen
+        message="Preparing things for you"
+        subMessage="Just a moment while we get everything ready."
+      />
+    );
   }
 
   return <Slot key={themeKey} />;
