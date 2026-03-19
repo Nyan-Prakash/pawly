@@ -34,6 +34,8 @@ export default function PlanPreviewScreen() {
   const equipment = useOnboardingStore((s) => s.equipment);
   const availableMinutesPerDay = useOnboardingStore((s) => s.availableMinutesPerDay);
   const scheduleSummary = useOnboardingStore((s) => s.buildScheduleSummary());
+  const isSubmittingOnboarding = useOnboardingStore((s) => s.isSubmitting);
+  const setOnboardingField = useOnboardingStore((s) => s.setField);
   const user = useAuthStore((s) => s.user);
   const subscriptionTier = useAuthStore((s) => s.subscriptionTier);
   const existingActivePlan = usePlanStore((s) => s.activePlan);
@@ -76,6 +78,12 @@ export default function PlanPreviewScreen() {
       setLoading(false);
       return;
     }
+
+    if (isSubmittingOnboarding) {
+      setLoading(true);
+      return;
+    }
+
     // User exists but plan hasn't been created yet — try fetching from DB first,
     // then fall back to creating via submitOnboarding
     let cancelled = false;
@@ -149,6 +157,7 @@ export default function PlanPreviewScreen() {
 
         // No dog or plan found — create from scratch
         const submitOnboarding = useOnboardingStore.getState().submitOnboarding;
+        setOnboardingField('submissionIntent', 'onboarding');
         const { dogId, dog, plan } = await submitOnboarding(user.id);
         if (cancelled) return;
         useDogStore.getState().setDog(dog);
@@ -172,6 +181,7 @@ export default function PlanPreviewScreen() {
   }, [user?.id, existingActivePlan]);
 
   const handleStart = () => {
+    setOnboardingField('submissionIntent', null);
     resetOnboarding();
     router.replace('/(tabs)/train');
   };

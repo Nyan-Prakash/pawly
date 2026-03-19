@@ -57,6 +57,8 @@ export interface OnboardingData {
   avatarBase64: string | null;
   avatarFileUri: string | null;
   currentStep: number;
+  isSubmitting: boolean;
+  submissionIntent: 'onboarding' | null;
 }
 
 interface OnboardingStore extends OnboardingData {
@@ -119,6 +121,8 @@ const defaults: OnboardingData = {
   avatarBase64: null,
   avatarFileUri: null,
   currentStep: 1,
+  isSubmitting: false,
+  submissionIntent: null,
 };
 
 function unique<T>(items: T[]): T[] {
@@ -251,12 +255,14 @@ export const useOnboardingStore = create<OnboardingStore>()(
 
       prevStep: () => set((state) => ({ currentStep: Math.max(state.currentStep - 1, 1) })),
 
-      reset: () => set(defaults),
+      reset: () => set({ ...defaults, submissionIntent: null }),
 
       submitOnboarding: async (userId: string, options?: { accessToken?: string | null }) => {
-        const state = get();
+        set({ isSubmitting: true });
+        try {
+          const state = get();
 
-        const lifecycleStage =
+          const lifecycleStage =
           state.ageMonths <= 6
             ? 'puppy'
             : state.ageMonths <= 18
@@ -511,11 +517,18 @@ export const useOnboardingStore = create<OnboardingStore>()(
           dog,
           plan: plan.id ? plan : { ...plan, id: planId },
         };
+        } finally {
+          set({ isSubmitting: false });
+        }
       },
     }),
     {
       name: 'pawly-onboarding',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => {
+        const { isSubmitting, ...rest } = state;
+        return rest;
+      },
     }
   )
 );

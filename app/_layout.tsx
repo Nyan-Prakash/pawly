@@ -13,6 +13,7 @@ import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore } from '@/stores/planStore';
+import { useOnboardingStore } from '@/stores/onboardingStore';
 import { colors } from '@/constants/colors';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
@@ -21,6 +22,9 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isDogFetched, setIsDogFetched] = useState(false);
   const hasDogProfile = useAuthStore((state) => state.hasDogProfile);
+  const isSubmittingOnboarding = useOnboardingStore((s) => s.isSubmitting);
+  const submissionIntent = useOnboardingStore((s) => s.submissionIntent);
+  const dogName = useOnboardingStore((s) => s.dogName);
   const segments = useSegments();
   const router = useRouter();
   const fetchDog = useDogStore((s) => s.fetchDog);
@@ -123,6 +127,10 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
       if (inTabsGroup) {
         router.replace('/(auth)/welcome');
       }
+      // Ensure stale intent is cleared when unauthenticated
+      if (submissionIntent) {
+        useOnboardingStore.setState({ submissionIntent: null });
+      }
       return;
     }
 
@@ -130,7 +138,12 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
     // Skip redirect when in (auth) group — signup handles its own navigation after creating the dog profile
     if (!hasDogProfile) {
       if (!inOnboardingGroup && !inAuthGroup) {
-        router.replace('/(onboarding)/dog-basics');
+        // If we already have onboarding info in store, resume at plan-preview
+        if (dogName) {
+          router.replace('/(onboarding)/plan-preview');
+        } else {
+          router.replace('/(onboarding)/dog-basics');
+        }
       }
       return;
     }
@@ -138,11 +151,31 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
     // Authenticated user with dog profile → send to dashboard
     // Allow onboarding group so user can see plan-preview after signup
     if (!inTabsGroup && !inOnboardingGroup) {
+      // If we're still in (auth) group and just finished onboarding,
+      // let the screen's own manual transition to plan-preview happen.
+      if (inAuthGroup && submissionIntent === 'onboarding') {
+        return;
+      }
       router.replace('/(tabs)/train');
     }
-  }, [hasDogProfile, isBootstrapping, isDogFetched, router, segments, session]);
+  }, [hasDogProfile, isBootstrapping, isDogFetched, router, segments, session, dogName, submissionIntent]);
 
-  if (isBootstrapping) {
+  if (isBootstrapping || isSubmittingOnboarding) {
+    if (isSubmittingOnboarding) {
+      return (
+        <View className="flex-1 items-center justify-center bg-bg-app px-10">
+          <LoadingSpinner />
+          <View className="mt-8 items-center">
+            <Text variant="body" style={{ textAlign: 'center', fontWeight: '600' }}>
+              Creating your plan for {dogName}...
+            </Text>
+            <Text variant="caption" style={{ marginTop: 8, textAlign: 'center', opacity: 0.7 }}>
+              This can take a moment.
+            </Text>
+          </View>
+        </View>
+      );
+    }
     return <LoadingSpinner />;
   }
 

@@ -33,6 +33,7 @@ export default function SignUpScreen() {
   const fromOnboarding = from === 'onboarding';
   const submitOnboarding = useOnboardingStore((s) => s.submitOnboarding);
   const resetOnboarding = useOnboardingStore((s) => s.reset);
+  const setOnboardingField = useOnboardingStore((s) => s.setField);
   const setDog = useDogStore((s) => s.setDog);
   const setActiveDogPlan = useDogStore((s) => s.setActivePlan);
   const setActivePlan = usePlanStore((s) => s.setActivePlan);
@@ -93,6 +94,7 @@ export default function SignUpScreen() {
 
       // If coming from onboarding flow, submit the plan now while session is guaranteed active
       if (fromOnboarding && data.session) {
+        setOnboardingField('submissionIntent', 'onboarding');
         await supabase.auth.setSession({
           access_token: data.session.access_token,
           refresh_token: data.session.refresh_token,
@@ -143,6 +145,7 @@ export default function SignUpScreen() {
       if (error) {
         setGeneralError('Something went wrong. Please try again.');
       } else if (fromOnboarding && appleData.session) {
+        setOnboardingField('submissionIntent', 'onboarding');
         router.replace('/(onboarding)/plan-preview');
       }
     } catch (err: unknown) {
