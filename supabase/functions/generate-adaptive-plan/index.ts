@@ -719,8 +719,8 @@ const SEQUENCES: Record<string, Array<[string, string, number]>> = {
   ],
 };
 
-function generateFallbackPlan(dog: DogRow) {
-  const goalKey = GOAL_MAP[dog.behavior_goals[0]] ?? 'leash_pulling';
+function generateFallbackPlan(dog: DogRow, goalOverride?: string) {
+  const goalKey = GOAL_MAP[goalOverride ?? dog.behavior_goals[0]] ?? 'leash_pulling';
   const sessionsPerWeek = Math.min(dog.available_days_per_week, 5);
   const totalWeeks = 4;
   const sequences = SEQUENCES[goalKey] ?? SEQUENCES.leash_pulling;
@@ -798,7 +798,7 @@ serve(async (req) => {
   }
 
   // ── 2. Parse request ────────────────────────────────────────────────────────
-  let body: { dogId: string };
+  let body: { dogId: string; goalOverride?: string };
   try {
     body = await req.json();
   } catch {
@@ -832,7 +832,8 @@ serve(async (req) => {
   const allNodes = (nodesResult.data ?? []) as SkillNodeRow[];
   const allEdges = (edgesResult.data ?? []) as SkillEdgeRow[];
 
-  const goalKey = GOAL_MAP[dog.behavior_goals[0]] ?? 'leash_pulling';
+  const effectiveGoal = body.goalOverride ?? dog.behavior_goals[0];
+  const goalKey = GOAL_MAP[effectiveGoal] ?? 'leash_pulling';
   const behaviorNodes = allNodes.filter(
     (n) =>
       n.behavior === goalKey &&
@@ -843,10 +844,10 @@ serve(async (req) => {
 
   if (behaviorNodes.length === 0) {
     // Fallback
-    const fallback = generateFallbackPlan(dog);
+    const fallback = generateFallbackPlan(dog, effectiveGoal);
     const { data: planData, error: planError } = await adminClient.from('plans').insert({
       dog_id: dog.id,
-      goal: dog.behavior_goals[0] ?? 'General Training',
+      goal: effectiveGoal ?? 'General Training',
       status: 'active',
       duration_weeks: fallback.totalWeeks,
       sessions_per_week: fallback.sessionsPerWeek,
@@ -936,7 +937,7 @@ serve(async (req) => {
     planMetadata.modelName = 'gpt-4o';
     planMetadata.latencyMs = latencyMs;
   } else {
-    const fallback = generateFallbackPlan(dog);
+    const fallback = generateFallbackPlan(dog, effectiveGoal);
     planSessions = fallback.sessions;
     planMetadata = { ...fallback.metadata, fallbackReason };
     currentStage = fallback.currentStage;
@@ -948,7 +949,7 @@ serve(async (req) => {
     .from('plans')
     .insert({
       dog_id: dog.id,
-      goal: dog.behavior_goals[0] ?? 'General Training',
+      goal: effectiveGoal ?? 'General Training',
       status: 'active',
       duration_weeks: aiOutput?.planHorizonWeeks ?? 4,
       sessions_per_week: sessionsPerWeek,

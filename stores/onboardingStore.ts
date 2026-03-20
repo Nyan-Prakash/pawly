@@ -8,6 +8,7 @@ import { getGoalColor } from '@/constants/courseColors';
 import { generatePlan } from '@/lib/planGenerator';
 import { generateAdaptivePlanWithOptions } from '@/lib/adaptivePlanning/initialPlanner';
 import { isAdaptivePlanningEnabled } from '@/lib/adaptivePlanning/featureFlags';
+import { addCourse } from '@/lib/addCourse';
 import {
   buildScheduleSummary,
   normalizeTrainingSchedulePrefs,
@@ -487,6 +488,17 @@ export const useOnboardingStore = create<OnboardingStore>()(
             dogId,
             planId,
             scheduledSessions: plan.sessions.filter((session) => session.scheduledDate).length,
+          });
+        }
+
+        // Generate a separate plan for each secondary goal
+        for (const secondaryGoal of state.secondaryGoals) {
+          await addCourse({
+            dog,
+            goal: secondaryGoal,
+            makePrimary: false,
+            skipLimitCheck: true,
+            accessToken: options?.accessToken ?? null,
           });
         }
 

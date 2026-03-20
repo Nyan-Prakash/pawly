@@ -48,6 +48,11 @@ export interface AddCourseOptions {
   makePrimary?: boolean;
   /** Supabase access token for Edge Function auth (optional). */
   accessToken?: string | null;
+  /**
+   * When true, skips the MAX_ACTIVE_COURSES limit check.
+   * Used during onboarding when secondary goals are created alongside the primary plan.
+   */
+  skipLimitCheck?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,7 +70,7 @@ export interface AddCourseOptions {
  *    which also clears the flag on all other active plans for the dog).
  */
 export async function addCourse(options: AddCourseOptions): Promise<AddCourseResult> {
-  const { dog, goal, makePrimary = false, accessToken } = options;
+  const { dog, goal, makePrimary = false, accessToken, skipLimitCheck = false } = options;
 
   // ── 1. Fetch current active plans ────────────────────────────────────────
   const { data: activePlanRows, error: fetchError } = await supabase
@@ -99,7 +104,7 @@ export async function addCourse(options: AddCourseOptions): Promise<AddCourseRes
   }
 
   // ── 3. Max-course limit ───────────────────────────────────────────────────
-  if (existingPlans.length >= MAX_ACTIVE_COURSES) {
+  if (!skipLimitCheck && existingPlans.length >= MAX_ACTIVE_COURSES) {
     return {
       ok: false,
       reason: 'limit_reached',

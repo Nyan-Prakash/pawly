@@ -134,7 +134,7 @@ async function callAdaptivePlanner(
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ dogId: dog.id }),
+      body: JSON.stringify({ dogId: dog.id, goalOverride: dog.behaviorGoals[0] }),
     });
 
     const rawBody = await response.text();
