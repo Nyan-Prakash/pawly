@@ -17,6 +17,10 @@ const STEP_ANIMATIONS: Record<string, any> = {
   biting_s1_step3: require('@/assets/animations/steps/biting_s1_step3.json'),
   biting_s1_step4: require('@/assets/animations/steps/biting_s1_step4.json'),
   biting_s1_step5: require('@/assets/animations/steps/biting_s1_step5.json'),
+  settle_s1_step1: require('@/assets/animations/steps/settle_s1_step1.json'),
+  settle_s1_step2: require('@/assets/animations/steps/settle_s1_step2.json'),
+  settle_s1_step3: require('@/assets/animations/steps/settle_s1_step3.json'),
+  settle_s1_step4: require('@/assets/animations/steps/settle_s1_step4.json'),
 };
 
 interface StepCardProps {
@@ -58,7 +62,7 @@ export function StepCard({
           <LottieView
             source={animationSource}
             autoPlay
-            loop={stepNumber === 5}
+            loop={stepNumber === totalSteps}
             style={{ width: '100%', height: 240 }}
             resizeMode="contain"
           />
