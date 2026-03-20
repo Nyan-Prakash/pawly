@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { Pressable, View } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { radii } from '@/constants/radii';
 import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
 import { useTheme } from '@/lib/theme';
+import { useAuthStore } from '@/stores/authStore';
 
 type TabName = 'train' | 'progress' | 'coach' | 'know' | 'profile';
 
@@ -125,6 +127,26 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 }
 
 export default function TabsLayout() {
+  const router = useRouter();
+  const session = useAuthStore((s) => s.session);
+  const hasDogProfile = useAuthStore((s) => s.hasDogProfile);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+
+  // Defense-in-depth guard: block access to tabs if the user is not
+  // authenticated or has not completed onboarding. The root layout handles
+  // the primary redirect, but this catches any edge cases (deep links,
+  // hot-reload, stale navigation state) that bypass it.
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (!session) {
+      router.replace('/(auth)/welcome');
+      return;
+    }
+    if (!hasDogProfile) {
+      router.replace('/(onboarding)/dog-basics');
+    }
+  }, [isInitialized, session, hasDogProfile, router]);
+
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}

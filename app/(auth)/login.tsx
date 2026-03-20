@@ -204,10 +204,12 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
 
-            {/* Sign up link */}
+            {/* Sign up link — routes to onboarding, not directly to signup.
+                Per product contract: onboarding (dog profile + goal + plan) must
+                happen before account creation. */}
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 'auto' }}>
               <Text variant="caption" style={{ color: colors.textSecondary }}>Don't have an account? </Text>
-              <Pressable onPress={() => router.replace('/(auth)/signup')}>
+              <Pressable onPress={() => router.replace('/(onboarding)/dog-basics')}>
                 <Text variant="caption" style={{ color: colors.primary, fontWeight: typography.weights.semibold }}>Sign up</Text>
               </Pressable>
             </View>

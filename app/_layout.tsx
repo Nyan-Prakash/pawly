@@ -241,11 +241,19 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
       return;
     }
 
-    // Authenticated user with no dog profile → send to onboarding
-    // Skip redirect when in (auth) group — signup handles its own navigation after creating the dog profile
+    // Authenticated user with no dog profile → force to onboarding.
+    //
+    // Exception: if the user is in (auth) group AND there is an active
+    // submissionIntent ('onboarding'), the signup screen is mid-flow and
+    // will navigate itself — let it finish without interference.
+    //
+    // All other authenticated+no-dog cases (including plain signup with no
+    // onboarding context) must be redirected to onboarding so the user
+    // cannot end up in a broken state.
     if (!hasDogProfile) {
-      if (!inOnboardingGroup && !inAuthGroup) {
-        // If we already have onboarding info in store, resume at plan-preview
+      const signupIsManagingOwnFlow = inAuthGroup && submissionIntent === 'onboarding';
+      if (!inOnboardingGroup && !signupIsManagingOwnFlow) {
+        // Resume at plan-preview if we already have onboarding data in store
         if (dogName) {
           router.replace('/(onboarding)/plan-preview');
         } else {
@@ -255,14 +263,10 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
       return;
     }
 
-    // Authenticated user with dog profile → send to dashboard
-    // Allow onboarding group so user can see plan-preview after signup
+    // Authenticated user with dog profile → send to dashboard.
+    // Allow onboarding group so the plan-preview screen remains reachable
+    // after account creation (signup navigates there manually).
     if (!inTabsGroup && !inOnboardingGroup) {
-      // If we're still in (auth) group and just finished onboarding,
-      // let the screen's own manual transition to plan-preview happen.
-      if (inAuthGroup && submissionIntent === 'onboarding') {
-        return;
-      }
       router.replace('/(tabs)/train');
     }
   }, [hasDogProfile, isBootstrapping, isDogFetched, router, segments, session, dogName, submissionIntent]);

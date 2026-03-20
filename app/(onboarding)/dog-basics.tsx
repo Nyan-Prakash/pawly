@@ -267,7 +267,7 @@ export default function DogBasicsScreen() {
 
   return (
     <Animated.View style={[{ flex: 1, backgroundColor: colors.bg.app }, animatedStyle]}>
-      {stepId === 'welcome' && <WelcomeStep onStart={goForward} />}
+      {stepId === 'welcome' && <WelcomeStep onStart={goForward} onBack={() => router.replace('/(auth)/welcome')} />}
 
       {stepId === 'dogName' && (
         <QuestionScreen
@@ -849,7 +849,7 @@ export default function DogBasicsScreen() {
 
 // ─── Welcome screen ───────────────────────────────────────────────────────────
 
-function WelcomeStep({ onStart }: { onStart: () => void }) {
+function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => void }) {
   const insets = useSafeAreaInsets();
   const pawScale = useSharedValue(1);
 
@@ -866,6 +866,14 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
       colors={['#FFF9F4', '#F0FDF4', '#DCFCE7']}
       style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom + spacing.xl }}
     >
+      <Pressable
+        onPress={onBack}
+        hitSlop={12}
+        style={{ position: 'absolute', top: insets.top + spacing.sm, left: spacing.lg, zIndex: 10, padding: spacing.xs }}
+      >
+        <AppIcon name="chevron-back" size={26} color={colors.text.secondary} />
+      </Pressable>
+
       <View
         style={{
           flex: 1,
