@@ -146,6 +146,7 @@ export default function DogBasicsScreen() {
   const stored = useOnboardingStore((s) => s);
 
   const [currentStepIndex, setCurrentStepIndex] = useState(step ? parseInt(step, 10) : 0);
+  const isTransitioningRef = useRef(false);
 
   useEffect(() => {
     if (step) {
@@ -197,14 +198,27 @@ export default function DogBasicsScreen() {
   }));
 
   const navigateTo = (nextIndex: number, dir: 'forward' | 'back') => {
+    if (isTransitioningRef.current) return;
+
+    const safeIndex = Math.max(0, Math.min(nextIndex, STEPS.length - 1));
+    if (safeIndex === currentStepIndex && nextIndex !== currentStepIndex) return;
+
+    isTransitioningRef.current = true;
+
     const exitX = dir === 'forward' ? -30 : 30;
     const enterX = dir === 'forward' ? 30 : -30;
     translateX.value = withTiming(exitX, { duration: 180 });
     animOpacity.value = withTiming(0, { duration: 180 }, () => {
       translateX.value = enterX;
-      runOnJS(setCurrentStepIndex)(nextIndex);
+      runOnJS(setCurrentStepIndex)(safeIndex);
       translateX.value = withTiming(0, { duration: 220 });
-      animOpacity.value = withTiming(1, { duration: 220 });
+      animOpacity.value = withTiming(1, { duration: 220 }, (finished) => {
+        if (finished) {
+          runOnJS(() => {
+            isTransitioningRef.current = false;
+          })();
+        }
+      });
     });
   };
 
