@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
+import LottieView from 'lottie-react-native';
 
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
@@ -9,12 +10,22 @@ import { AppIcon } from '@/components/ui/AppIcon';
 import { Text } from '@/components/ui/Text';
 import type { ProtocolStep } from '@/constants/protocols';
 
+// Map of protocolId_stepOrder -> animation require()
+const STEP_ANIMATIONS: Record<string, any> = {
+  biting_s1_step1: require('@/assets/animations/steps/biting_s1_step1.json'),
+  biting_s1_step2: require('@/assets/animations/steps/biting_s1_step2.json'),
+  biting_s1_step3: require('@/assets/animations/steps/biting_s1_step3.json'),
+  biting_s1_step4: require('@/assets/animations/steps/biting_s1_step4.json'),
+  biting_s1_step5: require('@/assets/animations/steps/biting_s1_step5.json'),
+};
+
 interface StepCardProps {
   step: ProtocolStep;
   stepNumber: number;
   totalSteps: number;
   commonMistake?: string;
   accentColor?: string;
+  protocolId?: string;
 }
 
 export function StepCard({
@@ -23,11 +34,37 @@ export function StepCard({
   totalSteps,
   commonMistake,
   accentColor = colors.brand.primary,
+  protocolId,
 }: StepCardProps) {
   const [mistakeExpanded, setMistakeExpanded] = useState(false);
 
+  const animationKey = protocolId ? `${protocolId}_step${stepNumber}` : null;
+  const animationSource = animationKey ? STEP_ANIMATIONS[animationKey] : null;
+
   return (
     <View style={{ gap: spacing.md }}>
+      {/* Step animation */}
+      {animationSource ? (
+        <View
+          style={{
+            borderRadius: radii.lg,
+            overflow: 'hidden',
+            backgroundColor: colors.bg.surface,
+            borderWidth: 1,
+            borderColor: colors.border.soft,
+            ...shadows.card,
+          }}
+        >
+          <LottieView
+            source={animationSource}
+            autoPlay
+            loop={stepNumber === 5}
+            style={{ width: '100%', height: 240 }}
+            resizeMode="contain"
+          />
+        </View>
+      ) : null}
+
       {/* Step label */}
       <Text
         style={{

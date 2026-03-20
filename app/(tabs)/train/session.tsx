@@ -1049,6 +1049,7 @@ function StepActiveView({
           totalSteps={totalSteps}
           commonMistake={commonMistake}
           accentColor={theme.solid}
+          protocolId={activeSession.protocol.id}
         />
 
         {/* Timer */}
