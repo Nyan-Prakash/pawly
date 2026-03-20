@@ -96,6 +96,7 @@ function buildChecklist(equipment: string[]): string[] {
 export default function SessionScreen() {
   const { id: sessionId, planId } = useLocalSearchParams<{ id: string; planId?: string }>();
   const insets = useSafeAreaInsets();
+  const isSubmittingRef = useRef(false);
 
   const { fetchProtocol, markSessionComplete, plansById } = usePlanStore();
   const { dog, fetchDogLearningState, dogLearningState, activePlans } = useDogStore();
@@ -330,6 +331,9 @@ export default function SessionScreen() {
 
   const handleSubmitSession = useCallback(async () => {
     if (!reviewDifficulty || !activeSession || !user || !dog || !activePlan) return;
+    if (isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
     setIsSaving(true);
 
     try {
@@ -399,6 +403,7 @@ export default function SessionScreen() {
       });
     } finally {
       setIsSaving(false);
+      isSubmittingRef.current = false;
     }
   }, [reviewDifficulty, reviewNotes, reflectionQuestions, reflectionAnswers, activeSession, user, dog, activePlan, activePlans, fetchDogLearningState, ensureNotificationPermission, refreshSchedulesForPlans]);
 

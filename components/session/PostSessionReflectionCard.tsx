@@ -69,6 +69,8 @@ export function PostSessionReflectionCard({
   const [currentStep, setCurrentStep] = useState(0);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const isTransitioningRef = useRef(false);
+  const hasSubmittedRef = useRef(false);
 
   // 1 difficulty step + N question steps + 1 notes step
   const totalSteps = 1 + questions.length + 1;
@@ -78,26 +80,39 @@ export function PostSessionReflectionCard({
   const currentQuestion = (!isDifficultyStep && !isNotesStep) ? questions[questionIndex] : null;
 
   function animateTransition(forward: boolean) {
+    if (isTransitioningRef.current) return;
+
+    // Hard bounds check before starting animation
+    if (forward && currentStep >= totalSteps - 1) return;
+    if (!forward && currentStep <= 0) return;
+
+    isTransitioningRef.current = true;
+
     const outX = forward ? -30 : 30;
     Animated.parallel([
       Animated.timing(opacityAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: outX, duration: 100, useNativeDriver: true }),
     ]).start(() => {
       slideAnim.setValue(forward ? 30 : -30);
-      setCurrentStep((s) => s + (forward ? 1 : -1));
+      setCurrentStep((s) => {
+        const nextStep = forward ? s + 1 : s - 1;
+        return Math.max(0, Math.min(nextStep, totalSteps - 1));
+      });
       Animated.parallel([
         Animated.timing(opacityAnim, { toValue: 1, duration: 160, useNativeDriver: true }),
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, speed: 28, bounciness: 3 }),
-      ]).start();
+      ]).start(() => {
+        isTransitioningRef.current = false;
+      });
     });
   }
 
   function goNext() {
-    if (currentStep < totalSteps - 1) animateTransition(true);
+    animateTransition(true);
   }
 
   function goBack() {
-    if (currentStep > 0) animateTransition(false);
+    animateTransition(false);
   }
 
   function handleDifficultySelect(d: 'easy' | 'okay' | 'hard') {
@@ -232,7 +247,11 @@ export function PostSessionReflectionCard({
             <NotesStep
               notes={notes}
               onNotesChange={onNotesChange}
-              onSubmit={onSubmit}
+              onSubmit={() => {
+                if (hasSubmittedRef.current) return;
+                hasSubmittedRef.current = true;
+                onSubmit();
+              }}
               isSaving={isSaving}
               canSubmit={allRequiredAnswered && !isSaving}
               theme={theme}
