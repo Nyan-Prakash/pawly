@@ -10,6 +10,7 @@ import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { getRouteFromNotification, trackNotificationOpened } from '@/lib/notifications';
+import { getRedirectTarget } from '@/lib/routing';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/stores/authStore';
@@ -83,7 +84,7 @@ function PrepLoadingScreen({ message, subMessage }: { message: string; subMessag
 
   return (
     <LinearGradient
-      colors={[colors.gradient.app[0], colors.gradient.app[1], colors.gradient.app[2]]}
+      colors={colors.gradient.app as unknown as [string, string, ...string[]]}
       style={{ flex: 1 }}
     >
       <Animated.View
@@ -127,8 +128,9 @@ function PrepLoadingScreen({ message, subMessage }: { message: string; subMessag
 function RootNavigationGate({ themeKey }: { themeKey: string }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
-  const [isDogFetched, setIsDogFetched] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const hasDogProfile = useAuthStore((state) => state.hasDogProfile);
+  const hasActivePlan = usePlanStore((s) => s.activePlanIds.length > 0);
   const isSubmittingOnboarding = useOnboardingStore((s) => s.isSubmitting);
   const submissionIntent = useOnboardingStore((s) => s.submissionIntent);
   const dogName = useOnboardingStore((s) => s.dogName);
@@ -140,6 +142,20 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
 
   useEffect(() => {
     let mounted = true;
+
+    const loadUserData = async (userId: string) => {
+      await fetchDog(userId);
+      const dog = useDogStore.getState().dog;
+      useAuthStore.setState({ hasDogProfile: Boolean(dog?.id) });
+
+      if (dog?.id) {
+        // Run these in parallel to speed up bootstrapping
+        await Promise.all([
+          fetchActivePlan(dog.id),
+          fetchDogLearningState(dog.id).catch(() => {}),
+        ]);
+      }
+    };
 
     const bootstrapSession = async () => {
       const {
@@ -172,17 +188,10 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
 
       // If user is logged in, fetch their dog & plan so Today screen has data
       if (initialSession?.user?.id) {
-        await fetchDog(initialSession.user.id);
-        const dog = useDogStore.getState().dog;
-        useAuthStore.setState({ hasDogProfile: Boolean(dog?.id) });
-
-        if (dog?.id) {
-          fetchActivePlan(dog.id);
-          fetchDogLearningState(dog.id).catch(() => {});
-        }
+        await loadUserData(initialSession.user.id);
       }
 
-      if (mounted) setIsDogFetched(true);
+      if (mounted) setIsDataLoaded(true);
       setSession(initialSession);
       setIsBootstrapping(false);
     };
@@ -191,12 +200,22 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       // Keep authStore in sync with session changes
       useAuthStore.setState({
         session: nextSession,
         user: nextSession?.user ?? null,
       });
+
+      if (nextSession?.user?.id) {
+        setIsDataLoaded(false);
+        await loadUserData(nextSession.user.id);
+        if (mounted) setIsDataLoaded(true);
+      } else {
+        setIsDataLoaded(false);
+        useAuthStore.setState({ hasDogProfile: false });
+      }
+
       setSession(nextSession);
     });
 
@@ -218,54 +237,25 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
       return;
     }
 
-    // If authenticated, wait for dog fetch to complete before routing
-    // to avoid redirecting to onboarding due to hasDogProfile being false initially
-    if (session && !isDogFetched) {
-      return;
+    // If unauthenticated, ensure stale intent is cleared
+    if (!session && submissionIntent) {
+      useOnboardingStore.setState({ submissionIntent: null });
     }
 
-    const inAuthGroup = segments[0] === '(auth)';
-    const inOnboardingGroup = segments[0] === '(onboarding)';
-    const inTabsGroup = segments[0] === '(tabs)';
+    const target = getRedirectTarget({
+      session: !!session,
+      isDataLoaded,
+      hasDogProfile,
+      hasActivePlan,
+      dogName,
+      submissionIntent: submissionIntent as 'onboarding' | null,
+      segments: segments as string[],
+    });
 
-    if (!session) {
-      // Unauthenticated users may browse onboarding freely before creating an account.
-      // Only redirect to welcome if they try to access the tabs (protected) area.
-      if (inTabsGroup) {
-        router.replace('/(auth)/welcome');
-      }
-      // Ensure stale intent is cleared when unauthenticated
-      if (submissionIntent) {
-        useOnboardingStore.setState({ submissionIntent: null });
-      }
-      return;
+    if (target !== 'none') {
+      router.replace(target as any);
     }
-
-    // Authenticated user with no dog profile → send to onboarding
-    // Skip redirect when in (auth) group — signup handles its own navigation after creating the dog profile
-    if (!hasDogProfile) {
-      if (!inOnboardingGroup && !inAuthGroup) {
-        // If we already have onboarding info in store, resume at plan-preview
-        if (dogName) {
-          router.replace('/(onboarding)/plan-preview');
-        } else {
-          router.replace('/(onboarding)/dog-basics');
-        }
-      }
-      return;
-    }
-
-    // Authenticated user with dog profile → send to dashboard
-    // Allow onboarding group so user can see plan-preview after signup
-    if (!inTabsGroup && !inOnboardingGroup) {
-      // If we're still in (auth) group and just finished onboarding,
-      // let the screen's own manual transition to plan-preview happen.
-      if (inAuthGroup && submissionIntent === 'onboarding') {
-        return;
-      }
-      router.replace('/(tabs)/train');
-    }
-  }, [hasDogProfile, isBootstrapping, isDogFetched, router, segments, session, dogName, submissionIntent]);
+  }, [hasDogProfile, hasActivePlan, isBootstrapping, isDataLoaded, router, segments, session, dogName, submissionIntent]);
 
   if (isBootstrapping || isSubmittingOnboarding) {
     if (isSubmittingOnboarding) {
