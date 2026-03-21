@@ -91,6 +91,27 @@ export default function ProfileScreen() {
 
           {/* Streak badge */}
           <StreakBadge count={sessionStreak} size="md" />
+
+          {/* Edit profile row */}
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/profile/edit-dog')}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.xs,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.sm,
+              backgroundColor: colors.bg.surfaceAlt,
+              borderRadius: radii.pill,
+              borderWidth: 1,
+              borderColor: colors.border.soft,
+            }}
+          >
+            <AppIcon name="pencil" size={14} color={colors.text.secondary} />
+            <Text variant="caption" color={colors.text.secondary} style={{ fontWeight: '600' }}>
+              Edit profile
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Stats row */}

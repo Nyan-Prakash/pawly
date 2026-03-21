@@ -198,6 +198,23 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
         user: nextSession?.user ?? null,
       });
       setSession(nextSession);
+
+      // When a session arrives after email confirmation, the bootstrapSession
+      // already ran without a user — fetch the dog now so hasDogProfile is set
+      // and the routing gate can correctly route to plan-preview → submitOnboarding.
+      if (nextSession?.user?.id && !useDogStore.getState().dog) {
+        fetchDog(nextSession.user.id).then(() => {
+          const dog = useDogStore.getState().dog;
+          useAuthStore.setState({ hasDogProfile: Boolean(dog?.id) });
+          if (dog?.id) {
+            fetchActivePlan(dog.id);
+            fetchDogLearningState(dog.id).catch(() => {});
+          }
+          setIsDogFetched(true);
+        }).catch(() => {
+          setIsDogFetched(true);
+        });
+      }
     });
 
     const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {

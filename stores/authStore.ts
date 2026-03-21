@@ -23,7 +23,6 @@ interface AuthStore {
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithApple: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   setSubscriptionTier: (tier: SubscriptionTier) => void;
 }
@@ -94,16 +93,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
         token: credential.identityToken
       });
 
-      if (error) throw error;
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-
-  signInWithGoogle: async () => {
-    set({ isLoading: true });
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
       if (error) throw error;
     } finally {
       set({ isLoading: false });

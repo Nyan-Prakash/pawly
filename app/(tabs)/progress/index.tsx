@@ -97,19 +97,25 @@ function StreakCard({
       <Text variant="micro" color={colors.text.secondary}>
         Best: {longest} days
       </Text>
-      <View style={{ flexDirection: 'row', gap: 4, marginTop: spacing.xs }}>
-        {activityDots.map((active, i) => (
-          <View
-            key={i}
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: active ? dot : colors.border.default,
-            }}
-          />
-        ))}
-      </View>
+      {current === 0 ? (
+        <Text variant="micro" color={colors.text.secondary} style={{ marginTop: spacing.xs }}>
+          No activity yet
+        </Text>
+      ) : (
+        <View style={{ flexDirection: 'row', gap: 4, marginTop: spacing.xs }}>
+          {activityDots.map((active, i) => (
+            <View
+              key={i}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: active ? dot : colors.border.default,
+              }}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -570,6 +576,8 @@ export default function ProgressScreen() {
     );
   }
 
+  const isNewUser = !isLoading && totalSessionsCompleted === 0;
+
   return (
     <SafeScreen>
       <ScrollView
@@ -599,7 +607,40 @@ export default function ProgressScreen() {
           </Text>
         </View>
 
-        <View style={{ paddingHorizontal: spacing.md, gap: spacing.lg }}>
+        {/* ── New user empty state ── */}
+        {isNewUser && (
+          <View
+            style={{
+              marginHorizontal: spacing.md,
+              marginTop: spacing.sm,
+              backgroundColor: colors.bg.surface,
+              borderRadius: radii.lg,
+              padding: spacing.xl,
+              borderWidth: 1,
+              borderColor: colors.border.soft,
+              alignItems: 'center',
+              gap: spacing.md,
+              ...shadows.card,
+            }}
+          >
+            <AppIcon name="ribbon-outline" size={48} color={colors.brand.primary} />
+            <View style={{ alignItems: 'center', gap: spacing.xs }}>
+              <Text variant="h3" style={{ textAlign: 'center' }}>
+                {dog?.name ? `${dog.name}'s stats will show here` : 'Your stats will show here'}
+              </Text>
+              <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center', lineHeight: 22 }}>
+                Complete your first training session to start tracking streaks, behavior scores, and milestones.
+              </Text>
+            </View>
+            <Button
+              label="Start first session"
+              onPress={() => router.push('/(tabs)/train')}
+              style={{ width: '100%' }}
+            />
+          </View>
+        )}
+
+        <View style={{ paddingHorizontal: spacing.md, gap: spacing.lg, marginTop: isNewUser ? spacing.lg : 0 }}>
 
           {/* ── Streak Cards ── */}
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -678,39 +719,41 @@ export default function ProgressScreen() {
           </View>
 
           {/* ── Milestones ── */}
-          <View style={{ gap: spacing.sm }}>
-            <SectionHeader
-              title="Milestones"
-              action={{ label: 'See all', onPress: () => router.push('/(tabs)/progress/milestones') }}
-            />
+          {!isNewUser && (
+            <View style={{ gap: spacing.sm }}>
+              <SectionHeader
+                title="Milestones"
+                action={{ label: 'See all', onPress: () => router.push('/(tabs)/progress/milestones') }}
+              />
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.md }}
-            >
-              {milestones.map((m) => (
-                <MilestoneCard
-                  key={m.id}
-                  milestone={m}
-                  variant="achieved"
-                  onShare={() => setCelebrationMilestone(m)}
-                />
-              ))}
-
-              {nextMilestoneDef && (
-                <MilestoneCard definition={nextMilestoneDef} variant="next" />
-              )}
-
-              {MILESTONE_DEFINITIONS.filter(
-                (def) => !achievedIds.includes(def.id) && def.id !== nextMilestoneDef?.id
-              )
-                .slice(0, 3)
-                .map((def) => (
-                  <MilestoneCard key={def.id} definition={def} variant="locked" />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.md }}
+              >
+                {milestones.map((m) => (
+                  <MilestoneCard
+                    key={m.id}
+                    milestone={m}
+                    variant="achieved"
+                    onShare={() => setCelebrationMilestone(m)}
+                  />
                 ))}
-            </ScrollView>
-          </View>
+
+                {nextMilestoneDef && (
+                  <MilestoneCard definition={nextMilestoneDef} variant="next" />
+                )}
+
+                {MILESTONE_DEFINITIONS.filter(
+                  (def) => !achievedIds.includes(def.id) && def.id !== nextMilestoneDef?.id
+                )
+                  .slice(0, 3)
+                  .map((def) => (
+                    <MilestoneCard key={def.id} definition={def} variant="locked" />
+                  ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
       </ScrollView>
 

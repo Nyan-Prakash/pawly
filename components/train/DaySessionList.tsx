@@ -60,7 +60,7 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
           <Text color={colors.text.secondary}>No sessions scheduled for this day</Text>
         </View>
       ) : (
-        sessions.map((session) => {
+        sessions.map((session, idx) => {
           const enriched = isEnriched(session) ? session : null;
           const courseLabel = enriched?.planCourseTitle
             ?? (enriched ? getBehaviorLabel(enriched.planGoal) : null);
@@ -74,7 +74,7 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
 
           return (
             <TouchableOpacity
-              key={session.id}
+              key={enriched ? `${enriched.planId}_${session.id}` : `${idx}_${session.id}`}
               activeOpacity={0.8}
               onPress={() =>
                 router.push(

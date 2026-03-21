@@ -66,52 +66,51 @@ function getLast14Days(): string[] {
 }
 
 async function computeBehaviorScores(dogId: string): Promise<BehaviorScore[]> {
-  const { data: plan } = await supabase
+  const { data: plans } = await supabase
     .from('plans')
-    .select('goal, current_stage')
+    .select('id, goal, current_stage')
     .eq('dog_id', dogId)
-    .eq('status', 'active')
-    .single();
+    .eq('status', 'active');
 
-  if (!plan) return [];
-
-  const { count } = await supabase
-    .from('session_logs')
-    .select('id', { count: 'exact', head: true })
-    .eq('dog_id', dogId);
+  if (!plans || plans.length === 0) return [];
 
   const { data: recentSessions } = await supabase
     .from('session_logs')
-    .select('difficulty, completed_at')
+    .select('plan_id, difficulty, completed_at')
     .eq('dog_id', dogId)
     .order('completed_at', { ascending: false })
-    .limit(6);
+    .limit(50);
 
-  const stageStr = plan.current_stage ?? 'Stage 1';
-  const stageNum = parseInt(stageStr.match(/\d/)?.[0] ?? '1', 10);
+  const scoreOf = (d: string) => (d === 'easy' ? 3 : d === 'okay' ? 2 : 1);
 
-  let trend: 'improving' | 'stable' | 'declining' = 'stable';
-  if (recentSessions && recentSessions.length >= 6) {
-    const scoreOf = (d: string) => (d === 'easy' ? 3 : d === 'okay' ? 2 : 1);
-    const recent3 = recentSessions.slice(0, 3).reduce((s, r) => s + scoreOf(r.difficulty), 0);
-    const prev3 = recentSessions.slice(3, 6).reduce((s, r) => s + scoreOf(r.difficulty), 0);
-    if (recent3 > prev3) trend = 'improving';
-    else if (recent3 < prev3) trend = 'declining';
-  }
+  return plans.map((plan) => {
+    const planSessions = (recentSessions ?? []).filter((s) => s.plan_id === plan.id);
+    const count = planSessions.length;
+    const recent6 = planSessions.slice(0, 6);
 
-  const lastDifficulty = recentSessions?.[0]?.difficulty;
-  const lastScore = lastDifficulty === 'easy' ? 5 : lastDifficulty === 'okay' ? 3 : 1;
+    let trend: 'improving' | 'stable' | 'declining' = 'stable';
+    if (recent6.length >= 6) {
+      const recent3 = recent6.slice(0, 3).reduce((s, r) => s + scoreOf(r.difficulty), 0);
+      const prev3 = recent6.slice(3, 6).reduce((s, r) => s + scoreOf(r.difficulty), 0);
+      if (recent3 > prev3) trend = 'improving';
+      else if (recent3 < prev3) trend = 'declining';
+    }
 
-  return [
-    {
+    const lastDifficulty = recent6[0]?.difficulty;
+    const lastScore = lastDifficulty === 'easy' ? 5 : lastDifficulty === 'okay' ? 3 : 1;
+
+    const stageStr = plan.current_stage ?? 'Stage 1';
+    const stageNum = parseInt(stageStr.match(/\d/)?.[0] ?? '1', 10);
+
+    return {
       behavior: plan.goal,
       currentStage: stageNum,
       totalStages: 4,
-      sessionCount: count ?? 0,
+      sessionCount: count,
       trend,
       lastSessionScore: lastScore,
-    },
-  ];
+    };
+  });
 }
 
 async function updateWalkStreak(userId: string, dogId: string): Promise<void> {

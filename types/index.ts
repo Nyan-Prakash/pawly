@@ -584,13 +584,6 @@ export interface SkillEdge {
   metadata: Record<string, unknown>;
 }
 
-export interface AdaptivePlanFeatureFlags {
-  enableAdaptivePlanner: boolean;
-  enableAdaptivePlanPreview: boolean;
-  enableAdaptationEngine: boolean;
-  enableCoachAdaptationExplanations: boolean;
-  enableLearningStateUpdates: boolean;
-}
 
 export interface PlanReasoningSummary {
   adaptationId: string;

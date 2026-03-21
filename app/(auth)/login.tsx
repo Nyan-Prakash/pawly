@@ -83,20 +83,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-      if (error) {
-        setGeneralError('Something went wrong. Please try again.');
-      }
-    } catch {
-      setGeneralError('Something went wrong. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <SafeScreen>
       <KeyboardAvoidingView
@@ -173,15 +159,14 @@ export default function LoginScreen() {
               }
             </Pressable>
 
-            {/* OR divider */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
-              <Text variant="caption" style={{ marginHorizontal: spacing.md, color: colors.textSecondary }}>OR</Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
-            </View>
-
             {/* Apple Sign In — iOS only */}
             {Platform.OS === 'ios' && (
+              <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
+                <Text variant="caption" style={{ marginHorizontal: spacing.md, color: colors.textSecondary }}>OR</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
+              </View>
               <Pressable
                 onPress={handleAppleSignIn}
                 disabled={isLoading}
@@ -191,18 +176,8 @@ export default function LoginScreen() {
                    Continue with Apple
                 </Text>
               </Pressable>
+              </>
             )}
-
-            {/* Google Sign In */}
-            <Pressable
-              onPress={handleGoogleSignIn}
-              disabled={isLoading}
-              style={[googleButtonStyle, { marginBottom: spacing.xl, opacity: isLoading ? 0.7 : 1 }]}
-            >
-              <Text style={{ color: colors.textPrimary, fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>
-                Continue with Google
-              </Text>
-            </Pressable>
 
             {/* Sign up link — routes to onboarding, not directly to signup.
                 Per product contract: onboarding (dog profile + goal + plan) must
@@ -249,13 +224,3 @@ const appleButtonStyle = {
   minHeight: 52
 };
 
-const googleButtonStyle = {
-  backgroundColor: colors.surface,
-  borderRadius: 12,
-  borderWidth: 1,
-  borderColor: colors.border.default,
-  paddingVertical: spacing.lg,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  minHeight: 52
-};

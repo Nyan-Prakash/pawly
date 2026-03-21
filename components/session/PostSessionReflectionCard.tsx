@@ -69,6 +69,7 @@ export function PostSessionReflectionCard({
   const [currentStep, setCurrentStep] = useState(0);
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const isTransitioning = useRef(false);
 
   // 1 difficulty step + N question steps + 1 notes step
   const totalSteps = 1 + questions.length + 1;
@@ -78,17 +79,24 @@ export function PostSessionReflectionCard({
   const currentQuestion = (!isDifficultyStep && !isNotesStep) ? questions[questionIndex] : null;
 
   function animateTransition(forward: boolean) {
+    if (isTransitioning.current) return;
+    isTransitioning.current = true;
     const outX = forward ? -30 : 30;
     Animated.parallel([
       Animated.timing(opacityAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: outX, duration: 100, useNativeDriver: true }),
     ]).start(() => {
       slideAnim.setValue(forward ? 30 : -30);
-      setCurrentStep((s) => s + (forward ? 1 : -1));
+      setCurrentStep((s) => {
+        const next = s + (forward ? 1 : -1);
+        return Math.max(0, Math.min(next, totalSteps - 1));
+      });
       Animated.parallel([
         Animated.timing(opacityAnim, { toValue: 1, duration: 160, useNativeDriver: true }),
         Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, speed: 28, bounciness: 3 }),
-      ]).start();
+      ]).start(() => {
+        isTransitioning.current = false;
+      });
     });
   }
 
@@ -102,12 +110,12 @@ export function PostSessionReflectionCard({
 
   function handleDifficultySelect(d: 'easy' | 'okay' | 'hard') {
     onSelectDifficulty(d);
-    setTimeout(() => goNext(), 180);
+    goNext();
   }
 
   function handleAnswer(qId: ReflectionQuestionId, value: string | number) {
     onAnswer(qId, value);
-    setTimeout(() => goNext(), 180);
+    goNext();
   }
 
   const allRequiredAnswered = areRequiredQuestionsAnswered(questions, answers) && difficulty !== null;

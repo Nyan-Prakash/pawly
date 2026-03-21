@@ -5,6 +5,7 @@ export default function ProfileLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="notification-settings" />
+      <Stack.Screen name="edit-dog" />
     </Stack>
   );
 }

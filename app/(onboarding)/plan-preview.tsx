@@ -14,7 +14,7 @@ import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { getPlanTitle, getPlanBullets } from '@/lib/planGenerator';
-import { formatDisplayTime } from '@/lib/scheduleEngine';
+import { formatDisplayTime, getBehaviorLabel } from '@/lib/scheduleEngine';
 import { mapPlanRowToPlan } from '@/lib/modelMappers';
 import { supabase } from '@/lib/supabase';
 import { usePlanStore } from '@/stores/planStore';
@@ -33,6 +33,7 @@ export default function PlanPreviewScreen() {
   const primaryGoal = useOnboardingStore((s) => s.primaryGoal);
   const equipment = useOnboardingStore((s) => s.equipment);
   const availableMinutesPerDay = useOnboardingStore((s) => s.availableMinutesPerDay);
+  const secondaryGoals = useOnboardingStore((s) => s.secondaryGoals);
   const scheduleSummary = useOnboardingStore((s) => s.buildScheduleSummary());
   const isSubmittingOnboarding = useOnboardingStore((s) => s.isSubmitting);
   const setOnboardingField = useOnboardingStore((s) => s.setField);
@@ -435,6 +436,56 @@ export default function PlanPreviewScreen() {
               <Text variant="body" style={{ color: colors.textSecondary }}>
                 {"This plan was tailored to " + dogName + "'s age, environment, and current training goal."}
               </Text>
+            </Animated.View>
+          )}
+
+          {/* Secondary plans notice */}
+          {secondaryGoals.length > 0 && (
+            <Animated.View
+              entering={FadeInDown.delay(590).duration(400)}
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 16,
+                padding: spacing.lg,
+                marginBottom: spacing.lg,
+                borderWidth: 1,
+                borderColor: colors.border.default,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+                <AppIcon name="layers" size={18} color={colors.primary} />
+                <Text variant="body" style={{ fontWeight: '700', color: colors.textPrimary, marginLeft: spacing.xs }}>
+                  {secondaryGoals.length === 1 ? '1 additional course added' : `${secondaryGoals.length} additional courses added`}
+                </Text>
+              </View>
+              <Text variant="body" style={{ color: colors.textSecondary, marginBottom: spacing.md }}>
+                Based on your other goals, we also built these training plans for {dogName}. They'll run alongside your main course — one session at a time, so it never feels overwhelming.
+              </Text>
+              {secondaryGoals.map((goal) => (
+                <View
+                  key={goal}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: spacing.xs,
+                  }}
+                >
+                  <AppIcon name="checkmark-circle" size={16} color={colors.primary} />
+                  <Text variant="body" style={{ color: colors.textSecondary, marginLeft: spacing.xs }}>
+                    {getBehaviorLabel(goal)}
+                  </Text>
+                </View>
+              ))}
+              <View style={{
+                marginTop: spacing.md,
+                padding: spacing.sm,
+                backgroundColor: `${colors.primary}10`,
+                borderRadius: 10,
+              }}>
+                <Text variant="caption" style={{ color: colors.primary, textAlign: 'center' }}>
+                  You can switch between courses anytime from the Train tab
+                </Text>
+              </View>
             </Animated.View>
           )}
 

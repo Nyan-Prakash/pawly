@@ -950,7 +950,7 @@ export default function TrainScreen() {
               <View style={{ gap: spacing.sm }}>
                 {otherTodaySessions.map((session) => (
                   <OtherTodaySessionRow
-                    key={session.id}
+                    key={`${session.planId}_${session.id}`}
                     session={session}
                     onPress={() => router.push(`/(tabs)/train/session?id=${session.id}&planId=${session.planId}`)}
                   />
