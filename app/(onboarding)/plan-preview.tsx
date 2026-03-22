@@ -1,6 +1,14 @@
 import { useEffect, useState, useMemo } from 'react';
-import { View, ScrollView, Pressable } from 'react-native';
-import Animated, { FadeIn, FadeInDown, useSharedValue, withRepeat, withTiming, useAnimatedStyle } from 'react-native-reanimated';
+import { View, ScrollView, TouchableOpacity } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
 import { AppIcon } from '@/components/ui/AppIcon';
@@ -10,6 +18,9 @@ import { Button } from '@/components/ui/Button';
 import { PlanReasonCard } from '@/components/adaptive/PlanReasonCard';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
+import { radii } from '@/constants/radii';
+import { shadows } from '@/constants/shadows';
+import { hexToRgba } from '@/constants/courseColors';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
@@ -21,7 +32,7 @@ import { usePlanStore } from '@/stores/planStore';
 import type { AdaptivePlanMetadata, Plan } from '@/types';
 
 const LOADING_MESSAGES = [
-  'Analyzing your dog\'s profile…',
+  "Analyzing your dog's profile…",
   'Selecting the right exercises…',
   'Building your personalized plan…',
 ];
@@ -48,12 +59,11 @@ export default function PlanPreviewScreen() {
 
   const opacity = useSharedValue(1);
   const logoScale = useSharedValue(1);
-
   const logoStyle = useAnimatedStyle(() => ({ transform: [{ scale: logoScale.value }] }));
   const msgStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   useEffect(() => {
-    logoScale.value = withRepeat(withTiming(1.05, { duration: 900 }), -1, true);
+    logoScale.value = withRepeat(withTiming(1.1, { duration: 1100 }), -1, true);
   }, [logoScale]);
 
   useEffect(() => {
@@ -68,46 +78,20 @@ export default function PlanPreviewScreen() {
   }, [loading, opacity]);
 
   useEffect(() => {
-    // No user yet — waiting for account creation
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
-    // Plan was submitted in signup — show it
-    if (existingActivePlan) {
-      setCreatedPlan(existingActivePlan);
-      setLoading(false);
-      return;
-    }
+    if (!user?.id) { setLoading(false); return; }
+    if (existingActivePlan) { setCreatedPlan(existingActivePlan); setLoading(false); return; }
+    if (isSubmittingOnboarding) { setLoading(true); return; }
 
-    if (isSubmittingOnboarding) {
-      setLoading(true);
-      return;
-    }
-
-    // User exists but plan hasn't been created yet — try fetching from DB first,
-    // then fall back to creating via submitOnboarding
     let cancelled = false;
     setLoading(true);
+
     const submit = async () => {
       try {
-        // Ensure supabase client has a valid session
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          if (!cancelled) setError('Session expired. Please log in again.');
-          return;
-        }
+        if (!session) { if (!cancelled) setError('Session expired. Please log in again.'); return; }
 
-        // Verify the session user actually exists in the database
-        // (catches stale JWTs from a DB reset)
-        const { data: profileCheck, error: profileError } = await supabase
-          .from('dogs')
-          .select('id')
-          .eq('owner_id', user.id)
-          .limit(1);
+        await supabase.from('dogs').select('id').eq('owner_id', user.id).limit(1);
 
-        // If we get a non-RLS error, the user may be invalid
-        // Try a simple auth check by refreshing the session
         const { error: refreshError } = await supabase.auth.refreshSession();
         if (refreshError) {
           console.warn('[plan-preview] Session invalid, signing out:', refreshError.message);
@@ -116,36 +100,19 @@ export default function PlanPreviewScreen() {
           return;
         }
 
-        // Try fetching existing dog + plan first (may exist from a prior attempt)
         const { data: existingDog } = await supabase
-          .from('dogs')
-          .select('id')
-          .eq('owner_id', user.id)
-          .limit(1)
-          .maybeSingle();
+          .from('dogs').select('id').eq('owner_id', user.id).limit(1).maybeSingle();
 
         if (existingDog?.id) {
-          // Dog exists — fetch full dog row so avatarUrl is available in dogStore
           const { data: existingDogRow } = await supabase
-            .from('dogs')
-            .select('*')
-            .eq('id', existingDog.id)
-            .single();
-
+            .from('dogs').select('*').eq('id', existingDog.id).single();
           if (existingDogRow) {
             const { mapDogRowToDog } = await import('@/lib/modelMappers');
             useDogStore.getState().setDog(mapDogRowToDog(existingDogRow));
           }
 
-          // Check for plan
           const { data: existingPlanRow } = await supabase
-            .from('plans')
-            .select('*')
-            .eq('dog_id', existingDog.id)
-            .eq('status', 'active')
-            .limit(1)
-            .maybeSingle();
-
+            .from('plans').select('*').eq('dog_id', existingDog.id).eq('status', 'active').limit(1).maybeSingle();
           if (existingPlanRow) {
             const plan = mapPlanRowToPlan(existingPlanRow);
             useDogStore.getState().setActivePlan(plan);
@@ -156,7 +123,6 @@ export default function PlanPreviewScreen() {
           }
         }
 
-        // No dog or plan found — create from scratch
         const submitOnboarding = useOnboardingStore.getState().submitOnboarding;
         setOnboardingField('submissionIntent', 'onboarding');
         const { dogId, dog, plan } = await submitOnboarding(user.id);
@@ -168,11 +134,8 @@ export default function PlanPreviewScreen() {
         setCreatedPlan(plan);
       } catch (err) {
         console.error('[plan-preview] submitOnboarding failed:', err);
-        if (!cancelled) {
-          setError(
-            `Something went wrong building your plan: ${err instanceof Error ? err.message : JSON.stringify(err)}`
-          );
-        }
+        if (!cancelled)
+          setError(`Something went wrong: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -186,16 +149,15 @@ export default function PlanPreviewScreen() {
     resetOnboarding();
     router.replace('/(tabs)/train');
   };
-
-  const handleUnlock = () => {
-    router.push('/(tabs)/profile');
-  };
+  const handleUnlock = () => router.push('/(tabs)/profile');
 
   const isPaid = subscriptionTier !== 'free';
   const planTitle = getPlanTitle(dogName, primaryGoal);
   const bullets = getPlanBullets(primaryGoal);
+  const goalLabel = getBehaviorLabel(primaryGoal);
+
   const firstScheduledSession = useMemo(
-    () => createdPlan?.sessions.find((session) => !session.isCompleted) ?? null,
+    () => createdPlan?.sessions.find((s) => !s.isCompleted) ?? null,
     [createdPlan]
   );
   const explanationBullets = createdPlan?.metadata?.explanation ?? [];
@@ -203,15 +165,39 @@ export default function PlanPreviewScreen() {
   const isAdaptivePlan = adaptiveMetadata?.plannerMode === 'adaptive_ai';
   const adaptiveSummary = adaptiveMetadata?.planningSummary;
 
+  // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <SafeScreen>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
-          <Animated.View style={logoStyle}>
-            <AppIcon name="paw" size={72} color={colors.primary} />
+        <LinearGradient
+          colors={[hexToRgba(colors.brand.primary, 0.1), colors.bg.app]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 0.7 }}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          pointerEvents="none"
+        />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl }}>
+          <Animated.View
+            style={[
+              logoStyle,
+              {
+                width: 88,
+                height: 88,
+                borderRadius: 44,
+                backgroundColor: hexToRgba(colors.brand.primary, 0.12),
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: spacing.xl,
+              },
+            ]}
+          >
+            <AppIcon name="paw" size={44} color={colors.brand.primary} />
           </Animated.View>
-          <Animated.View style={[msgStyle, { marginTop: spacing.xl }]}>
-            <Text variant="body" style={{ color: colors.textSecondary, textAlign: 'center', fontSize: 16 }}>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text.primary, letterSpacing: -0.4, marginBottom: spacing.sm }}>
+            Building your plan…
+          </Text>
+          <Animated.View style={msgStyle}>
+            <Text style={{ fontSize: 15, color: colors.text.secondary, textAlign: 'center', lineHeight: 22 }}>
               {LOADING_MESSAGES[msgIndex]}
             </Text>
           </Animated.View>
@@ -220,14 +206,13 @@ export default function PlanPreviewScreen() {
     );
   }
 
+  // ─── Error ─────────────────────────────────────────────────────────────────
   if (error) {
     return (
       <SafeScreen>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
-          <View style={{ marginBottom: spacing.lg }}>
-            <AppIcon name="help-circle" size={48} color={colors.textSecondary} />
-          </View>
-          <Text variant="body" style={{ textAlign: 'center', color: colors.textSecondary, marginBottom: spacing.xl }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl }}>
+          <AppIcon name="help-circle" size={40} color={colors.text.secondary} />
+          <Text style={{ textAlign: 'center', color: colors.text.secondary, marginTop: spacing.md, marginBottom: spacing.xl, lineHeight: 22 }}>
             {error}
           </Text>
           <Button label="Try again" onPress={() => router.replace('/(onboarding)/dog-basics')} />
@@ -236,311 +221,365 @@ export default function PlanPreviewScreen() {
     );
   }
 
+  // ─── Main ──────────────────────────────────────────────────────────────────
   return (
     <SafeScreen>
-      <Animated.View entering={FadeIn.duration(400)} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 120 }}>
-          {/* Dog avatar */}
-          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={{ alignItems: 'center', marginBottom: spacing.xl }}>
-            <View style={{
-              width: 100, height: 100, borderRadius: 50,
-              backgroundColor: `${colors.primary}20`,
-              alignItems: 'center', justifyContent: 'center',
-              borderWidth: 3, borderColor: colors.primary,
-              marginBottom: spacing.md,
-            }}>
-              <AppIcon name="paw" size={52} color={colors.primary} />
-            </View>
-            <Text variant="title" style={{ color: colors.textPrimary, textAlign: 'center' }}>
-              {dogName}
-            </Text>
-          </Animated.View>
+      <Animated.View entering={FadeIn.duration(500)} style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 120 }}
+        >
 
-          {/* Behavior badge */}
-          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-            <View style={{
-              paddingHorizontal: spacing.lg,
-              paddingVertical: spacing.xs,
-              backgroundColor: `${colors.primary}15`,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: colors.primary,
-            }}>
-              <Text variant="caption" style={{ color: colors.primary, fontWeight: '700' }}>
-                {primaryGoal} · Stage 1
-              </Text>
-            </View>
-          </Animated.View>
-
-          {/* Plan title */}
-          <Animated.View entering={FadeInDown.delay(300).duration(400)} style={{ marginBottom: spacing.xl }}>
-            <Text variant="title" style={{ textAlign: 'center', color: colors.textPrimary }}>
-              {planTitle}
-            </Text>
-          </Animated.View>
-
-          {/* Bullets */}
-          <Animated.View entering={FadeInDown.delay(400).duration(400)} style={{
-            backgroundColor: colors.surface,
-            borderRadius: 16,
-            padding: spacing.lg,
-            marginBottom: spacing.lg,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-          }}>
-            <Text variant="body" style={{ fontWeight: '700', marginBottom: spacing.md, color: colors.textPrimary }}>
-              {"What you'll work on:"}
-            </Text>
-            {bullets.map((b, i) => (
-              <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm }}>
-                <AppIcon name="checkmark-circle" size={16} color={colors.primary} />
-                <Text variant="body" style={{ flex: 1, color: colors.textSecondary }}>{b}</Text>
-              </View>
-            ))}
-          </Animated.View>
-
-          {/* Equipment & session stat */}
-          <Animated.View entering={FadeInDown.delay(500).duration(400)} style={{ marginBottom: spacing.xl }}>
-            {equipment.length > 0 && (
-              <View style={{ marginBottom: spacing.md }}>
-                <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs }}>
-                  {"What you'll need:"}
-                </Text>
-                <Text variant="body" style={{ color: colors.textSecondary }}>
-                  {equipment.join(', ')}
-                </Text>
-              </View>
-            )}
-            <View style={{
-              flexDirection: 'row',
-              backgroundColor: `${colors.success}15`,
-              borderRadius: 12,
-              padding: spacing.md,
-              alignItems: 'center',
-              borderWidth: 1,
-              borderColor: `${colors.success}40`,
-            }}>
-              <AppIcon name="flash" size={20} color={colors.success} />
-              <Text variant="body" style={{ color: colors.success, fontWeight: '600' }}>
-                First session: {availableMinutesPerDay} minutes
-              </Text>
-            </View>
-          </Animated.View>
-
-          <Animated.View
-            entering={FadeInDown.delay(540).duration(400)}
-            style={{
-              backgroundColor: colors.surface,
-              borderRadius: 16,
-              padding: spacing.lg,
-              marginBottom: spacing.lg,
-              borderWidth: 1,
-              borderColor: colors.border.default,
-            }}
+          {/* ══════════════════════════════════════════════════════
+              HERO — calm, focused, uncluttered
+          ══════════════════════════════════════════════════════ */}
+          <LinearGradient
+            colors={[colors.brand.primary, '#16A34A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ paddingTop: spacing.xl + spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg }}
           >
-            <Text variant="body" style={{ fontWeight: '700', color: colors.textPrimary }}>
-              Weekly rhythm
-            </Text>
-            <Text variant="body" style={{ color: colors.textSecondary, marginTop: spacing.xs }}>
-              {scheduleSummary}
-            </Text>
-            {firstScheduledSession ? (
-              <View
-                style={{
-                  marginTop: spacing.md,
-                  padding: spacing.md,
-                  borderRadius: 12,
-                  backgroundColor: colors.bg.surfaceAlt,
-                }}
-              >
-                <Text variant="micro" color={colors.text.secondary}>
-                  First scheduled session
-                </Text>
-                <Text variant="bodyStrong" style={{ marginTop: 4 }}>
-                  {firstScheduledSession.title}
-                </Text>
-                <Text variant="caption">
-                  {firstScheduledSession.scheduledDay
-                    ? `${firstScheduledSession.scheduledDay.slice(0, 3)}`
-                    : `Week ${firstScheduledSession.weekNumber}`}
-                  {firstScheduledSession.scheduledTime
-                    ? ` at ${formatDisplayTime(firstScheduledSession.scheduledTime)}`
-                    : ''}
-                  {` · ${firstScheduledSession.durationMinutes} min`}
-                </Text>
-              </View>
-            ) : null}
-          </Animated.View>
-
-          {explanationBullets.length > 0 && (
-            <Animated.View
-              entering={FadeInDown.delay(560).duration(400)}
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 16,
-                padding: spacing.lg,
-                marginBottom: spacing.xl,
-                borderWidth: 1,
-                borderColor: colors.border.default,
-              }}
-            >
-              <Text variant="body" style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.md }}>
-                Why this schedule?
-              </Text>
-              {explanationBullets.map((bullet, index) => (
-                <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm }}>
-                  <AppIcon name="sparkles" size={16} color={colors.brand.primary} />
-                  <Text variant="body" style={{ flex: 1, color: colors.textSecondary }}>
-                    {bullet}
-                  </Text>
-                </View>
-              ))}
-            </Animated.View>
-          )}
-
-          {/* Adaptive plan tailored message */}
-          {isAdaptivePlan && adaptiveSummary && (
-            <View style={{ marginBottom: spacing.lg }}>
-              <PlanReasonCard
-                dogName={dogName}
-                summary={adaptiveSummary}
-                profileCaption={[
-                  adaptiveMetadata?.selectedSkillIds?.length
-                    ? `${adaptiveMetadata.selectedSkillIds.length} skills`
-                    : null,
-                  scheduleSummary,
-                ].filter(Boolean).join(' · ')}
-                delay={570}
-              />
-            </View>
-          )}
-          {/* Fallback: show generic "tailored to" message for adaptive plan without full summary */}
-          {isAdaptivePlan && !adaptiveSummary && (
-            <Animated.View
-              entering={FadeInDown.delay(570).duration(400)}
-              style={{
-                backgroundColor: `${colors.primary}08`,
-                borderRadius: 16,
-                padding: spacing.lg,
-                marginBottom: spacing.lg,
-                borderWidth: 1,
-                borderColor: `${colors.primary}30`,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-                <AppIcon name="sparkles" size={18} color={colors.primary} />
-                <Text variant="body" style={{ fontWeight: '700', color: colors.primary, marginLeft: spacing.xs }}>
-                  Built for {dogName}
-                </Text>
-              </View>
-              <Text variant="body" style={{ color: colors.textSecondary }}>
-                {"This plan was tailored to " + dogName + "'s age, environment, and current training goal."}
-              </Text>
-            </Animated.View>
-          )}
-
-          {/* Secondary plans notice */}
-          {secondaryGoals.length > 0 && (
-            <Animated.View
-              entering={FadeInDown.delay(590).duration(400)}
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 16,
-                padding: spacing.lg,
-                marginBottom: spacing.lg,
-                borderWidth: 1,
-                borderColor: colors.border.default,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
-                <AppIcon name="layers" size={18} color={colors.primary} />
-                <Text variant="body" style={{ fontWeight: '700', color: colors.textPrimary, marginLeft: spacing.xs }}>
-                  {secondaryGoals.length === 1 ? '1 additional course added' : `${secondaryGoals.length} additional courses added`}
-                </Text>
-              </View>
-              <Text variant="body" style={{ color: colors.textSecondary, marginBottom: spacing.md }}>
-                Based on your other goals, we also built these training plans for {dogName}. They'll run alongside your main course — one session at a time, so it never feels overwhelming.
-              </Text>
-              {secondaryGoals.map((goal) => (
-                <View
-                  key={goal}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingVertical: spacing.xs,
-                  }}
-                >
-                  <AppIcon name="checkmark-circle" size={16} color={colors.primary} />
-                  <Text variant="body" style={{ color: colors.textSecondary, marginLeft: spacing.xs }}>
-                    {getBehaviorLabel(goal)}
-                  </Text>
-                </View>
-              ))}
+            {/* Course chip — small, quiet */}
+            <Animated.View entering={FadeInDown.delay(60).duration(350)}>
               <View style={{
-                marginTop: spacing.md,
-                padding: spacing.sm,
-                backgroundColor: `${colors.primary}10`,
-                borderRadius: 10,
+                flexDirection: 'row',
+                alignSelf: 'flex-start',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                paddingHorizontal: spacing.md,
+                paddingVertical: 5,
+                borderRadius: radii.pill,
+                marginBottom: spacing.md,
               }}>
-                <Text variant="caption" style={{ color: colors.primary, textAlign: 'center' }}>
-                  You can switch between courses anytime from the Train tab
+                <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.95)', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  {goalLabel} · Stage 1
                 </Text>
               </View>
             </Animated.View>
-          )}
 
-          {/* Paywall gate for free users */}
-          {!isPaid && (
-            <Animated.View entering={FadeInDown.delay(600).duration(400)} style={{
-              borderRadius: 16,
-              overflow: 'hidden',
-              borderWidth: 1,
-              borderColor: colors.border.default,
-              marginBottom: spacing.xl,
-            }}>
-              <View style={{ padding: spacing.lg, backgroundColor: colors.secondary }}>
-                <Text variant="body" style={{ fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.xs }}>
-                  Full plan preview
-                </Text>
-                {[1, 2, 3].map((w) => (
-                  <View key={w} style={{
-                    height: 48,
-                    backgroundColor: colors.border.default,
-                    borderRadius: 8,
-                    marginBottom: spacing.xs,
-                    opacity: 0.5,
-                  }} />
+            {/* Dog name — the hero moment */}
+            <Animated.View entering={FadeInDown.delay(120).duration(350)}>
+              <Text style={{ fontSize: 40, fontWeight: '800', color: '#fff', letterSpacing: -1.5, lineHeight: 46, marginBottom: spacing.xs }}>
+                {dogName}'s plan
+              </Text>
+            </Animated.View>
+
+            {/* Plan subtitle — one line, secondary */}
+            <Animated.View entering={FadeInDown.delay(180).duration(350)}>
+              <Text style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', lineHeight: 24, marginBottom: spacing.xl }}>
+                {planTitle}
+              </Text>
+            </Animated.View>
+
+            {/* 3 stats — clean row */}
+            <Animated.View entering={FadeInDown.delay(240).duration(350)}>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                {[
+                  { label: 'Duration', value: '4 weeks' },
+                  { label: 'Per session', value: `${availableMinutesPerDay} min` },
+                  { label: 'Sessions/wk', value: '3–5 days' },
+                ].map((stat, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(255,255,255,0.15)',
+                      borderRadius: radii.md,
+                      padding: spacing.sm + 2,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.5 }}>
+                      {stat.value}
+                    </Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginTop: 3 }}>
+                      {stat.label}
+                    </Text>
+                  </View>
                 ))}
               </View>
-              <View style={{ backgroundColor: `${colors.primary}08`, padding: spacing.lg, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border.default }}>
-                <View style={{ marginBottom: spacing.sm }}>
-                  <AppIcon name="lock-closed" size={24} color={colors.primary} />
+            </Animated.View>
+          </LinearGradient>
+
+          {/* ══════════════════════════════════════════════════════
+              CONTENT — cards float below hero
+          ══════════════════════════════════════════════════════ */}
+          <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.sm }}>
+
+            {/* ── WHAT YOU'LL WORK ON ── */}
+            <Animated.View
+              entering={FadeInDown.delay(300).duration(380)}
+              style={{
+                backgroundColor: colors.bg.surface,
+                borderRadius: radii.lg,
+                padding: spacing.lg,
+                borderWidth: 1,
+                borderColor: colors.border.soft,
+                ...shadows.card,
+              }}
+            >
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.md }}>
+                What you'll work on
+              </Text>
+              <View style={{ gap: spacing.md }}>
+                {bullets.map((b, i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand.primary, marginTop: 9, flexShrink: 0 }} />
+                    <Text style={{ flex: 1, fontSize: 17, color: colors.text.primary, lineHeight: 26 }}>
+                      {b}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              {equipment.length > 0 && (
+                <View style={{ marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.soft }}>
+                  <Text style={{ fontSize: 15, color: colors.text.primary, lineHeight: 22 }}>
+                    <Text style={{ fontWeight: '700' }}>You'll need: </Text>
+                    {equipment.join(', ')}
+                  </Text>
                 </View>
-                <Text variant="body" style={{ fontWeight: '700', color: colors.textPrimary, textAlign: 'center', marginBottom: spacing.xs }}>
-                  Unlock your full plan
+              )}
+            </Animated.View>
+
+            {/* ── YOUR SCHEDULE ── */}
+            <Animated.View
+              entering={FadeInDown.delay(360).duration(380)}
+              style={{
+                backgroundColor: colors.bg.surface,
+                borderRadius: radii.lg,
+                overflow: 'hidden',
+                borderWidth: 1,
+                borderColor: colors.border.soft,
+                ...shadows.card,
+              }}
+            >
+              {/* Amber accent bar */}
+              <View style={{ height: 4, backgroundColor: colors.brand.secondary }} />
+
+              <View style={{ padding: spacing.lg }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.sm }}>
+                  Your schedule
                 </Text>
-                <Text variant="caption" style={{ color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.md }}>
-                  Get all 4 weeks, session-by-session guidance, and progress tracking.
+                <Text style={{ fontSize: 17, color: colors.text.primary, lineHeight: 26 }}>
+                  {scheduleSummary}
                 </Text>
+
+                {firstScheduledSession && (
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.md,
+                    marginTop: spacing.md,
+                    paddingTop: spacing.md,
+                    borderTopWidth: 1,
+                    borderTopColor: colors.border.soft,
+                  }}>
+                    <View style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: hexToRgba(colors.brand.secondary, 0.12),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <AppIcon name="play" size={16} color={colors.brand.secondary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text.secondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
+                        First session
+                      </Text>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text.primary }} numberOfLines={1}>
+                        {firstScheduledSession.title}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: colors.text.secondary, marginTop: 2 }}>
+                        {firstScheduledSession.scheduledDay
+                          ? firstScheduledSession.scheduledDay.slice(0, 3)
+                          : `Week ${firstScheduledSession.weekNumber}`}
+                        {firstScheduledSession.scheduledTime
+                          ? ` at ${formatDisplayTime(firstScheduledSession.scheduledTime)}`
+                          : ''}
+                        {` · ${firstScheduledSession.durationMinutes} min`}
+                      </Text>
+                    </View>
+                  </View>
+                )}
               </View>
             </Animated.View>
-          )}
+
+            {/* ── WHY THIS PLAN (AI explanation) ── */}
+            {explanationBullets.length > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(420).duration(380)}
+                style={{
+                  backgroundColor: colors.bg.surface,
+                  borderRadius: radii.lg,
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: colors.border.soft,
+                  ...shadows.card,
+                }}
+              >
+                <View style={{ height: 4, backgroundColor: colors.brand.coach }} />
+                <View style={{ padding: spacing.lg }}>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.md }}>
+                    Why this plan?
+                  </Text>
+                  <View style={{ gap: spacing.md }}>
+                    {explanationBullets.map((bullet, i) => (
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+                        <View style={{ marginTop: 4 }}><AppIcon name="sparkles" size={15} color={colors.brand.coach} /></View>
+                        <Text style={{ flex: 1, fontSize: 17, color: colors.text.primary, lineHeight: 26 }}>
+                          {bullet}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* ── ADAPTIVE SUMMARY ── */}
+            {isAdaptivePlan && adaptiveSummary && (
+              <Animated.View entering={FadeInDown.delay(460).duration(380)}>
+                <PlanReasonCard
+                  dogName={dogName}
+                  summary={adaptiveSummary}
+                  profileCaption={[
+                    adaptiveMetadata?.selectedSkillIds?.length
+                      ? `${adaptiveMetadata.selectedSkillIds.length} skills`
+                      : null,
+                    scheduleSummary,
+                  ].filter(Boolean).join(' · ')}
+                  delay={0}
+                />
+              </Animated.View>
+            )}
+
+            {isAdaptivePlan && !adaptiveSummary && (
+              <Animated.View
+                entering={FadeInDown.delay(460).duration(380)}
+                style={{
+                  backgroundColor: colors.bg.surface,
+                  borderRadius: radii.lg,
+                  padding: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border.soft,
+                  ...shadows.card,
+                }}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.sm }}>
+                  Built for {dogName}
+                </Text>
+                <Text style={{ fontSize: 17, color: colors.text.primary, lineHeight: 26 }}>
+                  {"This plan was tailored to " + dogName + "'s age, environment, and current training goal."}
+                </Text>
+              </Animated.View>
+            )}
+
+            {/* ── BONUS COURSES ── */}
+            {secondaryGoals.length > 0 && (
+              <Animated.View
+                entering={FadeInDown.delay(500).duration(380)}
+                style={{
+                  backgroundColor: colors.bg.surface,
+                  borderRadius: radii.lg,
+                  padding: spacing.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border.soft,
+                  ...shadows.card,
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.md }}>
+                  {secondaryGoals.length === 1 ? 'Also included' : `${secondaryGoals.length} courses also included`}
+                </Text>
+
+                <View style={{ gap: spacing.sm }}>
+                  {secondaryGoals.map((goal) => (
+                    <View
+                      key={goal}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: spacing.sm,
+                        paddingVertical: spacing.sm,
+                        paddingHorizontal: spacing.md,
+                        backgroundColor: colors.bg.surfaceAlt,
+                        borderRadius: radii.sm,
+                      }}
+                    >
+                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand.primary, flexShrink: 0 }} />
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text.primary }}>
+                        {getBehaviorLabel(goal)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                <Text style={{ fontSize: 14, color: colors.text.secondary, marginTop: spacing.md, lineHeight: 21 }}>
+                  These run alongside your main plan. Switch between courses anytime from the Train tab.
+                </Text>
+              </Animated.View>
+            )}
+
+            {/* ── PAYWALL (free users) ── */}
+            {!isPaid && (
+              <Animated.View
+                entering={FadeInDown.delay(540).duration(380)}
+                style={{
+                  borderRadius: radii.lg,
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: colors.border.soft,
+                  ...shadows.card,
+                }}
+              >
+                {/* Blurred preview */}
+                <View style={{ padding: spacing.lg, backgroundColor: colors.bg.surfaceAlt, gap: spacing.xs }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing.xs }}>
+                    Full plan preview
+                  </Text>
+                  {[0.5, 0.35, 0.2].map((op, i) => (
+                    <View key={i} style={{ height: 42, backgroundColor: colors.border.default, borderRadius: radii.sm, opacity: op }} />
+                  ))}
+                </View>
+
+                {/* Unlock section */}
+                <View style={{ padding: spacing.lg, alignItems: 'center', backgroundColor: colors.bg.surface, borderTopWidth: 1, borderTopColor: colors.border.soft }}>
+                  <AppIcon name="lock-closed" size={24} color={colors.brand.primary} />
+                  <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text.primary, marginTop: spacing.sm, marginBottom: spacing.xs, textAlign: 'center', letterSpacing: -0.3 }}>
+                    Unlock your full plan
+                  </Text>
+                  <Text style={{ fontSize: 15, color: colors.text.secondary, textAlign: 'center', lineHeight: 22 }}>
+                    All 4 weeks, session-by-session guidance, and progress tracking.
+                  </Text>
+                </View>
+              </Animated.View>
+            )}
+
+          </View>
         </ScrollView>
 
+        {/* ── STICKY FOOTER CTA ── */}
         <View style={{
           position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: spacing.xl,
-          backgroundColor: colors.background,
+          bottom: 0, left: 0, right: 0,
+          paddingHorizontal: spacing.md,
+          paddingTop: spacing.md,
+          paddingBottom: spacing.lg,
+          backgroundColor: colors.bg.elevated,
           borderTopWidth: 1,
-          borderTopColor: colors.border.default,
+          borderTopColor: colors.border.soft,
+          ...shadows.modal,
         }}>
           {!user ? (
             <>
-              <Button label="Save my plan — Create account" onPress={() => router.push('/(auth)/signup?from=onboarding')} style={{ marginBottom: spacing.sm }} />
-              <Text variant="caption" style={{ textAlign: 'center', color: colors.textSecondary }}>
+              <Button
+                label="Save my plan — Create account"
+                onPress={() => router.push('/(auth)/signup?from=onboarding')}
+                style={{ marginBottom: spacing.sm }}
+              />
+              <Text style={{ textAlign: 'center', fontSize: 14, color: colors.text.secondary }}>
                 Your plan is ready. Create a free account to save it.
               </Text>
             </>
@@ -548,10 +587,10 @@ export default function PlanPreviewScreen() {
             <Button label="Start my first session →" onPress={handleStart} />
           ) : (
             <>
-              <Button label="Unlock plan →" onPress={handleUnlock} />
-              <Pressable onPress={handleStart} style={{ alignItems: 'center', paddingTop: spacing.sm }}>
-                <Text variant="caption" style={{ color: colors.textSecondary }}>Continue with free plan</Text>
-              </Pressable>
+              <Button label="Unlock full plan →" onPress={handleUnlock} style={{ marginBottom: spacing.sm }} />
+              <TouchableOpacity onPress={handleStart} activeOpacity={0.7} style={{ alignItems: 'center', paddingVertical: spacing.xs }}>
+                <Text style={{ fontSize: 15, color: colors.text.secondary }}>Continue with free plan</Text>
+              </TouchableOpacity>
             </>
           )}
         </View>

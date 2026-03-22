@@ -28,6 +28,7 @@ import { ScheduleSelector } from '@/components/onboarding/ScheduleSelector';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { radii } from '@/constants/radii';
+import { shadows } from '@/constants/shadows';
 import { BREEDS_LIST } from '@/constants/breeds';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import type { Weekday, TimeWindow, SessionStyle } from '@/types';
@@ -863,9 +864,19 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
 
   return (
     <LinearGradient
-      colors={['#FFF9F4', '#F0FDF4', '#DCFCE7']}
+      colors={[`${colors.brand.primary}10`, colors.bg.app, colors.bg.app]}
+      locations={[0, 0.45, 1]}
       style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom + spacing.xl }}
     >
+      {/* Subtle bottom-left green wash */}
+      <LinearGradient
+        colors={['transparent', `${colors.brand.primary}08`]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 1 }}
+        style={{ position: 'absolute', inset: 0 }}
+        pointerEvents="none"
+      />
+
       <Pressable
         onPress={onBack}
         hitSlop={12}
@@ -884,75 +895,103 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
           gap: spacing.lg,
         }}
       >
+        {/* Hero icon — layered rings like train screen hero cards */}
         <Animated.View style={pawStyle}>
           <View
             style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              backgroundColor: `${colors.brand.primary}18`,
+              width: 116,
+              height: 116,
+              borderRadius: 58,
+              backgroundColor: `${colors.brand.primary}10`,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: 2,
-              borderColor: `${colors.brand.primary}30`,
             }}
           >
-            <AppIcon name="paw" size={52} color={colors.brand.primary} />
+            <View
+              style={{
+                width: 88,
+                height: 88,
+                borderRadius: 44,
+                backgroundColor: `${colors.brand.primary}1A`,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 2,
+                borderColor: `${colors.brand.primary}25`,
+              }}
+            >
+              <AppIcon name="paw" size={44} color={colors.brand.primary} />
+            </View>
           </View>
         </Animated.View>
 
-        <View style={{ alignItems: 'center', gap: 8}}>
-          <View style={{ alignItems: 'center', gap: 4 }}>
-            <Text
-              style={{
-                fontSize: 40,
-                lineHeight: 48,
-                fontWeight: '800',
-                color: colors.brand.primary,
-                letterSpacing: -1,
-              }}
-            >
-              Pawly
-            </Text>
-          </View>
+        <View style={{ alignItems: 'center', gap: 6 }}>
           <Text
             style={{
-              fontSize: 18,
+              fontSize: 42,
+              lineHeight: 50,
+              fontWeight: '800',
+              color: colors.brand.primary,
+              letterSpacing: -1.5,
+            }}
+          >
+            Pawly
+          </Text>
+          <Text
+            style={{
+              fontSize: 17,
               color: colors.text.secondary,
               fontWeight: '500',
               textAlign: 'center',
+              letterSpacing: 0.1,
             }}
           >
             Train smarter. Bond deeper.
           </Text>
         </View>
 
+        {/* Feature list — icon style matches train screen icon circles */}
         <Animated.View
           entering={FadeInDown.delay(300).duration(500)}
-          style={{ gap: 14, marginTop: spacing.md }}
+          style={{
+            gap: 12,
+            marginTop: spacing.sm,
+            backgroundColor: colors.bg.surface,
+            borderRadius: 20,
+            padding: spacing.lg,
+            borderWidth: 1.5,
+            borderColor: colors.border.soft,
+            alignSelf: 'stretch',
+          }}
         >
           {[
             { icon: 'sparkles' as const, text: 'Personalised AI training plan' },
             { icon: 'calendar' as const, text: 'Smart scheduling around your life' },
             { icon: 'trending-up' as const, text: 'Track progress week by week' },
-          ].map((item) => (
+          ].map((item, i) => (
             <View
               key={item.text}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 14,
+                paddingBottom: i < 2 ? 12 : 0,
+                borderBottomWidth: i < 2 ? 1 : 0,
+                borderBottomColor: colors.border.soft,
+              }}
             >
               <View
                 style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 17,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
                   backgroundColor: `${colors.brand.primary}15`,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <AppIcon name={item.icon} size={17} color={colors.brand.primary} />
+                <AppIcon name={item.icon} size={18} color={colors.brand.primary} />
               </View>
-              <Text variant="body" color={colors.text.primary} style={{ fontWeight: '500' }}>
+              <Text variant="body" color={colors.text.primary} style={{ fontWeight: '500', flex: 1 }}>
                 {item.text}
               </Text>
             </View>
@@ -1039,6 +1078,14 @@ function SummaryStep({
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg.app }}>
+      {/* Warm gradient blush — matches train screen */}
+      <LinearGradient
+        colors={[`${colors.brand.primary}0A`, 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.4 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 200 }}
+        pointerEvents="none"
+      />
       {/* Header with progress */}
       <View
         style={{
@@ -1075,10 +1122,10 @@ function SummaryStep({
         showsVerticalScrollIndicator={false}
       >
         <View style={{ gap: spacing.xs, marginBottom: spacing.sm }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text.primary }}>
+          <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: -0.5, color: colors.text.primary }}>
             Here's your profile
           </Text>
-          <Text variant="body" color={colors.text.secondary}>
+          <Text variant="body" color={colors.text.secondary} style={{ lineHeight: 22 }}>
             Looks good? Tap below to build your plan.
           </Text>
         </View>
@@ -1090,8 +1137,9 @@ function SummaryStep({
             backgroundColor: colors.bg.surface,
             borderRadius: radii.lg,
             padding: spacing.lg,
-            borderWidth: 1,
+            borderWidth: 1.5,
             borderColor: colors.border.soft,
+            ...shadows.card,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 10 }}>
@@ -1120,8 +1168,9 @@ function SummaryStep({
             backgroundColor: colors.bg.surface,
             borderRadius: radii.lg,
             padding: spacing.lg,
-            borderWidth: 1,
+            borderWidth: 1.5,
             borderColor: colors.border.soft,
+            ...shadows.card,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 10 }}>
@@ -1147,8 +1196,9 @@ function SummaryStep({
             backgroundColor: colors.bg.surface,
             borderRadius: radii.lg,
             padding: spacing.lg,
-            borderWidth: 1,
+            borderWidth: 1.5,
             borderColor: colors.border.soft,
+            ...shadows.card,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 10 }}>
@@ -1173,22 +1223,26 @@ function SummaryStep({
         </Animated.View>
       </ScrollView>
 
-      {/* Footer */}
+      {/* Footer with gradient fade */}
       <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.md,
-          paddingBottom: insets.bottom + spacing.md,
-          backgroundColor: colors.bg.app,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.soft,
-        }}
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
+        pointerEvents="box-none"
       >
-        <Button label="Build my plan →" onPress={onContinue} />
+        <LinearGradient
+          colors={[`${colors.bg.app}00`, colors.bg.app]}
+          style={{ height: 32 }}
+          pointerEvents="none"
+        />
+        <View
+          style={{
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.sm,
+            paddingBottom: insets.bottom + spacing.md,
+            backgroundColor: colors.bg.app,
+          }}
+        >
+          <Button label="Build my plan →" onPress={onContinue} />
+        </View>
       </View>
     </View>
   );

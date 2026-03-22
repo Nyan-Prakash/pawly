@@ -94,13 +94,34 @@ export default function LoginScreen() {
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: spacing.xl }}
             keyboardShouldPersistTaps="handled"
           >
-            <Text variant="title" style={{ marginBottom: spacing.sm }}>Welcome back</Text>
-            <Text variant="caption" style={{ marginBottom: spacing.xl, color: colors.textSecondary }}>
+            <Text
+              style={{
+                fontSize: 34,
+                fontWeight: '800',
+                color: colors.textPrimary,
+                letterSpacing: -0.5,
+                lineHeight: 40,
+                marginBottom: spacing.xs,
+              }}
+            >
+              Welcome back
+            </Text>
+            <Text
+              variant="body"
+              style={{ marginBottom: spacing.xxl, color: colors.textSecondary }}
+            >
               Log in to continue with your dog's training.
             </Text>
 
             {/* Email */}
-            <Text variant="caption" style={{ marginBottom: spacing.xs, fontWeight: typography.weights.medium, color: colors.textPrimary }}>
+            <Text
+              style={{
+                marginBottom: spacing.xs,
+                fontWeight: '600',
+                fontSize: typography.sizes.sm,
+                color: colors.textPrimary,
+              }}
+            >
               Email
             </Text>
             <TextInput
@@ -116,7 +137,15 @@ export default function LoginScreen() {
             />
 
             {/* Password */}
-            <Text variant="caption" style={{ marginTop: spacing.md, marginBottom: spacing.xs, fontWeight: typography.weights.medium, color: colors.textPrimary }}>
+            <Text
+              style={{
+                marginTop: spacing.md,
+                marginBottom: spacing.xs,
+                fontWeight: '600',
+                fontSize: typography.sizes.sm,
+                color: colors.textPrimary,
+              }}
+            >
               Password
             </Text>
             <TextInput
@@ -155,7 +184,7 @@ export default function LoginScreen() {
             >
               {isLoading
                 ? <ActivityIndicator color={colors.surface} />
-                : <Text style={{ color: colors.surface, fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>Log in</Text>
+                : <Text style={{ color: colors.surface, fontWeight: '700', fontSize: typography.sizes.md }}>Log in</Text>
               }
             </Pressable>
 
@@ -196,31 +225,32 @@ export default function LoginScreen() {
 }
 
 const inputStyle = (hasError: boolean) => ({
-  borderWidth: 1,
-  borderColor: hasError ? colors.error : colors.border.default,
-  borderRadius: 12,
+  borderWidth: 1.5,
+  borderColor: hasError ? colors.error : colors.border.soft,
+  borderRadius: 16,
   paddingVertical: spacing.lg,
   paddingHorizontal: spacing.lg,
   fontSize: typography.sizes.md,
   color: colors.textPrimary,
-  backgroundColor: colors.surface
+  backgroundColor: colors.surface,
+  minHeight: 58,
 });
 
 const primaryButtonStyle = {
   backgroundColor: colors.primary,
-  borderRadius: 12,
+  borderRadius: 16,
   paddingVertical: spacing.lg,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
-  minHeight: 52
+  minHeight: 58,
 };
 
 const appleButtonStyle = {
   backgroundColor: '#000000',
-  borderRadius: 12,
+  borderRadius: 16,
   paddingVertical: spacing.lg,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
-  minHeight: 52
+  minHeight: 58,
 };
 

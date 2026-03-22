@@ -214,19 +214,23 @@ export default function DogPhotoScreen() {
       case 'idle':
         return (
           <View style={styles.centerContainer}>
-            {/* Avatar placeholder */}
+            {/* Avatar placeholder — layered rings */}
             <View style={styles.placeholderOuter}>
-              <View style={styles.placeholderInner}>
-                <AppIcon name="paw" size={40} color={colors.brand.primary} />
-                <Text variant="caption" style={styles.placeholderLabel}>
-                  No photo yet
-                </Text>
+              <View style={styles.placeholderMiddle}>
+                <View style={styles.placeholderInner}>
+                  <AppIcon name="paw" size={44} color={colors.brand.primary} />
+                  <Text variant="caption" style={styles.placeholderLabel}>
+                    No photo yet
+                  </Text>
+                </View>
               </View>
             </View>
 
-            {/* Info card */}
+            {/* AI feature highlight — brand green tint */}
             <View style={styles.infoCard}>
-              <AppIcon name="sparkles" size={16} color={colors.brand.secondary} />
+              <View style={styles.infoIconCircle}>
+                <AppIcon name="sparkles" size={16} color={colors.brand.primary} />
+              </View>
               <Text variant="caption" style={styles.infoText}>
                 Our AI turns your photo into a beautiful illustrated avatar
               </Text>
@@ -243,27 +247,25 @@ export default function DogPhotoScreen() {
 
             {/* Action buttons */}
             <View style={styles.photoButtonRow}>
-              <Pressable
-                style={({ pressed }) => [styles.photoOption, pressed && styles.photoOptionPressed]}
-                onPress={() => handlePickImage(true)}
-              >
-                <View style={styles.photoOptionIcon}>
-                  <AppIcon name="camera" size={22} color={colors.brand.primary} />
-                </View>
-                <Text variant="bodyStrong" style={styles.photoOptionLabel}>Take Photo</Text>
-                <Text variant="caption" style={styles.photoOptionSub}>Use camera</Text>
-              </Pressable>
-
-              <Pressable
-                style={({ pressed }) => [styles.photoOption, pressed && styles.photoOptionPressed]}
-                onPress={() => handlePickImage(false)}
-              >
-                <View style={styles.photoOptionIcon}>
-                  <AppIcon name="image" size={22} color={colors.brand.primary} />
-                </View>
-                <Text variant="bodyStrong" style={styles.photoOptionLabel}>Choose Photo</Text>
-                <Text variant="caption" style={styles.photoOptionSub}>From library</Text>
-              </Pressable>
+              {[
+                { icon: 'camera' as const, label: 'Camera', sub: 'Take a photo', onPress: () => handlePickImage(true) },
+                { icon: 'image' as const, label: 'Library', sub: 'From gallery', onPress: () => handlePickImage(false) },
+              ].map((btn) => (
+                <Pressable
+                  key={btn.label}
+                  onPress={btn.onPress}
+                  style={({ pressed }) => [
+                    styles.photoOptionCard,
+                    pressed && styles.photoOptionCardPressed,
+                  ]}
+                >
+                  <View style={styles.photoOptionIcon}>
+                    <AppIcon name={btn.icon} size={26} color={colors.brand.primary} />
+                  </View>
+                  <Text style={styles.photoOptionLabel}>{btn.label}</Text>
+                  <Text style={styles.photoOptionSub}>{btn.sub}</Text>
+                </Pressable>
+              ))}
             </View>
           </View>
         );
@@ -476,30 +478,34 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xl,
+    gap: spacing.lg,
     paddingHorizontal: spacing.md,
+    alignSelf: 'stretch',
   },
 
   // Idle state
   placeholderOuter: {
-    width: PHOTO_SIZE + 16,
-    height: PHOTO_SIZE + 16,
-    borderRadius: (PHOTO_SIZE + 16) / 2,
-    backgroundColor: colors.bg.surfaceAlt,
+    width: PHOTO_SIZE + 32,
+    height: PHOTO_SIZE + 32,
+    borderRadius: (PHOTO_SIZE + 32) / 2,
+    backgroundColor: `${colors.brand.primary}08`,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.shadow.soft,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
-    elevation: 3,
+  },
+  placeholderMiddle: {
+    width: PHOTO_SIZE + 12,
+    height: PHOTO_SIZE + 12,
+    borderRadius: (PHOTO_SIZE + 12) / 2,
+    backgroundColor: `${colors.brand.primary}12`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   placeholderInner: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
     borderRadius: PHOTO_SIZE / 2,
     borderWidth: 2,
-    borderColor: colors.border.default,
+    borderColor: `${colors.brand.primary}40`,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
@@ -513,12 +519,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.status.warningBg,
-    borderWidth: 1,
-    borderColor: colors.status.warningBorder,
-    borderRadius: 12,
+    backgroundColor: `${colors.brand.primary}0D`,
+    borderWidth: 1.5,
+    borderColor: `${colors.brand.primary}25`,
+    borderRadius: 16,
     paddingVertical: spacing.sm + 2,
     paddingHorizontal: spacing.md,
+    alignSelf: 'stretch',
+  },
+  infoIconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: `${colors.brand.primary}18`,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoText: {
     flex: 1,
@@ -528,42 +543,51 @@ const styles = StyleSheet.create({
   photoButtonRow: {
     flexDirection: 'row',
     gap: spacing.md,
-    width: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
   },
-  photoOption: {
-    flex: 1,
-    backgroundColor: colors.bg.surface,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: colors.border.default,
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
-    shadowColor: colors.shadow.soft,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  photoOptionPressed: {
-    backgroundColor: colors.bg.surfaceAlt,
-    borderColor: colors.brand.primary,
-  },
-  photoOptionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.status.successBg,
+  photoOptionCard: {
+    width: 148,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
+    gap: 8,
+    backgroundColor: colors.bg.surface,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: colors.border.default,
+    paddingVertical: 24,
+    paddingHorizontal: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  photoOptionCardPressed: {
+    backgroundColor: `${colors.brand.primary}08`,
+    borderColor: colors.brand.primary,
+    shadowOpacity: 0.12,
+  },
+  photoOptionIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: `${colors.brand.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   photoOptionLabel: {
     color: colors.text.primary,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
   },
   photoOptionSub: {
     color: colors.text.secondary,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 16,
   },
 
   // Selected state
@@ -740,7 +764,7 @@ const styles = StyleSheet.create({
     borderColor: colors.status.dangerBorder,
     borderRadius: 14,
     padding: spacing.md,
-    width: '100%',
+    alignSelf: 'stretch',
   },
   errorCardTitle: {
     color: colors.error,
@@ -760,7 +784,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: spacing.xs + 2,
     paddingHorizontal: spacing.md,
-    width: '100%',
+    alignSelf: 'stretch',
   },
   errorBannerText: {
     flex: 1,
@@ -769,7 +793,7 @@ const styles = StyleSheet.create({
 
   // Shared
   actionsStack: {
-    width: '100%',
+    alignSelf: 'stretch',
     gap: spacing.md,
   },
   textLink: {

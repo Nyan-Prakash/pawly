@@ -6,6 +6,7 @@ import {
   View,
   Pressable,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -51,6 +52,15 @@ export function QuestionScreen({
       style={{ flex: 1, backgroundColor: colors.bg.app }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Warm gradient blush — matches train screen */}
+      <LinearGradient
+        colors={[`${colors.brand.primary}0A`, 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.4 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 200 }}
+        pointerEvents="none"
+      />
+
       {/* Header */}
       <View
         style={{
@@ -89,15 +99,15 @@ export function QuestionScreen({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ gap: spacing.sm }}>
+          <View style={{ gap: spacing.xs }}>
             <Text
               variant="h1"
-              style={{ fontSize: 28, fontWeight: '700', lineHeight: 36, color: colors.text.primary }}
+              style={{ fontSize: 28, fontWeight: '800', lineHeight: 36, letterSpacing: -0.5, color: colors.text.primary }}
             >
               {title}
             </Text>
             {subtitle && (
-              <Text variant="body" color={colors.text.secondary}>
+              <Text variant="body" color={colors.text.secondary} style={{ lineHeight: 22 }}>
                 {subtitle}
               </Text>
             )}
@@ -114,15 +124,15 @@ export function QuestionScreen({
             gap: spacing.xl,
           }}
         >
-          <View style={{ gap: spacing.sm }}>
+          <View style={{ gap: spacing.xs }}>
             <Text
               variant="h1"
-              style={{ fontSize: 28, fontWeight: '700', lineHeight: 36, color: colors.text.primary }}
+              style={{ fontSize: 28, fontWeight: '800', lineHeight: 36, letterSpacing: -0.5, color: colors.text.primary }}
             >
               {title}
             </Text>
             {subtitle && (
-              <Text variant="body" color={colors.text.secondary}>
+              <Text variant="body" color={colors.text.secondary} style={{ lineHeight: 22 }}>
                 {subtitle}
               </Text>
             )}
@@ -131,29 +141,38 @@ export function QuestionScreen({
         </View>
       )}
 
-      {/* Fixed footer */}
+      {/* Fixed footer with gradient fade */}
       <View
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.md,
-          paddingBottom: insets.bottom + spacing.md,
-          backgroundColor: colors.bg.app,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.soft,
-          gap: spacing.sm,
         }}
+        pointerEvents="box-none"
       >
-        <Button
-          label={continueLabel}
-          onPress={onContinue}
-          disabled={!canContinue}
-          style={{ opacity: canContinue ? 1 : 0.4 }}
+        <LinearGradient
+          colors={[`${colors.bg.app}00`, colors.bg.app]}
+          style={{ height: 32 }}
+          pointerEvents="none"
         />
-        {footerExtra}
+        <View
+          style={{
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.sm,
+            paddingBottom: insets.bottom + spacing.md,
+            backgroundColor: colors.bg.app,
+            gap: spacing.sm,
+          }}
+        >
+          <Button
+            label={continueLabel}
+            onPress={onContinue}
+            disabled={!canContinue}
+            style={{ opacity: canContinue ? 1 : 0.4 }}
+          />
+          {footerExtra}
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
