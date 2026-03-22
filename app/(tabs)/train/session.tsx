@@ -850,9 +850,17 @@ function SetupView({ protocol, checkedItems, theme, onToggle, insets, onBack, on
 
         {/* Header */}
         <View style={{ marginTop: spacing.lg, marginBottom: spacing.xl, gap: spacing.sm }}>
-          <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.5 }}>
-            Quick setup
-          </Text>
+          <Text
+            style={{
+              fontSize: 26,
+              fontWeight: '700',
+              lineHeight: 32, // 👈 ADD THIS
+              color: colors.textPrimary,
+              letterSpacing: -0.5,
+            }}
+              >
+              Quick setup
+            </Text>
           <Text style={{ fontSize: 15, color: colors.textSecondary, lineHeight: 22 }}>
             Check off each item before you begin.
           </Text>
@@ -923,7 +931,7 @@ function SetupView({ protocol, checkedItems, theme, onToggle, insets, onBack, on
                       fontWeight: checked ? '400' : '500',
                       color: checked ? colors.textSecondary : colors.textPrimary,
                       textDecorationLine: checked ? 'line-through' : 'none',
-                      lineHeight: 22,
+                      lineHeight: 26,
                     }}
                   >
                     {item}
@@ -1279,11 +1287,11 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, theme
       <AppIcon name="checkmark-circle" size={64} color={colors.success} />
 
       <View style={{ alignItems: 'center', gap: spacing.sm }}>
-        <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' }}>
+        <Text style={{ fontSize: 26, fontWeight: '700', lineHeight: 32, color: colors.textPrimary, textAlign: 'center' }}>
           Step {stepNumber} complete!
         </Text>
         {currentStep && (
-          <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 }}>
+          <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', lineHeight: 24 }}>
             Great work on step {stepNumber} of {totalSteps}
           </Text>
         )}
@@ -1559,7 +1567,7 @@ function AbandonSheet({
           />
 
           <View style={{ alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: colors.textPrimary }}>
+            <Text style={{ fontSize: 20, fontWeight: '700', lineHeight: 28, color: colors.textPrimary }}>
               Leave this session?
             </Text>
             <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>

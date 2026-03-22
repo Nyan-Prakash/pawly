@@ -22,9 +22,9 @@ type TextProps = PropsWithChildren<
   }
 >;
 
-// Maps fontWeight → correct Plus Jakarta Sans fontFamily.
+// Maps fontWeight → correct Nunito fontFamily.
 // On iOS, using fontWeight without fontFamily reverts to SF Pro.
-// This ensures every Text renders in Plus Jakarta Sans at the right weight.
+// This ensures every Text renders in Nunito at the right weight.
 const WEIGHT_TO_FAMILY: Record<string, string> = {
   '400': 'Nunito_400Regular',
   '500': 'Nunito_500Medium',
@@ -36,11 +36,11 @@ const WEIGHT_TO_FAMILY: Record<string, string> = {
 };
 
 function resolveFont(style: TextStyle | undefined): string {
-  if (!style) return 'PlusJakartaSans_400Regular';
+  if (!style) return 'Nunito_400Regular';
   // If fontFamily already explicitly set, respect it
   if (style.fontFamily) return style.fontFamily;
   const weight = String(style.fontWeight ?? '400');
-  return WEIGHT_TO_FAMILY[weight] ?? 'PlusJakartaSans_400Regular';
+  return WEIGHT_TO_FAMILY[weight] ?? 'Nunito_400Regular';
 }
 
 function flattenStyleWeight(style: RNTextProps['style']): TextStyle {

@@ -764,14 +764,14 @@ export default function TrainScreen() {
                     </View>
 
                     {/* Progress bar */}
-                    <View style={{ gap: 4 }}>
+                    <View style={{ gap: 6 }}>
                       <ProgressBar
                         progress={heroCompletion / 100}
-                        height={5}
+                        height={8}
                         color={planColor}
                         trackColor={uiColors.tint}
                       />
-                      <Text style={{ fontSize: 11, color: colors.text.secondary, fontWeight: '500' }}>
+                      <Text style={{ fontSize: 12, color: colors.text.secondary, fontWeight: '500' }}>
                         {heroCompletion}% of plan complete
                       </Text>
                     </View>
@@ -929,17 +929,17 @@ export default function TrainScreen() {
                   </View>
 
                   {/* Progress bar */}
-                  <View style={{ marginTop: spacing.xs, gap: 5 }}>
+                  <View style={{ marginTop: spacing.xs, gap: 6 }}>
                     <ProgressBar
                       progress={heroCompletion / 100}
-                      height={5}
+                      height={8}
                       color="rgba(255,255,255,0.95)"
-                      trackColor="rgba(255,255,255,0.22)"
+                      trackColor="rgba(255,255,255,0.28)"
                     />
                     <Text
                       style={{
-                        color: 'rgba(255,255,255,0.7)',
-                        fontSize: 11,
+                        color: 'rgba(255,255,255,0.85)',
+                        fontSize: 12,
                         fontWeight: '600',
                       }}
                     >
@@ -1005,14 +1005,14 @@ export default function TrainScreen() {
                   >
                     <Text
                       style={{
-                        color: 'rgba(255,255,255,0.75)',
-                        fontSize: 13,
-                        fontWeight: '600',
+                        color: 'rgba(255,255,255,0.85)',
+                        fontSize: 15,
+                        fontWeight: '700',
                       }}
                     >
                       View full plan
                     </Text>
-                    <AppIcon name="chevron-forward" size={12} color="rgba(255,255,255,0.75)" />
+                    <AppIcon name="chevron-forward" size={15} color="rgba(255,255,255,0.85)" />
                   </TouchableOpacity>
                 </View>
               </LinearGradient>

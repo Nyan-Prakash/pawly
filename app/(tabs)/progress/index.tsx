@@ -10,11 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { MascotCallout } from '@/components/ui/MascotCallout';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -23,6 +25,7 @@ import { Text } from '@/components/ui/Text';
 import { MilestoneCard } from '@/components/progress/MilestoneCard';
 import { LearningInsightCard } from '@/components/adaptive/LearningInsightCard';
 import { colors } from '@/constants/colors';
+import { hexToRgba } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
 import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
@@ -33,6 +36,27 @@ import { MILESTONE_DEFINITIONS, getNextMilestoneDefinition } from '@/lib/milesto
 import type { Milestone } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Paw Decor
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PawDecor({ x, y, size, opacity, rotate }: { x: number; y: number; size: number; opacity: number; rotate: number }) {
+  const s = size;
+  return (
+    <View
+      style={{ position: 'absolute', left: x, top: y, opacity, transform: [{ rotate: `${rotate}deg` }] }}
+      pointerEvents="none"
+    >
+      <View style={{ width: s, height: s * 0.8, borderRadius: s * 0.4, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: -s * 0.1 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ width: s * 0.28, height: s * 0.28, borderRadius: s * 0.14, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+        ))}
+      </View>
+    </View>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Skeleton
@@ -81,22 +105,49 @@ function StreakCard({
         backgroundColor: colors.bg.surface,
         borderRadius: radii.lg,
         padding: spacing.md,
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: colors.border.soft,
         gap: spacing.xs,
         ...shadows.card,
       }}
     >
-      <AppIcon name={emoji} size={22} color={accentColor ?? colors.brand.primary} />
-      <Text style={{ fontSize: 28, fontWeight: '800', color: colors.text.primary, lineHeight: 34 }}>
+      {/* Icon circle */}
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: hexToRgba(dot, 0.12),
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 2,
+        }}
+      >
+        <AppIcon name={emoji} size={18} color={dot} />
+      </View>
+      <Text style={{ fontSize: 28, fontWeight: '800', color: colors.text.primary, lineHeight: 34, letterSpacing: -0.5 }}>
         {current}
       </Text>
       <Text style={{ fontSize: 12, color: colors.text.secondary, fontWeight: '600' }}>
         {label}
       </Text>
-      <Text variant="micro" color={colors.text.secondary}>
-        Best: {longest} days
-      </Text>
+      {/* Best streak pill */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 4,
+          alignSelf: 'flex-start',
+          backgroundColor: hexToRgba(dot, 0.1),
+          paddingHorizontal: 8,
+          paddingVertical: 3,
+          borderRadius: radii.pill,
+        }}
+      >
+        <Text style={{ fontSize: 11, color: dot, fontWeight: '700' }}>
+          Best: {longest}d
+        </Text>
+      </View>
       {current === 0 ? (
         <Text variant="micro" color={colors.text.secondary} style={{ marginTop: spacing.xs }}>
           No activity yet
@@ -349,71 +400,82 @@ function BehaviorScoreCard({ score }: { score: import('@/types').BehaviorScore }
       positions: 'Sit / Down / Stay',
       door_manners: 'Door Manners',
       focus: 'Focus & Attention',
+      puppy_biting: 'Puppy Biting',
+      settling: 'Settling',
+      socialization: 'Socialization',
+      crate_training: 'Crate Training',
+      separation_anxiety: 'Separation Anxiety',
+      jumping_up: 'Jumping Up',
+      barking: 'Barking',
+      reactivity: 'Reactivity',
+      resource_guarding: 'Resource Guarding',
     };
-    return map[b.toLowerCase().replace(/ /g, '_')] ?? b;
+    const key = b.toLowerCase().replace(/ /g, '_');
+    return map[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   return (
     <View
       style={{
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.md,
-        padding: spacing.md,
-        borderWidth: 1,
+        borderRadius: radii.lg,
+        borderWidth: 1.5,
         borderColor: colors.border.soft,
-        gap: spacing.sm,
+        overflow: 'hidden',
         ...shadows.card,
       }}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text.primary }}>
-          {labelForBehavior(score.behavior)}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <Text style={{ fontSize: 16, color: trend.color }}>{trend.arrow}</Text>
-          <Text style={{ fontSize: 12, color: trend.color, fontWeight: '600' }}>{trend.label}</Text>
-        </View>
-      </View>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-        <Text variant="caption" color={colors.text.secondary}>
-          Stage {score.currentStage} of {score.totalStages}
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 4, marginLeft: spacing.xs }}>
-          {Array.from({ length: score.totalStages }).map((_, i) => (
+      {/* Colored left accent bar */}
+      <View style={{ flexDirection: 'row' }}>
+        <View style={{ width: 4, backgroundColor: trend.color, alignSelf: 'stretch' }} />
+        <View style={{ flex: 1, padding: spacing.md, gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text.primary, letterSpacing: -0.3 }}>
+              {labelForBehavior(score.behavior)}
+            </Text>
+            {/* Trend pill */}
             <View
-              key={i}
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: 5,
-                backgroundColor: i < score.currentStage ? colors.brand.primary : colors.border.default,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: hexToRgba(trend.color, 0.12),
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: radii.pill,
               }}
-            />
-          ))}
-        </View>
-      </View>
+            >
+              <Text style={{ fontSize: 13, color: trend.color }}>{trend.arrow}</Text>
+              <Text style={{ fontSize: 12, color: trend.color, fontWeight: '700' }}>{trend.label}</Text>
+            </View>
+          </View>
 
-      <ProgressBar progress={Math.min(pct / 100, 1)} height={6} />
+          {/* Stage row: dots + label inline */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {Array.from({ length: score.totalStages }).map((_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: i < score.currentStage ? colors.brand.primary : colors.border.default,
+                  }}
+                />
+              ))}
+            </View>
+            <Text style={{ fontSize: 13, color: colors.text.secondary, fontWeight: '600' }}>
+              Stage {score.currentStage} of {score.totalStages}
+            </Text>
+          </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text variant="caption" color={colors.text.secondary}>
-          {score.sessionCount} sessions completed
-        </Text>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => router.push('/(tabs)/train')}
-          style={{
-            backgroundColor: '#DCFCE7',
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 5,
-            borderRadius: radii.pill,
-          }}
-        >
-          <Text style={{ fontSize: 12, color: colors.brand.primary, fontWeight: '700' }}>
-            Continue →
+          <ProgressBar progress={Math.min(pct / 100, 1)} height={6} color={colors.brand.primary} />
+
+          <Text variant="caption" color={colors.text.secondary}>
+            {score.sessionCount} sessions completed
           </Text>
-        </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -520,6 +582,17 @@ export default function ProgressScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [celebrationMilestone, setCelebrationMilestone] = useState<Milestone | null>(null);
 
+  // Mascot bounce animation
+  const mascotBounce = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(mascotBounce, { toValue: -4, duration: 1600, useNativeDriver: true }),
+        Animated.timing(mascotBounce, { toValue: 0, duration: 1600, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [mascotBounce]);
+
   useEffect(() => {
     if (dog?.id && user?.id) {
       fetchProgressData(dog.id, user.id);
@@ -580,6 +653,14 @@ export default function ProgressScreen() {
 
   return (
     <SafeScreen>
+      {/* Warm gradient blush behind everything */}
+      <LinearGradient
+        colors={[hexToRgba(colors.brand.primary, 0.06), 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.35 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 220 }}
+        pointerEvents="none"
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -592,19 +673,37 @@ export default function ProgressScreen() {
         contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
       >
         {/* ── Header ── */}
-        <View
-          style={{
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-            paddingBottom: spacing.sm,
-          }}
-        >
-          <Text variant="h2">
-            {dog?.name ? `${dog.name}'s Progress` : 'Progress'}
-          </Text>
-          <Text variant="micro" color={colors.text.secondary} style={{ marginTop: 2 }}>
-            {getWeekRange()}
-          </Text>
+        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Animated.View style={{ transform: [{ translateY: mascotBounce }] }}>
+              <MascotCallout
+                state={sessionStreak >= 3 ? 'encouraging' : 'happy'}
+                size={60}
+              />
+            </Animated.View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 26,
+                  fontWeight: '800',
+                  color: colors.text.primary,
+                  letterSpacing: -0.5,
+                  lineHeight: 32,
+                }}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {dog?.name ? `${dog.name}'s` : 'Your'}{' '}
+                <Text style={{ fontSize: 26, fontWeight: '800', color: colors.brand.primary, letterSpacing: -0.5, lineHeight: 32 }}>
+                  Progress
+                </Text>
+              </Text>
+              <Text variant="caption" color={colors.text.secondary} style={{ marginTop: 2 }}>
+                {getWeekRange()}
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* ── New user empty state ── */}
@@ -616,14 +715,26 @@ export default function ProgressScreen() {
               backgroundColor: colors.bg.surface,
               borderRadius: radii.lg,
               padding: spacing.xl,
-              borderWidth: 1,
+              borderWidth: 1.5,
               borderColor: colors.border.soft,
               alignItems: 'center',
               gap: spacing.md,
               ...shadows.card,
             }}
           >
-            <AppIcon name="ribbon-outline" size={48} color={colors.brand.primary} />
+            {/* Icon circle */}
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: hexToRgba(colors.brand.primary, 0.1),
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <AppIcon name="ribbon-outline" size={36} color={colors.brand.primary} />
+            </View>
             <View style={{ alignItems: 'center', gap: spacing.xs }}>
               <Text variant="h3" style={{ textAlign: 'center' }}>
                 {dog?.name ? `${dog.name}'s stats will show here` : 'Your stats will show here'}
@@ -641,6 +752,80 @@ export default function ProgressScreen() {
         )}
 
         <View style={{ paddingHorizontal: spacing.md, gap: spacing.lg, marginTop: isNewUser ? spacing.lg : 0 }}>
+
+          {/* ── Stats hero banner ── */}
+          {!isNewUser && (
+            <LinearGradient
+              colors={[colors.brand.primary, hexToRgba(colors.brand.primary, 0.78)]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ borderRadius: radii.lg, overflow: 'hidden' }}
+            >
+              <PawDecor x={-10} y={10} size={40} opacity={0.35} rotate={-20} />
+              <PawDecor x={260} y={-5} size={32} opacity={0.25} rotate={30} />
+              <PawDecor x={220} y={55} size={24} opacity={0.2} rotate={-10} />
+              <View style={{ padding: spacing.lg, gap: spacing.xs }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '800',
+                    letterSpacing: 1.4,
+                    textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.75)',
+                  }}
+                >
+                  Overall Progress
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 28,
+                    fontWeight: '800',
+                    color: '#fff',
+                    lineHeight: 34,
+                    letterSpacing: -0.5,
+                  }}
+                >
+                  {totalSessionsCompleted} Sessions
+                </Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: radii.pill,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <AppIcon name="flame" size={12} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                      {sessionStreak} day streak
+                    </Text>
+                  </View>
+                  {walkStreak > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: radii.pill,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <AppIcon name="walk" size={12} color="#fff" />
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                        {walkStreak} walk streak
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </LinearGradient>
+          )}
 
           {/* ── Streak Cards ── */}
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -683,19 +868,43 @@ export default function ProgressScreen() {
               backgroundColor: colors.bg.surface,
               borderRadius: radii.lg,
               padding: spacing.md,
-              borderWidth: 1,
+              borderWidth: 1.5,
               borderColor: colors.border.soft,
               gap: spacing.sm,
               ...shadows.card,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text.primary }}>
-                Sessions this month
-              </Text>
-              <Text variant="caption" color={colors.text.secondary}>
-                {totalSessionsCompleted} total
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                <View
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: hexToRgba(colors.brand.primary, 0.12),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AppIcon name="analytics" size={14} color={colors.brand.primary} />
+                </View>
+                <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text.primary }}>
+                  Sessions this month
+                </Text>
+              </View>
+              {/* Total pill */}
+              <View
+                style={{
+                  backgroundColor: hexToRgba(colors.brand.primary, 0.1),
+                  paddingHorizontal: 10,
+                  paddingVertical: 3,
+                  borderRadius: radii.pill,
+                }}
+              >
+                <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '800' }}>
+                  {totalSessionsCompleted} total
+                </Text>
+              </View>
             </View>
             <SessionBarChart data={sessionsByWeek} />
           </View>
@@ -706,15 +915,29 @@ export default function ProgressScreen() {
               backgroundColor: colors.bg.surface,
               borderRadius: radii.lg,
               padding: spacing.md,
-              borderWidth: 1,
+              borderWidth: 1.5,
               borderColor: colors.border.soft,
               gap: spacing.sm,
               ...shadows.card,
             }}
           >
-            <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text.primary }}>
-              Walk quality trend
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: hexToRgba(colors.brand.secondary, 0.12),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppIcon name="walk" size={14} color={colors.brand.secondary} />
+              </View>
+              <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text.primary }}>
+                Walk quality trend
+              </Text>
+            </View>
             <WalkQualityChart data={walkQualityByWeek} />
           </View>
 
