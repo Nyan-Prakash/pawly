@@ -686,35 +686,18 @@ export default function TrainScreen() {
                   <View style={{ height: 4, backgroundColor: planColor }} />
 
                   <View style={{ padding: spacing.md, gap: spacing.sm }}>
-                    {/* Label + course badge row */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: '800',
-                          letterSpacing: 1.4,
-                          textTransform: 'uppercase',
-                          color: planColor,
-                          flex: 1,
-                        }}
-                      >
-                        Next Session
-                      </Text>
-                      {multiplePlans && heroCourseLabel ? (
-                        <View
-                          style={{
-                            backgroundColor: uiColors.tint,
-                            paddingHorizontal: 8,
-                            paddingVertical: 3,
-                            borderRadius: radii.pill,
-                          }}
-                        >
-                          <Text style={{ color: planColor, fontSize: 10, fontWeight: '700' }}>
-                            {heroCourseLabel}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
+                    {/* Label row */}
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: '800',
+                        letterSpacing: 1.4,
+                        textTransform: 'uppercase',
+                        color: planColor,
+                      }}
+                    >
+                      Next Session
+                    </Text>
 
                     {/* Date chip */}
                     <View
@@ -756,10 +739,23 @@ export default function TrainScreen() {
                           {heroSession.durationMinutes} min
                         </Text>
                       </View>
-                      {!multiplePlans && heroPlan ? (
+                      {heroPlan && !multiplePlans ? (
                         <Text style={{ fontSize: 13, color: colors.text.secondary }}>
                           · {getBehaviorLabel(heroPlan.goal)} · Stage {heroStageNumber}
                         </Text>
+                      ) : multiplePlans && heroCourseLabel ? (
+                        <View
+                          style={{
+                            backgroundColor: uiColors.tint,
+                            paddingHorizontal: 8,
+                            paddingVertical: 3,
+                            borderRadius: radii.pill,
+                          }}
+                        >
+                          <Text style={{ color: planColor, fontSize: 12, fontWeight: '600' }}>
+                            {heroCourseLabel}
+                          </Text>
+                        </View>
                       ) : null}
                     </View>
 
@@ -841,21 +837,6 @@ export default function TrainScreen() {
                         {heroSessionIsOverdue ? 'Missed Session' : "Today's Session"}
                       </Text>
                     </View>
-                    <View style={{ flex: 1 }} />
-                    {multiplePlans && heroCourseLabel ? (
-                      <View
-                        style={{
-                          backgroundColor: 'rgba(255,255,255,0.2)',
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          borderRadius: radii.pill,
-                        }}
-                      >
-                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
-                          {heroCourseLabel}
-                        </Text>
-                      </View>
-                    ) : null}
                   </View>
 
                   {/* Title */}
@@ -912,7 +893,7 @@ export default function TrainScreen() {
                       </View>
                     ) : null}
 
-                    {!multiplePlans && heroPlan ? (
+                    {heroPlan && !multiplePlans ? (
                       <View
                         style={{
                           backgroundColor: 'rgba(255,255,255,0.2)',
@@ -923,6 +904,19 @@ export default function TrainScreen() {
                       >
                         <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
                           {getBehaviorLabel(heroPlan.goal)} · Stage {heroStageNumber}
+                        </Text>
+                      </View>
+                    ) : multiplePlans && heroCourseLabel ? (
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: radii.pill,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                          {heroCourseLabel}
                         </Text>
                       </View>
                     ) : null}
