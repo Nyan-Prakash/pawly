@@ -818,16 +818,16 @@ export function getGreeting(): 'morning' | 'afternoon' | 'evening' {
 
 export function getBehaviorLabel(goal: string): string {
   const map: Record<string, string> = {
-    'Leash Pulling': 'Leash',
-    'Jumping Up': 'Jumping',
-    Barking: 'Barking',
-    "Won't Come": 'Recall',
-    'Potty Training': 'Potty',
-    'Crate Anxiety': 'Crate',
-    'Puppy Biting': 'Biting',
-    Settling: 'Settling',
+    'leash pulling': 'Leash',
+    'jumping up': 'Jumping',
+    'barking': 'Barking',
+    "won't come": 'Recall',
+    'potty training': 'Potty',
+    'crate anxiety': 'Crate',
+    'puppy biting': 'Biting',
+    'settling': 'Settling',
   };
-  return map[goal] ?? goal;
+  return map[goal.toLowerCase()] ?? goal;
 }
 
 export function formatScheduleLabel(session: PlanSession): string {

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
   Pressable,
   RefreshControl,
@@ -13,6 +14,7 @@ import { router } from 'expo-router';
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { MascotCallout } from '@/components/ui/MascotCallout';
 import { PillTag } from '@/components/ui/PillTag';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SafeScreen } from '@/components/ui/SafeScreen';
@@ -36,7 +38,6 @@ import {
   formatDisplayTime,
   getGreeting,
   getWalkGoal,
-  getNextMilestone,
   getBehaviorLabel,
   formatScheduleLabel,
   isRoundStreakNumber,
@@ -54,6 +55,7 @@ const QUICK_WINS = [
     emoji: 'search',
     title: 'Sniff Walk',
     duration: '5 min',
+    accentColor: '#10B981',
     instructions:
       'Choose a route and let your dog fully lead — wherever their nose goes, you follow. Allow them to sniff every corner, post, and patch of grass for the full duration. No agenda, no cues, no pulling away from smells. This is pure mental enrichment. A 5-minute sniff walk tires a dog as much as a 20-minute regular walk.',
   },
@@ -62,6 +64,7 @@ const QUICK_WINS = [
     emoji: 'search',
     title: 'Find It Game',
     duration: '2 min',
+    accentColor: '#8B5CF6',
     instructions:
       'Grab 10 pieces of kibble or small treats. Have your dog sit-stay or have someone hold them. Scatter the treats across the floor (or grass) saying "find it!" in an excited voice. Let them sniff and hunt for every piece. Repeat 3 rounds. This nose work game is mentally exhausting and calming — great before a training session or bedtime.',
   },
@@ -70,6 +73,7 @@ const QUICK_WINS = [
     emoji: 'flag',
     title: 'Name Recognition',
     duration: '2 min',
+    accentColor: '#F59E0B',
     instructions:
       'Grab 10 tiny treats. Stand in a low-distraction space. When your dog is not looking at you, say their name once in a bright tone. The instant they look at you, say "yes!" and toss a treat toward them. Do 10 reps. This 2-minute drill keeps your dog\'s name response sharp and adds daily reinforcement to one of the most critical behaviors in training.',
   },
@@ -78,6 +82,7 @@ const QUICK_WINS = [
     emoji: 'hand-left',
     title: 'Hand Touch',
     duration: '3 min',
+    accentColor: '#EC4899',
     instructions:
       'Hold your palm flat, facing your dog, about 6 inches from their nose. When they sniff or boop your palm, say "yes!" and treat. After 5 reps, add the cue "touch" just before extending your palm. Practice in 3 different spots in your home. Hand touch is useful for recall, re-direction, focus, and as an emergency interrupt behavior.',
   },
@@ -126,8 +131,8 @@ function QuickWinSheet({
           <View
             style={{
               backgroundColor: colors.bg.surface,
-              borderTopLeftRadius: radii.lg,
-              borderTopRightRadius: radii.lg,
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
               padding: spacing.lg,
               paddingBottom: spacing.xl + spacing.md,
             }}
@@ -135,7 +140,7 @@ function QuickWinSheet({
             {/* Drag handle */}
             <View
               style={{
-                width: 40,
+                width: 36,
                 height: 4,
                 borderRadius: 2,
                 backgroundColor: colors.border.default,
@@ -143,8 +148,20 @@ function QuickWinSheet({
                 marginBottom: spacing.md,
               }}
             />
+            {/* Icon circle */}
             <View style={{ alignItems: 'center', marginBottom: spacing.sm }}>
-              <AppIcon name={win.emoji as AppIconName} size={40} color={colors.brand.primary} />
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: hexToRgba(win.accentColor, 0.12),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppIcon name={win.emoji as AppIconName} size={32} color={win.accentColor} />
+              </View>
             </View>
             <Text variant="h2" style={{ textAlign: 'center', marginBottom: spacing.xs }}>
               {win.title}
@@ -155,7 +172,7 @@ function QuickWinSheet({
             <Text
               variant="body"
               color={colors.text.secondary}
-              style={{ lineHeight: 24 }}
+              style={{ lineHeight: 26 }}
             >
               {win.instructions}
             </Text>
@@ -194,36 +211,70 @@ function OtherTodaySessionRow({
       onPress={onPress}
       style={{
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.md,
-        padding: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border.default,
+        borderRadius: radii.lg,
+        borderWidth: 1.5,
+        borderColor: colors.border.soft,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.sm,
+        overflow: 'hidden',
         ...shadows.card,
       }}
     >
+      {/* Colored left bar */}
+      <View style={{ width: 4, alignSelf: 'stretch', backgroundColor: sessionColors.solid }} />
       <View
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+          width: 40,
+          height: 40,
+          borderRadius: 20,
           backgroundColor: sessionColors.tint,
           alignItems: 'center',
           justifyContent: 'center',
+          marginLeft: spacing.md,
+          marginVertical: spacing.md,
         }}
       >
         <AppIcon name="play" size={14} color={sessionColors.solid} />
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, paddingVertical: spacing.md, paddingLeft: spacing.sm }}>
         <Text variant="bodyStrong" numberOfLines={1}>{session.title}</Text>
         <Text variant="micro" color={colors.text.secondary}>
           {courseLabel} · {session.durationMinutes} min
         </Text>
       </View>
-      <AppIcon name="chevron-forward" size={16} color={colors.text.secondary} />
+      <View style={{ paddingRight: spacing.md }}>
+        <AppIcon name="chevron-forward" size={16} color={colors.text.secondary} />
+      </View>
     </TouchableOpacity>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Paw print decoration — for hero card background texture
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PawDecor({ x, y, size, opacity, rotate }: { x: number; y: number; size: number; opacity: number; rotate: number }) {
+  const s = size;
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: x,
+        top: y,
+        opacity,
+        transform: [{ rotate: `${rotate}deg` }],
+      }}
+      pointerEvents="none"
+    >
+      {/* Main pad */}
+      <View style={{ width: s, height: s * 0.8, borderRadius: s * 0.4, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+      {/* Toe pads */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: -s * 0.1 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ width: s * 0.28, height: s * 0.28, borderRadius: s * 0.14, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -251,7 +302,6 @@ export default function TrainScreen() {
     setSelectedPlan,
   } = planStoreState;
 
-  // Re-derive on each render so it stays reactive with store state
   const livePlanSummaries = selectPlanSummaries(planStoreState);
 
   const { sessionStreak, walkLoggedToday, logWalk, fetchProgressData } = useProgressStore();
@@ -264,6 +314,17 @@ export default function TrainScreen() {
   const [showWalkModal, setShowWalkModal] = useState(false);
   const [newMilestone, setNewMilestone] = useState<Milestone | null>(null);
 
+  // Subtle bounce animation for mascot
+  const mascotBounce = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(mascotBounce, { toValue: -4, duration: 1600, useNativeDriver: true }),
+        Animated.timing(mascotBounce, { toValue: 0, duration: 1600, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [mascotBounce]);
+
   useEffect(() => {
     if (dog?.id) {
       fetchActivePlans(dog.id);
@@ -275,7 +336,6 @@ export default function TrainScreen() {
 
   useEffect(() => {
     if (!user?.id) return;
-
     fetchInbox(user.id).catch((error) => {
       console.warn('[train] fetchInbox error:', error);
     });
@@ -302,14 +362,13 @@ export default function TrainScreen() {
 
   const greeting = getGreeting();
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  const greetingText = `Good ${greeting}, ${dog?.name ?? 'there'}!`;
+  const greetingName = dog?.name ?? 'there';
 
   const streak = sessionStreak;
   const hasPlans = activePlanIds.length > 0;
   const needsDogProfile = !hasDogProfile || !dog?.id;
   const multiplePlans = activePlanIds.length > 1;
 
-  // Primary plan for walk goal / progress banner
   const primaryPlan = livePlanSummaries.find((s) => s.isPrimary) ?? livePlanSummaries[0] ?? null;
   const primaryPlanFull = primaryPlan ? plansById[primaryPlan.id] ?? null : null;
   const primaryPlanTheme = getCourseUiColors(primaryPlanFull ?? { id: 'primary-course-fallback' });
@@ -328,13 +387,9 @@ export default function TrainScreen() {
       )
     : null;
 
-  const completedCount = primaryPlanFull
-    ? primaryPlanFull.sessions.filter((s) => s.isCompleted).length
-    : 0;
-  const milestoneText = getNextMilestone(completedCount);
+
   const isCelebration = isRoundStreakNumber(streak);
 
-  // Recommended session (hero card CTA)
   const heroSession = recommendedTodaySession;
   const heroSessionIsToday = heroSession
     ? todaySessions.some((s) => s.id === heroSession.id)
@@ -345,16 +400,13 @@ export default function TrainScreen() {
     : false;
   const heroSessionIsUpcoming = heroSession && !heroSessionIsToday && !heroSessionIsOverdue;
 
-  // Other sessions today (exclude the recommended hero)
   const otherTodaySessions = todaySessions.filter((s) => s.id !== heroSession?.id);
 
-  // Upcoming / missed for empty states
   const missedSessions = getMissedSessionsAcrossPlans();
   const firstMissedSession = missedSessions[0] ?? null;
   const upcomingSessions = getUpcomingSessionsAcrossPlans(3);
   const nextUpcomingSession = upcomingSessions.find((s) => s.id !== heroSession?.id) ?? upcomingSessions[0] ?? null;
 
-  // Completion % for hero card progress bar — use hero session's plan if available
   const heroCompletion = heroSession
     ? (() => {
         const plan = plansById[heroSession.planId];
@@ -363,7 +415,6 @@ export default function TrainScreen() {
     : (primaryPlan?.completionPercentage ?? 0);
   const heroPlan = heroSession ? plansById[heroSession.planId] ?? null : null;
 
-  // Course label for hero card badge
   const heroCourseLabel = heroSession
     ? (heroSession.planCourseTitle ?? getBehaviorLabel(heroSession.planGoal))
     : null;
@@ -378,6 +429,14 @@ export default function TrainScreen() {
 
   return (
     <SafeScreen>
+      {/* Warm gradient blush behind everything */}
+      <LinearGradient
+        colors={[hexToRgba(colors.brand.primary, 0.06), 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.35 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 220 }}
+        pointerEvents="none"
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -389,68 +448,77 @@ export default function TrainScreen() {
         }
         contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
       >
-        {/* ── Header ── */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-            paddingBottom: spacing.sm,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <Text variant="h2">{greetingText}</Text>
-            <Text variant="micro" color={colors.text.secondary} style={{ marginTop: 2 }}>
-              {today}
-            </Text>
-          </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => router.push('/(tabs)/train/tools')}
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 21,
-                backgroundColor: colors.bg.surface,
-                borderWidth: 1,
-                borderColor: colors.border.default,
-                alignItems: 'center',
-                justifyContent: 'center',
-                ...shadows.card,
-              }}
-            >
-              <AppIcon name="flash-outline" size={21} color={colors.text.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => router.push('/(tabs)/train/calendar')}
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 21,
-                backgroundColor: colors.bg.surface,
-                borderWidth: 1,
-                borderColor: colors.border.default,
-                alignItems: 'center',
-                justifyContent: 'center',
-                ...shadows.card,
-              }}
-            >
-              <AppIcon name="calendar-outline" size={21} color={colors.text.primary} />
-            </TouchableOpacity>
-            <NotificationBell
-              size={42}
-              unreadCount={unreadCount}
-              onPress={() => router.push('/(tabs)/train/notifications')}
-            />
+        {/* ── Header ── */}
+        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
+          {/* Single row: mascot | greeting (flex) | icons */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Animated.View style={{ transform: [{ translateY: mascotBounce }] }}>
+              <MascotCallout
+                state={isCelebration ? 'celebrating' : streak >= 3 ? 'encouraging' : 'happy'}
+                size={64}
+              />
+            </Animated.View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 28,
+                  fontWeight: '800',
+                  color: colors.text.primary,
+                  letterSpacing: -0.5,
+                  lineHeight: 34,
+                }}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                Good {greeting},{' '}
+                <Text style={{ fontSize: 28, fontWeight: '800', color: colors.brand.primary, letterSpacing: -0.5, lineHeight: 34 }}>
+                  {greetingName}!
+                </Text>
+              </Text>
+              <Text variant="caption" color={colors.text.secondary} style={{ marginTop: 2 }}>
+                {today}
+              </Text>
+            </View>
+            {/* Icons — right side */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push('/(tabs)/train/tools')}
+                style={{
+                  width: 36, height: 36, borderRadius: 18,
+                  backgroundColor: colors.bg.surface,
+                  borderWidth: 1.5, borderColor: colors.border.soft,
+                  alignItems: 'center', justifyContent: 'center',
+                  ...shadows.card,
+                }}
+              >
+                <AppIcon name="flash-outline" size={17} color={colors.text.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => router.push('/(tabs)/train/calendar')}
+                style={{
+                  width: 36, height: 36, borderRadius: 18,
+                  backgroundColor: colors.bg.surface,
+                  borderWidth: 1.5, borderColor: colors.border.soft,
+                  alignItems: 'center', justifyContent: 'center',
+                  ...shadows.card,
+                }}
+              >
+                <AppIcon name="calendar-outline" size={17} color={colors.text.primary} />
+              </TouchableOpacity>
+              <NotificationBell
+                size={36}
+                unreadCount={unreadCount}
+                onPress={() => router.push('/(tabs)/train/notifications')}
+              />
+            </View>
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: spacing.md, gap: spacing.md }}>
+        <View style={{ paddingHorizontal: spacing.md, gap: 20 }}>
 
           {/* ── No plan state ── */}
           {!hasPlans && (
@@ -459,7 +527,7 @@ export default function TrainScreen() {
                 backgroundColor: colors.bg.surface,
                 borderRadius: radii.lg,
                 padding: spacing.lg,
-                borderWidth: 1,
+                borderWidth: 1.5,
                 borderColor: colors.border.soft,
                 ...shadows.card,
               }}
@@ -473,7 +541,7 @@ export default function TrainScreen() {
                     : "Your dog's profile is set up, but there isn't an active training plan available right now."
                 }
                 action={{
-                  label: needsDogProfile ? 'Set up my dog\'s profile' : 'View my dog\'s profile',
+                  label: needsDogProfile ? "Set up my dog's profile" : "View my dog's profile",
                   onPress: () =>
                     needsDogProfile
                       ? router.push('/(onboarding)/dog-basics')
@@ -489,7 +557,7 @@ export default function TrainScreen() {
               style={{
                 backgroundColor: colors.bg.surface,
                 borderRadius: radii.lg,
-                borderWidth: 1,
+                borderWidth: 1.5,
                 borderColor: colors.border.default,
                 ...shadows.card,
               }}
@@ -532,7 +600,7 @@ export default function TrainScreen() {
                 style={{
                   backgroundColor: colors.bg.surface,
                   borderRadius: radii.lg,
-                  borderWidth: 1,
+                  borderWidth: 1.5,
                   borderColor: colors.border.default,
                   ...shadows.card,
                 }}
@@ -608,24 +676,23 @@ export default function TrainScreen() {
                   style={{
                     backgroundColor: colors.bg.surface,
                     borderRadius: radii.lg,
-                    borderWidth: 1,
-                    borderColor: colors.border.default,
+                    borderWidth: 1.5,
+                    borderColor: uiColors.border,
                     overflow: 'hidden',
-                    flexDirection: 'row',
                     ...shadows.card,
                   }}
                 >
-                  {/* Left accent bar */}
-                  <View style={{ width: 4, backgroundColor: planColor }} />
+                  {/* Top colored band */}
+                  <View style={{ height: 4, backgroundColor: planColor }} />
 
-                  <View style={{ flex: 1, padding: spacing.md, gap: spacing.sm }}>
+                  <View style={{ padding: spacing.md, gap: spacing.sm }}>
                     {/* Label + course badge row */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                       <Text
                         style={{
                           fontSize: 11,
-                          fontWeight: '700',
-                          letterSpacing: 1.2,
+                          fontWeight: '800',
+                          letterSpacing: 1.4,
                           textTransform: 'uppercase',
                           color: planColor,
                           flex: 1,
@@ -671,10 +738,11 @@ export default function TrainScreen() {
                     {/* Title */}
                     <Text
                       style={{
-                        fontSize: 18,
-                        fontWeight: '700',
+                        fontSize: 20,
+                        fontWeight: '800',
                         color: colors.text.primary,
-                        lineHeight: 26,
+                        lineHeight: 28,
+                        letterSpacing: -0.3,
                       }}
                     >
                       {heroSession.title}
@@ -699,11 +767,11 @@ export default function TrainScreen() {
                     <View style={{ gap: 4 }}>
                       <ProgressBar
                         progress={heroCompletion / 100}
-                        height={3}
+                        height={5}
                         color={planColor}
                         trackColor={uiColors.tint}
                       />
-                      <Text style={{ fontSize: 11, color: colors.text.secondary }}>
+                      <Text style={{ fontSize: 11, color: colors.text.secondary, fontWeight: '500' }}>
                         {heroCompletion}% of plan complete
                       </Text>
                     </View>
@@ -720,8 +788,7 @@ export default function TrainScreen() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: 6,
-                        borderWidth: 1,
-                        borderColor: planColor,
+                        backgroundColor: uiColors.tint,
                         borderRadius: radii.pill,
                         paddingVertical: spacing.sm,
                         marginTop: spacing.xs,
@@ -739,179 +806,216 @@ export default function TrainScreen() {
 
             // ── Today / Overdue (full gradient hero card) ───────────────────
             return (
-            <LinearGradient
-              colors={[planColor, hexToRgba(planColor, 0.85)]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ borderRadius: radii.lg, overflow: 'hidden' }}
-            >
-              <View style={{ padding: spacing.lg, gap: spacing.sm }}>
-                {/* Label row */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <LinearGradient
+                colors={[planColor, hexToRgba(planColor, 0.78)]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ borderRadius: radii.lg, overflow: 'hidden' }}
+              >
+                {/* Decorative paw prints */}
+                <PawDecor x={-10} y={10} size={40} opacity={0.35} rotate={-20} />
+                <PawDecor x={260} y={-5} size={32} opacity={0.25} rotate={30} />
+                <PawDecor x={220} y={60} size={24} opacity={0.2} rotate={-10} />
+
+                <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+                  {/* Label row */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(255,255,255,0.22)',
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: radii.pill,
+                        flex: 0,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: 'rgba(255,255,255,0.95)',
+                          fontSize: 11,
+                          fontWeight: '800',
+                          letterSpacing: 1.4,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {heroSessionIsOverdue ? 'Missed Session' : "Today's Session"}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }} />
+                    {multiplePlans && heroCourseLabel ? (
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: radii.pill,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
+                          {heroCourseLabel}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Title */}
                   <Text
                     style={{
-                      color: 'rgba(255,255,255,0.75)',
-                      fontSize: 11,
-                      fontWeight: '700',
-                      letterSpacing: 1.4,
-                      textTransform: 'uppercase',
-                      flex: 1,
+                      color: '#fff',
+                      fontSize: 24,
+                      fontWeight: '800',
+                      lineHeight: 32,
+                      letterSpacing: -0.4,
                     }}
                   >
-                    {heroSessionIsOverdue ? 'Missed Session' : "Today's Session"}
+                    {heroSession.title}
                   </Text>
-                  {/* Course badge — only when multiple plans */}
-                  {multiplePlans && heroCourseLabel ? (
+
+                  {/* Badges row */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      gap: spacing.sm,
+                      flexWrap: 'wrap',
+                      marginTop: 2,
+                    }}
+                  >
                     <View
                       style={{
                         backgroundColor: 'rgba(255,255,255,0.2)',
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
                         borderRadius: radii.pill,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
                       }}
                     >
-                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>
-                        {heroCourseLabel}
+                      <AppIcon name="time" size={12} color="#fff" />
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                        {heroSession.durationMinutes} min
                       </Text>
                     </View>
-                  ) : null}
-                </View>
 
-                {/* Title */}
-                <Text
-                  style={{
-                    color: '#fff',
-                    fontSize: 22,
-                    fontWeight: '700',
-                    lineHeight: 30,
-                  }}
-                >
-                  {heroSession.title}
-                </Text>
+                    {heroSession.scheduledTime ? (
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: radii.pill,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                          {formatDisplayTime(heroSession.scheduledTime)}
+                        </Text>
+                      </View>
+                    ) : null}
 
-                {/* Badges row */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    gap: spacing.sm,
-                    flexWrap: 'wrap',
-                    marginTop: 2,
-                  }}
-                >
-                  <View
-                    style={{
-                      backgroundColor: 'rgba(255,255,255,0.2)',
-                      paddingHorizontal: 10,
-                      paddingVertical: 5,
-                      borderRadius: radii.pill,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <AppIcon name="time" size={12} color="#fff" />
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                      {heroSession.durationMinutes} min
+                    {!multiplePlans && heroPlan ? (
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.2)',
+                          paddingHorizontal: 10,
+                          paddingVertical: 5,
+                          borderRadius: radii.pill,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>
+                          {getBehaviorLabel(heroPlan.goal)} · Stage {heroStageNumber}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Progress bar */}
+                  <View style={{ marginTop: spacing.xs, gap: 5 }}>
+                    <ProgressBar
+                      progress={heroCompletion / 100}
+                      height={5}
+                      color="rgba(255,255,255,0.95)"
+                      trackColor="rgba(255,255,255,0.22)"
+                    />
+                    <Text
+                      style={{
+                        color: 'rgba(255,255,255,0.7)',
+                        fontSize: 11,
+                        fontWeight: '600',
+                      }}
+                    >
+                      {heroCompletion}% of plan complete
                     </Text>
                   </View>
 
-                  {heroSession.scheduledTime ? (
-                    <View
+                  {/* CTA Button */}
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => router.push(`/(tabs)/train/session?id=${heroSession.id}&planId=${heroSession.planId}`)}
+                    style={{
+                      backgroundColor: '#fff',
+                      borderRadius: radii.pill,
+                      paddingVertical: 16,
+                      paddingHorizontal: spacing.md,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      marginTop: spacing.sm,
+                      minHeight: 56,
+                    }}
+                  >
+                    <Text
                       style={{
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
-                        borderRadius: radii.pill,
+                        color: planColor,
+                        fontWeight: '800',
+                        fontSize: 16,
+                        letterSpacing: 0.1,
                       }}
                     >
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                        {formatDisplayTime(heroSession.scheduledTime)}
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  {!multiplePlans && heroPlan ? (
+                      {'Start Session'}
+                    </Text>
                     <View
                       style={{
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        paddingHorizontal: 10,
-                        paddingVertical: 5,
-                        borderRadius: radii.pill,
+                        width: 24,
+                        height: 24,
+                        borderRadius: 12,
+                        backgroundColor: hexToRgba(planColor, 0.12),
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
-                        {getBehaviorLabel(heroPlan.goal)} · Stage {heroStageNumber}
-                      </Text>
+                      <AppIcon name="arrow-forward" size={13} color={planColor} />
                     </View>
-                  ) : null}
+                  </TouchableOpacity>
+
+                  {/* View full plan link */}
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (heroSession.planId) setSelectedPlan(heroSession.planId);
+                      router.push('/(tabs)/train/plan');
+                    }}
+                    style={{
+                      alignItems: 'center',
+                      paddingVertical: spacing.xs,
+                      flexDirection: 'row',
+                      justifyContent: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: 'rgba(255,255,255,0.75)',
+                        fontSize: 13,
+                        fontWeight: '600',
+                      }}
+                    >
+                      View full plan
+                    </Text>
+                    <AppIcon name="chevron-forward" size={12} color="rgba(255,255,255,0.75)" />
+                  </TouchableOpacity>
                 </View>
-
-                {/* Progress bar */}
-                <View style={{ marginTop: spacing.xs, gap: 4 }}>
-                  <ProgressBar
-                    progress={heroCompletion / 100}
-                    height={4}
-                    color="rgba(255,255,255,0.9)"
-                    trackColor="rgba(255,255,255,0.25)"
-                  />
-                  <Text
-                    style={{
-                      color: 'rgba(255,255,255,0.65)',
-                      fontSize: 11,
-                    }}
-                  >
-                    {heroCompletion}% of plan complete
-                  </Text>
-                </View>
-
-                {/* CTA Button */}
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => router.push(`/(tabs)/train/session?id=${heroSession.id}&planId=${heroSession.planId}`)}
-                  style={{
-                    backgroundColor: '#fff',
-                    borderRadius: radii.pill,
-                    padding: spacing.md,
-                    alignItems: 'center',
-                    marginTop: spacing.sm,
-                    minHeight: 56,
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: planColor,
-                      fontWeight: '700',
-                      fontSize: 16,
-                    }}
-                  >
-                    {heroSessionIsOverdue ? 'Do Missed Session' : 'Start Session'}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* View full plan link */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (heroSession.planId) {
-                      setSelectedPlan(heroSession.planId);
-                    }
-                    router.push('/(tabs)/train/plan');
-                  }}
-                  style={{ alignItems: 'center', paddingVertical: spacing.xs }}
-                >
-                  <Text
-                    style={{
-                      color: 'rgba(255,255,255,0.7)',
-                      fontSize: 13,
-                      textDecorationLine: 'underline',
-                    }}
-                  >
-                    View full plan
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
+              </LinearGradient>
             );
           })()}
 
@@ -1009,23 +1113,35 @@ export default function TrainScreen() {
             </View>
           )}
 
-          {/* ── Plan explanation (single plan only — avoids clutter in multi-plan) ── */}
+          {/* ── Plan explanation (single plan only) ── */}
           {!multiplePlans && primaryPlanFull?.metadata?.explanation?.length ? (
             <View
               style={{
                 backgroundColor: colors.bg.surface,
                 borderRadius: radii.lg,
                 padding: spacing.lg,
-                borderWidth: 1,
-                borderColor: colors.border.default,
+                borderWidth: 1.5,
+                borderColor: colors.border.soft,
+                gap: spacing.xs,
                 ...shadows.card,
               }}
             >
-              <Text variant="bodyStrong">Why this schedule?</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.xs }}>
+                <AppIcon name="sparkles" size={15} color={colors.brand.primary} />
+                <Text variant="bodyStrong">Why this schedule?</Text>
+              </View>
               {primaryPlanFull.metadata.explanation.map((bullet, index) => (
-                <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.sm }}>
-                  <AppIcon name="sparkles" size={14} color={colors.brand.primary} />
-                  <Text variant="caption" style={{ flex: 1 }}>
+                <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.xs }}>
+                  <View
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: 3,
+                      backgroundColor: colors.brand.primary,
+                      marginTop: 8,
+                    }}
+                  />
+                  <Text variant="caption" style={{ flex: 1, lineHeight: 22 }}>
                     {bullet}
                   </Text>
                 </View>
@@ -1038,64 +1154,43 @@ export default function TrainScreen() {
             <View
               style={{
                 backgroundColor: colors.bg.surface,
-                borderRadius: radii.md,
-                padding: spacing.md,
-                borderWidth: 1,
+                borderRadius: radii.lg,
+                borderWidth: 1.5,
                 borderColor: colors.border.soft,
+                padding: spacing.md,
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: spacing.sm,
-                minHeight: 64,
+                gap: spacing.md,
                 ...shadows.card,
               }}
             >
               <AppIcon name="walk" size={22} color={colors.brand.secondary} />
-              <View style={{ flex: 1 }}>
-                <Text
-                  variant="micro"
-                  color={colors.text.secondary}
-                  style={{ textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 2 }}
-                >
-                  Today's Walk Goal
-                </Text>
-                <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text.primary }}>
-                  {walkGoalText}
-                </Text>
-              </View>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '500', color: colors.text.primary, lineHeight: 22 }}>
+                {walkGoalText}
+              </Text>
               <TouchableOpacity
                 activeOpacity={walkLoggedToday ? 1 : 0.8}
                 onPress={walkLoggedToday ? undefined : () => setShowWalkModal(true)}
-                style={{
-                  backgroundColor: walkLoggedToday ? '#DCFCE7' : colors.bg.surfaceAlt,
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: 8,
-                  borderRadius: radii.md,
-                  minHeight: 44,
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: walkLoggedToday ? colors.brand.primary : colors.border.default,
-                }}
               >
-                <Text
-                  style={{
-                    color: walkLoggedToday ? colors.brand.primary : colors.text.secondary,
-                    fontSize: 13,
-                    fontWeight: '600',
-                  }}
-                >
-                  {walkLoggedToday ? 'Logged' : 'Log walk'}
-                </Text>
+                {walkLoggedToday ? (
+                  <AppIcon name="checkmark-circle" size={24} color={colors.brand.primary} />
+                ) : (
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand.secondary }}>Log</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
 
           {/* ── Quick Wins ── */}
           <View>
-            <SectionHeader title="Quick Wins" style={{ marginBottom: spacing.sm }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+              <SectionHeader title="Quick Wins" />
+              <Text variant="micro" color={colors.text.secondary}>2–5 min</Text>
+            </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: spacing.sm }}
+              contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.xs }}
             >
               {QUICK_WINS.map((win) => (
                 <TouchableOpacity
@@ -1104,22 +1199,33 @@ export default function TrainScreen() {
                   onPress={() => setSelectedWin(win)}
                   style={{
                     backgroundColor: colors.bg.surface,
-                    borderRadius: radii.md,
+                    borderRadius: radii.lg,
                     padding: spacing.md,
-                    width: 116,
-                    borderWidth: 1,
-                    borderColor: colors.border.soft,
+                    width: 120,
+                    borderWidth: 1.5,
+                    borderColor: hexToRgba(win.accentColor, 0.18),
                     alignItems: 'center',
-                    gap: 6,
-                    minHeight: 44,
+                    gap: spacing.sm,
                     ...shadows.card,
                   }}
                 >
-                  <AppIcon name={win.emoji as AppIconName} size={28} color={colors.brand.primary} />
+                  {/* Icon circle with per-activity color */}
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: hexToRgba(win.accentColor, 0.12),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <AppIcon name={win.emoji as AppIconName} size={24} color={win.accentColor} />
+                  </View>
                   <Text
                     style={{
-                      fontSize: 12,
-                      fontWeight: '600',
+                      fontSize: 13,
+                      fontWeight: '700',
                       textAlign: 'center',
                       color: colors.text.primary,
                       lineHeight: 18,
@@ -1128,39 +1234,24 @@ export default function TrainScreen() {
                   >
                     {win.title}
                   </Text>
-                  <PillTag label={win.duration} variant="green" size="sm" />
+                  {/* Duration pill with activity color */}
+                  <View
+                    style={{
+                      backgroundColor: hexToRgba(win.accentColor, 0.1),
+                      borderRadius: radii.pill,
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: win.accentColor }}>
+                      {win.duration}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
 
-          {/* ── Progress Banner ── */}
-          {hasPlans && (
-            <View
-              style={{
-                backgroundColor: isCelebration ? '#FEF3C7' : colors.bg.surfaceAlt,
-                borderRadius: radii.md,
-                padding: spacing.md,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.sm,
-                borderWidth: 1,
-                borderColor: isCelebration ? '#FDE68A' : colors.border.soft,
-                minHeight: 52,
-              }}
-            >
-              <AppIcon
-                name={isCelebration ? 'ribbon' : completedCount > 0 ? 'star' : 'flag'}
-                size={24}
-                color={isCelebration ? '#B45309' : colors.brand.primary}
-              />
-              <Text style={{ flex: 1, fontSize: 14, lineHeight: 22, color: colors.text.primary }}>
-                {isCelebration
-                  ? `${streak}-day streak! You're on a roll.`
-                  : milestoneText}
-              </Text>
-            </View>
-          )}
 
         </View>
       </ScrollView>

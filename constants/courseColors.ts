@@ -154,7 +154,7 @@ export function getContrastTextColor(hex: string): '#FFFFFF' | '#0F172A' {
   const whiteContrast = (1.05) / (luminance + 0.05);
   const darkContrast = (luminance + 0.05) / 0.05;
 
-  return darkContrast >= whiteContrast ? '#0F172A' : '#FFFFFF';
+  return '#FFFFFF';
 }
 
 /**

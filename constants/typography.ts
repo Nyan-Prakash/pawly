@@ -1,13 +1,19 @@
+const regular   = 'Nunito_400Regular';
+const medium    = 'Nunito_500Medium';
+const semibold  = 'Nunito_600SemiBold';
+const bold      = 'Nunito_700Bold';
+const extrabold = 'Nunito_800ExtraBold';
+
 export const typography = {
   // ── New named scale ────────────────────────────────────────────────────
-  display: { fontSize: 32, fontWeight: '700' as const },
-  h1:      { fontSize: 28, fontWeight: '700' as const },
-  h2:      { fontSize: 22, fontWeight: '700' as const },
-  h3:      { fontSize: 18, fontWeight: '600' as const },
-  body:    { fontSize: 16, fontWeight: '400' as const },
-  bodyStrong: { fontSize: 16, fontWeight: '600' as const },
-  caption: { fontSize: 14, fontWeight: '400' as const },
-  micro:   { fontSize: 12, fontWeight: '500' as const },
+  display:    { fontSize: 32, fontFamily: extrabold },
+  h1:         { fontSize: 28, fontFamily: extrabold },
+  h2:         { fontSize: 22, fontFamily: bold },
+  h3:         { fontSize: 18, fontFamily: bold },
+  body:       { fontSize: 16, fontFamily: regular },
+  bodyStrong: { fontSize: 16, fontFamily: semibold },
+  caption:    { fontSize: 14, fontFamily: regular },
+  micro:      { fontSize: 12, fontFamily: medium },
 
   // ── Legacy aliases (kept for backward compat during migration) ─────────
   sizes: {

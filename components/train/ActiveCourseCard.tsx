@@ -4,7 +4,7 @@ import { AppIcon } from '@/components/ui/AppIcon';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { getCourseUiColors } from '@/constants/courseColors';
+import { getCourseUiColors, hexToRgba } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { shadows } from '@/constants/shadows';
@@ -25,17 +25,18 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
   const completionPct = plan.completionPercentage;
   const nextSession = plan.todaySession;
   const courseColors = getCourseUiColors(plan);
+  const totalSessions = plan.durationWeeks * plan.sessionsPerWeek;
+  const completedSessions = Math.round((completionPct / 100) * totalSessions);
 
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
       style={{
-        backgroundColor: colors.bg.surface,
+        backgroundColor: courseColors.solid,
         borderRadius: radii.lg,
+        borderWidth: 0,
         padding: spacing.md,
-        borderWidth: 1,
-        borderColor: colors.border.default,
         gap: spacing.xs,
         ...shadows.card,
       }}
@@ -44,40 +45,23 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
         <View style={{ flex: 1 }}>
           <Text
-            style={{ fontSize: 14, fontWeight: '700', color: colors.text.primary }}
+            style={{ fontSize: 18, fontWeight: '700', color: courseColors.contrastText }}
             numberOfLines={1}
           >
             {courseLabel}
           </Text>
-          <Text variant="micro" color={colors.text.secondary} style={{ marginTop: 1 }}>
-            Week {plan.currentWeek} of {plan.durationWeeks}
-          </Text>
         </View>
 
-        {plan.isPrimary && (
-          <View
-            style={{
-              backgroundColor: courseColors.tint,
-              borderRadius: radii.pill,
-              paddingHorizontal: 7,
-              paddingVertical: 2,
-            }}
-          >
-            <Text style={{ fontSize: 10, fontWeight: '700', color: courseColors.text, letterSpacing: 0.3 }}>
-              Primary
-            </Text>
-          </View>
-        )}
         {plan.status === 'paused' && (
           <View
             style={{
-              backgroundColor: colors.status.warningBg,
+              backgroundColor: hexToRgba(courseColors.contrastText, 0.18),
               borderRadius: radii.pill,
               paddingHorizontal: 7,
               paddingVertical: 2,
             }}
           >
-            <Text style={{ fontSize: 10, fontWeight: '700', color: colors.warning, letterSpacing: 0.3 }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: courseColors.contrastText, letterSpacing: 0.3 }}>
               Paused
             </Text>
           </View>
@@ -85,13 +69,13 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
         {nextSession && !nextSession.isCompleted && (
           <View
             style={{
-              backgroundColor: courseColors.tint,
+              backgroundColor: hexToRgba(courseColors.contrastText, 0.18),
               borderRadius: radii.pill,
               paddingHorizontal: 7,
               paddingVertical: 2,
             }}
           >
-            <Text style={{ fontSize: 10, fontWeight: '700', color: courseColors.text, letterSpacing: 0.3 }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: courseColors.contrastText, letterSpacing: 0.3 }}>
               Today
             </Text>
           </View>
@@ -99,36 +83,29 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
       </View>
 
       {/* Progress bar */}
-      <View style={{ gap: 3 }}>
+      <View style={{ gap: 6, marginTop: spacing.xs }}>
         <ProgressBar
           progress={completionPct / 100}
-          height={4}
-          color={courseColors.solid}
-          trackColor={colors.border.soft}
+          height={5}
+          color={courseColors.contrastText}
+          trackColor={hexToRgba(courseColors.contrastText, 0.25)}
         />
-        <Text variant="micro" color={colors.text.secondary}>
-          {completionPct}% complete
+        <Text variant="caption" color={hexToRgba(courseColors.contrastText, 0.8)}>
+          Session {completedSessions} of {totalSessions}
         </Text>
       </View>
 
       {/* Next session label */}
       {nextSession ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <AppIcon name="time" size={11} color={colors.text.secondary} />
-          <Text variant="micro" color={colors.text.secondary} numberOfLines={1}>
+          <AppIcon name="time" size={11} color={hexToRgba(courseColors.contrastText, 0.7)} />
+          <Text variant="micro" color={hexToRgba(courseColors.contrastText, 0.7)} numberOfLines={1}>
             {nextSession.isCompleted
               ? 'All sessions done'
               : `Next: ${nextSession.title} · ${formatScheduleLabel(nextSession)}`}
           </Text>
         </View>
-      ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <AppIcon name="checkmark-circle" size={11} color={courseColors.solid} />
-          <Text variant="micro" color={courseColors.text}>
-            Plan complete
-          </Text>
-        </View>
-      )}
+      ) : null}
     </TouchableOpacity>
   );
 };

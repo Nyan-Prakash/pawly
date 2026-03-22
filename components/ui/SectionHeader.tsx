@@ -21,10 +21,19 @@ export function SectionHeader({ title, action, style }: SectionHeaderProps) {
         style,
       ]}
     >
-      <Text variant="h3">{title}</Text>
+      <Text
+        style={{
+          fontSize: 20,
+          fontWeight: '800',
+          color: colors.text.primary,
+          letterSpacing: -0.3,
+        }}
+      >
+        {title}
+      </Text>
       {action && (
         <Pressable onPress={action.onPress} hitSlop={8}>
-          <Text variant="caption" color={colors.brand.primary} style={{ fontWeight: '600' }}>
+          <Text variant="caption" color={colors.brand.primary} style={{ fontWeight: '700' }}>
             {action.label}
           </Text>
         </Pressable>
