@@ -793,7 +793,7 @@ const potty_stage3: Protocol = {
 
 const crate_stage1: Protocol = {
   id: 'crate_s1',
-  behavior: 'crate_anxiety',
+  behavior: 'crate_training',
   stage: 1,
   title: 'Crate Introduction & Positive Association',
   objective: 'Build a strong positive association with the crate so the dog enters voluntarily and rests inside without anxiety.',
@@ -851,7 +851,7 @@ const crate_stage1: Protocol = {
 
 const crate_stage2: Protocol = {
   id: 'crate_s2',
-  behavior: 'crate_anxiety',
+  behavior: 'crate_training',
   stage: 2,
   title: 'Building Duration with Door Closed',
   objective: 'Extend crate time to 30–60 minutes with the handler present, then introduce brief departures from the room.',
@@ -909,7 +909,7 @@ const crate_stage2: Protocol = {
 
 const crate_stage3: Protocol = {
   id: 'crate_s3',
-  behavior: 'crate_anxiety',
+  behavior: 'crate_training',
   stage: 3,
   title: 'Extended Alone Time & Independence',
   objective: 'Build tolerance for 3–4 hour crating with the handler fully absent, and establish the crate as the dog\'s preferred resting space.',

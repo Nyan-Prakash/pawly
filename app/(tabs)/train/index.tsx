@@ -472,7 +472,7 @@ export default function TrainScreen() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
               >
-                Good {greeting},{' '}
+                {greeting}{' '}
                 <Text style={{ fontSize: 28, fontWeight: '800', color: colors.brand.primary, letterSpacing: -0.5, lineHeight: 34 }}>
                   {greetingName}!
                 </Text>

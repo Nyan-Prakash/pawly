@@ -29,6 +29,7 @@ import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { radii } from '@/constants/radii';
 import { shadows } from '@/constants/shadows';
+import { getGoalColor, hexToRgba, getContrastTextColor } from '@/constants/courseColors';
 import { BREEDS_LIST } from '@/constants/breeds';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import type { Weekday, TimeWindow, SessionStyle } from '@/types';
@@ -73,6 +74,17 @@ const BEHAVIOR_OPTIONS = [
   { value: 'crate_anxiety', label: 'Crate Anxiety', icon: 'home' as const, description: 'Stressed in crate' },
   { value: 'puppy_biting', label: 'Puppy Biting', icon: 'flash' as const, description: 'Nipping/mouthing' },
   { value: 'settling', label: 'Settling', icon: 'moon' as const, description: 'Struggles to calm down' },
+  { value: 'leave_it', label: 'Leave It', icon: 'hand-left' as const, description: 'Grabs or steals things' },
+  { value: 'basic_obedience', label: 'Basic Obedience', icon: 'school' as const, description: 'Sit, down, stay' },
+  { value: 'separation_anxiety', label: 'Separation Anxiety', icon: 'sad' as const, description: 'Distressed alone' },
+  { value: 'door_manners', label: 'Door Manners', icon: 'exit' as const, description: 'Bolts out the door' },
+  { value: 'impulse_control', label: 'Impulse Control', icon: 'pause-circle' as const, description: 'Impulsive & reactive' },
+  { value: 'cooperative_care', label: 'Cooperative Care', icon: 'medkit' as const, description: 'Resists handling' },
+  { value: 'wait_and_stay', label: 'Wait & Stay', icon: 'time' as const, description: 'Won\'t wait or stay' },
+  { value: 'leash_reactivity', label: 'Leash Reactivity', icon: 'alert-circle' as const, description: 'Lunges on leash' },
+  { value: 'sit', label: 'Sit', icon: 'chevron-down-circle' as const, description: 'Learning to sit' },
+  { value: 'down', label: 'Down', icon: 'arrow-down-circle' as const, description: 'Learning to lie down' },
+  { value: 'heel', label: 'Heel', icon: 'footsteps' as const, description: 'Formal heel position' },
 ];
 
 const AGE_OPTIONS = [
@@ -136,6 +148,89 @@ function timeWindowLabel(tw: string | null): string {
     evening: 'Evenings',
   };
   return map[tw] ?? tw;
+}
+
+// ─── GoalChip ─────────────────────────────────────────────────────────────────
+
+function GoalChip({
+  icon,
+  label,
+  value,
+  selected,
+  isPrimary,
+  onPress,
+}: {
+  icon: import('@/components/ui/AppIcon').AppIconName;
+  label: string;
+  value: string;
+  selected: boolean;
+  isPrimary?: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const goalColor = getGoalColor(value);
+  const contrastText = getContrastTextColor(goalColor);
+
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => { scale.value = withTiming(0.95, { duration: 80 }); }}
+        onPressOut={() => { scale.value = withTiming(1, { duration: 140 }); }}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          borderRadius: 100,
+          borderWidth: selected ? 0 : 1.5,
+          borderColor: selected ? 'transparent' : hexToRgba(goalColor, 0.25),
+          backgroundColor: selected
+            ? goalColor
+            : hexToRgba(goalColor, 0.08),
+          ...(Platform.OS === 'ios'
+            ? {
+                shadowColor: goalColor,
+                shadowOffset: { width: 0, height: selected ? 3 : 1 },
+                shadowOpacity: selected ? 0.3 : 0.06,
+                shadowRadius: selected ? 6 : 3,
+              }
+            : { elevation: selected ? 3 : 1 }),
+        }}
+      >
+        <AppIcon
+          name={icon}
+          size={15}
+          color={selected ? contrastText : goalColor}
+        />
+        <Text
+          variant="bodyStrong"
+          style={{
+            fontSize: 14,
+            fontWeight: '600',
+            color: selected ? contrastText : goalColor,
+          }}
+        >
+          {label}
+        </Text>
+        {isPrimary && (
+          <View
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.3)',
+              borderRadius: 6,
+              paddingHorizontal: 5,
+              paddingVertical: 1,
+            }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Primary</Text>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -473,23 +568,23 @@ export default function DogBasicsScreen() {
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {BEHAVIOR_OPTIONS.map((opt) => (
-              <View key={opt.value} style={{ width: '47.5%' }}>
-                <OptionCard
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+            {BEHAVIOR_OPTIONS.map((opt) => {
+              const isSelected = primaryGoal === opt.value;
+              return (
+                <GoalChip
+                  key={opt.value}
+                  value={opt.value}
                   icon={opt.icon}
                   label={opt.label}
-                  description={opt.description}
-                  selected={primaryGoal === opt.value}
+                  selected={isSelected}
                   onPress={() => {
                     setPrimaryGoal(opt.value);
                     setSecondaryGoals((sg) => sg.filter((g) => g !== opt.value));
                   }}
-                  layout="vertical"
-                  size="md"
                 />
-              </View>
-            ))}
+              );
+            })}
           </View>
         </QuestionScreen>
       )}
@@ -499,7 +594,7 @@ export default function DogBasicsScreen() {
           title="Any other challenges?"
           subtitle={
             secondaryGoals.length > 0
-              ? `${secondaryGoals.length} of 2 selected. Optional.`
+              ? `${secondaryGoals.length} of 2 selected — optional.`
               : 'Optional — pick up to 2 more.'
           }
           canContinue
@@ -508,33 +603,29 @@ export default function DogBasicsScreen() {
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {BEHAVIOR_OPTIONS.map((opt) => {
               const isPrimary = opt.value === primaryGoal;
               const isSelected = secondaryGoals.includes(opt.value);
               return (
-                <View key={opt.value} style={{ width: '47.5%' }}>
-                  <OptionCard
-                    icon={opt.icon}
-                    label={opt.label}
-                    description={opt.description}
-                    selected={isPrimary || isSelected}
-                    disabled={isPrimary}
-                    badge={isPrimary ? 'Primary' : undefined}
-                    onPress={() => {
-                      if (isPrimary) return;
-                      setSecondaryGoals((sg) =>
-                        sg.includes(opt.value)
-                          ? sg.filter((g) => g !== opt.value)
-                          : sg.length < 2
-                          ? [...sg, opt.value]
-                          : sg
-                      );
-                    }}
-                    layout="vertical"
-                    size="md"
-                  />
-                </View>
+                <GoalChip
+                  key={opt.value}
+                  value={opt.value}
+                  icon={opt.icon}
+                  label={opt.label}
+                  selected={isPrimary || isSelected}
+                  isPrimary={isPrimary}
+                  onPress={() => {
+                    if (isPrimary) return;
+                    setSecondaryGoals((sg) =>
+                      sg.includes(opt.value)
+                        ? sg.filter((g) => g !== opt.value)
+                        : sg.length < 2
+                        ? [...sg, opt.value]
+                        : sg
+                    );
+                  }}
+                />
               );
             })}
           </View>

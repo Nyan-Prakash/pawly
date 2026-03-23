@@ -29,6 +29,17 @@ export const GOAL_COLORS = {
   crate_anxiety: '#7C3AED',
   puppy_biting: '#EA580C',
   settling: '#0D9488',
+  leave_it: '#DC2626',
+  basic_obedience: '#2563EB',
+  separation_anxiety: '#9333EA',
+  door_manners: '#0891B2',
+  impulse_control: '#D97706',
+  cooperative_care: '#059669',
+  wait_and_stay: '#7C3AED',
+  leash_reactivity: '#B45309',
+  sit: '#0369A1',
+  down: '#166534',
+  heel: '#BE185D',
   fallback: '#9CA3AF',
 } as const;
 

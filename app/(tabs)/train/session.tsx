@@ -1546,8 +1546,8 @@ function AbandonSheet({
             borderTopRightRadius: 28,
             paddingTop: spacing.md,
             paddingHorizontal: spacing.xl,
-            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg,
-            gap: spacing.md,
+            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md,
+            gap: spacing.lg,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -6 },
             shadowOpacity: 0.12,
@@ -1566,44 +1566,44 @@ function AbandonSheet({
             }}
           />
 
-          <View style={{ alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ alignItems: 'center', gap: spacing.xs }}>
             <Text style={{ fontSize: 20, fontWeight: '700', lineHeight: 28, color: colors.textPrimary }}>
               Leave this session?
             </Text>
-            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>
+            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 }}>
               Your progress won't be saved.
             </Text>
           </View>
 
-          <Pressable
-            onPress={onKeepGoing}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? (theme?.selectedBorder ?? colors.primary) : (theme?.solid ?? colors.primary),
-              borderRadius: 14,
-              paddingVertical: spacing.lg,
-              alignItems: 'center',
-              minHeight: 54,
-            })}
-          >
-            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Keep going</Text>
-          </Pressable>
+          <View style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+            <Pressable
+              onPress={onKeepGoing}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? (theme?.selectedBorder ?? colors.primary) : (theme?.solid ?? colors.primary),
+                borderRadius: 14,
+                paddingVertical: spacing.lg,
+                alignItems: 'center',
+                minHeight: 54,
+              })}
+            >
+              <Text style={{ fontSize: 17, fontWeight: '700', color: '#FFFFFF' }}>Keep going</Text>
+            </Pressable>
 
-          <Pressable
-            onPress={onLeave}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? '#FEF2F2' : colors.surface,
-              borderRadius: 14,
-              paddingVertical: spacing.md + 2,
-              alignItems: 'center',
-              borderWidth: 1,
-              borderColor: '#F5C2C7',
-              minHeight: 50,
-            })}
-          >
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#B42318' }}>
-              Leave session
-            </Text>
-          </Pressable>
+            <Pressable
+              onPress={onLeave}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? '#FEF2F2' : 'transparent',
+                borderRadius: 14,
+                paddingVertical: spacing.md,
+                alignItems: 'center',
+                minHeight: 50,
+              })}
+            >
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#DC2626' }}>
+                Leave session
+              </Text>
+            </Pressable>
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
