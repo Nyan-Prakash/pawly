@@ -19,8 +19,6 @@ interface StepCardProps {
 
 export function StepCard({
   step,
-  stepNumber,
-  totalSteps,
   commonMistake,
   accentColor = colors.brand.primary,
 }: StepCardProps) {
@@ -28,19 +26,6 @@ export function StepCard({
 
   return (
     <View style={{ gap: spacing.md }}>
-      {/* Step label */}
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: '700',
-          color: accentColor,
-          textTransform: 'uppercase',
-          letterSpacing: 1.2,
-        }}
-      >
-        Step {stepNumber} of {totalSteps}
-      </Text>
-
       {/* Instruction card */}
       <View
         style={{
