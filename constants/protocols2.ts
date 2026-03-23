@@ -861,11 +861,11 @@ const crate_stage2: Protocol = {
   steps: [
     {
       order: 1,
-      instruction: 'Give the dog a frozen KONG or long-lasting chew inside the crate. Close and latch the door. Sit in the same room, reading or on your phone. Ignore the crate entirely. When the dog finishes the chew, wait 2 more minutes, then quietly let them out.',
+      instruction: 'Give the dog a Chew Toy or long-lasting chew inside the crate. Close and latch the door. Sit in the same room, reading or on your phone. Ignore the crate entirely. When the dog finishes the chew, wait 2 more minutes, then quietly let them out.',
       durationSeconds: 600,
       reps: null,
-      tip: 'The KONG is doing the work for you. Loading it with peanut butter and freezing it overnight extends the session naturally.',
-      successLook: 'Dog works on the KONG contentedly, eventually settles with it between their paws.'
+      tip: 'The Chew Toy is doing the work for you. Loading it with peanut butter and freezing it overnight extends the session naturally.',
+      successLook: 'Dog works on the Chew Toy contentedly, eventually settles with it between their paws.'
     },
     {
       order: 2,
@@ -899,7 +899,7 @@ const crate_stage2: Protocol = {
     'Giving overly excited greetings when returning — this elevates crate departure into an event',
     'Crating when the dog is still at high energy — exercise first, then crate'
   ],
-  equipmentNeeded: ['Crate', 'Frozen KONG or bully stick', 'Timer'],
+  equipmentNeeded: ['Crate', 'Chew Toy or bully stick', 'Timer'],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
@@ -919,7 +919,7 @@ const crate_stage3: Protocol = {
   steps: [
     {
       order: 1,
-      instruction: 'Establish a pre-crate ritual: 20 minutes of exercise, then a specific verbal cue ("crate up" or "bedtime"), a KONG placed inside, and the dog enters. The ritual signals what is coming and reduces anticipatory anxiety.',
+      instruction: 'Establish a pre-crate ritual: 20 minutes of exercise, then a specific verbal cue ("crate up" or "bedtime"), a Chew Toy placed inside, and the dog enters. The ritual signals what is coming and reduces anticipatory anxiety.',
       durationSeconds: null,
       reps: null,
       tip: 'Predictability is calming. Dogs that know exactly what to expect develop far less anxiety than dogs who are randomly crated.',
@@ -951,7 +951,7 @@ const crate_stage3: Protocol = {
     },
     {
       order: 5,
-      instruction: 'Practice "surprise crating" once a week: randomly ask the dog to crate for 30 minutes in the middle of the day, give a KONG, return. This maintains the skill even when the dog is not being crated regularly.',
+      instruction: 'Practice "surprise crating" once a week: randomly ask the dog to crate for 30 minutes in the middle of the day, give a Chew Toy, return. This maintains the skill even when the dog is not being crated regularly.',
       durationSeconds: 1800,
       reps: null,
       tip: 'Skills that are not maintained fade. Even a dog with a solid crate history can regress after a few weeks of no crating. Monthly practice keeps the behavior intact.',
@@ -965,7 +965,7 @@ const crate_stage3: Protocol = {
     'Crating for more than 4 hours for an adult dog or more than 2 hours for a puppy',
     'Abandoning the crate entirely once the dog sleeps through the night — maintain the skill'
   ],
-  equipmentNeeded: ['Crate with familiar bedding', 'Pet camera or phone camera', 'Frozen KONG', 'White noise machine (optional)', 'Calming music (optional)'],
+  equipmentNeeded: ['Crate with familiar bedding', 'Pet camera or phone camera', 'Chew Toy', 'White noise machine (optional)', 'Calming music (optional)'],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
@@ -1090,7 +1090,7 @@ const biting_stage2: Protocol = {
   ageMaxMonths: 18,
   difficulty: 2,
   nextProtocolId: 'biting_s3',
-  trainerNote: 'By this stage, the puppy\'s adult teeth are coming in and bite pressure will increase significantly. Puppies in the 4–6 month teething window need MORE appropriate chewing, not less. Increase the supply of frozen KONGs, bully sticks, and appropriate chews alongside this protocol.',
+  trainerNote: 'By this stage, the puppy\'s adult teeth are coming in and bite pressure will increase significantly. Puppies in the 4–6 month teething window need MORE appropriate chewing, not less. Increase the supply of Chew Toys, bully sticks, and appropriate chews alongside this protocol.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1298,11 +1298,11 @@ const settle_stage3: Protocol = {
     },
     {
       order: 3,
-      instruction: 'Build to a 10-minute hold: cue place, deliver a frozen KONG, set a timer. Check in every 2 minutes and drop a treat on the mat without making eye contact (to avoid calling the dog to you). At 10 minutes, say "free!" and release.',
+      instruction: 'Build to a 10-minute hold: cue place, deliver a Chew Toy, set a timer. Check in every 2 minutes and drop a treat on the mat without making eye contact (to avoid calling the dog to you). At 10 minutes, say "free!" and release.',
       durationSeconds: 600,
       reps: null,
       tip: 'Delivering the treat without eye contact is crucial — it keeps the dog in the down rather than popping up to look at you.',
-      successLook: 'Dog holds settle with frozen KONG for 10 minutes before being formally released.'
+      successLook: 'Dog holds settle with Chew Toy for 10 minutes before being formally released.'
     },
     {
       order: 4,
@@ -1319,7 +1319,7 @@ const settle_stage3: Protocol = {
     'Punishing the dog for getting up during long holds — lure back and reduce duration, then build again',
     'Skipping the novel environment step — a settle cue that only works at home is not a trained behavior'
   ],
-  equipmentNeeded: ['Mat (portable, easy to carry)', 'Frozen KONG', 'High-value treats', 'Timer'],
+  equipmentNeeded: ['Mat (portable, easy to carry)', 'Chew Toy', 'High-value treats', 'Timer'],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
@@ -1425,7 +1425,7 @@ const leave_it_stage2: Protocol = {
     },
     {
       order: 4,
-      instruction: 'Once drop it is reliable with a toy, practice with items they are more possessive of: a bully stick, a food-stuffed KONG. Offer the treat-under-nose exchange. If they do not drop, do not yank — simply wait with the treat millimeters from their nose. Patience wins.',
+      instruction: 'Once drop it is reliable with a toy, practice with items they are more possessive of: a bully stick, a Chew Toy. Offer the treat-under-nose exchange. If they do not drop, do not yank — simply wait with the treat millimeters from their nose. Patience wins.',
       durationSeconds: null,
       reps: 3,
       tip: 'Never use drop it and then take the item without returning it during training. Build a perfect trade history first. Only in real emergencies should you take without returning.',
@@ -1439,7 +1439,7 @@ const leave_it_stage2: Protocol = {
     'Adding the verbal cue before the behavior is reliable',
     'Only practicing with low-value items — generalize across different objects progressively'
   ],
-  equipmentNeeded: ['Kibble for floor leave it', 'High-value treat for rewards and trades', 'Toy (tug or rope)', 'Long bully stick or KONG (for advanced reps)'],
+  equipmentNeeded: ['Kibble for floor leave it', 'High-value treat for rewards and trades', 'Toy (tug or rope)', 'Long bully stick or Chew Toy (for advanced reps)'],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
@@ -1823,7 +1823,7 @@ const barking_stage3: Protocol = {
     },
     {
       order: 2,
-      instruction: 'Rehearse the "guest arrival" protocol: have a helper arrive at the door. Before they knock, put the dog on mat with a frozen KONG. Let the helper enter. If the dog leaves the mat and barks, calmly return them to the mat. The helper waits. When the dog settles, the guest can approach and greet.',
+      instruction: 'Rehearse the "guest arrival" protocol: have a helper arrive at the door. Before they knock, put the dog on mat with a Chew Toy. Let the helper enter. If the dog leaves the mat and barks, calmly return them to the mat. The helper waits. When the dog settles, the guest can approach and greet.',
       durationSeconds: null,
       reps: 3,
       tip: 'Real guests will not follow your protocol unless briefed. Text them instructions before they arrive. "Please wait outside until I text you the dog is settled." Most guests are happy to help.',
@@ -1853,7 +1853,7 @@ const barking_stage3: Protocol = {
     'Only managing barking without building the replacement behavior (mat, look-at-me)',
     'Expecting results in less than 4 weeks — threshold change takes consistent daily exposure'
   ],
-  equipmentNeeded: ['Frozen KONG', 'Training mat', 'High-value treats', 'Helper for guest arrival drills', 'Treat pouch for outdoor sessions'],
+  equipmentNeeded: ['Chew Toy', 'Training mat', 'High-value treats', 'Helper for guest arrival drills', 'Treat pouch for outdoor sessions'],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
@@ -1901,21 +1901,21 @@ const separation_stage1: Protocol = {
     },
     {
       order: 4,
-      instruction: 'Practice the full departure sequence without leaving: shoes, keys, coat, walk to door, open door, stand in doorway for 10 seconds, close door, take coat off, put keys down, sit on couch. Give the dog a KONG during this sequence. Make the whole routine a non-event.',
+      instruction: 'Practice the full departure sequence without leaving: shoes, keys, coat, walk to door, open door, stand in doorway for 10 seconds, close door, take coat off, put keys down, sit on couch. Give the dog a Chew Toy during this sequence. Make the whole routine a non-event.',
       durationSeconds: null,
       reps: 3,
-      tip: 'The KONG gives the dog something to do during the sequence that is pleasant. You are pairing the departure routine with "KONG time" rather than "alone time."',
-      successLook: 'Dog licks KONG and remains calm through the full departure routine without following you to the door.'
+      tip: 'The Chew Toy gives the dog something to do during the sequence that is pleasant. You are pairing the departure routine with "Chew Toy time" rather than "alone time."',
+      successLook: 'Dog licks the Chew Toy and remains calm through the full departure routine without following you to the door.'
     }
   ],
   successCriteria: 'Dog shows no panting, pacing, or whining during the full departure cue sequence (shoes, keys, coat, door) in 10 out of 15 repetitions.',
   commonMistakes: [
     'Rushing through cue desensitization to get to "real" departures — this stage is not optional',
     'Making departures a big emotional event — no dramatic goodbyes or excessive affection at the door',
-    'Skipping the KONG pairing — the dog needs something to do during the departure ritual',
+    'Skipping the Chew Toy pairing — the dog needs something to do during the departure ritual',
     'Doing all cues simultaneously instead of one at a time'
   ],
-  equipmentNeeded: ['Frozen KONG', 'Your keys, shoes, coat (real departure items)', 'Pet camera for monitoring (optional but recommended)'],
+  equipmentNeeded: ['Chew Toy', 'Your keys, shoes, coat (real departure items)', 'Pet camera for monitoring (optional but recommended)'],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
@@ -1943,11 +1943,11 @@ const separation_stage2: Protocol = {
     },
     {
       order: 2,
-      instruction: 'Give the dog a frozen KONG, say your departure cue word ("I\'ll be back" or "see you soon" — pick one and use it always), and step outside the front door. Close it. Wait 30 seconds. Return before the dog shows any stress on camera. Enter calmly. No big hello.',
+      instruction: 'Give the dog a Chew Toy, say your departure cue word ("I\'ll be back" or "see you soon" — pick one and use it always), and step outside the front door. Close it. Wait 30 seconds. Return before the dog shows any stress on camera. Enter calmly. No big hello.',
       durationSeconds: 30,
       reps: 3,
       tip: 'Return before stress begins. You are building a history: "every time the door closes, it opens again before anything bad happens." That history is the therapy.',
-      successLook: 'Dog eats KONG for 30 seconds, door opens, dog looks up calmly. No stress signals.'
+      successLook: 'Dog eats from the Chew Toy for 30 seconds, door opens, dog looks up calmly. No stress signals.'
     },
     {
       order: 3,
@@ -1955,7 +1955,7 @@ const separation_stage2: Protocol = {
       durationSeconds: null,
       reps: null,
       tip: 'The progression must be dictated by camera footage, not your schedule. If you need to go to work tomorrow, this protocol is not yet appropriate — management (pet sitter, daycare) is needed until the departure duration is work-length.',
-      successLook: 'Dog rests or works on KONG for the full session duration with no distress signs on camera.'
+      successLook: 'Dog rests or works on Chew Toy for the full session duration with no distress signs on camera.'
     },
     {
       order: 4,
@@ -1970,10 +1970,10 @@ const separation_stage2: Protocol = {
   commonMistakes: [
     'Advancing departure duration based on schedule rather than camera footage',
     'Making returns emotional — come home calmly, greet the dog after they have settled',
-    'Skipping the KONG during early departures — the KONG is the bridge behavior',
+    'Skipping the Chew Toy during early departures — the Chew Toy is the bridge behavior',
     'Leaving for long periods before short departures are fully calm'
   ],
-  equipmentNeeded: ['Frozen KONG (2–3 prepared ahead)', 'Pet camera', 'Timer'],
+  equipmentNeeded: ['Chew Toy', 'Pet camera', 'Timer'],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
@@ -1993,11 +1993,11 @@ const separation_stage3: Protocol = {
   steps: [
     {
       order: 1,
-      instruction: 'Establish a consistent pre-departure routine that the dog learns predicts "alone time that ends": exercise for 20 minutes → KONG preparation → departure cue word → leave. Do this sequence every time, without variation. Predictability reduces anticipatory anxiety.',
+      instruction: 'Establish a consistent pre-departure routine that the dog learns predicts "alone time that ends": exercise for 20 minutes → Chew Toy preparation → departure cue word → leave. Do this sequence every time, without variation. Predictability reduces anticipatory anxiety.',
       durationSeconds: null,
       reps: null,
       tip: 'The routine tells the dog what is happening. "I know what this is. It ends. I have done it before." That knowledge is calming for a dog with anxiety history.',
-      successLook: 'Dog accepts the KONG and settles without following you to the door during the departure ritual.'
+      successLook: 'Dog accepts the Chew Toy and settles without following you to the door during the departure ritual.'
     },
     {
       order: 2,
@@ -2009,7 +2009,7 @@ const separation_stage3: Protocol = {
     },
     {
       order: 3,
-      instruction: 'Introduce "solo enrichment" items for longer absences: a KONG tower, a snuffle mat, a Licki Mat, or a frozen beef marrow bone. Rotate enrichment items so novelty is maintained. Enrichment extends calm engagement during the first 20–30 minutes of alone time.',
+      instruction: 'Introduce "solo enrichment" items for longer absences: a Chew Toy tower, a snuffle mat, a Licki Mat, or a frozen beef marrow bone. Rotate enrichment items so novelty is maintained. Enrichment extends calm engagement during the first 20–30 minutes of alone time.',
       durationSeconds: null,
       reps: null,
       tip: 'The first 20 minutes of alone time are the highest risk for anxiety. Enrichment occupies that window. After 20 minutes, most dogs settle and sleep.',
@@ -2039,7 +2039,7 @@ const separation_stage3: Protocol = {
     'Not accounting for life-change triggers that can cause setbacks',
     'Using punishment for anxiety-related destruction — this increases anxiety and worsens the behavior'
   ],
-  equipmentNeeded: ['Pet camera', 'Frozen KONG or enrichment variety (Licki Mat, snuffle mat, marrow bone)', 'Timer for graduated departures'],
+  equipmentNeeded: ['Pet camera', 'Chew Toy or enrichment variety (Licki Mat, snuffle mat, marrow bone)', 'Timer for graduated departures'],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 4,
