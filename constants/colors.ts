@@ -7,8 +7,8 @@ export const lightColors = {
     coach: '#3B82F6',
   },
   bg: {
-    app: '#FFF9F4',
-    surface: '#FFFFFF',
+    app: '#F7F2EC',
+    surface: '#FFFDF9',
     surfaceAlt: '#F5F7F9',
     elevated: 'rgba(255,255,255,0.88)',
     elevatedMuted: 'rgba(255,255,255,0.72)',
@@ -35,7 +35,7 @@ export const lightColors = {
     dangerBorder: '#FECACA',
   },
   gradient: {
-    app: ['#FFF9F4', '#FFF7ED', '#F4FBF6'] as const,
+    app: ['#F7F2EC', '#F2EDE6', '#EEF6F1'] as const,
   },
   mascot: {
     fur: '#F6B66E',
@@ -60,7 +60,7 @@ export const lightColors = {
   error_old: '#EF4444',
   textPrimary: '#111827',
   textSecondary: '#6B7280',
-  background: '#FFF9F4',
+  background: '#F7F2EC',
   surface: '#FFFFFF',
   borderColor: '#E5E7EB',
   borderLegacy: '#E5E7EB',

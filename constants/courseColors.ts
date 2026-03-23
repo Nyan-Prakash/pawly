@@ -21,15 +21,15 @@ export const COURSE_COLOR_PALETTE = [
 ] as const;
 
 export const GOAL_COLORS = {
-  leash_pulling: COURSE_COLOR_PALETTE[8],
-  jumping_up: COURSE_COLOR_PALETTE[5],
-  barking: COURSE_COLOR_PALETTE[7],
-  recall: COURSE_COLOR_PALETTE[9],
-  potty_training: COURSE_COLOR_PALETTE[4],
-  crate_anxiety: COURSE_COLOR_PALETTE[2],
-  puppy_biting: COURSE_COLOR_PALETTE[6],
-  settling: COURSE_COLOR_PALETTE[1],
-  fallback: '#6B7280',
+  leash_pulling: '#4F46E5',
+  jumping_up: '#06B6D4',
+  barking: '#DB2777',
+  recall: '#15803D',
+  potty_training: '#EAB308',
+  crate_anxiety: '#7C3AED',
+  puppy_biting: '#EA580C',
+  settling: '#0D9488',
+  fallback: '#9CA3AF',
 } as const;
 
 export type GoalColorKey = keyof typeof GOAL_COLORS;
@@ -154,7 +154,7 @@ export function getContrastTextColor(hex: string): '#FFFFFF' | '#0F172A' {
   const whiteContrast = (1.05) / (luminance + 0.05);
   const darkContrast = (luminance + 0.05) / 0.05;
 
-  return darkContrast >= whiteContrast ? '#0F172A' : '#FFFFFF';
+  return '#FFFFFF';
 }
 
 /**

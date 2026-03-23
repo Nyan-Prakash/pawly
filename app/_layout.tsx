@@ -1,6 +1,14 @@
 import '../global.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
+import {
+  useFonts,
+  Nunito_400Regular,
+  Nunito_500Medium,
+  Nunito_600SemiBold,
+  Nunito_700Bold,
+  Nunito_800ExtraBold,
+} from '@expo-google-fonts/nunito';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -311,6 +319,16 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
 export default function RootLayout() {
   const queryClient = useMemo(() => new QueryClient(), []);
   const { colorScheme } = useTheme();
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_500Medium,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+  });
+
+  if (!fontsLoaded) return null;
+
 
   return (
     <QueryClientProvider client={queryClient}>

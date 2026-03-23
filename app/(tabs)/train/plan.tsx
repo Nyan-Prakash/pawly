@@ -7,19 +7,23 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SafeScreen } from '@/components/ui/SafeScreen';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { SessionChangeBadge } from '@/components/adaptive/SessionChangeBadge';
 import { WhyThisChangedSheet } from '@/components/adaptive/WhyThisChangedSheet';
 import { colors } from '@/constants/colors';
-import { getCoursePillColors, getCourseUiColors } from '@/constants/courseColors';
+import { getCoursePillColors, getCourseUiColors, hexToRgba } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
+import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
@@ -27,45 +31,106 @@ import { formatScheduleLabel, getPlanCompletion, getBehaviorLabel } from '@/lib/
 import type { Plan, PlanAdaptation, PlanSession } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Completion ring (SVG-free, drawn with Views)
+// Plan Summary Hero Card
 // ─────────────────────────────────────────────────────────────────────────────
 
-function CompletionRing({ percentage, color }: { percentage: number; color: string }) {
-  const size = 72;
-  const strokeWidth = 7;
-
+function PlanHeroCard({
+  courseTitle,
+  completionPct,
+  durationWeeks,
+  stageNumber,
+  completedCount,
+  totalCount,
+  planColor,
+  adaptedCount,
+}: {
+  courseTitle: string;
+  completionPct: number;
+  durationWeeks: number;
+  stageNumber: number;
+  completedCount: number;
+  totalCount: number;
+  planColor: string;
+  adaptedCount: number;
+}) {
   return (
-    <View
+    <LinearGradient
+      colors={[planColor, hexToRgba(planColor, 0.78)]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        borderWidth: strokeWidth,
-        borderColor: colors.border.default,
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
+        borderRadius: radii.lg,
+        overflow: 'hidden',
+        marginBottom: spacing.md,
+        ...shadows.card,
       }}
     >
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: percentage > 0 ? color : 'transparent',
-          borderTopColor: percentage >= 25 ? color : 'transparent',
-          borderRightColor: percentage >= 50 ? color : 'transparent',
-          borderBottomColor: percentage >= 75 ? color : 'transparent',
-          borderLeftColor: percentage >= 100 ? color : 'transparent',
-          transform: [{ rotate: '-90deg' }],
-        }}
-      />
-      <Text style={{ fontSize: 15, fontWeight: '700', color: color }}>
-        {percentage}%
-      </Text>
-    </View>
+      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+        {/* Title */}
+        <Text
+          style={{
+            color: '#fff',
+            fontSize: 26,
+            fontWeight: '800',
+            lineHeight: 32,
+            letterSpacing: -0.5,
+          }}
+          numberOfLines={2}
+        >
+          {courseTitle}
+        </Text>
+
+        <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: '500' }}>
+          Stage {stageNumber} · {durationWeeks} weeks · {completedCount}/{totalCount} done
+        </Text>
+
+        {/* Progress bar + % */}
+        <View style={{ marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View style={{ flex: 1 }}>
+            <ProgressBar
+              progress={completionPct / 100}
+              height={10}
+              color="rgba(255,255,255,0.95)"
+              trackColor="rgba(255,255,255,0.28)"
+            />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 }}>
+              {completionPct}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '700' }}>
+              %
+            </Text>
+          </View>
+        </View>
+
+      </View>
+
+      {/* Adaptation strip inside card */}
+      {adaptedCount > 0 && (
+        <View
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.12)',
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(255,255,255,0.15)',
+            paddingHorizontal: spacing.lg,
+            paddingVertical: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <AppIcon name="sparkles" size={13} color="rgba(255,255,255,0.85)" />
+          <Text
+            style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '500' }}
+            numberOfLines={1}
+          >
+            <Text style={{ fontWeight: '700', color: '#fff' }}>{adaptedCount}</Text>
+            {' '}session{adaptedCount !== 1 ? 's' : ''} adjusted by Pawly
+          </Text>
+        </View>
+      )}
+    </LinearGradient>
   );
 }
 
@@ -231,20 +296,16 @@ function SessionDetailSheet({
                 showsVerticalScrollIndicator={false}
               >
                 {/* Title + badge row */}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.sm }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text.primary, lineHeight: 28 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.md }}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    {isAdapted && <SessionChangeBadge kind={kind} />}
+                    <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text.primary, lineHeight: 32, letterSpacing: -0.3 }}>
                       {session.title}
                     </Text>
-                    <Text style={{ fontSize: 13, color: colors.text.secondary, marginTop: 2 }}>
+                    <Text style={{ fontSize: 15, color: colors.text.secondary }}>
                       {formatScheduleLabel(session)} · {session.durationMinutes} min
                     </Text>
                   </View>
-                  {isAdapted && (
-                    <View style={{ marginTop: 4 }}>
-                      <SessionChangeBadge kind={kind} />
-                    </View>
-                  )}
                 </View>
 
                 {/* Skill path context */}
@@ -254,20 +315,13 @@ function SessionDetailSheet({
                     borderRadius: radii.md,
                     padding: spacing.md,
                     marginBottom: spacing.md,
-                    gap: spacing.xs,
                   }}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                    <AppIcon name="git-branch" size={14} color={colors.text.secondary} />
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text.secondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      Skill path
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text.primary }}>
+                  <Text style={{ fontSize: 15, lineHeight: 22, color: colors.text.primary }}>
                     {skillPathLabel()}
                   </Text>
                   {session.reasoningLabel ? (
-                    <Text style={{ fontSize: 12, color: colors.text.secondary, lineHeight: 18 }}>
+                    <Text style={{ fontSize: 14, color: colors.text.secondary, lineHeight: 20, marginTop: 6 }}>
                       {session.reasoningLabel}
                     </Text>
                   ) : null}
@@ -283,30 +337,29 @@ function SessionDetailSheet({
                       marginBottom: spacing.md,
                       borderWidth: 1,
                       borderColor: colors.status.infoBorder,
-                      gap: spacing.xs,
+                      gap: spacing.sm,
                     }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                      <AppIcon name="sparkles" size={14} color={colors.brand.coach} />
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand.coach, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      <AppIcon name="sparkles" size={15} color={colors.brand.coach} />
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand.coach }}>
                         Why this changed
                       </Text>
                     </View>
-                    <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text.primary }}>
+                    <Text style={{ fontSize: 15, lineHeight: 22, color: colors.text.primary }}>
                       {relatedAdaptation.reasonSummary || 'Adjusted based on recent training patterns.'}
                     </Text>
                     <Pressable
                       onPress={() => setShowWhySheet(true)}
                       style={({ pressed }) => ({
                         alignSelf: 'flex-start',
-                        marginTop: 4,
                         paddingHorizontal: spacing.md,
-                        paddingVertical: 6,
+                        paddingVertical: 8,
                         borderRadius: radii.pill,
                         backgroundColor: pressed ? `${colors.brand.coach}22` : `${colors.brand.coach}14`,
                       })}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: '700', color: colors.brand.coach }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand.coach }}>
                         Full explanation →
                       </Text>
                     </Pressable>
@@ -325,7 +378,7 @@ function SessionDetailSheet({
                       borderColor: colors.status.infoBorder,
                     }}
                   >
-                    <Text style={{ fontSize: 13, color: colors.text.secondary, lineHeight: 19 }}>
+                    <Text style={{ fontSize: 14, color: colors.text.secondary, lineHeight: 20 }}>
                       This session was adjusted by Pawly based on recent training results.
                     </Text>
                   </View>
@@ -388,11 +441,10 @@ function SessionRow({
   onPress: () => void;
   planColor: string;
 }) {
-  const kind = session.sessionKind ?? 'core';
-  const isAdapted = session.adaptationSource === 'adaptation_engine';
-  const iconBackgroundColor = session.isCompleted ? `${planColor}18` : colors.bg.surfaceAlt;
+  const iconBg = session.isCompleted ? hexToRgba(planColor, 0.12) : colors.bg.surfaceAlt;
   const iconColor = session.isCompleted ? planColor : colors.text.secondary;
-  const titleColor = session.isCompleted || isFuture ? colors.text.secondary : colors.text.primary;
+  const titleColor = isFuture ? colors.text.secondary : colors.text.primary;
+  const barColor = session.isCompleted ? planColor : isFuture ? colors.border.strong : planColor;
 
   return (
     <TouchableOpacity
@@ -401,110 +453,64 @@ function SessionRow({
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.surface,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        padding: spacing.md,
-        gap: spacing.md,
-        minHeight: 92,
-        opacity: isFuture ? 0.72 : 1,
-        shadowColor: colors.shadow.strong,
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 1,
+        backgroundColor: colors.bg.surface,
+        borderRadius: radii.lg,
+        borderWidth: 1.5,
+        borderColor: isToday ? hexToRgba(planColor, 0.35) : colors.border.default,
+        overflow: 'hidden',
+        opacity: isFuture ? 0.7 : 1,
+        ...shadows.card,
       }}
     >
+      {/* Colored left bar */}
+      <View style={{ width: 4, alignSelf: 'stretch', backgroundColor: barColor }} />
+
       {/* Status icon */}
       <View
         style={{
           width: 44,
           height: 44,
           borderRadius: 22,
-          backgroundColor: iconBackgroundColor,
+          backgroundColor: iconBg,
           alignItems: 'center',
           justifyContent: 'center',
-          marginTop: 2,
+          marginLeft: spacing.md,
+          marginVertical: spacing.md,
         }}
       >
         {session.isCompleted ? (
-          <Ionicons name="checkmark" size={18} color={iconColor} />
+          <AppIcon name="checkmark" size={18} color={iconColor} />
         ) : isToday ? (
-          <Ionicons name="lock-closed" size={16} color={colors.text.secondary} />
+          <AppIcon name="play" size={15} color={planColor} />
         ) : (
-          <Ionicons name="calendar-outline" size={18} color={iconColor} />
+          <AppIcon name="calendar-outline" size={17} color={iconColor} />
         )}
       </View>
 
       {/* Session info */}
-      <View style={{ flex: 1, gap: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs }}>
-          <View style={{ flex: 1, gap: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
-              {isAdapted && (
-                <SessionChangeBadge kind={kind} />
-              )}
-              {session.autoRescheduledFrom ? (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    backgroundColor: colors.status.warningBg,
-                    borderRadius: radii.pill,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                  }}
-                >
-                  <Ionicons name="refresh" size={11} color={colors.warning} />
-                  <Text style={{ fontSize: 11, color: colors.warning, fontWeight: '400', letterSpacing: 0.2 }}>
-                    Rescheduled
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-            <Text
-              style={{
-                fontSize: 19,
-                fontWeight: '700',
-                color: titleColor,
-                lineHeight: 24,
-              }}
-              numberOfLines={2}
-            >
-              {session.title}
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: '500',
-                  color: colors.text.secondary,
-                }}
-                numberOfLines={1}
-              >
-                {formatScheduleLabel(session)} · {session.durationMinutes} min
-              </Text>
-            </View>
-          </View>
-          {!isFuture && (
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.bg.surfaceAlt,
-              }}
-            >
-              <Ionicons name="chevron-forward" size={16} color={colors.text.secondary} />
-            </View>
-          )}
+      <View style={{ flex: 1, paddingVertical: spacing.md, paddingLeft: spacing.sm, paddingRight: spacing.md, gap: 5 }}>
+        <Text
+          style={{ fontSize: 18, fontWeight: '700', color: titleColor, lineHeight: 24 }}
+          numberOfLines={2}
+        >
+          {session.title}
+        </Text>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <AppIcon name="time" size={14} color={colors.text.secondary} />
+          <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text.secondary }} numberOfLines={1}>
+            {formatScheduleLabel(session)} · {session.durationMinutes} min
+          </Text>
         </View>
+
       </View>
+
+      {/* Chevron */}
+      {!isFuture && (
+        <View style={{ paddingRight: spacing.md }}>
+          <AppIcon name="chevron-forward" size={16} color={colors.text.secondary} />
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -528,17 +534,17 @@ function WeekHeader({
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.sm,
-        paddingVertical: spacing.sm,
-        paddingTop: weekNumber > 1 ? spacing.md : 0,
+        paddingBottom: spacing.sm,
+        paddingTop: weekNumber > 1 ? spacing.lg : spacing.xs,
       }}
     >
       <Text
         style={{
           fontSize: 13,
-          fontWeight: '700',
+          fontWeight: '800',
           color: isCurrentWeek ? color : colors.text.secondary,
           textTransform: 'uppercase',
-          letterSpacing: 0.8,
+          letterSpacing: 1.2,
         }}
       >
         Week {weekNumber}
@@ -546,15 +552,18 @@ function WeekHeader({
       {isCurrentWeek && (
         <View
           style={{
-            backgroundColor: color,
+            backgroundColor: hexToRgba(color, 0.14),
             paddingHorizontal: 8,
-            paddingVertical: 2,
-            borderRadius: 99,
+            paddingVertical: 3,
+            borderRadius: radii.pill,
+            borderWidth: 1,
+            borderColor: hexToRgba(color, 0.25),
           }}
         >
-          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>Current</Text>
+          <Text style={{ color, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>Current</Text>
         </View>
       )}
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.border.soft }} />
     </View>
   );
 }
@@ -661,11 +670,22 @@ export default function PlanScreen() {
         >
           <TouchableOpacity
             onPress={() => router.back()}
-            style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: colors.bg.surface,
+              borderWidth: 1.5,
+              borderColor: colors.border.soft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+            <AppIcon name="arrow-back" size={17} color={colors.text.primary} />
           </TouchableOpacity>
-          <Text variant="title" style={{ fontSize: 20 }}>My Plan</Text>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text.primary, letterSpacing: -0.4 }}>
+            My Plan
+          </Text>
         </View>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
           <Text variant="caption" style={{ textAlign: 'center' }}>
@@ -689,6 +709,15 @@ export default function PlanScreen() {
 
   return (
     <SafeScreen>
+      {/* Warm gradient blush */}
+      <LinearGradient
+        colors={[hexToRgba(planColor, 0.07), 'transparent']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.4 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 200 }}
+        pointerEvents="none"
+      />
+
       {/* ── Nav Header ── */}
       <View
         style={{
@@ -702,11 +731,29 @@ export default function PlanScreen() {
       >
         <TouchableOpacity
           onPress={() => router.back()}
-          style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: colors.bg.surface,
+            borderWidth: 1.5,
+            borderColor: colors.border.soft,
+            alignItems: 'center',
+            justifyContent: 'center',
+            ...shadows.card,
+          }}
         >
-          <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          <AppIcon name="arrow-back" size={17} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text variant="title" style={{ fontSize: 20, flex: 1 }}>
+        <Text
+          style={{
+            fontSize: 22,
+            fontWeight: '800',
+            color: colors.text.primary,
+            letterSpacing: -0.4,
+            flex: 1,
+          }}
+        >
           {switcherPlans.length > 1 ? 'My Courses' : 'My Plan'}
         </Text>
         {switcherPlans.length < 2 && (
@@ -753,113 +800,16 @@ export default function PlanScreen() {
         }}
         ListHeaderComponent={() => (
           <View>
-            {/* Plan summary card */}
-            <View
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 20,
-                padding: spacing.lg,
-                marginBottom: spacing.md,
-                borderWidth: 1,
-                borderColor: colors.border.default,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.md,
-              }}
-            >
-              <CompletionRing percentage={completionPct} color={planColor} />
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{ fontSize: 16, fontWeight: '700', color: colors.text.primary, lineHeight: 22 }}
-                  numberOfLines={2}
-                >
-                  {dog?.name ? `${dog.name}'s ` : ''}{courseTitle} Plan
-                </Text>
-                <Text variant="caption" style={{ marginTop: 4 }}>
-                  {displayPlan.durationWeeks} weeks · {displayPlan.sessionsPerWeek}×/week
-                </Text>
-                {displayPlan.metadata?.scheduleSummary ? (
-                  <Text variant="caption" style={{ marginTop: 4 }}>
-                    {displayPlan.metadata.scheduleSummary}
-                  </Text>
-                ) : null}
-                <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs, flexWrap: 'wrap' }}>
-                  <View
-                    style={{
-                      backgroundColor: uiColors.tint,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      borderRadius: 99,
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, color: planColor, fontWeight: '600' }}>
-                      {behaviorLabel}
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      backgroundColor: uiColors.tint,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      borderRadius: 99,
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, color: planColor, fontWeight: '600' }}>
-                      Stage {stageNumber}
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      backgroundColor: uiColors.tint,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      borderRadius: 99,
-                    }}
-                  >
-                    <Text style={{ fontSize: 11, color: planColor, fontWeight: '600' }}>
-                      {displayPlan.sessions.filter((s) => s.isCompleted).length}/{displayPlan.sessions.length} done
-                    </Text>
-                  </View>
-                  {displayPlan.isPrimary && switcherPlans.length > 1 && (
-                    <View
-                      style={{
-                        backgroundColor: uiColors.tint,
-                        paddingHorizontal: 8,
-                        paddingVertical: 3,
-                        borderRadius: 99,
-                      }}
-                    >
-                      <Text style={{ fontSize: 11, color: planColor, fontWeight: '600' }}>
-                        Primary
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </View>
-
-            {/* Adaptation summary strip */}
-            {adaptedCount > 0 && (
-              <View
-                style={{
-                  backgroundColor: colors.status.infoBg,
-                  borderRadius: radii.md,
-                  borderWidth: 1,
-                  borderColor: colors.status.infoBorder,
-                  padding: spacing.md,
-                  marginBottom: spacing.md,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.sm,
-                }}
-              >
-                <AppIcon name="sparkles" size={16} color={colors.brand.coach} />
-                <Text style={{ flex: 1, fontSize: 13, color: colors.text.primary, lineHeight: 19 }}>
-                  <Text style={{ fontWeight: '700' }}>{adaptedCount} session{adaptedCount !== 1 ? 's' : ''}</Text>
-                  {' '}in this plan {adaptedCount === 1 ? 'was' : 'were'} adjusted by Pawly. Tap a session to see why.
-                </Text>
-              </View>
-            )}
+            <PlanHeroCard
+              courseTitle={courseTitle}
+              completionPct={completionPct}
+              durationWeeks={displayPlan.durationWeeks}
+              stageNumber={stageNumber}
+              completedCount={displayPlan.sessions.filter((s) => s.isCompleted).length}
+              totalCount={displayPlan.sessions.length}
+              planColor={planColor}
+              adaptedCount={adaptedCount}
+            />
           </View>
         )}
         renderItem={({ item }) => {

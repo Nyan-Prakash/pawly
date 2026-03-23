@@ -235,13 +235,34 @@ export default function SignUpScreen() {
               </>
             ) : (
               <>
-                <Text variant="title" style={{ marginBottom: spacing.sm }}>Create your account</Text>
-                <Text variant="caption" style={{ marginBottom: spacing.xl, color: colors.textSecondary }}>
+                <Text
+                  style={{
+                    fontSize: 34,
+                    fontWeight: '800',
+                    color: colors.textPrimary,
+                    letterSpacing: -0.5,
+                    lineHeight: 40,
+                    marginBottom: spacing.xs,
+                  }}
+                >
+                  Create your account
+                </Text>
+                <Text
+                  variant="body"
+                  style={{ marginBottom: spacing.xxl, color: colors.textSecondary }}
+                >
                   Start training smarter today.
                 </Text>
 
                 {/* Email */}
-                <Text variant="caption" style={{ marginBottom: spacing.xs, fontWeight: typography.weights.medium, color: colors.textPrimary }}>
+                <Text
+                  style={{
+                    marginBottom: spacing.xs,
+                    fontWeight: '600',
+                    fontSize: typography.sizes.sm,
+                    color: colors.textPrimary,
+                  }}
+                >
                   Email
                 </Text>
                 <TextInput
@@ -262,7 +283,15 @@ export default function SignUpScreen() {
                 )}
 
                 {/* Password */}
-                <Text variant="caption" style={{ marginTop: spacing.md, marginBottom: spacing.xs, fontWeight: typography.weights.medium, color: colors.textPrimary }}>
+                <Text
+                  style={{
+                    marginTop: spacing.md,
+                    marginBottom: spacing.xs,
+                    fontWeight: '600',
+                    fontSize: typography.sizes.sm,
+                    color: colors.textPrimary,
+                  }}
+                >
                   Password
                 </Text>
                 <TextInput
@@ -294,7 +323,7 @@ export default function SignUpScreen() {
                 >
                   {isLoading
                     ? <ActivityIndicator color={colors.surface} />
-                    : <Text style={{ color: colors.surface, fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>Create account</Text>
+                    : <Text style={{ color: colors.surface, fontWeight: '700', fontSize: typography.sizes.md }}>Create account</Text>
                   }
                 </Pressable>
 
@@ -311,8 +340,8 @@ export default function SignUpScreen() {
                     disabled={isLoading}
                     style={[appleButtonStyle, { marginBottom: spacing.md, opacity: isLoading ? 0.7 : 1 }]}
                   >
-                    <Text style={{ color: '#FFFFFF', fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>
-                       Continue with Apple
+                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: typography.sizes.md }}>
+                      Continue with Apple
                     </Text>
                   </Pressable>
                   </>
@@ -335,42 +364,43 @@ export default function SignUpScreen() {
 }
 
 const inputStyle = (hasError: boolean) => ({
-  borderWidth: 1,
-  borderColor: hasError ? colors.error : colors.border.default,
-  borderRadius: 12,
+  borderWidth: 1.5,
+  borderColor: hasError ? colors.error : colors.border.soft,
+  borderRadius: 16,
   paddingVertical: spacing.lg,
   paddingHorizontal: spacing.lg,
   fontSize: typography.sizes.md,
   color: colors.textPrimary,
-  backgroundColor: colors.surface
+  backgroundColor: colors.surface,
+  minHeight: 58,
 });
 
 const primaryButtonStyle = {
   backgroundColor: colors.primary,
-  borderRadius: 12,
+  borderRadius: 16,
   paddingVertical: spacing.lg,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
-  minHeight: 52
+  minHeight: 58,
 };
 
 const secondaryButtonStyle = {
   backgroundColor: colors.surface,
-  borderRadius: 12,
-  borderWidth: 1,
+  borderRadius: 16,
+  borderWidth: 1.5,
   borderColor: colors.border.default,
   paddingVertical: spacing.lg,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
-  minHeight: 52
+  minHeight: 58,
 };
 
 const appleButtonStyle = {
   backgroundColor: '#000000',
-  borderRadius: 12,
+  borderRadius: 16,
   paddingVertical: spacing.lg,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
-  minHeight: 52
+  minHeight: 58,
 };
 
