@@ -26,6 +26,7 @@ import { LiveAiTrainerOverlay } from '@/components/vision/LiveAiTrainerOverlay';
 import { colors } from '@/constants/colors';
 import { getCourseUiColors, hexToRgba, type CourseUiColors } from '@/constants/courseColors';
 import { spacing } from '@/constants/spacing';
+import { useCoachStore } from '@/stores/coachStore';
 import { useSessionStore } from '@/stores/sessionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useDogStore } from '@/stores/dogStore';
@@ -43,6 +44,10 @@ import {
   applyReflectionAnswer,
   makeEmptyReflection,
 } from '@/components/session/PostSessionReflectionCard';
+import { PostSessionCoachPrompt } from '@/components/session/PostSessionCoachPrompt';
+import { getPostSessionCoachNudge, type CoachNudgeResult } from '@/lib/coach/getPostSessionCoachNudge';
+import { buildPostSessionCoachPrefill } from '@/lib/coach/buildPostSessionCoachPrefill';
+import { captureEvent } from '@/lib/analytics';
 import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
 
 // ── Local UI state for live coaching (does not touch session store) ──────────
@@ -136,6 +141,7 @@ export default function SessionScreen() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [completedSessionCount, setCompletedSessionCount] = useState(0);
+  const [nudgeResult, setNudgeResult] = useState<CoachNudgeResult | null>(null);
 
   // ── Post-session reflection state ──────────────────────────────────────────
   const [reflectionQuestions, setReflectionQuestions] = useState<ReflectionQuestionConfig[]>([]);
@@ -333,8 +339,29 @@ export default function SessionScreen() {
     if (!reviewDifficulty || !activeSession || !user || !dog || !activePlan) return;
     setIsSaving(true);
 
+    // Compute nudge before state changes
+    const reflectionAnswersToUse = reflectionQuestions.length > 0 ? reflectionAnswers : null;
+    const nudge = getPostSessionCoachNudge({
+      difficulty: reviewDifficulty,
+      sessionStatus: 'completed',
+      postSessionReflection: reflectionAnswersToUse,
+    });
+
     try {
       await submitSession(reviewDifficulty, reviewNotes, async (sid, durationSeconds) => {
+        // Track nudge if qualified
+        if (nudge.shouldShow) {
+          captureEvent('post_session_coach_nudge_qualified', {
+            dogId: dog.id,
+            planId: activePlan.id,
+            sessionId: sid,
+            difficulty: reviewDifficulty,
+            sessionStatus: 'completed',
+            triggerReasons: nudge.reasons,
+          });
+          setNudgeResult(nudge);
+        }
+
         // Mark session complete in plan store (planId required for multi-plan support)
         await markSessionComplete(activePlan.id, sid, {
           sessionId: sid,
@@ -411,6 +438,25 @@ export default function SessionScreen() {
         (Date.now() - activeSession.startedAt.getTime()) / 1000
       );
 
+      // Abandoned sessions always qualify for a nudge per requirements
+      const nudge = getPostSessionCoachNudge({
+        difficulty: 'hard',
+        sessionStatus: 'abandoned',
+        postSessionReflection: null,
+      });
+
+      if (nudge.shouldShow) {
+        captureEvent('post_session_coach_nudge_qualified', {
+          dogId: dog.id,
+          planId: activePlan.id,
+          sessionId: activeSession.sessionId,
+          difficulty: 'hard',
+          sessionStatus: 'abandoned',
+          triggerReasons: nudge.reasons,
+        });
+        setNudgeResult(nudge);
+      }
+
       await saveSession({
         userId: user.id,
         dogId: dog.id,
@@ -434,9 +480,13 @@ export default function SessionScreen() {
 
     abandonSession();
     setShowAbandonSheet(false);
-    clearSession();
-    router.replace('/(tabs)/train');
-  }, [activeSession, activePlan, user, dog, reviewNotes, abandonSession, clearSession, fetchDogLearningState]);
+
+    // Instead of immediate redirect, we now show COMPLETE state (Session Ended)
+    // to allow the user to see the coach nudge.
+    setState('COMPLETE');
+    // clearSession(); // DON'T CLEAR YET, CompleteView needs activeSession
+    // router.replace('/(tabs)/train');
+  }, [activeSession, activePlan, user, dog, reviewNotes, abandonSession, fetchDogLearningState, setState]);
 
   // ── Setup → mode decision ──────────────────────────────────────────────────
   // After the setup checklist, if the protocol supports live coaching and no
@@ -644,9 +694,34 @@ export default function SessionScreen() {
           totalSessions={activePlan?.sessions.length ?? 0}
           activeSession={activeSession}
           theme={courseTheme}
+          nudge={nudgeResult}
           onBack={() => {
             clearSession();
             router.replace('/(tabs)/train');
+          }}
+          onAskCoach={() => {
+            if (!nudgeResult) return;
+            const prefill = buildPostSessionCoachPrefill({
+              dogName,
+              protocolTitle: protocol.title,
+              difficulty: reviewDifficulty,
+              sessionStatus: activeSession.state === 'ABANDONED' ? 'abandoned' : 'completed',
+              postSessionReflection: reflectionQuestions.length > 0 ? reflectionAnswers : null,
+              notes: reviewNotes,
+            });
+            useCoachStore.getState().setDraftMessage(prefill);
+
+            captureEvent('post_session_coach_nudge_tapped', {
+              dogId: dog?.id,
+              planId: activePlan?.id,
+              sessionId: activeSession.sessionId,
+              difficulty: reviewDifficulty,
+              sessionStatus: activeSession.state === 'ABANDONED' ? 'abandoned' : 'completed',
+              triggerReasons: nudgeResult.reasons,
+            });
+
+            clearSession();
+            router.replace('/(tabs)/coach');
           }}
           insets={insets}
         />
@@ -1484,13 +1559,36 @@ interface CompleteViewProps {
   totalSessions: number;
   activeSession: import('@/stores/sessionStore').ActiveSession;
   theme: CourseUiColors;
+  nudge: CoachNudgeResult | null;
   onBack: () => void;
+  onAskCoach: () => void;
   insets: ReturnType<typeof useSafeAreaInsets>;
 }
 
-function CompleteView({ dogName, protocol, completedSessionCount, totalSessions, activeSession, theme, onBack }: CompleteViewProps) {
+function CompleteView({
+  dogName,
+  protocol,
+  completedSessionCount,
+  totalSessions,
+  activeSession,
+  theme,
+  nudge,
+  onBack,
+  onAskCoach,
+}: CompleteViewProps) {
   const nextProtocol = protocol.nextProtocolId;
   const insets = useSafeAreaInsets();
+  const isAbandoned = activeSession.state === 'ABANDONED';
+
+  useEffect(() => {
+    if (nudge?.shouldShow) {
+      captureEvent('post_session_coach_nudge_shown', {
+        dogName,
+        protocolTitle: protocol.title,
+        triggerReasons: nudge.reasons,
+      });
+    }
+  }, [nudge, dogName, protocol.title]);
 
   return (
     <View
@@ -1505,11 +1603,11 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
         backgroundColor: theme.tint,
       }}
     >
-      {/* Celebration */}
+      {/* Celebration / Session Ended */}
       <View style={{ alignItems: 'center', gap: spacing.md }}>
-        <AppIcon name="ribbon" size={72} color={theme.solid} />
+        <AppIcon name={isAbandoned ? 'alert-circle' : 'ribbon'} size={72} color={theme.solid} />
         <Text style={{ fontSize: 30, fontWeight: '800', color: theme.text, textAlign: 'center', lineHeight: 42 }}>
-          {dogName} crushed it!
+          {isAbandoned ? 'Session ended' : `${dogName} crushed it!`}
         </Text>
       </View>
 
@@ -1537,10 +1635,17 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
           value={formatDuration(Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000))}
           color={theme.solid}
         />
-        {nextProtocol && (
+        {!isAbandoned && nextProtocol && (
           <StatRow emoji="arrow-forward" label="Next up" value={`Stage ${(protocol.stage + 1)} session`} color={theme.solid} />
         )}
       </View>
+
+      {nudge?.shouldShow && (
+        <PostSessionCoachPrompt
+          onPress={onAskCoach}
+          accentColor={theme.solid}
+        />
+      )}
 
       <Pressable
         onPress={onBack}

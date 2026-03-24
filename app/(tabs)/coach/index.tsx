@@ -22,6 +22,7 @@ import { QuickSuggestions } from '@/components/coach/QuickSuggestions';
 import { TypingIndicator } from '@/components/coach/TypingIndicator';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
+import { captureEvent } from '@/lib/analytics';
 import { useTheme } from '@/lib/theme';
 import { useCoachStore } from '@/stores/coachStore';
 import { useDogStore } from '@/stores/dogStore';
@@ -35,6 +36,8 @@ export default function CoachScreen() {
     messages,
     isTyping,
     rateLimitError,
+    draftMessage,
+    setDraftMessage,
     initConversation,
     resetConversation,
     sendMessage,
@@ -52,8 +55,21 @@ export default function CoachScreen() {
       return;
     }
 
-    initConversation(dog.id).finally(() => setIsInit(true));
+    initConversation(dog.id).finally(() => {
+      setIsInit(true);
+    });
   }, [dog?.id, initConversation]);
+
+  // Separate effect to handle draft hydration, ensuring it runs even if tab was already mounted
+  useEffect(() => {
+    if (isInit && draftMessage) {
+      setInputText(draftMessage);
+      setDraftMessage(null);
+      captureEvent('coach_prefill_opened', {
+        source: 'post_session_nudge',
+      });
+    }
+  }, [isInit, draftMessage, setDraftMessage]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
