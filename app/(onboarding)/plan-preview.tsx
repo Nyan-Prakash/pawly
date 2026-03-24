@@ -16,11 +16,13 @@ import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { PlanReasonCard } from '@/components/adaptive/PlanReasonCard';
+import { PlanPersonalizationBadge } from '@/components/shared/PlanPersonalizationBadge';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { radii } from '@/constants/radii';
 import { shadows } from '@/constants/shadows';
 import { hexToRgba } from '@/constants/courseColors';
+import { captureEvent } from '@/lib/analytics';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
@@ -42,6 +44,7 @@ export default function PlanPreviewScreen() {
   const resetOnboarding = useOnboardingStore((s) => s.reset);
   const dogName = useOnboardingStore((s) => s.dogName);
   const primaryGoal = useOnboardingStore((s) => s.primaryGoal);
+  const trainingExperience = useOnboardingStore((s) => s.trainingExperience);
   const equipment = useOnboardingStore((s) => s.equipment);
   const availableMinutesPerDay = useOnboardingStore((s) => s.availableMinutesPerDay);
   const secondaryGoals = useOnboardingStore((s) => s.secondaryGoals);
@@ -65,6 +68,17 @@ export default function PlanPreviewScreen() {
   useEffect(() => {
     logoScale.value = withRepeat(withTiming(1.1, { duration: 1100 }), -1, true);
   }, [logoScale]);
+
+  useEffect(() => {
+    if (!loading) {
+      captureEvent('plan_personalization_line_shown', {
+        surface: 'plan_preview',
+        dogName,
+        primaryGoal,
+        trainingExperience,
+      });
+    }
+  }, [loading, dogName, primaryGoal, trainingExperience]);
 
   useEffect(() => {
     if (!loading) return;
@@ -262,6 +276,14 @@ export default function PlanPreviewScreen() {
                 {dogName}'s plan
               </Text>
             </Animated.View>
+
+            {/* Personalization Line */}
+            <PlanPersonalizationBadge
+              dogName={dogName}
+              primaryGoal={primaryGoal}
+              trainingExperience={trainingExperience}
+              variant="preview"
+            />
 
             {/* Plan subtitle — one line, secondary */}
             <Animated.View entering={FadeInDown.delay(180).duration(350)}>

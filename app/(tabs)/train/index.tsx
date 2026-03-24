@@ -24,8 +24,10 @@ import { Text } from '@/components/ui/Text';
 import { WalkLogModal } from '@/components/shared/WalkLogModal';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { ActiveCourseCard } from '@/components/train/ActiveCourseCard';
+import { PlanPersonalizationBadge } from '@/components/shared/PlanPersonalizationBadge';
 import { colors } from '@/constants/colors';
 import { getCourseUiColors, hexToRgba } from '@/constants/courseColors';
+import { captureEvent } from '@/lib/analytics';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { shadows } from '@/constants/shadows';
@@ -566,6 +568,20 @@ export default function TrainScreen() {
     ? (heroSession.planCourseTitle ?? getBehaviorLabel(heroSession.planGoal))
     : null;
 
+  const showPersonalization = heroCompletion === 0 && heroSession && !heroSession.isCompleted;
+
+  useEffect(() => {
+    if (showPersonalization) {
+      captureEvent('plan_personalization_line_shown', {
+        surface: 'first_session_card',
+        dogId: dog?.id,
+        planId: heroSession?.planId,
+        primaryGoal: heroSession?.planGoal,
+        trainingExperience: dog?.trainingExperience,
+      });
+    }
+  }, [showPersonalization]);
+
   if (isLoading && !hasPlans) {
     return (
       <SafeScreen>
@@ -984,6 +1000,15 @@ export default function TrainScreen() {
                         {heroSessionIsOverdue ? 'Missed Session' : "Today's Session"}
                       </Text>
                     </View>
+
+                    {showPersonalization && (
+                      <PlanPersonalizationBadge
+                        dogName={dog?.name || ''}
+                        primaryGoal={heroSession.planGoal}
+                        trainingExperience={dog?.trainingExperience}
+                        variant="sessionCard"
+                      />
+                    )}
                   </View>
 
                   {/* Title */}
