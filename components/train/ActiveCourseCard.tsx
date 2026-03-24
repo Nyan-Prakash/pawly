@@ -78,7 +78,7 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
       activeOpacity={0.75}
       onPress={onPress}
       style={{
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.bg.surface,
         borderRadius: 20,
         borderWidth: 1,
         borderColor,

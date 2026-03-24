@@ -70,7 +70,7 @@ const DEFAULT_PREFS: TrainingSchedulePrefs = {
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 };
 
-const OUTDOOR_GOALS = new Set(['Leash Pulling', "Won't Come", 'Barking']);
+const OUTDOOR_GOALS = new Set(['Leash Pulling', "Won't Come", 'Barking', 'Leash Reactivity', 'Heel', 'leash_pulling', 'recall', 'barking', 'leash_reactivity', 'heel']);
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0');
@@ -809,23 +809,40 @@ export function isRoundStreakNumber(streak: number): boolean {
   return streak > 0 && [7, 14, 21, 30, 60, 90].includes(streak);
 }
 
-export function getGreeting(): 'morning' | 'afternoon' | 'evening' {
+export function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'morning';
-  if (hour < 17) return 'afternoon';
-  return 'evening';
+  if (hour < 12) return "Time to train,";
+  if (hour < 17) return "Ready to train,";
+  return "Train tonight with";
 }
 
 export function getBehaviorLabel(goal: string): string {
   const map: Record<string, string> = {
-    'leash pulling': 'Leash',
-    'jumping up': 'Jumping',
+    'leash_pulling': 'Leash Pulling',
+    'leash pulling': 'Leash Pulling',
+    'jumping_up': 'Jumping Up',
+    'jumping up': 'Jumping Up',
     'barking': 'Barking',
     "won't come": 'Recall',
-    'potty training': 'Potty',
-    'crate anxiety': 'Crate',
-    'puppy biting': 'Biting',
+    'recall': 'Recall',
+    'potty_training': 'Potty Training',
+    'potty training': 'Potty Training',
+    'crate_anxiety': 'Crate Anxiety',
+    'crate anxiety': 'Crate Anxiety',
+    'puppy_biting': 'Puppy Biting',
+    'puppy biting': 'Puppy Biting',
     'settling': 'Settling',
+    'leave_it': 'Leave It',
+    'basic_obedience': 'Basic Obedience',
+    'separation_anxiety': 'Separation Anxiety',
+    'door_manners': 'Door Manners',
+    'impulse_control': 'Impulse Control',
+    'cooperative_care': 'Cooperative Care',
+    'wait_and_stay': 'Wait & Stay',
+    'leash_reactivity': 'Leash Reactivity',
+    'sit': 'Sit',
+    'down': 'Down',
+    'heel': 'Heel',
   };
   return map[goal.toLowerCase()] ?? goal;
 }

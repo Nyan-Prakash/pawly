@@ -103,6 +103,72 @@ const GOAL_OPTIONS: GoalOption[] = [
     description: 'Reliable down-stay on a mat in any environment',
     icon: 'bed',
   },
+  {
+    key: 'leave_it',
+    label: 'Leave It',
+    description: 'Rock-solid leave it and drop it in any situation',
+    icon: 'hand-left',
+  },
+  {
+    key: 'basic_obedience',
+    label: 'Basic Obedience',
+    description: 'Sit, down, and stay as reliable cued behaviors',
+    icon: 'school',
+  },
+  {
+    key: 'separation_anxiety',
+    label: 'Separation Anxiety',
+    description: 'Build calm independence from seconds to hours',
+    icon: 'sad',
+  },
+  {
+    key: 'door_manners',
+    label: 'Door Manners',
+    description: 'Sit and wait at every threshold, no bolting',
+    icon: 'exit',
+  },
+  {
+    key: 'impulse_control',
+    label: 'Impulse Control',
+    description: 'Calm self-control around food, toys, and arousal',
+    icon: 'pause-circle',
+  },
+  {
+    key: 'cooperative_care',
+    label: 'Cooperative Care',
+    description: 'Calm acceptance of handling, grooming, and vet visits',
+    icon: 'medkit',
+  },
+  {
+    key: 'wait_and_stay',
+    label: 'Wait & Stay',
+    description: 'Reliable wait at doors, kerbs, and before meals',
+    icon: 'time',
+  },
+  {
+    key: 'leash_reactivity',
+    label: 'Leash Reactivity',
+    description: 'Stay calm when passing dogs and other triggers',
+    icon: 'alert-circle',
+  },
+  {
+    key: 'sit',
+    label: 'Sit',
+    description: 'Solid sit from lure to verbal cue in any environment',
+    icon: 'chevron-down-circle',
+  },
+  {
+    key: 'down',
+    label: 'Down',
+    description: 'Reliable down from lure to verbal cue anywhere',
+    icon: 'arrow-down-circle',
+  },
+  {
+    key: 'heel',
+    label: 'Heel',
+    description: 'Formal heel position on and off leash',
+    icon: 'footsteps',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

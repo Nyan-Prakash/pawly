@@ -44,6 +44,17 @@ const GOAL_TITLES: Record<string, string> = {
   crate_anxiety: 'Crate Confidence',
   puppy_biting: 'Bite Inhibition',
   settling: 'Calm Settling',
+  leave_it: 'Leave It',
+  basic_obedience: 'Basic Obedience',
+  separation_anxiety: 'Separation Anxiety',
+  door_manners: 'Door Manners',
+  impulse_control: 'Impulse Control',
+  cooperative_care: 'Cooperative Care',
+  wait_and_stay: 'Wait & Stay',
+  leash_reactivity: 'Leash Reactivity',
+  sit: 'Sit',
+  down: 'Down',
+  heel: 'Heel',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

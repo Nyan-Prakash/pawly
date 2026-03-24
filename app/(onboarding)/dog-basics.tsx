@@ -29,6 +29,7 @@ import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { radii } from '@/constants/radii';
 import { shadows } from '@/constants/shadows';
+import { getGoalColor, hexToRgba, getContrastTextColor } from '@/constants/courseColors';
 import { BREEDS_LIST } from '@/constants/breeds';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import type { Weekday, TimeWindow, SessionStyle } from '@/types';
@@ -73,7 +74,37 @@ const BEHAVIOR_OPTIONS = [
   { value: 'crate_anxiety', label: 'Crate Anxiety', icon: 'home' as const, description: 'Stressed in crate' },
   { value: 'puppy_biting', label: 'Puppy Biting', icon: 'flash' as const, description: 'Nipping/mouthing' },
   { value: 'settling', label: 'Settling', icon: 'moon' as const, description: 'Struggles to calm down' },
+  { value: 'leave_it', label: 'Leave It', icon: 'hand-left' as const, description: 'Grabs or steals things' },
+  { value: 'basic_obedience', label: 'Basic Obedience', icon: 'school' as const, description: 'Sit, down, stay' },
+  { value: 'separation_anxiety', label: 'Separation Anxiety', icon: 'sad' as const, description: 'Distressed alone' },
+  { value: 'door_manners', label: 'Door Manners', icon: 'exit' as const, description: 'Bolts out the door' },
+  { value: 'impulse_control', label: 'Impulse Control', icon: 'pause-circle' as const, description: 'Impulsive & reactive' },
+  { value: 'cooperative_care', label: 'Cooperative Care', icon: 'medkit' as const, description: 'Resists handling' },
+  { value: 'wait_and_stay', label: 'Wait & Stay', icon: 'time' as const, description: 'Won\'t wait or stay' },
+  { value: 'leash_reactivity', label: 'Leash Reactivity', icon: 'alert-circle' as const, description: 'Lunges on leash' },
+  { value: 'sit', label: 'Sit', icon: 'chevron-down-circle' as const, description: 'Learning to sit' },
+  { value: 'down', label: 'Down', icon: 'arrow-down-circle' as const, description: 'Learning to lie down' },
+  { value: 'heel', label: 'Heel', icon: 'footsteps' as const, description: 'Formal heel position' },
 ];
+
+const BEHAVIOR_CATEGORIES = [
+  {
+    label: 'Common Behaviors',
+    values: ['leash_pulling', 'jumping_up', 'barking', 'recall', 'door_manners', 'puppy_biting'],
+  },
+  {
+    label: 'Anxiety & Emotions',
+    values: ['crate_anxiety', 'separation_anxiety', 'settling'],
+  },
+  {
+    label: 'Impulse & Reactivity',
+    values: ['leave_it', 'impulse_control', 'leash_reactivity'],
+  },
+  {
+    label: 'Skills & Obedience',
+    values: ['sit', 'down', 'heel', 'wait_and_stay', 'basic_obedience', 'cooperative_care', 'potty_training'],
+  },
+] as const;
 
 const AGE_OPTIONS = [
   { label: 'Puppy', description: '< 6 months', emoji: '🐾', ageMonths: 4 },
@@ -138,6 +169,89 @@ function timeWindowLabel(tw: string | null): string {
   return map[tw] ?? tw;
 }
 
+// ─── GoalChip ─────────────────────────────────────────────────────────────────
+
+function GoalChip({
+  icon,
+  label,
+  value,
+  selected,
+  isPrimary,
+  onPress,
+}: {
+  icon: import('@/components/ui/AppIcon').AppIconName;
+  label: string;
+  value: string;
+  selected: boolean;
+  isPrimary?: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const goalColor = getGoalColor(value);
+  const contrastText = getContrastTextColor(goalColor);
+
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => { scale.value = withTiming(0.95, { duration: 80 }); }}
+        onPressOut={() => { scale.value = withTiming(1, { duration: 140 }); }}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          borderRadius: 100,
+          borderWidth: selected ? 0 : 1.5,
+          borderColor: selected ? 'transparent' : hexToRgba(goalColor, 0.25),
+          backgroundColor: selected
+            ? goalColor
+            : hexToRgba(goalColor, 0.08),
+          ...(Platform.OS === 'ios'
+            ? {
+                shadowColor: goalColor,
+                shadowOffset: { width: 0, height: selected ? 3 : 1 },
+                shadowOpacity: selected ? 0.3 : 0.06,
+                shadowRadius: selected ? 6 : 3,
+              }
+            : { elevation: selected ? 3 : 1 }),
+        }}
+      >
+        <AppIcon
+          name={icon}
+          size={15}
+          color={selected ? contrastText : goalColor}
+        />
+        <Text
+          variant="bodyStrong"
+          style={{
+            fontSize: 14,
+            fontWeight: '600',
+            color: selected ? contrastText : goalColor,
+          }}
+        >
+          {label}
+        </Text>
+        {isPrimary && (
+          <View
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.3)',
+              borderRadius: 6,
+              paddingHorizontal: 5,
+              paddingVertical: 1,
+            }}
+          >
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Primary</Text>
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function DogBasicsScreen() {
@@ -168,6 +282,7 @@ export default function DogBasicsScreen() {
   const [neutered, setNeutered] = useState(stored.neutered ?? false);
   const [primaryGoal, setPrimaryGoal] = useState(stored.primaryGoal || '');
   const [secondaryGoals, setSecondaryGoals] = useState<string[]>(stored.secondaryGoals || []);
+  const [goalSearch, setGoalSearch] = useState('');
   const [severity, setSeverity] = useState<'mild' | 'moderate' | 'severe'>(stored.severity || 'moderate');
   const [trainingExperience, setTrainingExperience] = useState<'none' | 'some' | 'experienced'>(stored.trainingExperience || 'none');
   const [environmentType, setEnvironmentType] = useState<'apartment' | 'house_no_yard' | 'house_yard'>(stored.environmentType || 'house_yard');
@@ -209,8 +324,8 @@ export default function DogBasicsScreen() {
     });
   };
 
-  const goForward = () => navigateTo(currentStepIndex + 1, 'forward');
-  const goBack = () => navigateTo(currentStepIndex - 1, 'back');
+  const goForward = () => { setGoalSearch(''); navigateTo(currentStepIndex + 1, 'forward'); };
+  const goBack = () => { setGoalSearch(''); navigateTo(currentStepIndex - 1, 'back'); };
 
   // ─── Batch write + push to plan-preview ──────────────────────────────────
 
@@ -473,24 +588,98 @@ export default function DogBasicsScreen() {
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {BEHAVIOR_OPTIONS.map((opt) => (
-              <View key={opt.value} style={{ width: '47.5%' }}>
-                <OptionCard
-                  icon={opt.icon}
-                  label={opt.label}
-                  description={opt.description}
-                  selected={primaryGoal === opt.value}
-                  onPress={() => {
-                    setPrimaryGoal(opt.value);
-                    setSecondaryGoals((sg) => sg.filter((g) => g !== opt.value));
-                  }}
-                  layout="vertical"
-                  size="md"
-                />
-              </View>
-            ))}
+          {/* Search bar */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: colors.bg.surfaceAlt,
+              borderRadius: radii.md,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              gap: 8,
+              borderWidth: 1,
+              borderColor: colors.border.default,
+            }}
+          >
+            <AppIcon name="search" size={16} color={colors.text.secondary} />
+            <TextInput
+              value={goalSearch}
+              onChangeText={setGoalSearch}
+              placeholder="Search challenges..."
+              placeholderTextColor={colors.text.secondary}
+              style={{ flex: 1, fontSize: 15, color: colors.text.primary, padding: 0 }}
+              returnKeyType="done"
+              autoCorrect={false}
+            />
+            {goalSearch.length > 0 && (
+              <Pressable onPress={() => setGoalSearch('')} hitSlop={8}>
+                <AppIcon name="close-circle" size={16} color={colors.text.secondary} />
+              </Pressable>
+            )}
           </View>
+
+          {/* Results */}
+          {goalSearch.trim().length > 0 ? (
+            (() => {
+              const q = goalSearch.trim().toLowerCase();
+              const filtered = BEHAVIOR_OPTIONS.filter((o) =>
+                o.label.toLowerCase().includes(q) || o.description.toLowerCase().includes(q)
+              );
+              return filtered.length === 0 ? (
+                <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center', paddingVertical: spacing.lg }}>
+                  No results for "{goalSearch}"
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {filtered.map((opt) => (
+                    <GoalChip
+                      key={opt.value}
+                      value={opt.value}
+                      icon={opt.icon}
+                      label={opt.label}
+                      selected={primaryGoal === opt.value}
+                      onPress={() => {
+                        setPrimaryGoal(opt.value);
+                        setSecondaryGoals((sg) => sg.filter((g) => g !== opt.value));
+                      }}
+                    />
+                  ))}
+                </View>
+              );
+            })()
+          ) : (
+            <View style={{ gap: spacing.lg }}>
+              {BEHAVIOR_CATEGORIES.map((cat) => {
+                const opts = BEHAVIOR_OPTIONS.filter((o) => (cat.values as readonly string[]).includes(o.value));
+                return (
+                  <View key={cat.label} style={{ gap: spacing.xs }}>
+                    <Text
+                      variant="caption"
+                      style={{ fontSize: 13, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', color: colors.text.secondary }}
+                    >
+                      {cat.label}
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {opts.map((opt) => (
+                        <GoalChip
+                          key={opt.value}
+                          value={opt.value}
+                          icon={opt.icon}
+                          label={opt.label}
+                          selected={primaryGoal === opt.value}
+                          onPress={() => {
+                            setPrimaryGoal(opt.value);
+                            setSecondaryGoals((sg) => sg.filter((g) => g !== opt.value));
+                          }}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </QuestionScreen>
       )}
 
@@ -499,7 +688,7 @@ export default function DogBasicsScreen() {
           title="Any other challenges?"
           subtitle={
             secondaryGoals.length > 0
-              ? `${secondaryGoals.length} of 2 selected. Optional.`
+              ? `${secondaryGoals.length} of 2 selected — optional.`
               : 'Optional — pick up to 2 more.'
           }
           canContinue
@@ -508,36 +697,120 @@ export default function DogBasicsScreen() {
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {BEHAVIOR_OPTIONS.map((opt) => {
-              const isPrimary = opt.value === primaryGoal;
-              const isSelected = secondaryGoals.includes(opt.value);
-              return (
-                <View key={opt.value} style={{ width: '47.5%' }}>
-                  <OptionCard
-                    icon={opt.icon}
-                    label={opt.label}
-                    description={opt.description}
-                    selected={isPrimary || isSelected}
-                    disabled={isPrimary}
-                    badge={isPrimary ? 'Primary' : undefined}
-                    onPress={() => {
-                      if (isPrimary) return;
-                      setSecondaryGoals((sg) =>
-                        sg.includes(opt.value)
-                          ? sg.filter((g) => g !== opt.value)
-                          : sg.length < 2
-                          ? [...sg, opt.value]
-                          : sg
-                      );
-                    }}
-                    layout="vertical"
-                    size="md"
-                  />
+          {/* Search bar */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: colors.bg.surfaceAlt,
+              borderRadius: radii.md,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              gap: 8,
+              borderWidth: 1,
+              borderColor: colors.border.default,
+            }}
+          >
+            <AppIcon name="search" size={16} color={colors.text.secondary} />
+            <TextInput
+              value={goalSearch}
+              onChangeText={setGoalSearch}
+              placeholder="Search challenges..."
+              placeholderTextColor={colors.text.secondary}
+              style={{ flex: 1, fontSize: 15, color: colors.text.primary, padding: 0 }}
+              returnKeyType="done"
+              autoCorrect={false}
+            />
+            {goalSearch.length > 0 && (
+              <Pressable onPress={() => setGoalSearch('')} hitSlop={8}>
+                <AppIcon name="close-circle" size={16} color={colors.text.secondary} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Results */}
+          {goalSearch.trim().length > 0 ? (
+            (() => {
+              const q = goalSearch.trim().toLowerCase();
+              const filtered = BEHAVIOR_OPTIONS.filter((o) =>
+                o.label.toLowerCase().includes(q) || o.description.toLowerCase().includes(q)
+              );
+              return filtered.length === 0 ? (
+                <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center', paddingVertical: spacing.lg }}>
+                  No results for "{goalSearch}"
+                </Text>
+              ) : (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {filtered.map((opt) => {
+                    const isPrimary = opt.value === primaryGoal;
+                    const isSelected = secondaryGoals.includes(opt.value);
+                    return (
+                      <GoalChip
+                        key={opt.value}
+                        value={opt.value}
+                        icon={opt.icon}
+                        label={opt.label}
+                        selected={isPrimary || isSelected}
+                        isPrimary={isPrimary}
+                        onPress={() => {
+                          if (isPrimary) return;
+                          setSecondaryGoals((sg) =>
+                            sg.includes(opt.value)
+                              ? sg.filter((g) => g !== opt.value)
+                              : sg.length < 2
+                              ? [...sg, opt.value]
+                              : sg
+                          );
+                        }}
+                      />
+                    );
+                  })}
                 </View>
               );
-            })}
-          </View>
+            })()
+          ) : (
+            <View style={{ gap: spacing.lg }}>
+              {BEHAVIOR_CATEGORIES.map((cat) => {
+                const opts = BEHAVIOR_OPTIONS.filter((o) => (cat.values as readonly string[]).includes(o.value));
+                return (
+                  <View key={cat.label} style={{ gap: spacing.xs }}>
+                    <Text
+                      variant="caption"
+                      style={{ fontSize: 13, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', color: colors.text.secondary }}
+                    >
+                      {cat.label}
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {opts.map((opt) => {
+                        const isPrimary = opt.value === primaryGoal;
+                        const isSelected = secondaryGoals.includes(opt.value);
+                        return (
+                          <GoalChip
+                            key={opt.value}
+                            value={opt.value}
+                            icon={opt.icon}
+                            label={opt.label}
+                            selected={isPrimary || isSelected}
+                            isPrimary={isPrimary}
+                            onPress={() => {
+                              if (isPrimary) return;
+                              setSecondaryGoals((sg) =>
+                                sg.includes(opt.value)
+                                  ? sg.filter((g) => g !== opt.value)
+                                  : sg.length < 2
+                                  ? [...sg, opt.value]
+                                  : sg
+                              );
+                            }}
+                          />
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </QuestionScreen>
       )}
 

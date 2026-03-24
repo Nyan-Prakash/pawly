@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   AppState,
   type AppStateStatus,
   Modal,
@@ -691,7 +692,7 @@ function LoadingView({
       <AppIcon name="paw" size={48} color={accentColor} />
       <ActivityIndicator size="large" color={accentColor} />
       <Text style={{ marginTop: spacing.lg, color: colors.textSecondary, fontSize: 16 }}>
-        {error ?? 'Getting your session ready…'}
+        {error ?? 'Getting your session ready...'}
       </Text>
       {error && onBack ? (
         <Pressable
@@ -964,12 +965,16 @@ function SetupView({ protocol, checkedItems, theme, onToggle, insets, onBack, on
             borderRadius: 16,
             paddingVertical: spacing.lg,
             alignItems: 'center',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: spacing.sm,
             minHeight: 54,
             shadowColor: theme.solid,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.18,
-            shadowRadius: 12,
-            elevation: 4,
+            shadowOffset: { width: 0, height: allChecked ? 6 : 4 },
+            shadowOpacity: allChecked ? 0.28 : 0.18,
+            shadowRadius: allChecked ? 16 : 12,
+            elevation: allChecked ? 6 : 4,
+            opacity: pressed ? 0.9 : 1,
           })}
         >
           <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>
@@ -1049,7 +1054,22 @@ function StepActiveView({
         }}
         showsVerticalScrollIndicator={false}
       >
-        <BackButton onPress={onBack} />
+        {/* Back + step counter row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <BackButton onPress={onBack} />
+          <View
+            style={{
+              backgroundColor: hexToRgba(theme.solid, 0.12),
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.xs,
+              borderRadius: 99,
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, letterSpacing: 0.3 }}>
+              Step {stepNumber} of {totalSteps}
+            </Text>
+          </View>
+        </View>
 
         <StepCard
           step={step}
@@ -1062,130 +1082,136 @@ function StepActiveView({
         {/* Timer */}
         {hasTimer && (
           <View
-        style={{
-          alignItems: 'center',
-          gap: spacing.lg,
-          marginTop: spacing.lg,
-        }}
-          >
-        <View
-          style={{
-            position: 'relative',
-            alignItems: 'center',
-            justifyContent: 'center',
-            // Extra padding so the text is never clipped by the ScrollView
-            paddingVertical: spacing.md,
-          }}
-        >
-          <TimerRing
-            totalSeconds={step.durationSeconds!}
-            currentSeconds={activeSession.timerSeconds}
-            size={200} // a bit bigger so text has more room
-            color={timerDone ? colors.success : theme.solid}
-          />
-          <View
             style={{
-          position: 'absolute',
-          alignItems: 'center',
-          justifyContent: 'center',
+              backgroundColor: hexToRgba(theme.solid, 0.06),
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: hexToRgba(theme.solid, 0.12),
+              paddingVertical: spacing.xl,
+              paddingHorizontal: spacing.lg,
+              alignItems: 'center',
+              gap: spacing.lg,
             }}
           >
-            <Text
-          style={{
-            fontSize: 40,
-            fontWeight: '700',
-            lineHeight: 46, // make sure top isn’t cut
-            color: timerDone ? colors.success : colors.textPrimary,
-          }}
-            >
-          {formatTimer(activeSession.timerSeconds)}
-            </Text>
-            {timerDone && (
-          <Text
-            style={{
-              fontSize: 13,
-              color: colors.success,
-              fontWeight: '600',
-              marginTop: 4,
-            }}
-          >
-            Done!
-          </Text>
-            )}
-          </View>
-        </View>
-
-        {/* Timer controls */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 24,
-            marginTop: spacing.md,
-          }}
-        >
-          {/* Reset button */}
-          {(activeSession.isTimerRunning || activeSession.timerSeconds !== step.durationSeconds) && (
-            <Pressable
-              onPress={onResetTimer}
-              style={({ pressed }) => ({
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: pressed ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)',
+            {/* Ring + time text */}
+            <View
+              style={{
+                position: 'relative',
                 alignItems: 'center',
                 justifyContent: 'center',
-              })}
+                paddingVertical: spacing.sm,
+              }}
             >
-              <AppIcon name="refresh" size={20} color={colors.textSecondary} />
-            </Pressable>
-          )}
+              <TimerRing
+                totalSeconds={step.durationSeconds!}
+                currentSeconds={activeSession.timerSeconds}
+                size={200}
+                color={timerDone ? colors.success : theme.solid}
+              />
+              <View
+                style={{
+                  position: 'absolute',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 40,
+                    fontWeight: '700',
+                    lineHeight: 46,
+                    color: timerDone ? colors.success : colors.textPrimary,
+                  }}
+                >
+                  {formatTimer(activeSession.timerSeconds)}
+                </Text>
+                {timerDone && (
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: colors.success,
+                      fontWeight: '600',
+                      marginTop: 4,
+                    }}
+                  >
+                    Done!
+                  </Text>
+                )}
+              </View>
+            </View>
 
-          {/* Play / Pause button */}
-          <Pressable
-            onPress={onToggleTimer}
-            style={({ pressed }) => ({
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-                backgroundColor: pressed
-                ? (timerDone ? hexToRgba(colors.success, 0.85) : theme.selectedBorder)
-                : (timerDone ? colors.success : theme.solid),
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: timerDone ? colors.success : theme.solid,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 4,
-            })}
-          >
-            <AppIcon
-              name={activeSession.isTimerRunning ? 'pause' : 'play'}
-              size={28}
-              color="#FFFFFF"
-            />
-          </Pressable>
-        </View>
+            {/* Timer controls — reset always reserves space to avoid layout shift */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 24,
+              }}
+            >
+              {/* Reset — invisible when not applicable, preserves layout */}
+              <Pressable
+                onPress={onResetTimer}
+                disabled={!activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds}
+                style={({ pressed }) => ({
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: pressed ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: (!activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds) ? 0 : 1,
+                })}
+              >
+                <AppIcon name="refresh" size={20} color={colors.textSecondary} />
+              </Pressable>
 
-        {/* Status label */}
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: '600',
-            color: timerDone ? colors.success : colors.textSecondary,
-            textAlign: 'center',
-            marginTop: 12,
-            letterSpacing: 0.3,
-          }}
-        >
-          {activeSession.isTimerRunning
-            ? 'Running'
-            : timerDone
-              ? 'Complete!'
-              : 'Ready'}
-        </Text>
+              {/* Play / Pause */}
+              <Pressable
+                onPress={onToggleTimer}
+                style={({ pressed }) => ({
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                  backgroundColor: pressed
+                    ? (timerDone ? hexToRgba(colors.success, 0.85) : theme.selectedBorder)
+                    : (timerDone ? colors.success : theme.solid),
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: timerDone ? colors.success : theme.solid,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 4,
+                })}
+              >
+                <AppIcon
+                  name={activeSession.isTimerRunning ? 'pause' : 'play'}
+                  size={28}
+                  color="#FFFFFF"
+                />
+              </Pressable>
+
+              {/* Spacer to balance the reset button */}
+              <View style={{ width: 48, height: 48 }} />
+            </View>
+
+            {/* Status label */}
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: timerDone ? colors.success : colors.textSecondary,
+                textAlign: 'center',
+                letterSpacing: 0.3,
+              }}
+            >
+              {activeSession.isTimerRunning
+                ? 'Running...'
+                : timerDone
+                  ? 'Complete!'
+                  : 'Tap to start'}
+            </Text>
           </View>
         )}
 
@@ -1262,14 +1288,35 @@ interface StepCompleteViewProps {
 
 function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, theme, onNext, insets }: StepCompleteViewProps) {
   const isLast = !nextStep;
+  const ADVANCE_MS = 2500;
+
+  // Animated countdown bar for auto-advance
+  const countdownAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (!isLast) {
-      const t = setTimeout(onNext, 2500);
-      return () => clearTimeout(t);
+      countdownAnim.setValue(1);
+      const anim = Animated.timing(countdownAnim, {
+        toValue: 0,
+        duration: ADVANCE_MS,
+        useNativeDriver: false,
+      });
+      anim.start();
+      const t = setTimeout(onNext, ADVANCE_MS);
+      return () => {
+        anim.stop();
+        clearTimeout(t);
+      };
     }
     return undefined;
   }, [isLast]);
+
+  // Trim next step label cleanly at a word boundary
+  const nextStepLabel = nextStep
+    ? nextStep.instruction.length > 48
+      ? nextStep.instruction.slice(0, 48).replace(/\s\S+$/, '') + '...'
+      : nextStep.instruction
+    : '';
 
   return (
     <View
@@ -1326,9 +1373,9 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, theme
           </Pressable>
         </View>
       ) : (
-        <View style={{ alignItems: 'center', gap: spacing.md }}>
-          <Text style={{ fontSize: 15, color: colors.textSecondary }}>
-            Next: {nextStep?.instruction.slice(0, 50)}…
+        <View style={{ alignItems: 'center', gap: spacing.md, width: '100%' }}>
+          <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>
+            Next: {nextStepLabel}
           </Text>
           <Pressable
             onPress={onNext}
@@ -1352,8 +1399,20 @@ function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, theme
               <AppIcon name="arrow-forward" size={14} color={colors.text.primary} />
             </View>
           </Pressable>
+
+          {/* Animated countdown bar */}
+          <View style={{ width: '60%', height: 3, borderRadius: 99, backgroundColor: colors.border.soft, overflow: 'hidden' }}>
+            <Animated.View
+              style={{
+                height: 3,
+                borderRadius: 99,
+                backgroundColor: theme.solid,
+                width: countdownAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+              }}
+            />
+          </View>
           <Text style={{ fontSize: 13, color: colors.textSecondary, opacity: 0.6 }}>
-            Auto-advancing in 2 seconds…
+            Advancing automatically...
           </Text>
         </View>
       )}
@@ -1471,7 +1530,7 @@ function CompleteView({ dogName, protocol, completedSessionCount, totalSessions,
           elevation: 3,
         }}
       >
-        <StatRow emoji="analytics" label="Sessions completed" value={`${completedSessionCount} of ${totalSessions}`} color={theme.solid} />
+        <StatRow emoji="paw" label="Sessions completed" value={`${completedSessionCount} of ${totalSessions}`} color={theme.solid} />
         <StatRow
           emoji="time"
           label="Time trained"
@@ -1546,8 +1605,8 @@ function AbandonSheet({
             borderTopRightRadius: 28,
             paddingTop: spacing.md,
             paddingHorizontal: spacing.xl,
-            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg,
-            gap: spacing.md,
+            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md,
+            gap: spacing.lg,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -6 },
             shadowOpacity: 0.12,
@@ -1566,44 +1625,52 @@ function AbandonSheet({
             }}
           />
 
-          <View style={{ alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ alignItems: 'center', gap: spacing.xs }}>
             <Text style={{ fontSize: 20, fontWeight: '700', lineHeight: 28, color: colors.textPrimary }}>
               Leave this session?
             </Text>
-            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>
-              Your progress won't be saved.
+            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 }}>
+              Great effort so far! Progress from this session won't be saved.
             </Text>
           </View>
 
-          <Pressable
-            onPress={onKeepGoing}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? (theme?.selectedBorder ?? colors.primary) : (theme?.solid ?? colors.primary),
-              borderRadius: 14,
-              paddingVertical: spacing.lg,
-              alignItems: 'center',
-              minHeight: 54,
-            })}
-          >
-            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Keep going</Text>
-          </Pressable>
+          <View style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+            <Pressable
+              onPress={onKeepGoing}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? (theme?.selectedBorder ?? colors.primary) : (theme?.solid ?? colors.primary),
+                borderRadius: 14,
+                paddingVertical: spacing.lg,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: spacing.sm,
+                minHeight: 54,
+              })}
+            >
+              <AppIcon name="paw" size={18} color="#FFFFFF" />
+              <Text style={{ fontSize: 17, fontWeight: '700', color: '#FFFFFF' }}>Keep going</Text>
+            </Pressable>
 
-          <Pressable
-            onPress={onLeave}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? '#FEF2F2' : colors.surface,
-              borderRadius: 14,
-              paddingVertical: spacing.md + 2,
-              alignItems: 'center',
-              borderWidth: 1,
-              borderColor: '#F5C2C7',
-              minHeight: 50,
-            })}
-          >
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#B42318' }}>
-              Leave session
-            </Text>
-          </Pressable>
+            <Pressable
+              onPress={onLeave}
+              style={({ pressed }) => ({
+                backgroundColor: pressed ? '#FEF2F2' : 'transparent',
+                borderRadius: 14,
+                paddingVertical: spacing.md,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: spacing.sm,
+                minHeight: 50,
+              })}
+            >
+              <AppIcon name="warning" size={16} color="#DC2626" />
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#DC2626' }}>
+                Leave session
+              </Text>
+            </Pressable>
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -1621,14 +1688,17 @@ function BackButton({ onPress }: { onPress: () => void }) {
       hitSlop={12}
       style={({ pressed }) => ({
         alignSelf: 'flex-start',
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
         opacity: pressed ? 0.6 : 1,
         minHeight: 44,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
         justifyContent: 'center',
       })}
     >
-      <Text style={{ fontSize: 16, color: colors.textSecondary }}>← Back</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <AppIcon name="chevron-back" size={18} color={colors.textSecondary} />
+        <Text style={{ fontSize: 16, color: colors.textSecondary }}>Back</Text>
+      </View>
     </Pressable>
   );
 }
