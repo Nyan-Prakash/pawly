@@ -234,49 +234,39 @@ export default function PlanPreviewScreen() {
               HERO — calm, focused, uncluttered
           ══════════════════════════════════════════════════════ */}
           <LinearGradient
-            colors={[colors.brand.primary, '#16A34A']}
+            colors={[colors.brand.primary, '#059669']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ paddingTop: spacing.xl + spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg }}
+            style={{ paddingTop: spacing.xl + 40, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg }}
           >
-            {/* Course chip — small, quiet */}
-            <Animated.View entering={FadeInDown.delay(60).duration(350)}>
-              <View style={{
-                flexDirection: 'row',
-                alignSelf: 'flex-start',
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                paddingHorizontal: spacing.md,
-                paddingVertical: 5,
-                borderRadius: radii.pill,
-                marginBottom: spacing.md,
-              }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.95)', letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                  {goalLabel} · Stage 1
-                </Text>
+            {/* Success indicator */}
+            <Animated.View entering={FadeInDown.delay(100).duration(500)}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg }}>
+                <AppIcon name="checkmark" size={28} color="#fff" />
               </View>
             </Animated.View>
 
             {/* Dog name — the hero moment */}
-            <Animated.View entering={FadeInDown.delay(120).duration(350)}>
-              <Text style={{ fontSize: 40, fontWeight: '800', color: '#fff', letterSpacing: -1.5, lineHeight: 46, marginBottom: spacing.xs }}>
-                {dogName}'s plan
+            <Animated.View entering={FadeInDown.delay(200).duration(500)}>
+              <Text style={{ fontSize: 42, fontWeight: '800', color: '#fff', letterSpacing: -1.5, lineHeight: 48, marginBottom: spacing.sm }}>
+                {dogName} is ready
               </Text>
             </Animated.View>
 
-            {/* Plan subtitle — one line, secondary */}
-            <Animated.View entering={FadeInDown.delay(180).duration(350)}>
-              <Text style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', lineHeight: 24, marginBottom: spacing.xl }}>
-                {planTitle}
+            {/* Plan subtitle — emphasized primary issue */}
+            <Animated.View entering={FadeInDown.delay(300).duration(500)}>
+              <Text style={{ fontSize: 18, color: 'rgba(255,255,255,0.9)', lineHeight: 26, marginBottom: spacing.xl }}>
+                We've built a personalized path to tackle <Text style={{ fontWeight: '700', color: '#fff' }}>{goalLabel.toLowerCase()}</Text> and build lasting confidence.
               </Text>
             </Animated.View>
 
             {/* 3 stats — clean row */}
-            <Animated.View entering={FadeInDown.delay(240).duration(350)}>
+            <Animated.View entering={FadeInDown.delay(400).duration(500)}>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 {[
                   { label: 'Duration', value: '4 weeks' },
-                  { label: 'Per session', value: `${availableMinutesPerDay} min` },
-                  { label: 'Sessions/wk', value: '3–5 days' },
+                  { label: 'Per session', value: availableMinutesPerDay === 20 ? 'Flexible' : `${availableMinutesPerDay} min` },
+                  { label: 'Commitment', value: 'High focus' },
                 ].map((stat, i) => (
                   <View
                     key={i}
@@ -288,10 +278,10 @@ export default function PlanPreviewScreen() {
                       alignItems: 'center',
                     }}
                   >
-                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.5 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: -0.5 }}>
                       {stat.value}
                     </Text>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginTop: 3 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginTop: 3 }}>
                       {stat.label}
                     </Text>
                   </View>
@@ -575,12 +565,12 @@ export default function PlanPreviewScreen() {
           {!user ? (
             <>
               <Button
-                label="Save my plan — Create account"
+                label="Continue →"
                 onPress={() => router.push('/(auth)/signup?from=onboarding')}
                 style={{ marginBottom: spacing.sm }}
               />
               <Text style={{ textAlign: 'center', fontSize: 14, color: colors.text.secondary }}>
-                Your plan is ready. Create a free account to save it.
+                Create your free account to start training.
               </Text>
             </>
           ) : isPaid ? (

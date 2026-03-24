@@ -31,6 +31,7 @@ import { radii } from '@/constants/radii';
 import { shadows } from '@/constants/shadows';
 import { getGoalColor, hexToRgba, getContrastTextColor } from '@/constants/courseColors';
 import { BREEDS_LIST } from '@/constants/breeds';
+import { buildOnboardingInsight } from '@/lib/onboardingInsights';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import type { Weekday, TimeWindow, SessionStyle } from '@/types';
 
@@ -39,31 +40,39 @@ import type { Weekday, TimeWindow, SessionStyle } from '@/types';
 const STEPS = [
   'welcome',         // 0
   'dogName',         // 1
-  'dogAge',          // 2
-  'dogBreed',        // 3
-  'dogSexNeutered',  // 4
-  'primaryGoal',     // 5
-  'secondaryGoals',  // 6
-  'severity',        // 7
-  'experienceLevel', // 8
-  'homeSetup',       // 9
-  'household',       // 10
-  'daysPerWeek',     // 11
-  'sessionLength',   // 12
-  'preferredDays',   // 13
-  'timeOfDay',       // 14
-  'sessionStyle',    // 15
-  'summary',         // 16
-  'generatingPlan',  // 17
+  'primaryGoal',     // 2
+  'severity',        // 3
+  'environment',     // 4
+  'analyzing',       // 5
+  'insightReveal',   // 6
+  'firstWin',        // 7
+  'trainingTime',    // 8
+  'experienceLevel', // 9
+  'trainingDays',    // 10
+  'scheduleStyle',   // 11
+  'generatingPlan',  // 12
 ] as const;
 
 type StepId = (typeof STEPS)[number];
 
-// Steps 1–16 show progress; welcome (0) and generating (17) do not
-const PROGRESS_STEP_COUNT = 16;
-const getProgressStep = (index: number) => Math.max(0, index - 1);
+// Screens 1-11 show progress
+const PROGRESS_STEP_COUNT = 11;
+const getProgressStep = (index: number) => {
+  if (index === 0) return 0; // welcome
+  if (index >= 12) return PROGRESS_STEP_COUNT; // generating
+  return index;
+};
 
 // ─── Static data ──────────────────────────────────────────────────────────────
+
+const PRIMARY_PROBLEM_OPTIONS = [
+  { value: 'pulls_on_leash', label: 'Pulls on Leash', icon: 'walk' as const, description: 'Pulls towards triggers or scents' },
+  { value: 'jumps_on_people', label: 'Jumps on People', icon: 'arrow-up-circle' as const, description: 'Excited greetings' },
+  { value: 'barking', label: 'Barking', icon: 'volume-high' as const, description: 'Reacting to sounds or people' },
+  { value: 'recall', label: "Won't Come", icon: 'return-down-back' as const, description: 'Ignores you when called' },
+  { value: 'puppy_biting', label: 'Puppy Biting', icon: 'flash' as const, description: 'Nipping and mouthing' },
+  { value: 'crate_anxiety', label: 'Crate Anxiety', icon: 'home' as const, description: 'Stressed when confined' },
+];
 
 const BEHAVIOR_OPTIONS = [
   { value: 'leash_pulling', label: 'Leash Pulling', icon: 'walk' as const, description: 'Pulls on walks' },
@@ -87,37 +96,11 @@ const BEHAVIOR_OPTIONS = [
   { value: 'heel', label: 'Heel', icon: 'footsteps' as const, description: 'Formal heel position' },
 ];
 
-const BEHAVIOR_CATEGORIES = [
-  {
-    label: 'Common Behaviors',
-    values: ['leash_pulling', 'jumping_up', 'barking', 'recall', 'door_manners', 'puppy_biting'],
-  },
-  {
-    label: 'Anxiety & Emotions',
-    values: ['crate_anxiety', 'separation_anxiety', 'settling'],
-  },
-  {
-    label: 'Impulse & Reactivity',
-    values: ['leave_it', 'impulse_control', 'leash_reactivity'],
-  },
-  {
-    label: 'Skills & Obedience',
-    values: ['sit', 'down', 'heel', 'wait_and_stay', 'basic_obedience', 'cooperative_care', 'potty_training'],
-  },
-] as const;
-
-const AGE_OPTIONS = [
-  { label: 'Puppy', description: '< 6 months', emoji: '🐾', ageMonths: 4 },
-  { label: 'Young', description: '6–18 months', emoji: '⚡', ageMonths: 12 },
-  { label: 'Adult', description: '1–3 years', emoji: '🎯', ageMonths: 24 },
-  { label: 'Senior', description: '3+ years', emoji: '⭐', ageMonths: 48 },
-];
-
 const SESSION_LENGTH_OPTIONS = [
-  { label: '5 min', description: 'Quick wins', icon: 'flash' as const, value: 5 },
-  { label: '10 min', description: 'Steady progress', icon: 'time' as const, value: 10 },
-  { label: '15 min', description: 'Solid sessions', icon: 'trending-up' as const, value: 15 },
-  { label: '20+ min', description: 'Deep training', icon: 'fitness' as const, value: 20 },
+  { label: '5 min/day', description: 'Quick wins', icon: 'flash' as const, value: 5 },
+  { label: '10 min/day', description: 'Steady progress', icon: 'time' as const, value: 10 },
+  { label: '15 min/day', description: 'Solid sessions', icon: 'trending-up' as const, value: 15 },
+  { label: 'Flexible', description: 'Varies by day', icon: 'fitness' as const, value: 20 },
 ];
 
 const SEVERITY_OPTIONS = [
@@ -139,9 +122,15 @@ const HOME_OPTIONS = [
 ];
 
 const SESSION_STYLE_OPTIONS = [
-  { value: 'micro', label: 'Micro', description: 'Short bursts, high frequency', icon: 'flash' as const },
+  { value: 'micro', label: 'Micro', description: 'Short, frequent bursts', icon: 'flash' as const },
   { value: 'balanced', label: 'Balanced', description: 'A steady, realistic mix', icon: 'git-branch' as const },
-  { value: 'focused', label: 'Focused', description: 'Fewer sessions, longer reps', icon: 'bookmark' as const },
+  { value: 'focused', label: 'Focused', description: 'Longer, deeper sessions', icon: 'bookmark' as const },
+];
+
+const SCHEDULE_FLEXIBILITY_OPTIONS = [
+  { value: 'skip', label: 'Skip if missed', description: 'Just move on', icon: 'play-skip-forward' as const },
+  { value: 'move_next_slot', label: 'Catch up later', description: 'Move to next slot', icon: 'repeat' as const },
+  { value: 'move_tomorrow', label: 'Push to tomorrow', description: 'Try again next day', icon: 'calendar' as const },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -171,86 +160,6 @@ function timeWindowLabel(tw: string | null): string {
 
 // ─── GoalChip ─────────────────────────────────────────────────────────────────
 
-function GoalChip({
-  icon,
-  label,
-  value,
-  selected,
-  isPrimary,
-  onPress,
-}: {
-  icon: import('@/components/ui/AppIcon').AppIconName;
-  label: string;
-  value: string;
-  selected: boolean;
-  isPrimary?: boolean;
-  onPress: () => void;
-}) {
-  const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-
-  const goalColor = getGoalColor(value);
-  const contrastText = getContrastTextColor(goalColor);
-
-  return (
-    <Animated.View style={animStyle}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={() => { scale.value = withTiming(0.95, { duration: 80 }); }}
-        onPressOut={() => { scale.value = withTiming(1, { duration: 140 }); }}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 6,
-          paddingHorizontal: 14,
-          paddingVertical: 10,
-          borderRadius: 100,
-          borderWidth: selected ? 0 : 1.5,
-          borderColor: selected ? 'transparent' : hexToRgba(goalColor, 0.25),
-          backgroundColor: selected
-            ? goalColor
-            : hexToRgba(goalColor, 0.08),
-          ...(Platform.OS === 'ios'
-            ? {
-                shadowColor: goalColor,
-                shadowOffset: { width: 0, height: selected ? 3 : 1 },
-                shadowOpacity: selected ? 0.3 : 0.06,
-                shadowRadius: selected ? 6 : 3,
-              }
-            : { elevation: selected ? 3 : 1 }),
-        }}
-      >
-        <AppIcon
-          name={icon}
-          size={15}
-          color={selected ? contrastText : goalColor}
-        />
-        <Text
-          variant="bodyStrong"
-          style={{
-            fontSize: 14,
-            fontWeight: '600',
-            color: selected ? contrastText : goalColor,
-          }}
-        >
-          {label}
-        </Text>
-        {isPrimary && (
-          <View
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.3)',
-              borderRadius: 6,
-              paddingHorizontal: 5,
-              paddingVertical: 1,
-            }}
-          >
-            <Text style={{ fontSize: 10, fontWeight: '700', color: '#fff' }}>Primary</Text>
-          </View>
-        )}
-      </Pressable>
-    </Animated.View>
-  );
-}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -272,17 +181,9 @@ export default function DogBasicsScreen() {
   }, [step]);
 
   // Local form state — seeded from store so returning mid-flow preserves values
-  // Written back to store in batch at step 17 (generatingPlan)
+  // Written back to store in batch at step 12 (generatingPlan)
   const [dogName, setDogName] = useState(stored.dogName || '');
-  const [ageMonths, setAgeMonths] = useState(stored.ageMonths || 12);
-  const [breed, setBreed] = useState(stored.breed || '');
-  const [breedQuery, setBreedQuery] = useState(stored.breed || '');
-  const [breedFocused, setBreedFocused] = useState(false);
-  const [sex, setSex] = useState<'male' | 'female'>(stored.sex || 'male');
-  const [neutered, setNeutered] = useState(stored.neutered ?? false);
   const [primaryGoal, setPrimaryGoal] = useState(stored.primaryGoal || '');
-  const [secondaryGoals, setSecondaryGoals] = useState<string[]>(stored.secondaryGoals || []);
-  const [goalSearch, setGoalSearch] = useState('');
   const [severity, setSeverity] = useState<'mild' | 'moderate' | 'severe'>(stored.severity || 'moderate');
   const [trainingExperience, setTrainingExperience] = useState<'none' | 'some' | 'experienced'>(stored.trainingExperience || 'none');
   const [environmentType, setEnvironmentType] = useState<'apartment' | 'house_no_yard' | 'house_yard'>(stored.environmentType || 'house_yard');
@@ -293,6 +194,7 @@ export default function DogBasicsScreen() {
   const [preferredDays, setPreferredDays] = useState<Weekday[]>(stored.preferredTrainingDays || []);
   const [timeWindow, setTimeWindow] = useState<string | null>(null);
   const [sessionStyle, setSessionStyle] = useState<SessionStyle>(stored.sessionStyle || 'balanced');
+  const [scheduleFlexibility, setScheduleFlexibility] = useState(stored.scheduleFlexibility || 'move_next_slot');
 
   // Breed search
   const breedResults =
@@ -324,8 +226,8 @@ export default function DogBasicsScreen() {
     });
   };
 
-  const goForward = () => { setGoalSearch(''); navigateTo(currentStepIndex + 1, 'forward'); };
-  const goBack = () => { setGoalSearch(''); navigateTo(currentStepIndex - 1, 'back'); };
+  const goForward = () => { navigateTo(currentStepIndex + 1, 'forward'); };
+  const goBack = () => { navigateTo(currentStepIndex - 1, 'back'); };
 
   // ─── Batch write + push to plan-preview ──────────────────────────────────
 
@@ -344,12 +246,12 @@ export default function DogBasicsScreen() {
     }
 
     setField('dogName', dogName.trim());
-    setField('ageMonths', ageMonths);
-    setField('breed', breed);
-    setField('sex', sex);
-    setField('neutered', neutered);
+    setField('ageMonths', 18); // Default to adolescent/adult for safety
+    setField('breed', 'Mixed Breed'); // Default for high-conversion flow
+    setField('sex', 'male'); // Internal default
+    setField('neutered', true); // Safe default for training expectations
     setField('primaryGoal', primaryGoal);
-    setField('secondaryGoals', secondaryGoals);
+    setField('secondaryGoals', []); // Remove secondary goals from primary flow
     setField('severity', severity);
     setField('trainingExperience', trainingExperience);
     setField('environmentType', environmentType);
@@ -361,7 +263,7 @@ export default function DogBasicsScreen() {
     setField('preferredTrainingWindows', windows);
     setField('preferredTrainingTimes', {});
     setField('sessionStyle', sessionStyle);
-    setField('scheduleFlexibility', 'move_next_slot');
+    setField('scheduleFlexibility', scheduleFlexibility as any);
     setField('scheduleIntensity', 'balanced');
     setField('blockedDays', []);
     setField('blockedDates', []);
@@ -388,9 +290,12 @@ export default function DogBasicsScreen() {
       {stepId === 'dogName' && (
         <QuestionScreen
           title="What's your dog's name?"
-          subtitle="This is how we'll refer to them throughout the app."
+          subtitle="We'll use this to personalize your experience."
           canContinue={dogName.trim().length > 0}
-          onContinue={goForward}
+          onContinue={() => {
+            setField('dogName', dogName.trim());
+            goForward();
+          }}
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
@@ -407,416 +312,69 @@ export default function DogBasicsScreen() {
         </QuestionScreen>
       )}
 
-      {stepId === 'dogAge' && (
-        <QuestionScreen
-          title={dogName ? `How old is ${dogName}?` : 'How old is your dog?'}
-          canContinue
-          onContinue={goForward}
-          onBack={goBack}
-          currentStep={progressStep}
-          totalSteps={PROGRESS_STEP_COUNT}
-        >
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {AGE_OPTIONS.map((opt) => (
-              <View key={opt.ageMonths} style={{ width: '47.5%' }}>
-                <OptionCard
-                  emoji={opt.emoji}
-                  label={opt.label}
-                  description={opt.description}
-                  selected={ageMonths === opt.ageMonths}
-                  onPress={() => setAgeMonths(opt.ageMonths)}
-                  layout="vertical"
-                  size="lg"
-                />
-              </View>
-            ))}
-          </View>
-        </QuestionScreen>
-      )}
-
-      {stepId === 'dogBreed' && (
-        <QuestionScreen
-          title="What breed is your dog?"
-          subtitle="Optional — helps us tailor advice."
-          canContinue
-          onContinue={goForward}
-          onBack={goBack}
-          currentStep={progressStep}
-          totalSteps={PROGRESS_STEP_COUNT}
-          continueLabel={breed ? 'Continue' : 'Skip for now'}
-          scrollable={false}
-        >
-          <View style={{ zIndex: 10 }}>
-            <TextInput
-              value={breedQuery}
-              onChangeText={(t) => {
-                setBreedQuery(t);
-                if (!t) setBreed('');
-              }}
-              onFocus={() => setBreedFocused(true)}
-              onBlur={() => setTimeout(() => setBreedFocused(false), 150)}
-              placeholder="Search breed…"
-              placeholderTextColor={`${colors.text.secondary}80`}
-              autoCapitalize="words"
-              style={{
-                backgroundColor: colors.bg.surfaceAlt,
-                borderRadius: radii.md,
-                borderWidth: 1.5,
-                borderColor: breedFocused ? colors.brand.primary : colors.border.default,
-                paddingHorizontal: 16,
-                height: 52,
-                fontSize: 16,
-                color: colors.text.primary,
-              }}
-            />
-            {breedFocused && breedResults.length > 0 && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 56,
-                  left: 0,
-                  right: 0,
-                  backgroundColor: colors.bg.surface,
-                  borderRadius: radii.md,
-                  borderWidth: 1,
-                  borderColor: colors.border.default,
-                  zIndex: 100,
-                  ...(Platform.OS === 'android'
-                    ? { elevation: 10 }
-                    : {
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.1,
-                        shadowRadius: 8,
-                      }),
-                }}
-              >
-                {breedResults.map((b) => (
-                  <Pressable
-                    key={b}
-                    onPress={() => {
-                      setBreed(b);
-                      setBreedQuery(b);
-                      setBreedFocused(false);
-                    }}
-                    style={{
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      borderBottomWidth: 1,
-                      borderBottomColor: colors.border.soft,
-                    }}
-                  >
-                    <Text variant="body" color={colors.text.primary}>{b}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-        </QuestionScreen>
-      )}
-
-      {stepId === 'dogSexNeutered' && (
-        <QuestionScreen
-          title="Tell us a bit more"
-          canContinue
-          onContinue={() => {
-            // Save current form state to store before leaving
-            setField('dogName', dogName.trim());
-            setField('ageMonths', ageMonths);
-            setField('breed', breed);
-            setField('sex', sex);
-            setField('neutered', neutered);
-            router.push('/(onboarding)/dog-photo');
-          }}
-          onBack={goBack}
-          currentStep={progressStep}
-          totalSteps={PROGRESS_STEP_COUNT}
-        >
-          <View style={{ gap: spacing.xl }}>
-            <View style={{ gap: spacing.sm }}>
-              <Text variant="h3" style={{ color: colors.text.primary }}>Sex</Text>
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <OptionCard
-                  icon="male-sharp"
-                  label="Male"
-                  selected={sex === 'male'}
-                  onPress={() => setSex('male')}
-                  layout="vertical"
-                />
-                <OptionCard
-                  icon="female-sharp"
-                  label="Female"
-                  selected={sex === 'female'}
-                  onPress={() => setSex('female')}
-                  layout="vertical"
-                />
-              </View>
-            </View>
-
-            <View style={{ gap: spacing.sm }}>
-              <Text variant="h3" style={{ color: colors.text.primary }}>
-                {sex === 'male' ? 'Neutered?' : 'Spayed?'}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <OptionCard
-                  label="Yes"
-                  icon="checkmark-circle"
-                  selected={neutered}
-                  onPress={() => setNeutered(true)}
-                  layout="vertical"
-                />
-                <OptionCard
-                  label="No"
-                  icon="close-circle"
-                  selected={!neutered}
-                  onPress={() => setNeutered(false)}
-                  layout="vertical"
-                />
-              </View>
-            </View>
-          </View>
-        </QuestionScreen>
-      )}
-
       {stepId === 'primaryGoal' && (
         <QuestionScreen
-          title="What's the #1 thing you want to fix?"
-          subtitle="Pick the most important challenge to tackle first."
+          title={`What's the main issue with ${dogName}?`}
           canContinue={primaryGoal !== ''}
           onContinue={goForward}
           onBack={goBack}
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
-          {/* Search bar */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: colors.bg.surfaceAlt,
-              borderRadius: radii.md,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              gap: 8,
-              borderWidth: 1,
-              borderColor: colors.border.default,
-            }}
-          >
-            <AppIcon name="search" size={16} color={colors.text.secondary} />
-            <TextInput
-              value={goalSearch}
-              onChangeText={setGoalSearch}
-              placeholder="Search challenges..."
-              placeholderTextColor={colors.text.secondary}
-              style={{ flex: 1, fontSize: 15, color: colors.text.primary, padding: 0 }}
-              returnKeyType="done"
-              autoCorrect={false}
-            />
-            {goalSearch.length > 0 && (
-              <Pressable onPress={() => setGoalSearch('')} hitSlop={8}>
-                <AppIcon name="close-circle" size={16} color={colors.text.secondary} />
-              </Pressable>
-            )}
+          <View style={{ gap: spacing.sm }}>
+            {PRIMARY_PROBLEM_OPTIONS.map((opt) => (
+              <OptionCard
+                key={opt.value}
+                icon={opt.icon}
+                label={opt.label}
+                description={opt.description}
+                selected={primaryGoal === opt.value}
+                onPress={() => {
+                  setPrimaryGoal(opt.value);
+                }}
+                layout="horizontal"
+                size="md"
+              />
+            ))}
           </View>
-
-          {/* Results */}
-          {goalSearch.trim().length > 0 ? (
-            (() => {
-              const q = goalSearch.trim().toLowerCase();
-              const filtered = BEHAVIOR_OPTIONS.filter((o) =>
-                o.label.toLowerCase().includes(q) || o.description.toLowerCase().includes(q)
-              );
-              return filtered.length === 0 ? (
-                <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center', paddingVertical: spacing.lg }}>
-                  No results for "{goalSearch}"
-                </Text>
-              ) : (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {filtered.map((opt) => (
-                    <GoalChip
-                      key={opt.value}
-                      value={opt.value}
-                      icon={opt.icon}
-                      label={opt.label}
-                      selected={primaryGoal === opt.value}
-                      onPress={() => {
-                        setPrimaryGoal(opt.value);
-                        setSecondaryGoals((sg) => sg.filter((g) => g !== opt.value));
-                      }}
-                    />
-                  ))}
-                </View>
-              );
-            })()
-          ) : (
-            <View style={{ gap: spacing.lg }}>
-              {BEHAVIOR_CATEGORIES.map((cat) => {
-                const opts = BEHAVIOR_OPTIONS.filter((o) => (cat.values as readonly string[]).includes(o.value));
-                return (
-                  <View key={cat.label} style={{ gap: spacing.xs }}>
-                    <Text
-                      variant="caption"
-                      style={{ fontSize: 13, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', color: colors.text.secondary }}
-                    >
-                      {cat.label}
-                    </Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {opts.map((opt) => (
-                        <GoalChip
-                          key={opt.value}
-                          value={opt.value}
-                          icon={opt.icon}
-                          label={opt.label}
-                          selected={primaryGoal === opt.value}
-                          onPress={() => {
-                            setPrimaryGoal(opt.value);
-                            setSecondaryGoals((sg) => sg.filter((g) => g !== opt.value));
-                          }}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          )}
         </QuestionScreen>
       )}
 
-      {stepId === 'secondaryGoals' && (
-        <QuestionScreen
-          title="Any other challenges?"
-          subtitle={
-            secondaryGoals.length > 0
-              ? `${secondaryGoals.length} of 2 selected — optional.`
-              : 'Optional — pick up to 2 more.'
-          }
-          canContinue
+      {stepId === 'analyzing' && (
+        <AnalyzingStep dogName={dogName} onComplete={goForward} />
+      )}
+
+      {stepId === 'insightReveal' && (
+        <InsightRevealStep
+          params={{
+            dogName,
+            primaryProblem: primaryGoal,
+            severity,
+            environmentType,
+            hasKids,
+            hasOtherPets,
+          }}
           onContinue={goForward}
           onBack={goBack}
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
-        >
-          {/* Search bar */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: colors.bg.surfaceAlt,
-              borderRadius: radii.md,
-              paddingHorizontal: 12,
-              paddingVertical: 10,
-              gap: 8,
-              borderWidth: 1,
-              borderColor: colors.border.default,
-            }}
-          >
-            <AppIcon name="search" size={16} color={colors.text.secondary} />
-            <TextInput
-              value={goalSearch}
-              onChangeText={setGoalSearch}
-              placeholder="Search challenges..."
-              placeholderTextColor={colors.text.secondary}
-              style={{ flex: 1, fontSize: 15, color: colors.text.primary, padding: 0 }}
-              returnKeyType="done"
-              autoCorrect={false}
-            />
-            {goalSearch.length > 0 && (
-              <Pressable onPress={() => setGoalSearch('')} hitSlop={8}>
-                <AppIcon name="close-circle" size={16} color={colors.text.secondary} />
-              </Pressable>
-            )}
-          </View>
+        />
+      )}
 
-          {/* Results */}
-          {goalSearch.trim().length > 0 ? (
-            (() => {
-              const q = goalSearch.trim().toLowerCase();
-              const filtered = BEHAVIOR_OPTIONS.filter((o) =>
-                o.label.toLowerCase().includes(q) || o.description.toLowerCase().includes(q)
-              );
-              return filtered.length === 0 ? (
-                <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center', paddingVertical: spacing.lg }}>
-                  No results for "{goalSearch}"
-                </Text>
-              ) : (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {filtered.map((opt) => {
-                    const isPrimary = opt.value === primaryGoal;
-                    const isSelected = secondaryGoals.includes(opt.value);
-                    return (
-                      <GoalChip
-                        key={opt.value}
-                        value={opt.value}
-                        icon={opt.icon}
-                        label={opt.label}
-                        selected={isPrimary || isSelected}
-                        isPrimary={isPrimary}
-                        onPress={() => {
-                          if (isPrimary) return;
-                          setSecondaryGoals((sg) =>
-                            sg.includes(opt.value)
-                              ? sg.filter((g) => g !== opt.value)
-                              : sg.length < 2
-                              ? [...sg, opt.value]
-                              : sg
-                          );
-                        }}
-                      />
-                    );
-                  })}
-                </View>
-              );
-            })()
-          ) : (
-            <View style={{ gap: spacing.lg }}>
-              {BEHAVIOR_CATEGORIES.map((cat) => {
-                const opts = BEHAVIOR_OPTIONS.filter((o) => (cat.values as readonly string[]).includes(o.value));
-                return (
-                  <View key={cat.label} style={{ gap: spacing.xs }}>
-                    <Text
-                      variant="caption"
-                      style={{ fontSize: 13, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', color: colors.text.secondary }}
-                    >
-                      {cat.label}
-                    </Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {opts.map((opt) => {
-                        const isPrimary = opt.value === primaryGoal;
-                        const isSelected = secondaryGoals.includes(opt.value);
-                        return (
-                          <GoalChip
-                            key={opt.value}
-                            value={opt.value}
-                            icon={opt.icon}
-                            label={opt.label}
-                            selected={isPrimary || isSelected}
-                            isPrimary={isPrimary}
-                            onPress={() => {
-                              if (isPrimary) return;
-                              setSecondaryGoals((sg) =>
-                                sg.includes(opt.value)
-                                  ? sg.filter((g) => g !== opt.value)
-                                  : sg.length < 2
-                                  ? [...sg, opt.value]
-                                  : sg
-                              );
-                            }}
-                          />
-                        );
-                      })}
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </QuestionScreen>
+      {stepId === 'firstWin' && (
+        <FirstWinStep
+          dogName={dogName}
+          primaryGoal={primaryGoal}
+          onContinue={goForward}
+          onBack={goBack}
+          currentStep={progressStep}
+          totalSteps={PROGRESS_STEP_COUNT}
+        />
       )}
 
       {stepId === 'severity' && (
         <QuestionScreen
-          title={`How severe is ${dogName || 'your dog'}'s ${goalLabel(primaryGoal)}?`}
+          title="How bad is it?"
           canContinue
           onContinue={goForward}
           onBack={goBack}
@@ -840,9 +398,85 @@ export default function DogBasicsScreen() {
         </QuestionScreen>
       )}
 
+      {stepId === 'environment' && (
+        <QuestionScreen
+          title={`Tell us about ${dogName}'s world`}
+          canContinue
+          onContinue={goForward}
+          onBack={goBack}
+          currentStep={progressStep}
+          totalSteps={PROGRESS_STEP_COUNT}
+        >
+          <View style={{ gap: spacing.xl }}>
+            <View style={{ gap: spacing.sm }}>
+              <Text variant="h3" style={{ color: colors.text.primary }}>Home Type</Text>
+              <View style={{ gap: spacing.sm }}>
+                {HOME_OPTIONS.map((opt) => (
+                  <OptionCard
+                    key={opt.value}
+                    icon={opt.icon}
+                    label={opt.label}
+                    selected={environmentType === opt.value}
+                    onPress={() => setEnvironmentType(opt.value as typeof environmentType)}
+                    layout="horizontal"
+                    size="md"
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={{ gap: spacing.sm }}>
+              <Text variant="h3" style={{ color: colors.text.primary }}>Household</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <OptionCard
+                  icon="people"
+                  label="Kids"
+                  selected={hasKids}
+                  onPress={() => setHasKids((v) => !v)}
+                  layout="vertical"
+                />
+                <OptionCard
+                  icon="paw"
+                  label="Other Pets"
+                  selected={hasOtherPets}
+                  onPress={() => setHasOtherPets((v) => !v)}
+                  layout="vertical"
+                />
+              </View>
+            </View>
+          </View>
+        </QuestionScreen>
+      )}
+
+      {stepId === 'trainingTime' && (
+        <QuestionScreen
+          title="How much time can you realistically train?"
+          canContinue
+          onContinue={goForward}
+          onBack={goBack}
+          currentStep={progressStep}
+          totalSteps={PROGRESS_STEP_COUNT}
+        >
+          <View style={{ gap: spacing.sm }}>
+            {SESSION_LENGTH_OPTIONS.map((opt) => (
+              <OptionCard
+                key={opt.value}
+                icon={opt.icon}
+                label={opt.label}
+                description={opt.description}
+                selected={availableMinutesPerDay === opt.value}
+                onPress={() => setAvailableMinutesPerDay(opt.value)}
+                layout="horizontal"
+                size="md"
+              />
+            ))}
+          </View>
+        </QuestionScreen>
+      )}
+
       {stepId === 'experienceLevel' && (
         <QuestionScreen
-          title="How experienced are you with dog training?"
+          title="What's your experience level?"
           canContinue
           onContinue={goForward}
           onBack={goBack}
@@ -866,255 +500,134 @@ export default function DogBasicsScreen() {
         </QuestionScreen>
       )}
 
-      {stepId === 'homeSetup' && (
+      {stepId === 'trainingDays' && (
         <QuestionScreen
-          title={`Where does ${dogName || 'your dog'} live?`}
-          canContinue
+          title="When would you like to train?"
+          subtitle="Choose the frequency and days that work for you."
+          canContinue={availableDaysPerWeek > 0}
           onContinue={goForward}
           onBack={goBack}
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
-          <View style={{ gap: spacing.sm }}>
-            {HOME_OPTIONS.map((opt) => (
-              <OptionCard
-                key={opt.value}
-                icon={opt.icon}
-                label={opt.label}
-                selected={environmentType === opt.value}
-                onPress={() => setEnvironmentType(opt.value as typeof environmentType)}
-                layout="horizontal"
-                size="md"
-              />
-            ))}
-          </View>
-        </QuestionScreen>
-      )}
-
-      {stepId === 'household' && (
-        <QuestionScreen
-          title="About your household"
-          subtitle="This helps us personalise training advice."
-          canContinue
-          onContinue={goForward}
-          onBack={goBack}
-          currentStep={progressStep}
-          totalSteps={PROGRESS_STEP_COUNT}
-        >
-          <View style={{ gap: spacing.sm }}>
-            <OptionCard
-              icon="people"
-              label="Kids at home"
-              description="Young children live with you"
-              selected={hasKids}
-              onPress={() => setHasKids((v) => !v)}
-              layout="horizontal"
-              size="md"
-            />
-            <OptionCard
-              icon="paw"
-              label="Other pets"
-              description="Other animals live with you"
-              selected={hasOtherPets}
-              onPress={() => setHasOtherPets((v) => !v)}
-              layout="horizontal"
-              size="md"
-            />
-          </View>
-        </QuestionScreen>
-      )}
-
-      {stepId === 'daysPerWeek' && (
-        <QuestionScreen
-          title="How many days a week can you train?"
-          subtitle="Be realistic — consistency beats intensity."
-          canContinue
-          onContinue={goForward}
-          onBack={goBack}
-          currentStep={progressStep}
-          totalSteps={PROGRESS_STEP_COUNT}
-          scrollable={false}
-        >
-          <View style={{ alignItems: 'center', gap: spacing.xl }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xl }}>
-              <Pressable
-                onPress={() => setAvailableDaysPerWeek((d) => Math.max(1, d - 1))}
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 26,
-                  borderWidth: 1.5,
-                  borderColor: colors.border.default,
-                  backgroundColor: colors.bg.surface,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <AppIcon name="remove" size={22} color={colors.text.primary} />
-              </Pressable>
-
-              <View style={{ alignItems: 'center', minWidth: 80 }}>
-                <Text style={{ fontSize: 52, fontWeight: '800', color: colors.brand.primary, lineHeight: 60 }}>
-                  {availableDaysPerWeek}
-                </Text>
-                <Text variant="caption" color={colors.text.secondary}>
-                  {availableDaysPerWeek === 1 ? 'day' : 'days'} per week
-                </Text>
+          <View style={{ gap: spacing.xl }}>
+            <View style={{ gap: spacing.md }}>
+              <Text variant="bodyStrong" style={{ color: colors.text.secondary }}>Days per week</Text>
+              <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'space-between' }}>
+                {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                  <Pressable
+                    key={num}
+                    onPress={() => setAvailableDaysPerWeek(num)}
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: availableDaysPerWeek === num ? colors.brand.primary : colors.bg.surfaceAlt,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 1,
+                      borderColor: availableDaysPerWeek === num ? colors.brand.primary : colors.border.soft,
+                    }}
+                  >
+                    <Text
+                      variant="bodyStrong"
+                      style={{ color: availableDaysPerWeek === num ? '#fff' : colors.text.primary }}
+                    >
+                      {num}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
-
-              <Pressable
-                onPress={() => setAvailableDaysPerWeek((d) => Math.min(7, d + 1))}
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 26,
-                  borderWidth: 1.5,
-                  borderColor: colors.border.default,
-                  backgroundColor: colors.bg.surface,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <AppIcon name="add" size={22} color={colors.text.primary} />
-              </Pressable>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                <Pressable
-                  key={i}
-                  onPress={() => setAvailableDaysPerWeek(i)}
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 14,
-                    backgroundColor:
-                      i <= availableDaysPerWeek ? colors.brand.primary : colors.border.soft,
-                  }}
-                />
-              ))}
+            <View style={{ gap: spacing.md }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text variant="bodyStrong" style={{ color: colors.text.secondary }}>Preferred days</Text>
+                <Text variant="caption" style={{ color: colors.text.secondary }}>Optional</Text>
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as Weekday[]).map((day) => (
+                  <Pressable
+                    key={day}
+                    onPress={() => setPreferredDays(prev =>
+                      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+                    )}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                      backgroundColor: preferredDays.includes(day) ? `${colors.brand.primary}15` : colors.bg.surface,
+                      borderWidth: 1,
+                      borderColor: preferredDays.includes(day) ? colors.brand.primary : colors.border.soft,
+                    }}
+                  >
+                    <Text
+                      variant="caption"
+                      style={{
+                        color: preferredDays.includes(day) ? colors.brand.primary : colors.text.primary,
+                        fontWeight: '600',
+                        textTransform: 'capitalize'
+                      }}
+                    >
+                      {day.slice(0, 3)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
           </View>
         </QuestionScreen>
       )}
 
-      {stepId === 'sessionLength' && (
+      {stepId === 'scheduleStyle' && (
         <QuestionScreen
-          title="How long per session?"
-          subtitle="Short and consistent beats long and sporadic."
+          title="Finalizing your schedule"
           canContinue
           onContinue={goForward}
           onBack={goBack}
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {SESSION_LENGTH_OPTIONS.map((opt) => (
-              <View key={opt.value} style={{ width: '47.5%' }}>
-                <OptionCard
-                  icon={opt.icon}
-                  label={opt.label}
-                  description={opt.description}
-                  selected={availableMinutesPerDay === opt.value}
-                  onPress={() => setAvailableMinutesPerDay(opt.value)}
-                  layout="vertical"
-                  size="md"
-                />
+          <View style={{ gap: spacing.xl }}>
+            <View style={{ gap: spacing.sm }}>
+              <Text variant="h3" style={{ color: colors.text.primary }}>Session Style</Text>
+              <View style={{ gap: spacing.sm }}>
+                {SESSION_STYLE_OPTIONS.map((opt) => (
+                  <OptionCard
+                    key={opt.value}
+                    icon={opt.icon}
+                    label={opt.label}
+                    description={opt.description}
+                    selected={sessionStyle === opt.value}
+                    onPress={() => setSessionStyle(opt.value as SessionStyle)}
+                    layout="horizontal"
+                    size="md"
+                  />
+                ))}
               </View>
-            ))}
+            </View>
+
+            <View style={{ gap: spacing.sm }}>
+              <Text variant="h3" style={{ color: colors.text.primary }}>If you miss a session</Text>
+              <View style={{ gap: spacing.sm }}>
+                {SCHEDULE_FLEXIBILITY_OPTIONS.map((opt) => (
+                  <OptionCard
+                    key={opt.value}
+                    icon={opt.icon}
+                    label={opt.label}
+                    description={opt.description}
+                    selected={scheduleFlexibility === opt.value}
+                    onPress={() => setScheduleFlexibility(opt.value as any)}
+                    layout="horizontal"
+                    size="md"
+                  />
+                ))}
+              </View>
+            </View>
           </View>
         </QuestionScreen>
       )}
 
-      {stepId === 'preferredDays' && (
-        <QuestionScreen
-          title="Which days work best?"
-          subtitle="Pick the days you can actually show up."
-          canContinue={preferredDays.length > 0}
-          onContinue={goForward}
-          onBack={goBack}
-          currentStep={progressStep}
-          totalSteps={PROGRESS_STEP_COUNT}
-        >
-          <ScheduleSelector
-            selectedDays={preferredDays}
-            onToggleDay={(day) =>
-              setPreferredDays((ds) =>
-                ds.includes(day) ? ds.filter((d) => d !== day) : [...ds, day]
-              )
-            }
-          />
-        </QuestionScreen>
-      )}
-
-      {stepId === 'timeOfDay' && (
-        <QuestionScreen
-          title="What time of day works best?"
-          subtitle="We'll schedule sessions around your routine."
-          canContinue={timeWindow !== null}
-          onContinue={goForward}
-          onBack={goBack}
-          currentStep={progressStep}
-          totalSteps={PROGRESS_STEP_COUNT}
-        >
-          <ScheduleSelector
-            selectedDays={preferredDays}
-            onToggleDay={(day) =>
-              setPreferredDays((ds) =>
-                ds.includes(day) ? ds.filter((d) => d !== day) : [...ds, day]
-              )
-            }
-            selectedTimeWindow={timeWindow}
-            onSelectTimeWindow={setTimeWindow}
-          />
-        </QuestionScreen>
-      )}
-
-      {stepId === 'sessionStyle' && (
-        <QuestionScreen
-          title="What training style fits your lifestyle?"
-          canContinue
-          onContinue={goForward}
-          onBack={goBack}
-          currentStep={progressStep}
-          totalSteps={PROGRESS_STEP_COUNT}
-        >
-          <View style={{ gap: spacing.sm }}>
-            {SESSION_STYLE_OPTIONS.map((opt) => (
-              <OptionCard
-                key={opt.value}
-                icon={opt.icon}
-                label={opt.label}
-                description={opt.description}
-                selected={sessionStyle === opt.value}
-                onPress={() => setSessionStyle(opt.value as SessionStyle)}
-                layout="horizontal"
-                size="md"
-              />
-            ))}
-          </View>
-        </QuestionScreen>
-      )}
-
-      {stepId === 'summary' && (
-        <SummaryStep
-          dogName={dogName}
-          ageMonths={ageMonths}
-          breed={breed}
-          primaryGoal={primaryGoal}
-          severity={severity}
-          trainingExperience={trainingExperience}
-          environmentType={environmentType}
-          availableDaysPerWeek={availableDaysPerWeek}
-          availableMinutesPerDay={availableMinutesPerDay}
-          preferredDays={preferredDays}
-          timeWindow={timeWindow}
-          sessionStyle={sessionStyle}
-          progressStep={progressStep}
-          onBack={goBack}
-          onContinue={goForward}
-        />
-      )}
 
       {stepId === 'generatingPlan' && <GeneratingStep />}
     </Animated.View>
@@ -1200,25 +713,26 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
         <View style={{ alignItems: 'center', gap: 6 }}>
           <Text
             style={{
-              fontSize: 42,
-              lineHeight: 50,
+              fontSize: 34,
+              lineHeight: 42,
               fontWeight: '800',
-              color: colors.brand.primary,
-              letterSpacing: -1.5,
+              color: colors.text.primary,
+              letterSpacing: -1,
+              textAlign: 'center',
             }}
           >
-            Pawly
+            Let's fix your dog's behavior
           </Text>
           <Text
             style={{
-              fontSize: 17,
+              fontSize: 18,
               color: colors.text.secondary,
               fontWeight: '500',
               textAlign: 'center',
               letterSpacing: 0.1,
             }}
           >
-            Train smarter. Bond deeper.
+            Personalized training in minutes
           </Text>
         </View>
 
@@ -1237,9 +751,9 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
           }}
         >
           {[
-            { icon: 'sparkles' as const, text: 'Personalised AI training plan' },
-            { icon: 'calendar' as const, text: 'Smart scheduling around your life' },
-            { icon: 'trending-up' as const, text: 'Track progress week by week' },
+            { icon: 'sparkles' as const, text: 'Custom plan for your dog' },
+            { icon: 'calendar' as const, text: 'Fits into your daily routine' },
+            { icon: 'trending-up' as const, text: 'See results in just 5 mins/day' },
           ].map((item, i) => (
             <View
               key={item.text}
@@ -1276,248 +790,176 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
         entering={FadeInDown.delay(600).duration(400)}
         style={{ paddingHorizontal: spacing.xl, gap: spacing.xs }}
       >
-        <Button label="Let's get started →" onPress={onStart} size="lg" />
+        <Button label="Get Started →" onPress={onStart} size="lg" />
         <Text
           variant="caption"
           color={colors.text.secondary}
           style={{ textAlign: 'center', marginTop: 4 }}
         >
-          Takes about 2 minutes
+          Takes about 60 seconds
         </Text>
       </Animated.View>
     </LinearGradient>
   );
 }
 
-// ─── Summary screen ───────────────────────────────────────────────────────────
 
-type SummaryStepProps = {
-  dogName: string;
-  ageMonths: number;
-  breed: string;
-  primaryGoal: string;
-  severity: string;
-  trainingExperience: string;
-  environmentType: string;
-  availableDaysPerWeek: number;
-  availableMinutesPerDay: number;
-  preferredDays: Weekday[];
-  timeWindow: string | null;
-  sessionStyle: string;
-  progressStep: number;
-  onBack: () => void;
-  onContinue: () => void;
-};
+// ─── Phase 1.5 screens ────────────────────────────────────────────────────────
 
-function SummaryStep({
-  dogName,
-  ageMonths,
-  breed,
-  primaryGoal,
-  severity,
-  trainingExperience,
-  environmentType,
-  availableDaysPerWeek,
-  availableMinutesPerDay,
-  preferredDays,
-  timeWindow,
-  sessionStyle,
-  progressStep,
-  onBack,
-  onContinue,
-}: SummaryStepProps) {
-  const insets = useSafeAreaInsets();
+function AnalyzingStep({ dogName, onComplete }: { dogName: string; onComplete: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 1600);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
 
-  const homeLabels: Record<string, string> = {
-    apartment: 'Apartment',
-    house_no_yard: 'House, no yard',
-    house_yard: 'House with yard',
-  };
+  const scale = useSharedValue(1);
+  useEffect(() => {
+    scale.value = withRepeat(withTiming(1.15, { duration: 800 }), -1, true);
+  }, [scale]);
 
-  const expLabels: Record<string, string> = {
-    none: 'New to training',
-    some: 'Some experience',
-    experienced: 'Experienced trainer',
-  };
-
-  const styleLabels: Record<string, string> = {
-    micro: 'Micro (short & frequent)',
-    balanced: 'Balanced',
-    focused: 'Focused (longer sessions)',
-  };
-
-  const dayAbbr = (d: Weekday) =>
-    d.slice(0, 3).charAt(0).toUpperCase() + d.slice(1, 3);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg.app }}>
-      {/* Warm gradient blush — matches train screen */}
-      <LinearGradient
-        colors={[`${colors.brand.primary}0A`, 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.4 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 200 }}
-        pointerEvents="none"
-      />
-      {/* Header with progress */}
-      <View
-        style={{
-          paddingTop: insets.top + 8,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: 4,
-          gap: 10,
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={{ flex: 1, height: 4, backgroundColor: colors.border.soft, borderRadius: 2, overflow: 'hidden' }}>
-            <View style={{ width: '100%', height: 4, backgroundColor: colors.brand.primary, borderRadius: 2 }} />
-          </View>
-          <Text variant="micro" color={colors.text.secondary} style={{ minWidth: 38, textAlign: 'right' }}>
-            {progressStep} of {PROGRESS_STEP_COUNT}
-          </Text>
+    <View style={{ flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, gap: spacing.xl }}>
+      <Animated.View style={animStyle}>
+        <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: `${colors.brand.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
+          <AppIcon name="sparkles" size={48} color={colors.brand.primary} />
         </View>
-        <Pressable
-          onPress={onBack}
-          hitSlop={8}
-          style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <AppIcon name="chevron-back" size={24} color={colors.text.primary} />
-        </Pressable>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.md,
-          paddingBottom: 140,
-          gap: spacing.md,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ gap: spacing.xs, marginBottom: spacing.sm }}>
-          <Text style={{ fontSize: 28, fontWeight: '800', letterSpacing: -0.5, color: colors.text.primary }}>
-            Here's your profile
-          </Text>
-          <Text variant="body" color={colors.text.secondary} style={{ lineHeight: 22 }}>
-            Looks good? Tap below to build your plan.
-          </Text>
-        </View>
-
-        {/* Dog profile */}
-        <Animated.View
-          entering={FadeInDown.delay(0).duration(400)}
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.lg,
-            borderWidth: 1.5,
-            borderColor: colors.border.soft,
-            ...shadows.card,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 10 }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.brand.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
-              <AppIcon name="paw" size={16} color={colors.brand.primary} />
-            </View>
-            <Text variant="bodyStrong" color={colors.text.secondary} style={{ fontWeight: '600', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.8 }}>
-              Your Dog
-            </Text>
-          </View>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text.primary, marginBottom: 4 }}>
-            {dogName || 'Your dog'}
-          </Text>
-          <Text variant="caption" color={colors.text.secondary}>
-            {ageLabel(ageMonths)}{breed ? ` · ${breed}` : ''}
-          </Text>
-          <Text variant="caption" color={colors.text.secondary}>
-            {homeLabels[environmentType] ?? environmentType}
-          </Text>
-        </Animated.View>
-
-        {/* Goal */}
-        <Animated.View
-          entering={FadeInDown.delay(100).duration(400)}
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.lg,
-            borderWidth: 1.5,
-            borderColor: colors.border.soft,
-            ...shadows.card,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 10 }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.brand.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
-              <AppIcon name="flag" size={16} color={colors.brand.primary} />
-            </View>
-            <Text variant="bodyStrong" color={colors.text.secondary} style={{ fontWeight: '600', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.8 }}>
-              Training Goal
-            </Text>
-          </View>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text.primary, marginBottom: 4 }}>
-            {goalLabel(primaryGoal)}
-          </Text>
-          <Text variant="caption" color={colors.text.secondary}>
-            {severity.charAt(0).toUpperCase() + severity.slice(1)} · {expLabels[trainingExperience] ?? trainingExperience}
-          </Text>
-        </Animated.View>
-
-        {/* Schedule */}
-        <Animated.View
-          entering={FadeInDown.delay(200).duration(400)}
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.lg,
-            borderWidth: 1.5,
-            borderColor: colors.border.soft,
-            ...shadows.card,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 10 }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.brand.primary}15`, alignItems: 'center', justifyContent: 'center' }}>
-              <AppIcon name="calendar" size={16} color={colors.brand.primary} />
-            </View>
-            <Text variant="bodyStrong" color={colors.text.secondary} style={{ fontWeight: '600', textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.8 }}>
-              Schedule
-            </Text>
-          </View>
-          <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text.primary, marginBottom: 4 }}>
-            {availableDaysPerWeek}×/week · {availableMinutesPerDay} min
-          </Text>
-          {preferredDays.length > 0 && (
-            <Text variant="caption" color={colors.text.secondary}>
-              {preferredDays.map(dayAbbr).join(', ')}
-            </Text>
-          )}
-          <Text variant="caption" color={colors.text.secondary}>
-            {timeWindowLabel(timeWindow)} · {styleLabels[sessionStyle] ?? sessionStyle}
-          </Text>
-        </Animated.View>
-      </ScrollView>
-
-      {/* Footer with gradient fade */}
-      <View
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}
-        pointerEvents="box-none"
-      >
-        <LinearGradient
-          colors={[`${colors.bg.app}00`, colors.bg.app]}
-          style={{ height: 32 }}
-          pointerEvents="none"
-        />
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.sm,
-            paddingBottom: insets.bottom + spacing.md,
-            backgroundColor: colors.bg.app,
-          }}
-        >
-          <Button label="Build my plan →" onPress={onContinue} />
-        </View>
+      </Animated.View>
+      <View style={{ gap: spacing.sm, alignItems: 'center' }}>
+        <Text variant="h2" style={{ textAlign: 'center', fontWeight: '700' }}>
+          Analyzing {dogName}…
+        </Text>
+        <Text variant="body" style={{ textAlign: 'center', color: colors.text.secondary, lineHeight: 24 }}>
+          Building a training starting point based on your dog’s behavior and environment.
+        </Text>
       </View>
     </View>
+  );
+}
+
+function InsightRevealStep({
+  params,
+  onContinue,
+  onBack,
+  currentStep,
+  totalSteps,
+}: {
+  params: Parameters<typeof buildOnboardingInsight>[0];
+  onContinue: () => void;
+  onBack: () => void;
+  currentStep: number;
+  totalSteps: number;
+}) {
+  const insight = buildOnboardingInsight(params);
+
+  return (
+    <QuestionScreen
+      title={insight.title}
+      canContinue
+      onContinue={onContinue}
+      onBack={onBack}
+      currentStep={currentStep}
+      totalSteps={totalSteps}
+      continueLabel="See Your Plan"
+    >
+      <View style={{ gap: spacing.lg }}>
+        <Text variant="body" style={{ fontSize: 17, lineHeight: 26, color: colors.text.primary }}>
+          {insight.summary}
+        </Text>
+
+        <View style={{ gap: spacing.md }}>
+          <Text variant="bodyStrong" style={{ color: colors.text.secondary, textTransform: 'uppercase', fontSize: 12, letterSpacing: 1 }}>
+            Focus Areas
+          </Text>
+          <View style={{ gap: spacing.sm }}>
+            {insight.focusAreas.map((area, i) => (
+              <Animated.View
+                key={area}
+                entering={FadeInDown.delay(i * 150).duration(400)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  backgroundColor: colors.bg.surface,
+                  padding: spacing.md,
+                  borderRadius: radii.md,
+                  borderWidth: 1,
+                  borderColor: colors.border.soft,
+                  ...shadows.card,
+                }}
+              >
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: `${colors.brand.primary}10`, alignItems: 'center', justifyContent: 'center' }}>
+                  <AppIcon name="checkmark" size={16} color={colors.brand.primary} />
+                </View>
+                <Text variant="bodyStrong" style={{ color: colors.text.primary }}>{area}</Text>
+              </Animated.View>
+            ))}
+          </View>
+        </View>
+      </View>
+    </QuestionScreen>
+  );
+}
+
+function FirstWinStep({
+  dogName,
+  primaryGoal,
+  onContinue,
+  onBack,
+  currentStep,
+  totalSteps,
+}: {
+  dogName: string;
+  primaryGoal: string;
+  onContinue: () => void;
+  onBack: () => void;
+  currentStep: number;
+  totalSteps: number;
+}) {
+  const goalLabel = PRIMARY_PROBLEM_OPTIONS.find(o => o.value === primaryGoal)?.label || "training";
+
+  return (
+    <QuestionScreen
+      title="Your first win"
+      canContinue
+      onContinue={onContinue}
+      onBack={onBack}
+      currentStep={currentStep}
+      totalSteps={totalSteps}
+    >
+      <View style={{ gap: spacing.lg }}>
+        <Text variant="body" style={{ fontSize: 17, lineHeight: 26, color: colors.text.primary }}>
+          We’ll start with a small, manageable success to build momentum.
+        </Text>
+
+        <View
+          style={{
+            backgroundColor: `${colors.brand.secondary}08`,
+            borderRadius: radii.lg,
+            padding: spacing.lg,
+            borderWidth: 1,
+            borderColor: `${colors.brand.secondary}20`,
+            gap: spacing.md,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.brand.secondary, alignItems: 'center', justifyContent: 'center' }}>
+              <AppIcon name="play" size={20} color="#fff" />
+            </View>
+            <View>
+              <Text variant="caption" style={{ color: colors.brand.secondary, fontWeight: '700', textTransform: 'uppercase' }}>Session 1</Text>
+              <Text variant="bodyStrong" style={{ fontSize: 18 }}>Foundation Focus</Text>
+            </View>
+          </View>
+          <Text variant="body" style={{ color: colors.text.secondary, lineHeight: 22 }}>
+            A short 3–5 minute exercise to help {dogName} stay calmer and build focus before we tackle {goalLabel.toLowerCase()}.
+          </Text>
+        </View>
+      </View>
+    </QuestionScreen>
   );
 }
 
