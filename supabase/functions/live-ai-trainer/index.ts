@@ -105,6 +105,21 @@ serve(async (req) => {
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return jsonResponse({ error: 'Missing authorization header' }, 401);
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const {
+    data: { user },
+    error: authError,
+  } = await adminClient.auth.getUser(token);
+
+  if (authError || !user) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
   let body: RequestBody;
   try {
     body = await req.json();
@@ -119,6 +134,7 @@ serve(async (req) => {
     .from('dogs')
     .select('name, breed, age_months')
     .eq('id', dogId)
+    .eq('owner_id', user.id)
     .single();
 
   const dogName = dog?.name || 'your dog';
