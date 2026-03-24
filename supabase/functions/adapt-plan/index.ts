@@ -70,35 +70,31 @@ serve(async (req) => {
   }
 
   const authHeader = req.headers.get('Authorization');
-  let authenticatedUserId: string | null = null;
-
-  if (authHeader) {
-    const token = authHeader.replace('Bearer ', '');
-    const {
-      data: { user },
-      error: authError,
-    } = await adminClient.auth.getUser(token);
-
-    if (authError || !user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
-    }
-
-    authenticatedUserId = user.id;
+  if (!authHeader) {
+    return jsonResponse({ error: 'Missing authorization header' }, 401);
   }
+
+  const token = authHeader.replace('Bearer ', '');
+  const {
+    data: { user },
+    error: authError,
+  } = await adminClient.auth.getUser(token);
+
+  if (authError || !user) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
+  const authenticatedUserId = user.id;
 
   const startedAt = Date.now();
   const now = new Date().toISOString();
 
-  let dogQuery = adminClient
+  const dogResult = await adminClient
     .from('dogs')
     .select('id, owner_id, name')
-    .eq('id', body.dogId);
-
-  if (authenticatedUserId) {
-    dogQuery = dogQuery.eq('owner_id', authenticatedUserId);
-  }
-
-  const dogResult = await dogQuery.maybeSingle();
+    .eq('id', body.dogId)
+    .eq('owner_id', authenticatedUserId)
+    .maybeSingle();
 
   if (dogResult.error || !dogResult.data) {
     return jsonResponse({ error: 'Dog not found or access denied' }, 404);
@@ -243,6 +239,7 @@ serve(async (req) => {
   const rpcResult = await adminClient.rpc('apply_plan_adaptation', {
     p_plan_id: plan.id,
     p_dog_id: body.dogId,
+    p_user_id: authenticatedUserId,
     p_sessions: engineResult.applied ? engineResult.nextPlan.sessions : plan.sessions,
     p_metadata_patch: metadataPatch,
     p_current_stage: engineResult.applied ? engineResult.nextPlan.currentStage : plan.currentStage,
