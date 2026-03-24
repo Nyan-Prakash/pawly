@@ -225,6 +225,7 @@ export default function ProfileScreen() {
               fontSize: 28,
               fontWeight: '800',
               color: colors.text.primary,
+              lineHeight: 32,
               letterSpacing: -0.5,
               textAlign: 'center',
               marginTop: spacing.xs,
