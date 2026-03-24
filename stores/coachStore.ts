@@ -10,7 +10,9 @@ interface CoachStore {
   messages: ChatMessage[];
   isTyping: boolean;
   rateLimitError: string | null;
+  draftMessage: string | null;
 
+  setDraftMessage: (content: string | null) => void;
   initConversation: (dogId: string) => Promise<void>;
   resetConversation: (dogId: string) => Promise<void>;
   loadHistory: (conversationId: string) => Promise<void>;
@@ -23,6 +25,9 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
   messages: [],
   isTyping: false,
   rateLimitError: null,
+  draftMessage: null,
+
+  setDraftMessage: (content) => set({ draftMessage: content }),
 
   initConversation: async (dogId: string) => {
     const { data: { session } } = await supabase.auth.getSession();
