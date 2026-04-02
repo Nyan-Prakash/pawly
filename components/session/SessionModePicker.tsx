@@ -88,6 +88,7 @@ export function SessionModePicker({
             color: colors.textPrimary,
             textAlign: 'center',
             letterSpacing: -0.5,
+            lineHeight: 30,
           }}
         >
           How do you want{'\n'}to train?

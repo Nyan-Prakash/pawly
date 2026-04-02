@@ -25,6 +25,17 @@ interface RequestBody {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Limits
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MAX_FRAMES = 3;
+const MAX_FRAME_BASE64_LENGTH = 500_000; // ~375 KB raw per frame (640px JPEG)
+const MAX_UTTERANCE_LENGTH = 500;
+const MAX_HISTORY_LENGTH = 20;
+// Max live-trainer calls per user per session (keyed on sessionId + userId)
+const MAX_CALLS_PER_SESSION = 200;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CORS headers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -99,12 +110,25 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+  const token = authHeader.replace('Bearer ', '');
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!;
 
   const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
+  const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
+  if (authError || !user) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
+  // ── Parse & validate body ─────────────────────────────────────────────────
   let body: RequestBody;
   try {
     body = await req.json();
@@ -112,18 +136,70 @@ serve(async (req) => {
     return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
-  const { dogId, frames, userUtterance, stepContext, samplingMode } = body;
+  const { dogId, sessionId, frames, userUtterance, stepContext, samplingMode, history } = body;
 
-  // 1. Fetch Dog Context
-  const { data: dog } = await adminClient
+  if (!dogId || typeof dogId !== 'string') {
+    return jsonResponse({ error: 'dogId is required' }, 400);
+  }
+  if (!Array.isArray(frames) || frames.length === 0) {
+    return jsonResponse({ error: 'frames are required' }, 400);
+  }
+  if (frames.length > MAX_FRAMES) {
+    return jsonResponse({ error: `Too many frames. Maximum is ${MAX_FRAMES}.` }, 400);
+  }
+  for (const frame of frames) {
+    if (typeof frame !== 'string' || frame.length > MAX_FRAME_BASE64_LENGTH) {
+      return jsonResponse({ error: 'One or more frames exceed the maximum allowed size.' }, 400);
+    }
+  }
+  if (userUtterance !== undefined && (typeof userUtterance !== 'string' || userUtterance.length > MAX_UTTERANCE_LENGTH)) {
+    return jsonResponse({ error: `userUtterance exceeds maximum length of ${MAX_UTTERANCE_LENGTH}.` }, 400);
+  }
+  if (history !== undefined && (!Array.isArray(history) || history.length > MAX_HISTORY_LENGTH)) {
+    return jsonResponse({ error: `history exceeds maximum length of ${MAX_HISTORY_LENGTH}.` }, 400);
+  }
+
+  // ── Dog ownership check ───────────────────────────────────────────────────
+  const { data: dog, error: dogError } = await adminClient
     .from('dogs')
-    .select('name, breed, age_months')
+    .select('id, name, breed, age_months, owner_id')
     .eq('id', dogId)
     .single();
 
-  const dogName = dog?.name || 'your dog';
+  if (dogError || !dog) {
+    return jsonResponse({ error: 'Dog not found' }, 404);
+  }
+  if (dog.owner_id !== user.id) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
+  }
 
-  // 2. Prepare Multimodal Messages
+  // ── Per-session rate limit ────────────────────────────────────────────────
+  if (sessionId && typeof sessionId === 'string') {
+    const { count } = await adminClient
+      .from('live_trainer_calls')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('session_id', sessionId);
+
+    if ((count ?? 0) >= MAX_CALLS_PER_SESSION) {
+      return jsonResponse(
+        { error: 'Live trainer call limit reached for this session.' },
+        429
+      );
+    }
+
+    // Log this call (non-fatal if it fails)
+    await adminClient
+      .from('live_trainer_calls')
+      .insert({ user_id: user.id, session_id: sessionId })
+      .then(({ error: insertErr }) => {
+        if (insertErr) console.warn('Failed to log live_trainer_call:', insertErr.message);
+      });
+  }
+
+  const dogName = dog.name || 'your dog';
+
+  // ── Prepare Multimodal Messages ───────────────────────────────────────────
   const openai = new OpenAI({ apiKey: openaiApiKey });
 
   const content: any[] = [
