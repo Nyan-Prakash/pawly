@@ -124,6 +124,7 @@ export default function SessionScreen() {
     incrementRep,
     resetReps,
     advanceToNextStep,
+    goToPreviousStep,
     submitSession,
     abandonSession,
     tick,
@@ -534,7 +535,6 @@ export default function SessionScreen() {
         {/* Abandon sheet is accessible from live coaching too */}
         <AbandonSheet
           visible={showAbandonSheet}
-          theme={courseTheme}
           onKeepGoing={() => setShowAbandonSheet(false)}
           onLeave={handleAbandonConfirm}
         />
@@ -586,7 +586,8 @@ export default function SessionScreen() {
           protocol={protocol}
           activeSession={activeSession}
           theme={courseTheme}
-          onBack={handleBackPress}
+          onBack={goToPreviousStep}
+          onHome={handleBackPress}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
           }}
@@ -655,7 +656,6 @@ export default function SessionScreen() {
       {/* ── Abandon Bottom Sheet ── */}
       <AbandonSheet
         visible={showAbandonSheet}
-        theme={courseTheme}
         onKeepGoing={() => setShowAbandonSheet(false)}
         onLeave={handleAbandonConfirm}
       />
@@ -996,6 +996,7 @@ interface StepActiveViewProps {
   activeSession: import('@/stores/sessionStore').ActiveSession;
   theme: CourseUiColors;
   onBack: () => void;
+  onHome: () => void;
   onToggleTimer: () => void;
   onResetTimer: () => void;
   onIncrementRep: () => void;
@@ -1012,6 +1013,7 @@ function StepActiveView({
   activeSession,
   theme,
   onBack,
+  onHome,
   onToggleTimer,
   onResetTimer,
   onIncrementRep,
@@ -1054,7 +1056,7 @@ function StepActiveView({
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back + step counter row */}
+        {/* Back + step counter + home row */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <BackButton onPress={onBack} />
           <View
@@ -1069,6 +1071,19 @@ function StepActiveView({
               Step {stepNumber} of {totalSteps}
             </Text>
           </View>
+          <Pressable
+            onPress={onHome}
+            hitSlop={12}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.6 : 1,
+              minHeight: 44,
+              minWidth: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+            })}
+          >
+            <AppIcon name="home" size={22} color={colors.textSecondary} />
+          </Pressable>
         </View>
 
         <StepCard
@@ -1576,12 +1591,10 @@ function StatRow({ emoji, label, value, color }: { emoji: AppIconName; label: st
 
 function AbandonSheet({
   visible,
-  theme,
   onKeepGoing,
   onLeave,
 }: {
   visible: boolean;
-  theme?: CourseUiColors;
   onKeepGoing: () => void;
   onLeave: () => void;
 }) {
@@ -1593,7 +1606,7 @@ function AbandonSheet({
         style={{
           flex: 1,
           justifyContent: 'flex-end',
-          backgroundColor: 'rgba(12,18,28,0.36)',
+          backgroundColor: 'rgba(6,10,18,0.72)',
         }}
         onPress={onKeepGoing}
       >
@@ -1601,74 +1614,130 @@ function AbandonSheet({
           onPress={() => {}}
           style={{
             backgroundColor: colors.surface,
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
-            paddingTop: spacing.md,
+            borderTopLeftRadius: 32,
+            borderTopRightRadius: 32,
+            paddingTop: spacing.sm,
             paddingHorizontal: spacing.xl,
-            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md,
-            gap: spacing.lg,
+            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg,
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: -6 },
-            shadowOpacity: 0.12,
-            shadowRadius: 20,
-            elevation: 10,
+            shadowOffset: { width: 0, height: -8 },
+            shadowOpacity: 0.22,
+            shadowRadius: 28,
+            elevation: 16,
+            overflow: 'hidden',
           }}
         >
+          {/* Drag handle */}
           <View
             style={{
               alignSelf: 'center',
-              width: 44,
-              height: 5,
+              width: 40,
+              height: 4,
               borderRadius: 999,
-              backgroundColor: '#D1D5DB',
-              marginBottom: spacing.xs,
+              backgroundColor: colors.borderColor,
+              marginBottom: spacing.lg,
             }}
           />
 
-          <View style={{ alignItems: 'center', gap: spacing.xs }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', lineHeight: 28, color: colors.textPrimary }}>
+          {/* Icon badge */}
+          <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+            <View
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: 36,
+                backgroundColor: '#FEF3C7',
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#F59E0B',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.25,
+                shadowRadius: 12,
+                elevation: 6,
+              }}
+            >
+              <AppIcon name="paw" size={32} color="#D97706" />
+            </View>
+          </View>
+
+          {/* Text content */}
+          <View style={{ alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xl }}>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: '800',
+                lineHeight: 30,
+                color: colors.textPrimary,
+                textAlign: 'center',
+                letterSpacing: -0.3,
+              }}
+            >
               Leave this session?
             </Text>
-            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 }}>
-              Great effort so far! Progress from this session won't be saved.
+            <Text
+              style={{
+                fontSize: 15,
+                color: colors.textSecondary,
+                textAlign: 'center',
+                lineHeight: 23,
+                maxWidth: 280,
+              }}
+            >
+              Your pup is counting on you! Progress from this session won't be saved.
             </Text>
           </View>
 
-          <View style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+          {/* Buttons */}
+          <View style={{ gap: spacing.sm }}>
+            {/* Primary: Keep Going */}
             <Pressable
               onPress={onKeepGoing}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? (theme?.selectedBorder ?? colors.primary) : (theme?.solid ?? colors.primary),
-                borderRadius: 14,
-                paddingVertical: spacing.lg,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: spacing.sm,
-                minHeight: 54,
-              })}
+              style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}
             >
-              <AppIcon name="paw" size={18} color="#FFFFFF" />
-              <Text style={{ fontSize: 17, fontWeight: '700', color: '#FFFFFF' }}>Keep going</Text>
+              <View
+                style={{
+                  backgroundColor: colors.brand.primary,
+                  borderRadius: 18,
+                  paddingVertical: 17,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: spacing.sm,
+                  shadowColor: colors.brand.primary,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 12,
+                  elevation: 6,
+                }}
+              >
+                <AppIcon name="paw" size={18} color="#fff" />
+                <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.1 }}>
+                  Keep going!
+                </Text>
+              </View>
             </Pressable>
 
+            {/* Secondary: Leave session */}
             <Pressable
               onPress={onLeave}
-              style={({ pressed }) => ({
-                backgroundColor: pressed ? '#FEF2F2' : 'transparent',
-                borderRadius: 14,
-                paddingVertical: spacing.md,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                gap: spacing.sm,
-                minHeight: 50,
-              })}
+              style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}
             >
-              <AppIcon name="warning" size={16} color="#DC2626" />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#DC2626' }}>
-                Leave session
-              </Text>
+              <View
+                style={{
+                  borderWidth: 1.5,
+                  borderColor: colors.error,
+                  borderRadius: 18,
+                  paddingVertical: 15,
+                  alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: spacing.sm,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.error }}>
+                  Leave session
+                </Text>
+              </View>
             </Pressable>
           </View>
         </Pressable>

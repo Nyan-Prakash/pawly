@@ -47,6 +47,7 @@ interface SessionStore {
   incrementRep: () => void;
   resetReps: () => void;
   advanceToNextStep: () => void;
+  goToPreviousStep: () => void;
   submitSession: (
     difficulty: 'easy' | 'okay' | 'hard',
     notes: string,
@@ -166,6 +167,37 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
           repCount: 0,
           isTimerRunning: false,
           state: 'STEP_ACTIVE',
+        },
+      };
+    });
+  },
+
+  goToPreviousStep: () => {
+    set((s) => {
+      if (!s.activeSession) return s;
+      const { currentStepIndex, protocol } = s.activeSession;
+      if (currentStepIndex <= 0) {
+        // Already on first step — go back to SETUP
+        return {
+          activeSession: {
+            ...s.activeSession,
+            state: 'SETUP',
+            isTimerRunning: false,
+          },
+        };
+      }
+      const prevStep = protocol.steps[currentStepIndex - 1];
+      return {
+        activeSession: {
+          ...s.activeSession,
+          currentStepIndex: currentStepIndex - 1,
+          timerSeconds: prevStep?.durationSeconds ?? 0,
+          repCount: 0,
+          isTimerRunning: false,
+          state: 'STEP_ACTIVE',
+          // Remove the last step result since we're going back
+          // Trim results back to what was recorded before reaching this step
+          stepResults: s.activeSession.stepResults.slice(0, currentStepIndex - 1),
         },
       };
     });
