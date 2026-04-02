@@ -175,26 +175,6 @@ export function SessionModePicker({
             </View>
           </View>
 
-          {/* Feature pills */}
-          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, flexWrap: 'wrap' }}>
-            {['Live Coaching', 'Voice Enabled', 'Hands-free'].map((label) => (
-              <View
-                key={label}
-                style={{
-                  backgroundColor: accentTint,
-                  borderRadius: 99,
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderWidth: 1,
-                  borderColor: accentColor,
-                }}
-              >
-                <Text style={{ fontSize: 12, fontWeight: '600', color: accentColor }}>
-                  {label}
-                </Text>
-              </View>
-            ))}
-          </View>
         </Pressable>
 
         {/* Normal mode */}
