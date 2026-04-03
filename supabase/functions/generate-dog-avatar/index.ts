@@ -134,7 +134,7 @@ The result must look like a standardized app avatar (similar to Material Design 
     const result = await response.json();
 
     if (!response.ok) {
-      console.error('OpenAI API error:', result);
+      console.error('OpenAI API error:', result?.error?.message ?? 'Unknown error');
       return jsonResponse(
         { error: result.error?.message || 'Avatar generation failed' },
         response.status === 401 ? 500 : 502
@@ -146,7 +146,7 @@ The result must look like a standardized app avatar (similar to Material Design 
 
     return jsonResponse({ avatarBase64: result.data[0].b64_json });
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error:', error instanceof Error ? error.message : 'Unknown error');
     return jsonResponse({ error: 'Avatar generation failed. Please try again.' }, 500);
   }
 });

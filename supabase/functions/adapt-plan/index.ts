@@ -70,20 +70,37 @@ serve(async (req) => {
   }
 
   const authHeader = req.headers.get('Authorization');
-  let authenticatedUserId: string | null = null;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
 
-  if (authHeader) {
-    const token = authHeader.replace('Bearer ', '');
-    const {
-      data: { user },
-      error: authError,
-    } = await adminClient.auth.getUser(token);
+  const token = authHeader.replace('Bearer ', '');
+  const {
+    data: { user },
+    error: authError,
+  } = await adminClient.auth.getUser(token);
 
-    if (authError || !user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
-    }
+  if (authError || !user) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
 
-    authenticatedUserId = user.id;
+  const authenticatedUserId = user.id;
+
+  // ── Rate limit: max 20 adaptations per dog per day ─────────────────────
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+
+  const { count: adaptCount } = await adminClient
+    .from('plan_adaptations')
+    .select('id', { count: 'exact', head: true })
+    .eq('dog_id', body.dogId)
+    .gte('created_at', dayStart.toISOString());
+
+  if ((adaptCount ?? 0) >= 20) {
+    return jsonResponse(
+      { error: 'Daily adaptation limit reached. Try again tomorrow.' },
+      429,
+    );
   }
 
   const startedAt = Date.now();
@@ -94,9 +111,7 @@ serve(async (req) => {
     .select('id, owner_id, name')
     .eq('id', body.dogId);
 
-  if (authenticatedUserId) {
-    dogQuery = dogQuery.eq('owner_id', authenticatedUserId);
-  }
+  dogQuery = dogQuery.eq('owner_id', authenticatedUserId);
 
   const dogResult = await dogQuery.maybeSingle();
 

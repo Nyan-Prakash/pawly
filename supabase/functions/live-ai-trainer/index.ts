@@ -233,7 +233,7 @@ serve(async (req) => {
 
     return jsonResponse(result);
   } catch (err) {
-    console.error('OpenAI / Parsing error:', err);
+    console.error('OpenAI / Parsing error:', err instanceof Error ? err.message : 'Unknown error');
     return jsonResponse({ error: 'Failed to process live coaching' }, 500);
   }
 });

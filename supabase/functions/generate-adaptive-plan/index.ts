@@ -919,6 +919,23 @@ serve(async (req) => {
     return jsonResponse({ error: 'dogId is required' }, 400);
   }
 
+  // ── Rate limit: max 5 plan generations per dog per day ───────────────────
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+
+  const { count: plansToday } = await adminClient
+    .from('plans')
+    .select('id', { count: 'exact', head: true })
+    .eq('dog_id', body.dogId)
+    .gte('created_at', dayStart.toISOString());
+
+  if ((plansToday ?? 0) >= 5) {
+    return jsonResponse(
+      { error: 'Daily plan generation limit reached. Try again tomorrow.' },
+      429,
+    );
+  }
+
   // ── 3. Fetch context ────────────────────────────────────────────────────────
   const [dogResult, nodesResult, edgesResult] = await Promise.all([
     adminClient
@@ -1009,7 +1026,7 @@ serve(async (req) => {
 
     aiOutput = JSON.parse(cleaned);
   } catch (err) {
-    console.error('[generate-adaptive-plan] AI call failed:', err);
+    console.error('[generate-adaptive-plan] AI call failed:', err instanceof Error ? err.message : 'Unknown error');
     fallbackReason = `AI call failed: ${err instanceof Error ? err.message : String(err)}`;
     aiOutput = null as unknown as AIPlannerOutput;
   }
@@ -1072,7 +1089,7 @@ serve(async (req) => {
     .single();
 
   if (planError) {
-    console.error('[generate-adaptive-plan] Plan insert failed:', planError);
+    console.error('[generate-adaptive-plan] Plan insert failed:', planError?.message ?? 'Unknown error');
     return jsonResponse({ error: 'Failed to create plan' }, 500);
   }
 

@@ -66,25 +66,23 @@ async function invokeAdaptPlan(body: {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const { data, error } = await supabase.functions.invoke('adapt-plan', {
-    body,
-    headers: session?.access_token
-      ? {
-          Authorization: `Bearer ${session.access_token}`,
-        }
-      : undefined,
-  });
-  if (error) {
-    const errorDetails = {
-      name: error.name,
-      message: error.message,
-      context: 'context' in error ? (error as { context?: unknown }).context : undefined,
-    };
-    console.warn('[sessionManager] adapt-plan invoke error:', errorDetails);
+  if (!session?.access_token) {
+    console.warn('[sessionManager] adapt-plan skipped: no active session');
     return null;
   }
 
-  console.log('[sessionManager] adapt-plan response:', data);
+  const { data, error } = await supabase.functions.invoke('adapt-plan', {
+    body,
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+  if (error) {
+    console.warn('[sessionManager] adapt-plan invoke error:', error.message);
+    return null;
+  }
+
+  if (__DEV__) console.log('[sessionManager] adapt-plan response:', data);
   return (data ?? null) as AdaptationApiResult | null;
 }
 

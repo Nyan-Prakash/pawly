@@ -36,7 +36,9 @@ export default function ForgotPasswordScreen() {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: 'pawly://reset-password',
+      });
       if (error) {
         setEmailError('Something went wrong. Please try again.');
         return;

@@ -175,7 +175,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     }));
 
     try {
-      console.log('Calling Edge Function:', EDGE_FUNCTION_URL);
+      if (__DEV__) console.log('Calling Edge Function:', EDGE_FUNCTION_URL);
       const res = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
@@ -192,7 +192,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       const json = await res.json();
 
       if (!res.ok) {
-        console.error(`Edge Function error ${res.status}:`, JSON.stringify(json));
+        console.error(`Edge Function error ${res.status}:`, json?.error ?? 'Unknown error');
         if (res.status === 429) {
           set((state) => ({
             messages: state.messages.filter((m) => m.id !== tempUserMsg.id),

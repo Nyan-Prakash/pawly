@@ -199,7 +199,14 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // Password reset deep link — navigate to the reset screen immediately.
+      // Supabase fires this after parsing the token from the pawly://reset-password link.
+      if (event === 'PASSWORD_RECOVERY') {
+        router.replace('/(auth)/reset-password');
+        return;
+      }
+
       // Keep authStore in sync with session changes
       useAuthStore.setState({
         session: nextSession,

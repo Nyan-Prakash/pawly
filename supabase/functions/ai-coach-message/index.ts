@@ -443,7 +443,7 @@ serve(async (req) => {
     assistantContent = response.choices[0]?.message?.content ?? '';
     tokensUsed = response.usage?.completion_tokens ?? 0;
   } catch (err) {
-    console.error('OpenAI API error:', err);
+    console.error('OpenAI API error:', err instanceof Error ? err.message : 'Unknown error');
     return jsonResponse({ error: 'AI service temporarily unavailable. Please try again.' }, 503);
   }
 

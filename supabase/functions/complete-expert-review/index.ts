@@ -105,7 +105,7 @@ serve(async (req) => {
     .single();
 
   if (updateError || !review) {
-    console.error('Update error:', updateError);
+    console.error('Update error:', updateError?.message ?? 'Unknown error');
     return jsonResponse({ error: 'Review not found or update failed' }, 404);
   }
 
