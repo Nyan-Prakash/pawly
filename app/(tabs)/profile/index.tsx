@@ -323,6 +323,8 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          
+
           {/* ── Account ── */}
           <View style={{ gap: spacing.sm }}>
             <SectionHeader title="Account" />
@@ -377,6 +379,23 @@ export default function ProfileScreen() {
               label="Send Feedback"
               subtitle="Bugs, feature requests, or general thoughts"
               onPress={() => setShowFeedbackModal(true)}
+            />
+          </View>
+                
+          {/* ── Legal ── */}
+          <View style={{ gap: spacing.sm }}>
+            <SectionHeader title="Legal" />
+
+            <SettingsRow
+              icon="document-text-outline"
+              label="Privacy Policy"
+              onPress={() => router.push('/(tabs)/profile/privacy-policy')}
+            />
+
+            <SettingsRow
+              icon="reader-outline"
+              label="Terms of Service"
+              onPress={() => router.push('/(tabs)/profile/terms-of-service')}
             />
           </View>
 

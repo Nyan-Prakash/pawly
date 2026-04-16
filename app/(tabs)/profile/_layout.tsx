@@ -6,6 +6,9 @@ export default function ProfileLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="notification-settings" />
       <Stack.Screen name="edit-dog" />
+      <Stack.Screen name="privacy-policy" />
+      <Stack.Screen name="terms-of-service" />
+      <Stack.Screen name="delete-account" />
     </Stack>
   );
 }

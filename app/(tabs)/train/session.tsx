@@ -518,6 +518,9 @@ export default function SessionScreen() {
           planId={activePlan?.id ?? ''}
           sessionId={activeSession.sessionId}
           currentStepIndex={activeSession.currentStepIndex}
+          repCount={activeSession.repCount}
+          timerSeconds={activeSession.timerSeconds ?? 0}
+          isTimerRunning={activeSession.isTimerRunning}
           onComplete={(summary: LiveAiTrainerSummary) => {
             liveAiSummaryRef.current = summary;
             setOverlayState('NONE');
@@ -531,6 +534,11 @@ export default function SessionScreen() {
             setOverlayState('NONE');
             setState('STEP_ACTIVE');
           }}
+          onStepDone={handleStepDone}
+          onToggleTimer={() => {
+            activeSession.isTimerRunning ? pauseTimer() : startTimer();
+          }}
+          onIncrementRep={incrementRep}
         />
         {/* Abandon sheet is accessible from live coaching too */}
         <AbandonSheet
@@ -1824,9 +1832,15 @@ interface LiveAiTrainerScreenProps {
   planId: string;
   sessionId: string;
   currentStepIndex: number;
+  repCount: number;
+  timerSeconds: number;
+  isTimerRunning: boolean;
   onComplete: (summary: LiveAiTrainerSummary) => void;
   onExit: () => void;
   onManualSwitch: () => void;
+  onStepDone: () => void;
+  onToggleTimer: () => void;
+  onIncrementRep: () => void;
 }
 
 function LiveAiTrainerScreen({
@@ -1835,9 +1849,15 @@ function LiveAiTrainerScreen({
   planId,
   sessionId,
   currentStepIndex,
+  repCount,
+  timerSeconds,
+  isTimerRunning,
   onComplete,
   onExit,
   onManualSwitch,
+  onStepDone,
+  onToggleTimer,
+  onIncrementRep,
 }: LiveAiTrainerScreenProps) {
   const coaching = useLiveAiTrainerSession({ protocol, dogId, planId, sessionId, currentStepIndex });
 
@@ -1863,6 +1883,16 @@ function LiveAiTrainerScreen({
     }
   }, [coaching.lastResponse?.coachMessage]);
 
+  const currentStep = protocol.steps[currentStepIndex];
+  const stepInfo = {
+    instruction: currentStep?.instruction ?? '',
+    successLook: currentStep?.successLook ?? '',
+    stepNumber: currentStepIndex + 1,
+    totalSteps: protocol.steps.length,
+    reps: currentStep?.reps ?? null,
+    durationSeconds: currentStep?.durationSeconds ?? null,
+  };
+
   return (
     <LiveAiTrainerOverlay
       status={coaching.status}
@@ -1872,6 +1902,13 @@ function LiveAiTrainerScreen({
       onAskCoach={coaching.askCoach}
       onAnalyzeFrame={coaching.analyzeFrame}
       onManualSwitch={onManualSwitch}
+      onStepDone={onStepDone}
+      step={stepInfo}
+      repCount={repCount}
+      timerSeconds={timerSeconds}
+      isTimerRunning={isTimerRunning}
+      onToggleTimer={onToggleTimer}
+      onIncrementRep={onIncrementRep}
     />
   );
 }
