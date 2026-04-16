@@ -24,6 +24,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { typography } from '@/constants/typography';
+import { validatePassword, PASSWORD_PLACEHOLDER } from '@/lib/validation';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -57,8 +58,9 @@ export default function SignUpScreen() {
       setEmailError('Please enter a valid email address.');
       valid = false;
     }
-    if (password.length < 8) {
-      setPasswordError('Password must be at least 8 characters.');
+    const pwResult = validatePassword(password);
+    if (!pwResult.valid) {
+      setPasswordError(pwResult.message);
       valid = false;
     }
     return valid;
@@ -76,7 +78,7 @@ export default function SignUpScreen() {
 
       if (error) {
         if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already in use')) {
-          setEmailError('Email already in use. Try logging in instead.');
+          setEmailError('Unable to create account. Please try again or use a different email.');
         } else {
           setGeneralError('Something went wrong. Please try again.');
         }
@@ -112,10 +114,8 @@ export default function SignUpScreen() {
 
       // Otherwise root layout auth listener handles redirect
     } catch (err) {
-      console.error('[signup] handleSignUp failed:', err);
-      setGeneralError(
-        `Something went wrong: ${err instanceof Error ? err.message : JSON.stringify(err)}`
-      );
+      console.error('[signup] handleSignUp failed:', err instanceof Error ? err.message : 'Unknown error');
+      setGeneralError('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -299,7 +299,7 @@ export default function SignUpScreen() {
                   onChangeText={setPassword}
                   secureTextEntry
                   autoComplete="password-new"
-                  placeholder="Min. 8 characters"
+                  placeholder={PASSWORD_PLACEHOLDER}
                   placeholderTextColor={colors.textSecondary}
                   style={inputStyle(!!passwordError)}
                 />

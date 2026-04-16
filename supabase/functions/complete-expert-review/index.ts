@@ -59,12 +59,16 @@ serve(async (req) => {
 
   // ── Admin key auth ────────────────────────────────────────────────────────
   // This endpoint is for trainers / admin tooling, not end users.
+  // ADMIN_API_KEY must be set as a Supabase secret — if it's missing the
+  // function refuses all requests rather than silently bypassing auth.
   const adminApiKey = Deno.env.get('ADMIN_API_KEY');
-  if (adminApiKey) {
-    const providedKey = req.headers.get('X-Admin-Key');
-    if (!providedKey || providedKey !== adminApiKey) {
-      return jsonResponse({ error: 'Forbidden' }, 403);
-    }
+  if (!adminApiKey) {
+    console.error('ADMIN_API_KEY secret is not configured');
+    return jsonResponse({ error: 'Service misconfigured' }, 500);
+  }
+  const providedKey = req.headers.get('X-Admin-Key');
+  if (!providedKey || providedKey !== adminApiKey) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
   }
 
   // ── Parse body ────────────────────────────────────────────────────────────
@@ -101,7 +105,7 @@ serve(async (req) => {
     .single();
 
   if (updateError || !review) {
-    console.error('Update error:', updateError);
+    console.error('Update error:', updateError?.message ?? 'Unknown error');
     return jsonResponse({ error: 'Review not found or update failed' }, 404);
   }
 

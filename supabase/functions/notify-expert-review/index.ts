@@ -193,10 +193,9 @@ serve(async (req) => {
   });
 
   if (!emailRes.ok) {
-    const errText = await emailRes.text();
-    console.error('Resend error:', errText);
+    console.error('Resend email delivery failed, status:', emailRes.status);
     // Non-fatal — review record was already created
-    return jsonResponse({ ok: true, emailSent: false, emailError: errText });
+    return jsonResponse({ ok: true, emailSent: false, emailError: `Email delivery failed (${emailRes.status})` });
   }
 
   return jsonResponse({ ok: true, emailSent: true });
