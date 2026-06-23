@@ -44,6 +44,7 @@ export default function TrainingToolsScreen() {
             icon={<AppIcon name="chevron-back" size={22} color={colors.text.primary} />}
             onPress={() => router.back()}
             style={styles.backButton}
+            accessibilityLabel="Go back"
           />
           <View style={styles.headerCenter}>
             <Text variant="h2">Training Tools</Text>
