@@ -13,6 +13,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     icon: './assets/app-icon.png',
     bundleIdentifier: 'com.nyan.prakash.pawly',
     infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription:
         "Pawly uses the camera to provide real-time AI feedback and coaching during your training sessions.",
       NSPhotoLibraryUsageDescription:
