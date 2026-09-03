@@ -44,3 +44,5 @@ yarn-error.*
 
 # TFLite model binaries — download separately, do not commit large binaries
 *.tflite
+# Supabase CLI local cache
+supabase/.temp/
