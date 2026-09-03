@@ -52,9 +52,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   experiments: {
     typedRoutes: true
   },
+  owner: 'nyan.prakash',
   extra: {
     eas: {
-      projectId: '00000000-0000-0000-0000-000000000000'
+      projectId: '541f4302-8758-49d8-acc8-d89c1db3d59c'
     }
   }
 });
