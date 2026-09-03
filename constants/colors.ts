@@ -10,6 +10,9 @@ export const lightColors = {
     app: '#F7F2EC',
     surface: '#FFFDF9',
     surfaceAlt: '#F5F7F9',
+    // Warm "sand" fill: the quiet, borderless, shadowless surface used for
+    // notes, icon wells and secondary tiles so not everything is a white card.
+    sand: '#F1EBE2',
     elevated: 'rgba(255,255,255,0.88)',
     elevatedMuted: 'rgba(255,255,255,0.72)',
     glass: 'rgba(255,255,255,0.66)',
@@ -76,6 +79,7 @@ export const darkColors = {
     app: '#0B1220',
     surface: '#121A29',
     surfaceAlt: '#1A2436',
+    sand: '#18212F',
     elevated: 'rgba(18,26,41,0.94)',
     elevatedMuted: 'rgba(26,36,54,0.92)',
     glass: 'rgba(18,26,41,0.84)',

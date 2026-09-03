@@ -35,199 +35,148 @@ type MascotCalloutProps = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function MascotSvg({ state = 'happy', size }: { state: MascotState; size: number }) {
-  const fur      = colors.mascot.fur;      // #F6B66E warm amber
-  const furDark  = colors.mascot.furDark;  // #E19A53 dark amber
-  const earInner = colors.mascot.earInner; // #FFD9B3 peach
+  const fur      = colors.mascot.fur;      // warm golden
+  const furDark  = colors.mascot.furDark;  // ears, tuft, shading
+  const cream    = colors.mascot.earInner; // muzzle + inner ear
   const collar   = colors.mascot.collar;   // brand green
   const tag      = colors.brand.secondary;
-  const nose     = '#2A2A2A';
-  const eyeCol   = '#111827';
-
-  // ── Mouth per state ─────────────────────────────────────────────────────
-  const mouthPaths: Record<MascotState, string> = {
-    happy:       'M 39 64 Q 50 72 61 64',
-    encouraging: 'M 40 63 Q 50 70 60 63',
-    thinking:    'M 42 65 L 58 65',
-    celebrating: 'M 37 63 Q 50 75 63 63',
-    waiting:     'M 42 65 Q 50 68 58 65',
-  };
-
-  // ── Eye shape per state ──────────────────────────────────────────────────
-  // waiting = sleepy half-closed, celebrating = wide
-  const eyeRY: Record<MascotState, number> = {
-    happy: 5.5, encouraging: 4.5, thinking: 4.5, celebrating: 6.5, waiting: 2.5,
-  };
+  const ink      = '#2B2523';              // nose + mouth
+  const eyeCol   = '#1F2937';
+  const blush    = '#F59A9A';
 
   const isWaiting     = state === 'waiting';
   const isCelebrating = state === 'celebrating';
   const isThinking    = state === 'thinking';
   const isEncouraging = state === 'encouraging';
 
-  // Eye y-position — sit above the snout
-  const eyeY = 38;
-  const leftEyeX  = 35;
-  const rightEyeX = 65;
+  // Face geometry — head centred at (50,48), eyes on the upper third, muzzle
+  // below. Kept in variables so expressions only move a few numbers.
+  const eyeY = 45;
+  const lx = 37;
+  const rx = 63;
+  const eyeRy: Record<MascotState, number> = {
+    happy: 6.5, encouraging: 6, thinking: 6, celebrating: 7.2, waiting: 6.5,
+  };
+
+  // Mouth — a soft "w" built from two arcs meeting under the nose.
+  const mouth: Record<MascotState, string> = {
+    happy:       'M 43 67 Q 50 72.5 57 67',
+    encouraging: 'M 42.5 67 Q 50 73 57.5 67',
+    thinking:    'M 45 68.5 Q 50 69.5 55 68.5',
+    celebrating: 'M 41 66 Q 50 76 59 66',
+    waiting:     'M 45.5 68 Q 50 70.5 54.5 68',
+  };
+
 
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100">
       <Defs>
-        {/* Clip for half-closed sleepy eyes */}
-        <ClipPath id="sleepL">
-          <Rect x={leftEyeX  - 8} y={eyeY} width={16} height={12} />
-        </ClipPath>
-        <ClipPath id="sleepR">
-          <Rect x={rightEyeX - 8} y={eyeY} width={16} height={12} />
-        </ClipPath>
+        <ClipPath id="sleepL"><Rect x={lx - 8} y={eyeY} width={16} height={12} /></ClipPath>
+        <ClipPath id="sleepR"><Rect x={rx - 8} y={eyeY} width={16} height={12} /></ClipPath>
+        <ClipPath id="head"><Ellipse cx={50} cy={48} rx={31} ry={29} /></ClipPath>
       </Defs>
 
       {/* ── Thought bubbles ── */}
       {isThinking && (
         <>
-          <Circle cx={72} cy={14} r={5}   fill={colors.bg.surfaceAlt} opacity={0.9} />
-          <Circle cx={81} cy={8}  r={3.5} fill={colors.bg.surfaceAlt} opacity={0.9} />
-          <Circle cx={88} cy={4}  r={2.5} fill={colors.bg.surfaceAlt} opacity={0.9} />
+          <Circle cx={80} cy={22} r={5.5} fill={colors.bg.surfaceAlt} />
+          <Circle cx={88} cy={13} r={3.5} fill={colors.bg.surfaceAlt} />
+          <Circle cx={93} cy={6}  r={2}   fill={colors.bg.surfaceAlt} />
         </>
       )}
 
       {/* ── Confetti ── */}
       {isCelebrating && (
         <>
-          <Rect x={6}  y={10} width={6} height={6} rx={1.5} fill={tag}                  transform="rotate(20 9 13)" />
-          <Rect x={82} y={8}  width={5} height={5} rx={1}   fill={colors.brand.primary} transform="rotate(-18 84 10)" />
-          <Rect x={14} y={22} width={5} height={5} rx={1}   fill="#EC4899"              transform="rotate(35 16 24)" />
-          <Rect x={78} y={24} width={6} height={6} rx={1.5} fill={colors.brand.coach}   transform="rotate(-25 81 27)" />
-          <Rect x={46} y={4}  width={5} height={5} rx={1}   fill="#8B5CF6"              transform="rotate(12 48 6)" />
+          <Rect x={8}  y={12} width={6} height={6} rx={1.5} fill={tag}                  transform="rotate(20 11 15)" />
+          <Rect x={84} y={10} width={5} height={5} rx={1}   fill={colors.brand.primary} transform="rotate(-18 86 12)" />
+          <Rect x={16} y={26} width={4} height={4} rx={1}   fill="#F472B6"              transform="rotate(35 18 28)" />
+          <Rect x={80} y={28} width={5} height={5} rx={1.5} fill={colors.brand.coach}   transform="rotate(-25 82 30)" />
+          <Circle cx={50} cy={7} r={2.5} fill="#A78BFA" />
         </>
       )}
 
-      {/* ── FLOPPY EARS — hang DOWN from sides of head ──────────────────────
-          These are the key feature that makes this read as a dog.
-          Each ear is a large teardrop/rounded-rect that droops below the head.
-      ────────────────────────────────────────────────────────────────────── */}
+      {/* ── Ears — one outer shape + one solid inner shape, mirrored exactly ── */}
+      <Path d="M 33 25 C 16 22 2 44 7 62 C 10 76 24 80 29 70 C 32 60 33 42 33 25 Z" fill={furDark} />
+      <Path d="M 67 25 C 84 22 98 44 93 62 C 90 76 76 80 71 70 C 68 60 67 42 67 25 Z" fill={furDark} />
+      <Path d="M 30 38 C 20 40 13 54 16 64 C 18 70 25 71 27 64 C 29 56 30 47 30 38 Z" fill={cream} />
+      <Path d="M 70 38 C 80 40 87 54 84 64 C 82 70 75 71 73 64 C 71 56 70 47 70 38 Z" fill={cream} />
 
-      {/* Left ear — outer dark fur */}
-      <Path
-        d="M 18 36 C 4 36 2 58 6 72 C 10 84 22 88 28 80 C 32 74 30 52 26 40 Z"
-        fill={furDark}
-      />
-      {/* Left ear — inner peach */}
-      <Path
-        d="M 20 40 C 10 42 9 60 12 70 C 15 78 23 80 26 74 C 28 68 27 50 23 42 Z"
-        fill={earInner}
-      />
+      {/* ── Head ── */}
+      <Ellipse cx={50} cy={48} rx={31} ry={29} fill={fur} />
+      {/* soft under-shadow, clipped to the head so it reads as form not a stain */}
+      <Ellipse cx={50} cy={63} rx={34} ry={22} fill={furDark} opacity={0.12} clipPath="url(#head)" />
 
-      {/* Right ear — outer dark fur */}
-      <Path
-        d="M 82 36 C 96 36 98 58 94 72 C 90 84 78 88 72 80 C 68 74 70 52 74 40 Z"
-        fill={furDark}
-      />
-      {/* Right ear — inner peach */}
-      <Path
-        d="M 80 40 C 90 42 91 60 88 70 C 85 78 77 80 74 74 C 72 68 73 50 77 42 Z"
-        fill={earInner}
-      />
+      {/* ── Muzzle — one clean shape ── */}
+      <Path d="M 50 50 C 62 50 70 57 70 65 C 70 73 61 77 50 77 C 39 77 30 73 30 65 C 30 57 38 50 50 50 Z" fill={cream} />
 
-      {/* ── HEAD (drawn on top of ear roots) ── */}
-      <Ellipse cx={50} cy={44} rx={30} ry={27} fill={fur} />
+      {/* ── Brows ── */}
+      <Path d={`M ${lx - 6} ${eyeY - 10.5} Q ${lx} ${eyeY - (isThinking ? 15 : 13)} ${lx + 6} ${eyeY - 10.5}`}
+        stroke={furDark} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.75} />
+      <Path d={`M ${rx - 6} ${eyeY - 10.5} Q ${rx} ${eyeY - 13} ${rx + 6} ${eyeY - 10.5}`}
+        stroke={furDark} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.75} />
 
-      {/* ── SNOUT — elongated muzzle that protrudes forward ── */}
-      {/* Snout base — slightly darker to separate from head */}
-      <Ellipse cx={50} cy={62} rx={17} ry={13} fill={earInner} />
-      {/* Snout highlight — top lighter area */}
-      <Ellipse cx={50} cy={57} rx={13} ry={8}  fill="#FFE8C8" opacity={0.6} />
-
-      {/* ── EYES — high on face, wide-set ── */}
+      {/* ── Eyes ── */}
       {isWaiting ? (
         <>
-          {/* Sleepy half-closed */}
-          <Ellipse cx={leftEyeX}  cy={eyeY} rx={6} ry={eyeRY[state]} fill={eyeCol} clipPath="url(#sleepL)" />
-          <Ellipse cx={rightEyeX} cy={eyeY} rx={6} ry={eyeRY[state]} fill={eyeCol} clipPath="url(#sleepR)" />
-          {/* Droopy eyelid lines */}
-          <Path d={`M ${leftEyeX - 6} ${eyeY} Q ${leftEyeX} ${eyeY - 3} ${leftEyeX + 6} ${eyeY}`}
-            stroke={furDark} strokeWidth={2} strokeLinecap="round" fill="none" />
-          <Path d={`M ${rightEyeX - 6} ${eyeY} Q ${rightEyeX} ${eyeY - 3} ${rightEyeX + 6} ${eyeY}`}
-            stroke={furDark} strokeWidth={2} strokeLinecap="round" fill="none" />
+          <Ellipse cx={lx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} clipPath="url(#sleepL)" />
+          <Ellipse cx={rx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} clipPath="url(#sleepR)" />
+          <Path d={`M ${lx - 6} ${eyeY} Q ${lx} ${eyeY - 3} ${lx + 6} ${eyeY}`} stroke={furDark} strokeWidth={2.2} strokeLinecap="round" fill="none" />
+          <Path d={`M ${rx - 6} ${eyeY} Q ${rx} ${eyeY - 3} ${rx + 6} ${eyeY}`} stroke={furDark} strokeWidth={2.2} strokeLinecap="round" fill="none" />
         </>
       ) : isEncouraging ? (
         <>
-          {/* Left eye normal */}
-          <Ellipse cx={leftEyeX}  cy={eyeY} rx={6} ry={eyeRY[state]} fill={eyeCol} />
-          {/* Right eye = wink (closed arc) */}
-          <Path
-            d={`M ${rightEyeX - 6} ${eyeY} Q ${rightEyeX} ${eyeY - 6} ${rightEyeX + 6} ${eyeY}`}
-            stroke={eyeCol} strokeWidth={3} strokeLinecap="round" fill="none"
-          />
+          <Ellipse cx={lx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} />
+          <Circle cx={lx + 2} cy={eyeY - 2.4} r={2} fill="white" />
+          <Circle cx={lx - 1.6} cy={eyeY + 2.2} r={1} fill="white" opacity={0.6} />
+          {/* wink */}
+          <Path d={`M ${rx - 6} ${eyeY + 1} Q ${rx} ${eyeY - 5} ${rx + 6} ${eyeY + 1}`} stroke={eyeCol} strokeWidth={3} strokeLinecap="round" fill="none" />
         </>
       ) : (
         <>
-          <Ellipse cx={leftEyeX}  cy={eyeY} rx={6} ry={eyeRY[state]} fill={eyeCol} />
-          <Ellipse cx={rightEyeX} cy={eyeY} rx={6} ry={eyeRY[state]} fill={eyeCol} />
+          <Ellipse cx={lx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} />
+          <Ellipse cx={rx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} />
+          <Circle cx={lx + 2} cy={eyeY - 2.4} r={2} fill="white" />
+          <Circle cx={rx + 2} cy={eyeY - 2.4} r={2} fill="white" />
+          <Circle cx={lx - 1.6} cy={eyeY + 2.2} r={1} fill="white" opacity={0.6} />
+          <Circle cx={rx - 1.6} cy={eyeY + 2.2} r={1} fill="white" opacity={0.6} />
         </>
       )}
 
-      {/* Eye shines */}
-      {!isWaiting && !isEncouraging && (
-        <>
-          <Circle cx={leftEyeX  + 2.5} cy={eyeY - 2} r={1.8} fill="white" />
-          <Circle cx={leftEyeX  - 0.5} cy={eyeY + 2} r={0.9} fill="white" opacity={0.5} />
-          <Circle cx={rightEyeX + 2.5} cy={eyeY - 2} r={1.8} fill="white" />
-          <Circle cx={rightEyeX - 0.5} cy={eyeY + 2} r={0.9} fill="white" opacity={0.5} />
-        </>
-      )}
-      {isEncouraging && (
-        <>
-          <Circle cx={leftEyeX + 2.5} cy={eyeY - 2} r={1.8} fill="white" />
-          <Circle cx={leftEyeX - 0.5} cy={eyeY + 2} r={0.9} fill="white" opacity={0.5} />
-        </>
-      )}
+      {/* ── Cheeks ── */}
+      <Ellipse cx={27} cy={59} rx={5} ry={3} fill={blush} opacity={0.35} />
+      <Ellipse cx={73} cy={59} rx={5} ry={3} fill={blush} opacity={0.35} />
 
-      {/* ── NOSE — big wet oval on snout ── */}
-      <Ellipse cx={50} cy={56} rx={6.5} ry={4.5} fill={nose} />
-      {/* Nose shine */}
-      <Ellipse cx={47.5} cy={54.5} rx={2.2} ry={1.4} fill="white" opacity={0.45} />
-      {/* Nose-to-mouth line */}
-      <Path d="M 50 60.5 L 50 63" stroke={nose} strokeWidth={1.5} strokeLinecap="round" />
+      {/* ── Nose — rounded heart ── */}
+      <Path d="M 45 57 C 45 54 55 54 55 57 C 55 60.2 52 62.5 50 62.5 C 48 62.5 45 60.2 45 57 Z" fill={ink} />
+      <Ellipse cx={48} cy={56.6} rx={1.7} ry={1} fill="white" opacity={0.45} />
 
-      {/* ── MOUTH ── */}
-      <Path
-        d={mouthPaths[state]}
-        stroke={nose}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        fill="none"
-      />
+      {/* ── Mouth ── */}
+      <Path d={mouth[state]} stroke={ink} strokeWidth={1.8} strokeLinecap="round" fill="none" opacity={0.85} />
 
-      {/* ── TONGUE — happy & celebrating ── */}
-      {(state === 'happy' || isCelebrating) && (
+      {/* ── Tongue — celebrating only ── */}
+      {isCelebrating && (
         <G>
-          <Ellipse cx={50} cy={70} rx={5.5} ry={6.5} fill="#F87171" />
-          <Path d="M 44.5 70 Q 50 76 55.5 70" fill="#EF4444" opacity={0.4} />
-          <Ellipse cx={48} cy={68} rx={1.8} ry={1.2} fill="white" opacity={0.35} />
+          <Path d="M 45.5 69 L 54.5 69 L 54.5 73.5 C 54.5 77.5 45.5 77.5 45.5 73.5 Z" fill="#F26D6D" />
+          <Path d="M 50 70 L 50 75.5" stroke="#DC4C4C" strokeWidth={1.2} strokeLinecap="round" opacity={0.7} />
         </G>
       )}
 
-      {/* ── CHEEK BLUSH ── */}
-      <Ellipse cx={24} cy={52} rx={7} ry={4} fill="#FDA4AF" opacity={0.28} />
-      <Ellipse cx={76} cy={52} rx={7} ry={4} fill="#FDA4AF" opacity={0.28} />
+      {/* ── Collar — thin, slightly muted so the face keeps focus ── */}
+      <Path d="M 25 73 C 35 82 65 82 75 73 L 75 77.5 C 65 86.5 35 86.5 25 77.5 Z" fill={collar} />
+      <Path d="M 25 73 C 35 82 65 82 75 73 L 75 77.5 C 65 86.5 35 86.5 25 77.5 Z" fill="#000" opacity={0.14} />
+      <Circle cx={50} cy={83} r={5.5} fill={tag} />
 
-      {/* ── COLLAR ── */}
-      <Rect x={28} y={68} width={44} height={8} rx={4} fill={collar} />
-      {/* Collar stitch detail */}
-      <Rect x={28} y={68} width={44} height={2.5} rx={1.2} fill="white" opacity={0.15} />
-      {/* Collar tag */}
-      <Circle cx={50} cy={76} r={5}   fill={tag} />
-      <Circle cx={50} cy={76} r={2.5} fill={furDark} opacity={0.2} />
-
-      {/* ── ENCOURAGING PAW ── */}
+      {/* ── Encouraging paw ── */}
       {isEncouraging && (
-        <G transform="translate(80, 50)">
-          <Ellipse cx={0} cy={0}  rx={5.5} ry={8} fill={fur} />
-          <Circle  cx={-4} cy={-7} r={3}   fill={fur} />
-          <Circle  cx={0}  cy={-8} r={3}   fill={fur} />
-          <Circle  cx={4}  cy={-7} r={3}   fill={fur} />
+        <G transform="translate(86, 62)">
+          <Ellipse cx={0} cy={2} rx={6} ry={7.5} fill={fur} />
+          <Circle cx={-4.5} cy={-5} r={2.8} fill={fur} />
+          <Circle cx={0}    cy={-6.5} r={2.8} fill={fur} />
+          <Circle cx={4.5}  cy={-5} r={2.8} fill={fur} />
+          <Ellipse cx={0} cy={3} rx={3.2} ry={3.6} fill={cream} opacity={0.8} />
         </G>
       )}
-
     </Svg>
   );
 }
@@ -238,7 +187,6 @@ function MascotSvg({ state = 'happy', size }: { state: MascotState; size: number
 
 export function MascotCallout({ state = 'happy', size = 120, callout, style }: MascotCalloutProps) {
   const scaleAnim  = useRef(new Animated.Value(0.8)).current;
-  const wiggleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.spring(scaleAnim, {
@@ -249,21 +197,9 @@ export function MascotCallout({ state = 'happy', size = 120, callout, style }: M
     }).start();
   }, [scaleAnim]);
 
-  useEffect(() => {
-    if (state === 'celebrating' || state === 'happy') {
-      Animated.sequence([
-        Animated.timing(wiggleAnim, { toValue: 5,  duration: 90,  useNativeDriver: true }),
-        Animated.timing(wiggleAnim, { toValue: -5, duration: 90,  useNativeDriver: true }),
-        Animated.timing(wiggleAnim, { toValue: 3,  duration: 90,  useNativeDriver: true }),
-        Animated.timing(wiggleAnim, { toValue: -3, duration: 90,  useNativeDriver: true }),
-        Animated.timing(wiggleAnim, { toValue: 0,  duration: 90,  useNativeDriver: true }),
-      ]).start();
-    }
-  }, [state, wiggleAnim]);
-
   return (
     <View style={[{ alignItems: 'center', gap: 8 }, style]}>
-      <Animated.View style={{ transform: [{ scale: scaleAnim }, { translateX: wiggleAnim }] }}>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <MascotSvg state={state} size={size} />
       </Animated.View>
       {callout && (

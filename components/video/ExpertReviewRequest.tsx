@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Modal,
   Pressable,
-  ScrollView,
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Text } from '@/components/ui/Text';
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
@@ -62,41 +60,7 @@ export function ExpertReviewRequest({ visible, videoId, onClose, onConfirmed }: 
   const hasCredits = credits !== null && credits > 0;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <Pressable
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-        onPress={onClose}
-      >
-        <View style={{ flex: 1 }} />
-        <Pressable onPress={(e) => e.stopPropagation()}>
-          <Animated.View
-            entering={FadeInUp.duration(300)}
-            style={{
-              backgroundColor: colors.surface,
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              paddingTop: spacing.lg,
-              paddingHorizontal: spacing.xl,
-              paddingBottom: spacing.xl + 16,
-            }}
-          >
-            {/* Handle bar */}
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                backgroundColor: colors.border.default,
-                borderRadius: 2,
-                alignSelf: 'center',
-                marginBottom: spacing.lg,
-              }}
-            />
+    <BottomSheet visible={visible} onClose={onClose}>
 
             <Text variant="title" style={{ color: colors.textPrimary, marginBottom: spacing.xs }}>
               Get a trainer's eyes on this
@@ -180,9 +144,6 @@ export function ExpertReviewRequest({ visible, videoId, onClose, onConfirmed }: 
                 Cancel
               </Text>
             </Pressable>
-          </Animated.View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </BottomSheet>
   );
 }

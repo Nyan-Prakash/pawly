@@ -1,11 +1,6 @@
 import { useRef, useState } from 'react';
 import {
-  Animated,
   Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -13,6 +8,7 @@ import {
 } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
@@ -117,46 +113,11 @@ export function WalkLogModal({
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
-          onPress={handleClose}
-        >
-          <Pressable onPress={Keyboard.dismiss}>
-            <View
-              style={{
-                backgroundColor: colors.bg.surface,
-                borderTopLeftRadius: radii.lg,
-                borderTopRightRadius: radii.lg,
-                paddingTop: spacing.sm,
-                paddingHorizontal: spacing.lg,
-                paddingBottom: spacing.xl + spacing.xl,
-              }}
-            >
-              {/* Drag handle */}
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: colors.border.default,
-                  alignSelf: 'center',
-                  marginBottom: spacing.lg,
-                }}
-              />
-
+    <BottomSheet visible={visible} onClose={handleClose} avoidKeyboard>
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                style={{ maxHeight: 560 }}
               >
                 {/* Header */}
                 <Text variant="h2" style={{ marginBottom: spacing.sm }}>
@@ -319,10 +280,6 @@ export function WalkLogModal({
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
-            </View>
-          </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </Modal>
+    </BottomSheet>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   ScrollView,
   TouchableOpacity,
@@ -13,6 +12,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/ui/AppIcon';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SafeScreen } from '@/components/ui/SafeScreen';
@@ -257,39 +257,7 @@ function SessionDetailSheet({
 
   return (
     <>
-      <Modal
-        visible={visible}
-        transparent
-        animationType="slide"
-        onRequestClose={onClose}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
-          onPress={onClose}
-        >
-          <Pressable onPress={() => {}} style={{ width: '100%' }}>
-            <View
-              style={{
-                backgroundColor: colors.bg.surface,
-                borderTopLeftRadius: 28,
-                borderTopRightRadius: 28,
-                width: '100%',
-                overflow: 'hidden',
-              }}
-            >
-              {/* Drag handle */}
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: colors.border.default,
-                  alignSelf: 'center',
-                  marginTop: spacing.md,
-                  marginBottom: spacing.sm,
-                }}
-              />
-
+      <BottomSheet visible={visible} onClose={onClose} padded={false}>
               <ScrollView
                 style={{ flexGrow: 0, paddingHorizontal: spacing.lg }}
                 contentContainerStyle={{ paddingBottom: spacing.xl}}
@@ -406,10 +374,7 @@ function SessionDetailSheet({
                   }}
                 />
               </View>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </BottomSheet>
 
       {/* Full why-this-changed sheet */}
       {relatedAdaptation && (

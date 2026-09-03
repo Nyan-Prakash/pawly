@@ -1,16 +1,13 @@
 import { useState } from 'react';
 import {
   Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
   ScrollView,
   TouchableOpacity,
   View,
 } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
@@ -94,42 +91,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
   }
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
-        <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
-          onPress={handleClose}
-        >
-          <Pressable onPress={Keyboard.dismiss}>
-            <View
-              style={{
-                backgroundColor: colors.bg.surface,
-                borderTopLeftRadius: radii.lg,
-                borderTopRightRadius: radii.lg,
-                paddingTop: spacing.sm,
-                paddingHorizontal: spacing.lg,
-                paddingBottom: Platform.OS === 'ios' ? spacing.xxl : spacing.xl,
-              }}
-            >
-              {/* Drag handle */}
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: colors.border.default,
-                  alignSelf: 'center',
-                  marginBottom: spacing.lg,
-                }}
-              />
+    <BottomSheet visible={visible} onClose={handleClose} avoidKeyboard>
 
               {isSuccess ? (
                 <View style={{ alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.md }}>
@@ -242,10 +204,6 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
                   </View>
                 </ScrollView>
               )}
-            </View>
-          </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </Modal>
+    </BottomSheet>
   );
 }
