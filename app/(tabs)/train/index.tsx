@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { BottomSheet } from '@/components/ui/BottomSheet';
@@ -36,6 +36,12 @@ import { useDogStore } from '@/stores/dogStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
 import { useProgressStore } from '@/stores/progressStore';
+import {
+  clearSessionSnapshot,
+  isSnapshotResumable,
+  loadSessionSnapshot,
+  type SessionSnapshot,
+} from '@/lib/sessionPersistence';
 import {
   formatScheduleLabel,
   getBehaviorLabel,
@@ -296,6 +302,65 @@ function SecondaryRow({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Resume card
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ResumeSessionCard({
+  snapshot,
+  planSession,
+  plan,
+  onResume,
+  onDiscard,
+}: {
+  snapshot: SessionSnapshot;
+  planSession: PlanSession;
+  plan: Plan;
+  onResume: () => void;
+  onDiscard: () => void;
+}) {
+  const theme = getCourseUiColors(plan);
+  const stepLabel =
+    snapshot.state === 'SESSION_REVIEW'
+      ? 'All steps done — just needs a quick review'
+      : `Step ${Math.min(snapshot.currentStepIndex + 1, snapshot.totalSteps)} of ${snapshot.totalSteps}`;
+
+  return (
+    <View
+      style={{
+        backgroundColor: theme.tint,
+        borderRadius: radii.lg,
+        padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: theme.selectedBorder,
+        gap: spacing.md,
+      }}
+      accessibilityRole="summary"
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <AppIcon name="play-circle" size={20} color={theme.text} />
+        <Text variant="caption" style={{ fontWeight: '700', color: theme.text }}>
+          Pick up where you left off
+        </Text>
+      </View>
+      <View>
+        <Text variant="h3" numberOfLines={2}>{planSession.title || snapshot.protocolTitle}</Text>
+        <Text variant="caption" style={{ color: colors.text.secondary, marginTop: spacing.xs }}>
+          {stepLabel}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <View style={{ flex: 1 }}>
+          <Button label="Resume" size="md" leftIcon="play" onPress={onResume} />
+        </View>
+        <TouchableOpacity onPress={onDiscard} hitSlop={8} accessibilityRole="button" accessibilityLabel="Discard unfinished session">
+          <Text variant="caption" style={{ color: colors.text.secondary, fontWeight: '600' }}>Discard</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Today screen
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -332,6 +397,21 @@ export default function TrainScreen() {
   const [selectedWin, setSelectedWin] = useState<QuickWin | null>(null);
   const [showWalkModal, setShowWalkModal] = useState(false);
   const [newMilestone, setNewMilestone] = useState<Milestone | null>(null);
+  const [resumable, setResumable] = useState<SessionSnapshot | null>(null);
+
+  // An interrupted session (app killed mid-training) can be picked back up.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      loadSessionSnapshot().then((snap) => {
+        if (cancelled) return;
+        setResumable(snap && isSnapshotResumable(snap) ? snap : null);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   useEffect(() => {
     if (dog?.id) fetchActivePlans(dog.id);
@@ -393,6 +473,16 @@ export default function TrainScreen() {
     : streak >= 3
       ? 'encouraging'
       : 'happy';
+
+  // Only offer resume when the snapshot still points at a live, unfinished session.
+  const resumeTarget = useMemo(() => {
+    if (!resumable) return null;
+    for (const plan of activePlans) {
+      const session = plan.sessions.find((s) => s.id === resumable.sessionId);
+      if (session && !session.isCompleted) return { plan, session };
+    }
+    return null;
+  }, [resumable, activePlans]);
 
   const heroSession = recommendedTodaySession;
   const heroPlan = heroSession ? plansById[heroSession.planId] ?? null : null;
@@ -513,6 +603,22 @@ export default function TrainScreen() {
               }}
             />
           </Card>
+        ) : null}
+
+        {/* ── Resume interrupted session ── */}
+        {resumable && resumeTarget ? (
+          <ResumeSessionCard
+            snapshot={resumable}
+            planSession={resumeTarget.session}
+            plan={resumeTarget.plan}
+            onResume={() =>
+              router.push(`/(tabs)/train/session?id=${resumable.sessionId}&planId=${resumeTarget.plan.id}`)
+            }
+            onDiscard={() => {
+              clearSessionSnapshot().catch(() => {});
+              setResumable(null);
+            }}
+          />
         ) : null}
 
         {/* ── Hero ── */}

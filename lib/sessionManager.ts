@@ -3,6 +3,8 @@ import { updateLearningStateFromSessionLog } from '@/lib/adaptivePlanning/learni
 import type { AdaptationApiResult, PlanEnvironment, PlanSession, PostSessionReflection } from '@/types';
 import type { StepResult } from '@/stores/sessionStore';
 import type { LiveAiTrainerSummary } from './liveCoach/liveAiTrainerTypes';
+import type { RecentSessionSummary } from './adaptivePlanning/reflectionQuestionTypes';
+import { computeStreakUpdate, localDateKey } from './sessionScoring';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -44,6 +46,8 @@ export interface CompletedSession {
 export interface SaveSessionResult {
   sessionLogId: string | null;
   adaptation: AdaptationApiResult | null;
+  /** Set when the log row could not be written. Callers must surface this. */
+  error: string | null;
 }
 
 export interface Milestone {
@@ -124,28 +128,60 @@ export async function saveSession(params: SaveSessionParams): Promise<SaveSessio
     .select('id')
     .single();
 
-  if (error) {
-    console.warn('[sessionManager] saveSession error:', error.message);
-    return { sessionLogId: null, adaptation: null };
+  if (error || !data?.id) {
+    const message = error?.message ?? 'Session log insert returned no id';
+    console.warn('[sessionManager] saveSession error:', message);
+    return { sessionLogId: null, adaptation: null, error: message };
   }
 
+  // The log is the source of truth. Learning-state and adaptation updates are
+  // best-effort: a failure there must never make the session look unsaved.
   let adaptation: AdaptationApiResult | null = null;
-  if (data?.id) {
-    try {
-      await updateLearningStateFromSessionLog(data.id);
-      if ((params.sessionStatus ?? 'completed') === 'completed') {
-        adaptation = await invokeAdaptPlan({
-          dogId: params.dogId,
-          planId: params.planId,
-          triggeredBySessionLogId: data.id,
-        });
-      }
-    } catch (updateError) {
-      console.warn('[sessionManager] learning state update error:', updateError);
+  try {
+    await updateLearningStateFromSessionLog(data.id);
+    if ((params.sessionStatus ?? 'completed') === 'completed') {
+      adaptation = await invokeAdaptPlan({
+        dogId: params.dogId,
+        planId: params.planId,
+        triggeredBySessionLogId: data.id,
+      });
     }
+  } catch (updateError) {
+    console.warn('[sessionManager] learning state update error:', updateError);
   }
 
-  return { sessionLogId: data?.id ?? null, adaptation };
+  return { sessionLogId: data.id, adaptation, error: null };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fetchRecentSessionSummaries
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Compact history used by the post-session reflection question engine so it
+ * can ask about repeated failures on a skill instead of guessing blind.
+ */
+export async function fetchRecentSessionSummaries(
+  dogId: string,
+  limit = 5,
+): Promise<RecentSessionSummary[]> {
+  const { data, error } = await supabase
+    .from('session_logs')
+    .select('session_status, difficulty, success_score, environment_tag, session_kind, skill_id, exercise_id')
+    .eq('dog_id', dogId)
+    .order('completed_at', { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+
+  return data.map((row) => ({
+    status: row.session_status === 'abandoned' ? 'abandoned' : 'completed',
+    difficulty: row.difficulty === 'easy' || row.difficulty === 'hard' ? row.difficulty : 'okay',
+    successScore: typeof row.success_score === 'number' ? row.success_score : 3,
+    environmentTag: row.environment_tag ?? null,
+    sessionKind: row.session_kind ?? null,
+    skillId: row.skill_id ?? row.exercise_id ?? null,
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -153,14 +189,15 @@ export async function saveSession(params: SaveSessionParams): Promise<SaveSessio
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function updateStreak(userId: string, dogId: string): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = localDateKey(now);
 
   const { data: existing } = await supabase
     .from('streaks')
     .select('*')
     .eq('user_id', userId)
     .eq('dog_id', dogId)
-    .single();
+    .maybeSingle();
 
   if (!existing) {
     await supabase.from('streaks').insert({
@@ -173,31 +210,17 @@ export async function updateStreak(userId: string, dogId: string): Promise<void>
     return;
   }
 
-  const lastDate = existing.last_session_date;
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const update = computeStreakUpdate(
+    {
+      current_streak: existing.current_streak ?? 0,
+      longest_streak: existing.longest_streak ?? 0,
+      last_session_date: existing.last_session_date ?? null,
+    },
+    now,
+  );
+  if (!update) return; // already trained today
 
-  let newStreak: number;
-  if (lastDate === today) {
-    // Already trained today — no change
-    return;
-  } else if (lastDate === yesterdayStr) {
-    // Consecutive day
-    newStreak = existing.current_streak + 1;
-  } else {
-    // Streak broken
-    newStreak = 1;
-  }
-
-  await supabase
-    .from('streaks')
-    .update({
-      current_streak: newStreak,
-      longest_streak: Math.max(newStreak, existing.longest_streak ?? 0),
-      last_session_date: today,
-    })
-    .eq('id', existing.id);
+  await supabase.from('streaks').update(update).eq('id', existing.id);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -210,10 +233,13 @@ export async function checkMilestones(
   sessionData: CompletedSession
 ): Promise<Milestone | null> {
   // Count total completed sessions for this dog
+  // Abandoned logs are attempts, not sessions — they must not consume the
+  // "first session" milestone or pad the counts.
   const { count } = await supabase
     .from('session_logs')
     .select('id', { count: 'exact', head: true })
-    .eq('dog_id', dogId);
+    .eq('dog_id', dogId)
+    .eq('session_status', 'completed');
 
   const total = count ?? 0;
 
@@ -233,7 +259,7 @@ export async function checkMilestones(
     .select('current_streak')
     .eq('user_id', userId)
     .eq('dog_id', dogId)
-    .single();
+    .maybeSingle();
 
   const currentStreak = streak?.current_streak ?? 0;
   if (currentStreak === 7) {
