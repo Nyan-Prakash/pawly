@@ -5,6 +5,8 @@ export type SessionStatus = 'completed' | 'abandoned';
 export interface StepResultInput {
   stepOrder?: number;
   completed?: boolean;
+  /** Per-step outcome recorded by the handler (newer logs only). */
+  outcome?: 'success' | 'struggled' | 'skipped';
   durationSeconds?: number;
   repCount?: number;
 }

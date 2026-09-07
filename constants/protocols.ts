@@ -58,7 +58,7 @@ const llw_stage1: Protocol = {
     },
     {
       order: 3,
-      instruction: 'After 5 good name responses, wait for direct eye contact before marking. Treat at your hip every time.',
+      instruction: 'Now raise the bar: say the name, then wait for direct eye contact before marking. Treat at your hip every time. Do 10 reps.',
       durationSeconds: null,
       reps: 10,
       tip: 'Treat at your hip, not in front of you — the reward zone is beside your leg.',

@@ -14,6 +14,7 @@ import type { CourseUiColors } from '@/constants/courseColors';
 import { spacing } from '@/constants/spacing';
 import type { ReflectionQuestionConfig, ReflectionAnswerOption } from '@/lib/adaptivePlanning/reflectionQuestionTypes';
 import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
+import type { SessionOutcome } from '@/lib/sessionScoring';
 import {
   getAnswerValue,
   applyReflectionAnswer,
@@ -29,40 +30,49 @@ export { getAnswerValue, applyReflectionAnswer, areRequiredQuestionsAnswered, ma
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PostSessionReflectionCardProps {
-  /** Dog name — used in difficulty step subtitle. */
+  /** Dog name — used in the outcome step copy. */
   dogName: string;
   /** Duration string already formatted — shown in the header. */
   durationLabel: string;
+  /** The protocol's own success criterion — the primary question. */
+  successCriteria: string;
+  /** Short per-step summary, e.g. "3 of 4 steps worked". Optional. */
+  stepSummaryLabel?: string | null;
   questions: ReflectionQuestionConfig[];
   answers: PostSessionReflection;
-  difficulty: 'easy' | 'okay' | 'hard' | null;
+  outcome: SessionOutcome | null;
   notes: string;
-  onSelectDifficulty: (d: 'easy' | 'okay' | 'hard') => void;
+  onSelectOutcome: (o: SessionOutcome) => void;
   onAnswer: (questionId: ReflectionQuestionId, value: string | number) => void;
   onNotesChange: (text: string) => void;
   onSubmit: () => void;
   isSaving: boolean;
+  /** Shown on the final step when the save failed; submit becomes "Try again". */
+  saveError?: string | null;
   insets: { top: number; bottom: number };
   theme: CourseUiColors;
 }
 
 // Step indices:
-//   0            → difficulty step ("How did it go?")
+//   0            → outcome step ("Did {dog} hit the goal?")
 //   1 … Q        → reflection questions
 //   Q + 1        → notes + submit
 
 export function PostSessionReflectionCard({
   dogName,
   durationLabel,
+  successCriteria,
+  stepSummaryLabel,
   questions,
   answers,
-  difficulty,
+  outcome,
   notes,
-  onSelectDifficulty,
+  onSelectOutcome,
   onAnswer,
   onNotesChange,
   onSubmit,
   isSaving,
+  saveError,
   insets,
   theme,
 }: PostSessionReflectionCardProps) {
@@ -108,8 +118,8 @@ export function PostSessionReflectionCard({
     if (currentStep > 0) animateTransition(false);
   }
 
-  function handleDifficultySelect(d: 'easy' | 'okay' | 'hard') {
-    onSelectDifficulty(d);
+  function handleOutcomeSelect(o: SessionOutcome) {
+    onSelectOutcome(o);
     goNext();
   }
 
@@ -118,7 +128,7 @@ export function PostSessionReflectionCard({
     goNext();
   }
 
-  const allRequiredAnswered = areRequiredQuestionsAnswered(questions, answers) && difficulty !== null;
+  const allRequiredAnswered = areRequiredQuestionsAnswered(questions, answers) && outcome !== null;
 
   // Progress: step 0 = 1 segment filled (after selecting), step N = all filled
   // We treat each step as one segment. Current step is "active" (half-filled).
@@ -161,7 +171,7 @@ export function PostSessionReflectionCard({
             </Text>
           </View>
           <Text style={{ fontSize: 14, color: colors.textSecondary }}>
-            {durationLabel}
+            {stepSummaryLabel ? `${durationLabel} · ${stepSummaryLabel}` : durationLabel}
           </Text>
         </View>
       </View>
@@ -231,10 +241,11 @@ export function PostSessionReflectionCard({
           }}
         >
           {isDifficultyStep ? (
-            <DifficultyStep
+            <OutcomeStep
               dogName={dogName}
-              selected={difficulty}
-              onSelect={handleDifficultySelect}
+              successCriteria={successCriteria}
+              selected={outcome}
+              onSelect={handleOutcomeSelect}
             />
           ) : isNotesStep ? (
             <NotesStep
@@ -243,6 +254,7 @@ export function PostSessionReflectionCard({
               onSubmit={onSubmit}
               isSaving={isSaving}
               canSubmit={allRequiredAnswered && !isSaving}
+              saveError={saveError ?? null}
               theme={theme}
             />
           ) : currentQuestion ? (
@@ -287,17 +299,18 @@ export function PostSessionReflectionCard({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Difficulty step — "How did it go?"
+// Outcome step — the protocol's own success criterion
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface DifficultyStepProps {
+interface OutcomeStepProps {
   dogName: string;
-  selected: 'easy' | 'okay' | 'hard' | null;
-  onSelect: (d: 'easy' | 'okay' | 'hard') => void;
+  successCriteria: string;
+  selected: SessionOutcome | null;
+  onSelect: (o: SessionOutcome) => void;
 }
 
-const DIFFICULTY_OPTIONS: Array<{
-  value: 'easy' | 'okay' | 'hard';
+const OUTCOME_OPTIONS: Array<{
+  value: SessionOutcome;
   icon: AppIconName;
   label: string;
   sub: (dog: string) => string;
@@ -305,47 +318,65 @@ const DIFFICULTY_OPTIONS: Array<{
   bg: string;
 }> = [
   {
-    value: 'easy',
-    icon: 'thumbs-up',
-    label: 'Easy',
-    sub: (dog) => `${dog} was a superstar`,
+    value: 'met',
+    icon: 'checkmark-circle',
+    label: 'Yes, nailed it',
+    sub: (dog) => `${dog} hit the goal — ready to build on this`,
     color: '#16a34a',
     bg: '#dcfce7',
   },
   {
-    value: 'okay',
+    value: 'partial',
     icon: 'remove-circle',
-    label: 'Okay',
-    sub: () => 'Some good moments, some struggles',
+    label: 'Mostly',
+    sub: () => 'Got there some of the time',
     color: '#d97706',
     bg: '#fef3c7',
   },
   {
-    value: 'hard',
-    icon: 'warning',
-    label: 'Hard',
-    sub: () => 'Tough session today',
+    value: 'not_met',
+    icon: 'close-circle',
+    label: 'Not yet',
+    sub: () => "Didn't get there today — that's useful to know",
     color: '#dc2626',
     bg: '#fee2e2',
   },
 ];
 
-function DifficultyStep({ dogName, selected, onSelect }: DifficultyStepProps) {
+function OutcomeStep({ dogName, successCriteria, selected, onSelect }: OutcomeStepProps) {
   return (
-    <View style={{ gap: spacing.xl }}>
-      <Text
-        style={{
-          fontSize: 26,
-          fontWeight: '700',
-          color: colors.textPrimary,
-          lineHeight: 34,
-        }}
-      >
-        How did the session go?
-      </Text>
+    <View style={{ gap: spacing.lg }}>
+      <View style={{ gap: spacing.sm }}>
+        <Text
+          style={{
+            fontSize: 26,
+            fontWeight: '700',
+            color: colors.textPrimary,
+            lineHeight: 34,
+          }}
+        >
+          Did {dogName} hit the goal?
+        </Text>
+        <View
+          style={{
+            backgroundColor: colors.bg.sand,
+            borderRadius: 12,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm + 2,
+            flexDirection: 'row',
+            gap: spacing.sm,
+            alignItems: 'flex-start',
+          }}
+        >
+          <AppIcon name="flag" size={16} color={colors.textSecondary} />
+          <Text style={{ flex: 1, fontSize: 14, lineHeight: 21, color: colors.textPrimary }}>
+            {successCriteria}
+          </Text>
+        </View>
+      </View>
 
       <View style={{ gap: spacing.md }}>
-        {DIFFICULTY_OPTIONS.map((opt) => {
+        {OUTCOME_OPTIONS.map((opt) => {
           const isSelected = selected === opt.value;
           return (
             <Pressable
@@ -353,6 +384,7 @@ function DifficultyStep({ dogName, selected, onSelect }: DifficultyStepProps) {
               onPress={() => onSelect(opt.value)}
               accessibilityRole="radio"
               accessibilityState={{ checked: isSelected }}
+              accessibilityLabel={opt.label}
               style={({ pressed }) => ({
                 borderRadius: 16,
                 borderWidth: 2,
@@ -367,13 +399,13 @@ function DifficultyStep({ dogName, selected, onSelect }: DifficultyStepProps) {
                   alignItems: 'center',
                   gap: spacing.md,
                   padding: spacing.lg,
-                  minHeight: 88,
+                  minHeight: 84,
                 }}
               >
                 <View
                   style={{
-                    width: 56,
-                    height: 56,
+                    width: 52,
+                    height: 52,
                     borderRadius: 14,
                     backgroundColor: isSelected ? opt.color : colors.bg.surfaceAlt,
                     alignItems: 'center',
@@ -381,36 +413,22 @@ function DifficultyStep({ dogName, selected, onSelect }: DifficultyStepProps) {
                     flexShrink: 0,
                   }}
                 >
-                  <AppIcon name={opt.icon} size={28} color={isSelected ? '#fff' : colors.textSecondary} />
+                  <AppIcon name={opt.icon} size={26} color={isSelected ? '#fff' : colors.textSecondary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
-                      fontSize: 20,
-                      fontWeight: '600',
+                      fontSize: 19,
+                      fontWeight: '700',
                       color: isSelected ? opt.color : colors.textPrimary,
                     }}
                   >
                     {opt.label}
                   </Text>
-                  <Text style={{ fontSize: 15, color: colors.textSecondary, marginTop: 3 }}>
+                  <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 3, lineHeight: 20 }}>
                     {opt.sub(dogName)}
                   </Text>
                 </View>
-                {isSelected && (
-                  <View
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
-                      backgroundColor: opt.color,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <AppIcon name="checkmark" size={15} color="#fff" />
-                  </View>
-                )}
               </View>
             </Pressable>
           );
@@ -493,12 +511,38 @@ interface NotesStepProps {
   onSubmit: () => void;
   isSaving: boolean;
   canSubmit: boolean;
+  saveError: string | null;
   theme: CourseUiColors;
 }
 
-function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, theme }: NotesStepProps) {
+function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveError, theme }: NotesStepProps) {
   return (
     <View style={{ gap: spacing.xl }}>
+      {saveError ? (
+        <View
+          style={{
+            backgroundColor: colors.status.dangerBg,
+            borderColor: colors.status.dangerBorder,
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: spacing.md,
+            flexDirection: 'row',
+            gap: spacing.sm,
+            alignItems: 'flex-start',
+          }}
+          accessibilityRole="alert"
+        >
+          <AppIcon name="alert-circle" size={18} color={colors.error} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>
+              We couldn't save this session
+            </Text>
+            <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
+              Your answers are still here. Check your connection and try again.
+            </Text>
+          </View>
+        </View>
+      ) : null}
       <View style={{ gap: spacing.xs }}>
         <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary, lineHeight: 34 }}>
           Anything to note?
@@ -559,7 +603,7 @@ function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, theme 
             letterSpacing: 0.2,
           }}
         >
-          {isSaving ? 'Saving…' : 'Save session'}
+          {isSaving ? 'Saving…' : saveError ? 'Try again' : 'Save session'}
         </Text>
       </Pressable>
     </View>
