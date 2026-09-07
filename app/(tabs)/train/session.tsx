@@ -330,6 +330,28 @@ export default function SessionScreen() {
     advanceToNextStep();
   }, [advanceToNextStep]);
 
+  // Live AI Trainer: there is no STEP_COMPLETE interstitial, so completing a
+  // step records the result and advances immediately.  On the last step the
+  // store moves to SESSION_REVIEW and we drop the camera overlay.
+  const handleLiveStepDone = useCallback(() => {
+    if (!activeSession) return;
+    const { protocol: p, currentStepIndex: idx, repCount: reps } = activeSession;
+    const step = p.steps[idx];
+    const durationSeconds = Math.floor((Date.now() - stepStartTimeRef.current) / 1000);
+    const isLast = idx >= p.steps.length - 1;
+
+    Vibration.vibrate(isLast ? [0, 60, 40, 120, 40, 200] : [0, 60, 40, 120]);
+
+    completeStep({
+      stepOrder: step.order,
+      completed: true,
+      durationSeconds,
+      repCount: reps,
+    });
+    advanceToNextStep();
+    if (isLast) setOverlayState('NONE');
+  }, [activeSession, completeStep, advanceToNextStep]);
+
   const handleSubmitSession = useCallback(async () => {
     if (!reviewDifficulty || !activeSession || !user || !dog || !activePlan) return;
     setIsSaving(true);
@@ -502,6 +524,7 @@ export default function SessionScreen() {
           }}
           onCamera={() => {
             setOverlayState('LIVE_COACHING');
+            setState('STEP_ACTIVE');
           }}
         />
       </View>
@@ -521,20 +544,20 @@ export default function SessionScreen() {
           repCount={activeSession.repCount}
           timerSeconds={activeSession.timerSeconds ?? 0}
           isTimerRunning={activeSession.isTimerRunning}
-          onComplete={(summary: LiveAiTrainerSummary) => {
+          onSummary={(summary: LiveAiTrainerSummary) => {
+            // Captured on every exit path (finish, manual switch, abandon) so
+            // partial live usage is still recorded on the session log.
             liveAiSummaryRef.current = summary;
-            setOverlayState('NONE');
-            setState('SESSION_REVIEW');
           }}
           onExit={() => {
-            setOverlayState('NONE');
+            // Keep the camera mounted underneath; "Keep going" returns to it.
             setShowAbandonSheet(true);
           }}
           onManualSwitch={() => {
             setOverlayState('NONE');
             setState('STEP_ACTIVE');
           }}
-          onStepDone={handleStepDone}
+          onStepDone={handleLiveStepDone}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
           }}
@@ -1823,7 +1846,8 @@ function Chip({
 // LiveAiTrainerScreen
 //
 // Self-contained sub-screen that mounts useLiveAiTrainerSession and
-// delegates UI to LiveAiTrainerOverlay.
+// delegates UI to LiveAiTrainerOverlay.  Reports its usage summary to the
+// parent on unmount so every exit path is recorded.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface LiveAiTrainerScreenProps {
@@ -1835,7 +1859,7 @@ interface LiveAiTrainerScreenProps {
   repCount: number;
   timerSeconds: number;
   isTimerRunning: boolean;
-  onComplete: (summary: LiveAiTrainerSummary) => void;
+  onSummary: (summary: LiveAiTrainerSummary) => void;
   onExit: () => void;
   onManualSwitch: () => void;
   onStepDone: () => void;
@@ -1852,36 +1876,51 @@ function LiveAiTrainerScreen({
   repCount,
   timerSeconds,
   isTimerRunning,
-  onComplete,
+  onSummary,
   onExit,
   onManualSwitch,
   onStepDone,
   onToggleTimer,
   onIncrementRep,
 }: LiveAiTrainerScreenProps) {
-  const coaching = useLiveAiTrainerSession({ protocol, dogId, planId, sessionId, currentStepIndex });
+  const [autoRepPulse, setAutoRepPulse] = useState(0);
 
-  // Start coaching on mount; stop on unmount
+  const handleAutoRep = useCallback(() => {
+    onIncrementRep();
+    setAutoRepPulse((n) => n + 1);
+    Vibration.vibrate([0, 40, 30, 40]);
+  }, [onIncrementRep]);
+
+  const coaching = useLiveAiTrainerSession({
+    protocol,
+    dogId,
+    planId,
+    sessionId,
+    currentStepIndex,
+    repCount,
+    onAutoRep: handleAutoRep,
+    onFallback: () => Vibration.vibrate([0, 80, 60, 80]),
+  });
+
+  // Start coaching on mount; stop + report summary on unmount.
+  const onSummaryRef = useRef(onSummary);
+  onSummaryRef.current = onSummary;
+  const getSummaryRef = useRef(coaching.getSummary);
+  getSummaryRef.current = coaching.getSummary;
+
   useEffect(() => {
     coaching.start();
     return () => {
       coaching.stop();
+      onSummaryRef.current(getSummaryRef.current());
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Watch for session completion
+  // Haptic tick on each new coach message.
   useEffect(() => {
-    if (coaching.isComplete) {
-      onComplete(coaching.getSummary());
-    }
-  }, [coaching.isComplete]);
-
-  // Haptic feedback on coach messages
-  useEffect(() => {
-    if (coaching.lastResponse?.coachMessage) {
-      Vibration.vibrate(60);
-    }
-  }, [coaching.lastResponse?.coachMessage]);
+    if (coaching.lastResponse?.coachMessage) Vibration.vibrate(60);
+  }, [coaching.lastResponse]);
 
   const currentStep = protocol.steps[currentStepIndex];
   const stepInfo = {
@@ -1897,14 +1936,20 @@ function LiveAiTrainerScreen({
     <LiveAiTrainerOverlay
       status={coaching.status}
       lastResponse={coaching.lastResponse}
+      error={coaching.error}
+      fallbackReason={coaching.fallbackReason}
+      speechEnabled={coaching.speechEnabled}
+      onToggleSpeech={coaching.toggleSpeech}
       cameraRef={coaching.cameraRef}
       onExit={onExit}
       onAskCoach={coaching.askCoach}
       onAnalyzeFrame={coaching.analyzeFrame}
       onManualSwitch={onManualSwitch}
+      onKeepTrying={coaching.resume}
       onStepDone={onStepDone}
       step={stepInfo}
       repCount={repCount}
+      autoRepPulse={autoRepPulse}
       timerSeconds={timerSeconds}
       isTimerRunning={isTimerRunning}
       onToggleTimer={onToggleTimer}
