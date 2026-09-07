@@ -36,6 +36,7 @@
     "expo-notifications": "^0.29.14",
     "expo-router": "~4.0.19",
     "expo-secure-store": "~14.0.1",
+    "expo-speech": "~13.0.1",
     "expo-status-bar": "~2.0.1",
     "expo-video-thumbnails": "~8.0.0",
     "nativewind": "4.1.23",
