@@ -1,100 +1,122 @@
 /**
  * PlanReasonCard
  *
- * Shown on plan-preview to explain WHY this plan was built this way.
- * Renders the planningSummary from AdaptivePlanMetadata plus a
- * "Built for <Dog>" row drawn from dog profile facts.
+ * Shown on plan-preview to explain why this plan was built this way.
+ * Renders the planningSummary from AdaptivePlanMetadata plus a one-sentence
+ * caption drawn from dog profile facts.
  */
 
 import { View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
-import { AppIcon } from '@/components/ui/AppIcon';
+import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import type { AIPlanningSummary } from '@/types';
 
 interface PlanReasonCardProps {
   dogName: string;
   summary: AIPlanningSummary;
-  /** e.g. "9 months old · Apartment · 3×/week" */
+  /**
+   * Profile facts, e.g. "9 months old · Apartment · 3×/week". Rendered as a
+   * single caption sentence: "9 months old, lives in an apartment, trains
+   * 3 times a week". Prefer the structured fields below when available.
+   */
   profileCaption?: string;
+  ageLabel?: string;
+  homeType?: string;
+  sessionsPerWeek?: number;
+  /** Kept for call-site compatibility; the card no longer animates in. */
   delay?: number;
+}
+
+/**
+ * Turn one profile fact into a clause about the dog: "9 months old" becomes
+ * "is 9 months old", "Apartment" becomes "lives in an apartment", "3×/week"
+ * becomes "trains 3 times a week". A fact that is already a full sentence is
+ * returned unchanged and rendered on its own line.
+ */
+function factToClause(fact: string): { clause?: string; sentence?: string } {
+  const trimmed = fact.trim();
+  if (!trimmed) return {};
+  if (/[.!?]$/.test(trimmed) && trimmed.includes(' ')) return { sentence: trimmed };
+
+  const perWeek = trimmed.match(/^(\d+)\s*(?:×|x)\s*\/?\s*(?:week|wk)$/i);
+  if (perWeek) return { clause: timesAWeek(Number(perWeek[1])) };
+
+  const skills = trimmed.match(/^(\d+)\s+skills?$/i);
+  if (skills) return { clause: `is working on ${skills[1]} ${Number(skills[1]) === 1 ? 'skill' : 'skills'}` };
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'apartment' || lower === 'flat') return { clause: 'lives in an apartment' };
+  if (lower === 'house') return { clause: 'lives in a house' };
+  if (/\b(old|weeks?|months?|years?)\b/.test(lower)) return { clause: `is ${lower}` };
+  return { clause: lower };
+}
+
+function timesAWeek(n: number): string {
+  return `trains ${n} ${n === 1 ? 'time' : 'times'} a week`;
+}
+
+function buildProfileLines(
+  dogName: string,
+  { profileCaption, ageLabel, homeType, sessionsPerWeek }: Pick<PlanReasonCardProps, 'profileCaption' | 'ageLabel' | 'homeType' | 'sessionsPerWeek'>,
+): string[] {
+  const clauses: string[] = [];
+  const sentences: string[] = [];
+
+  const facts: string[] = [];
+  if (ageLabel) facts.push(ageLabel);
+  if (homeType) facts.push(homeType);
+  if (typeof sessionsPerWeek === 'number' && sessionsPerWeek > 0) clauses.push(timesAWeek(sessionsPerWeek));
+  if (facts.length === 0 && clauses.length === 0 && profileCaption) {
+    facts.push(...profileCaption.split(/\s*·\s*|\s*\|\s*/));
+  }
+
+  for (const fact of facts) {
+    const { clause, sentence } = factToClause(fact);
+    if (clause) clauses.push(clause);
+    if (sentence) sentences.push(sentence);
+  }
+
+  const lines: string[] = [];
+  if (clauses.length > 0) lines.push(`${dogName} ${clauses.join(', ')}.`);
+  return [...lines, ...sentences];
 }
 
 export function PlanReasonCard({
   dogName,
   summary,
   profileCaption,
-  delay = 0,
+  ageLabel,
+  homeType,
+  sessionsPerWeek,
 }: PlanReasonCardProps) {
-  const bullets: { icon: 'checkmark-circle' | 'information-circle' | 'alert-circle'; text: string }[] = [];
-
-  if (summary.whyThisStart) {
-    bullets.push({ icon: 'checkmark-circle', text: summary.whyThisStart });
-  }
-
+  const lines: string[] = [];
+  if (summary.whyThisStart) lines.push(summary.whyThisStart);
   for (const assumption of (summary.keyAssumptions ?? []).slice(0, 2)) {
-    bullets.push({ icon: 'information-circle', text: assumption });
+    lines.push(assumption);
   }
+
+  const profileLines = buildProfileLines(dogName, { profileCaption, ageLabel, homeType, sessionsPerWeek });
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(delay).duration(400)}
-      style={{
-        backgroundColor: `${colors.brand.primary}08`,
-        borderRadius: radii.md,
-        padding: spacing.xl,
-        borderWidth: 1,
-        borderColor: `${colors.brand.primary}28`,
-      }}
-    >
-      {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm }}>
-        <AppIcon name="sparkles" size={18} color={colors.brand.primary} />
-        <Text style={{ fontWeight: '700', fontSize: 15, color: colors.brand.primary }}>
-          Why we're starting here
-        </Text>
-      </View>
+    <Card style={{ gap: spacing.sm }}>
+      <Text variant="caption">Why this plan</Text>
 
-      {/* Bullets */}
-      {bullets.map((b, i) => (
-        <View
-          key={i}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: spacing.xs,
-            marginBottom: spacing.xs,
-          }}
-        >
-          <AppIcon name={b.icon} size={14} color={b.icon === 'checkmark-circle' ? colors.success : colors.text.secondary} />
-          <Text style={{ flex: 1, fontSize: 13, lineHeight: 19, color: colors.text.secondary }}>
-            {b.text}
+      <View style={{ gap: spacing.sm }}>
+        {lines.map((line, i) => (
+          <Text key={i} variant="body">
+            {line}
           </Text>
-        </View>
-      ))}
-
-      {/* Built for <Dog> row */}
-      <View
-        style={{
-          marginTop: spacing.sm,
-          paddingTop: spacing.sm,
-          borderTopWidth: 1,
-          borderTopColor: `${colors.brand.primary}18`,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.xs,
-        }}
-      >
-        <AppIcon name="paw" size={13} color={colors.brand.primary} />
-        <Text style={{ fontSize: 12, color: colors.text.secondary, flex: 1 }}>
-          <Text style={{ fontWeight: '700', color: colors.text.primary }}>Built for {dogName}</Text>
-          {profileCaption ? `  ·  ${profileCaption}` : ''}
-        </Text>
+        ))}
       </View>
-    </Animated.View>
+
+      {profileLines.map((line) => (
+        <Text key={line} variant="caption" color={colors.text.secondary}>
+          {line}
+        </Text>
+      ))}
+    </Card>
   );
 }

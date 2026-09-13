@@ -1,17 +1,12 @@
 /**
  * SessionChangeBadge
  *
- * Small inline badge shown on session rows in the Plan screen
- * when a session was placed or modified by the adaptation engine.
- *
- * Maps sessionKind → human label + color.
+ * Small inline tag shown on session rows in the Plan screen when a session
+ * was placed or modified by the adaptation engine. Maps sessionKind to a
+ * label and a Tag tone.
  */
 
-import { View } from 'react-native';
-
-import { Text } from '@/components/ui/Text';
-import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
+import { Tag } from '@/components/ui/PillTag';
 
 type SessionKind = 'core' | 'repeat' | 'regress' | 'advance' | 'detour' | 'proofing';
 
@@ -19,37 +14,18 @@ interface SessionChangeBadgeProps {
   kind: SessionKind;
 }
 
-interface BadgeStyle {
-  label: string;
-  bg: string;
-  fg: string;
-}
+type TagTone = 'neutral' | 'accent' | 'warning' | 'danger';
 
-const BADGE_STYLES: Record<SessionKind, BadgeStyle> = {
-  core:     { label: 'Core',         bg: `${colors.brand.primary}14`,  fg: colors.brand.primary },
-  repeat:   { label: 'Repeat',       bg: `${colors.brand.primary}14`,  fg: colors.brand.primary },
-  regress:  { label: 'Easier',       bg: `${colors.brand.coach}12`,    fg: colors.brand.coach },
-  advance:  { label: 'Advance',      bg: `${colors.success}14`,        fg: colors.success },
-  detour:   { label: 'Reset Focus',  bg: `${colors.brand.secondary}16`, fg: colors.brand.secondary },
-  proofing: { label: 'Proofing',     bg: '#F3E8FF',                    fg: '#7C3AED' },
+const BADGES: Record<SessionKind, { label: string; tone: TagTone }> = {
+  core: { label: 'Core', tone: 'neutral' },
+  repeat: { label: 'Repeat', tone: 'neutral' },
+  regress: { label: 'Adjusted', tone: 'accent' },
+  advance: { label: 'Adjusted', tone: 'accent' },
+  detour: { label: 'Moved', tone: 'warning' },
+  proofing: { label: 'Proofing', tone: 'neutral' },
 };
 
 export function SessionChangeBadge({ kind }: SessionChangeBadgeProps) {
-  const style = BADGE_STYLES[kind] ?? BADGE_STYLES.core;
-
-  return (
-    <View
-      style={{
-        alignSelf: 'flex-start',
-        backgroundColor: style.bg,
-        borderRadius: radii.full,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-      }}
-    >
-      <Text style={{ fontSize: 10, fontWeight: '700', color: style.fg }}>
-        {style.label}
-      </Text>
-    </View>
-  );
+  const badge = BADGES[kind] ?? BADGES.core;
+  return <Tag label={badge.label} tone={badge.tone} />;
 }

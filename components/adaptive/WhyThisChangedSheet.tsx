@@ -1,19 +1,17 @@
 /**
  * WhyThisChangedSheet
  *
- * Bottom sheet that explains what changed, why, and what success looks like next.
- * Opened from AdaptationNotice on the Today screen or from the Plan screen session drawer.
+ * Sheet that explains what changed, why, and what success looks like next.
+ * Opened from AdaptationNotice on the Today screen or from the Plan screen
+ * session drawer. BottomSheet draws the header and Close button.
  */
 
 import { ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppIcon } from '@/components/ui/AppIcon';
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Button } from '@/components/ui/Button';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import type { PlanAdaptation } from '@/types';
 
@@ -25,12 +23,12 @@ interface WhyThisChangedSheetProps {
 }
 
 /**
- * Returns a plain-English explanation for the "Why Pawly made this change" section.
- * Maps reason codes to user-friendly copy — no internal score language.
+ * Returns a plain-English explanation for the "Why the coach made this change" section.
+ * Maps reason codes to user-friendly copy with no internal score language.
  */
 function whyChangedDetail(reasonCode: string | undefined, dogName: string): string {
   switch (reasonCode) {
-    // ── Objective-data rules ───────────────────────────────────────────────
+    // Objective-data rules
     case 'outdoor_breakdown':
       return `${dogName} has been holding the skill well indoors but struggling when outside. Practicing in a lower-distraction setting first helps build reliability before raising the challenge.`;
     case 'supporting_skill_reset':
@@ -45,9 +43,9 @@ function whyChangedDetail(reasonCode: string | undefined, dogName: string): stri
       return `Sessions have been running long and motivation seems to dip toward the end. Shorter sessions tend to end on a higher note.`;
     case 'high_consistent_success':
       return `${dogName} has been breezing through recent sessions. It's a good time to move to the next challenge.`;
-    // ── Reflection-backed rules ────────────────────────────────────────────
+    // Reflection-backed rules
     case 'reflection_understanding_gap':
-      return `Recent feedback suggests the cue may not be fully clear yet. Extra repetition at the current level — or stepping back briefly — gives ${dogName} more time to build real understanding.`;
+      return `Recent feedback suggests the cue may not be fully clear yet. Extra repetition at the current level, or stepping back briefly, gives ${dogName} more time to build real understanding.`;
     case 'reflection_distraction_blocker':
       return `Distraction appears to be the main blocker right now. A lower-distraction setup lets ${dogName} focus on the skill itself before adding that challenge back in.`;
     case 'reflection_duration_breakdown':
@@ -55,12 +53,12 @@ function whyChangedDetail(reasonCode: string | undefined, dogName: string): stri
     case 'reflection_over_arousal':
       return `Recent patterns suggest over-excitement has been getting in the way. Shorter, calmer sessions make it easier for ${dogName} to stay below threshold.`;
     case 'reflection_handler_friction':
-      return `Recent feedback was mixed, so Pawly kept this adjustment small. Handler-side factors may have affected recent results — holding off on bigger changes until the picture is clearer.`;
-    // ── Legacy codes kept for backward compatibility ───────────────────────
+      return `Recent feedback was mixed, so the coach kept this adjustment small. Handler-side factors may have affected recent results, so bigger changes wait until the picture is clearer.`;
+    // Legacy codes kept for backward compatibility
     case 'low_success_rate':
       return `${dogName} has been finding sessions harder lately. Stepping back helps rebuild confidence before moving forward again.`;
     case 'high_success_rate':
-      return `${dogName} has been doing really well — it's a good time to move to the next challenge.`;
+      return `${dogName} has been doing really well. It's a good time to move to the next challenge.`;
     case 'distraction_sensitivity':
       return `${dogName} has been struggling with distractions. This session is set up to reduce that pressure.`;
     case 'fatigue':
@@ -72,13 +70,20 @@ function whyChangedDetail(reasonCode: string | undefined, dogName: string): stri
 
 function adaptationKindLabel(type: PlanAdaptation['adaptationType']): string {
   switch (type) {
-    case 'regress':        return 'Stepped back';
-    case 'advance':        return 'Moved forward';
-    case 'detour':         return 'Changed focus';
-    case 'repeat':         return 'Reinforcing';
-    case 'difficulty_adjustment': return 'Adjusted difficulty';
-    case 'schedule_adjustment':   return 'Schedule change';
-    default:               return 'Plan updated';
+    case 'regress':
+      return 'Stepped back';
+    case 'advance':
+      return 'Moved forward';
+    case 'detour':
+      return 'Changed focus';
+    case 'repeat':
+      return 'Reinforcing';
+    case 'difficulty_adjustment':
+      return 'Adjusted difficulty';
+    case 'schedule_adjustment':
+      return 'Schedule change';
+    default:
+      return 'Plan updated';
   }
 }
 
@@ -89,11 +94,11 @@ function successLookLike(type: PlanAdaptation['adaptationType'], dogName: string
     case 'advance':
       return `${dogName} handling the new challenge with good focus and fewer than 2 mistakes per session.`;
     case 'detour':
-      return `Completing this session with calm engagement — no signs of frustration or shutdown.`;
+      return `Completing this session with calm engagement and no signs of frustration or shutdown.`;
     case 'repeat':
       return `${dogName} responding faster and more reliably than in the last session.`;
     case 'difficulty_adjustment':
-      return `${dogName} finishing with a comfortable rating — not too easy, not too hard.`;
+      return `${dogName} finishing with a comfortable rating, not too easy and not too hard.`;
     default:
       return `${dogName} staying engaged and finishing the session feeling good.`;
   }
@@ -113,116 +118,37 @@ function formatDate(iso: string): string {
   }
 }
 
-export function WhyThisChangedSheet({
-  visible,
-  onClose,
-  dogName,
-  adaptation,
-}: WhyThisChangedSheetProps) {
-  const insets = useSafeAreaInsets();
+export function WhyThisChangedSheet({ visible, onClose, dogName, adaptation }: WhyThisChangedSheetProps) {
   const kindLabel = adaptationKindLabel(adaptation.adaptationType);
   const successText = successLookLike(adaptation.adaptationType, dogName);
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} padded={false}>
-            <ScrollView
-              style={{ flexGrow: 0, paddingHorizontal: spacing.xl }}
-              contentContainerStyle={{ paddingBottom: spacing.xxl}}
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Kind badge + title */}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.sm,
-                  marginBottom: spacing.sm,
-                }}
-              >
-                <View
-                  style={{
-                    backgroundColor: `${colors.brand.coach}14`,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 4,
-                    borderRadius: radii.full,
-                  }}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.brand.coach, letterSpacing: 0.5 }}>
-                    {kindLabel.toUpperCase()}
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 11, color: colors.text.secondary }}>
-                  {formatDate(adaptation.createdAt)}
-                </Text>
-              </View>
+    <BottomSheet visible={visible} onClose={onClose} title="Why this changed" padded={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View>
+          <SectionHeader title="What changed" />
+          <Text variant="body">
+            {adaptation.reasonSummary || 'The plan was adjusted based on recent training patterns.'}
+          </Text>
+          <Text variant="caption" color={colors.text.secondary} style={{ marginTop: spacing.sm }}>
+            {kindLabel}, {formatDate(adaptation.createdAt)}
+          </Text>
+        </View>
 
-              {/* What changed */}
-              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text.primary, lineHeight: 28, marginBottom: spacing.lg }}>
-                What changed
-              </Text>
-              <Text style={{ fontSize: 14, lineHeight: 22, color: colors.text.secondary, marginBottom: spacing.xl }}>
-                {adaptation.reasonSummary || 'The plan was adjusted based on recent training patterns.'}
-              </Text>
+        <View>
+          <SectionHeader title="Why the coach made this change" />
+          <Text variant="body">{whyChangedDetail(adaptation.reasonCode, dogName)}</Text>
+        </View>
 
-              {/* Why it changed */}
-              <View
-                style={{
-                  backgroundColor: colors.bg.surfaceAlt,
-                  borderRadius: radii.md,
-                  padding: spacing.lg,
-                  gap: spacing.xs,
-                  marginBottom: spacing.xl,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                  <AppIcon name="bulb" size={15} color={colors.brand.secondary} />
-                  <Text style={{ fontWeight: '700', fontSize: 13, color: colors.text.primary }}>
-                    Why Pawly made this change
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 13, lineHeight: 20, color: colors.text.secondary }}>
-                  {whyChangedDetail(adaptation.reasonCode, dogName)}
-                </Text>
-              </View>
-
-              {/* What success looks like */}
-              <View
-                style={{
-                  backgroundColor: `${colors.success}10`,
-                  borderRadius: radii.md,
-                  padding: spacing.lg,
-                  gap: spacing.xs,
-                  borderWidth: 1,
-                  borderColor: `${colors.success}25`,
-                  marginBottom: spacing.xl,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                  <AppIcon name="checkmark-circle" size={15} color={colors.success} />
-                  <Text style={{ fontWeight: '700', fontSize: 13, color: colors.text.primary }}>
-                    What success looks like next
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 13, lineHeight: 20, color: colors.text.secondary }}>
-                  {successText}
-                </Text>
-              </View>
-
-            </ScrollView>
-
-            {/* Fixed footer — paddingBottom accounts for home indicator */}
-            <View
-              style={{
-                paddingHorizontal: spacing.xl,
-                paddingTop: spacing.lg,
-                paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.lg : spacing.xl,
-                borderTopWidth: 1,
-                borderTopColor: colors.border.soft,
-                backgroundColor: colors.bg.surface,
-              }}
-            >
-              <Button label="Got it" onPress={onClose} />
-            </View>
+        <View>
+          <SectionHeader title="What success looks like next" />
+          <Text variant="body">{successText}</Text>
+        </View>
+      </ScrollView>
     </BottomSheet>
   );
 }

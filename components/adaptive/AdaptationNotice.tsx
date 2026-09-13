@@ -8,9 +8,9 @@
 import { Pressable, View } from 'react-native';
 
 import { AppIcon } from '@/components/ui/AppIcon';
+import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import type { PlanAdaptation } from '@/types';
 
@@ -40,29 +40,29 @@ function adaptationTitle(adaptation: PlanAdaptation, dogName: string): string {
 }
 
 function adaptationBody(adaptation: PlanAdaptation): string {
-  // Prefer the stored reasonSummary — it's already user-facing copy from the rules.
+  // Prefer the stored reasonSummary; it is already user-facing copy from the rules.
   if (adaptation.reasonSummary) return adaptation.reasonSummary;
 
   // Fallback copy keyed by reason code for older records that lack a summary.
   switch (adaptation.reasonCode) {
     case 'reflection_understanding_gap':
-      return 'Recent feedback suggests the cue may not be fully clear yet — Pawly added extra foundation practice.';
+      return 'Recent feedback suggests the cue may not be fully clear yet, so the coach added extra foundation practice.';
     case 'reflection_distraction_blocker':
-      return 'Distraction appears to be the main blocker right now — Pawly lowered the environment challenge for the next sessions.';
+      return 'Distraction appears to be the main blocker right now, so the coach lowered the environment challenge for the next sessions.';
     case 'reflection_duration_breakdown':
-      return 'Recent sessions seem to fall apart near the end — Pawly shortened the target duration.';
+      return 'Recent sessions seem to fall apart near the end, so the coach shortened the target duration.';
     case 'reflection_over_arousal':
-      return 'Over-excitement seems to be getting in the way — Pawly simplified and shortened upcoming sessions.';
+      return 'Over-excitement seems to be getting in the way, so the coach simplified and shortened upcoming sessions.';
     case 'reflection_handler_friction':
-      return 'Pawly kept this adjustment small — recent feedback was mixed, so changes are being kept conservative.';
+      return 'Recent feedback was mixed, so the coach kept this adjustment small.';
     case 'outdoor_breakdown':
       return 'Recent results suggest this skill is holding indoors but breaking down outside.';
     case 'consistency_drop':
-      return 'The last few sessions were too difficult — the next sessions step back to an easier foundation.';
+      return 'The last few sessions were too difficult, so the next sessions step back to an easier foundation.';
     case 'fatigue_risk_high':
-      return 'Recent patterns suggest fatigue risk is elevated — the next session is shorter and spaced out.';
+      return 'Recent patterns suggest fatigue risk is elevated, so the next session is shorter and spaced out.';
     case 'high_consistent_success':
-      return 'Recent sessions have been consistently easy — moving to the next challenge.';
+      return 'Recent sessions have been consistently easy, so the plan moves to the next challenge.';
   }
 
   // Final fallback by type
@@ -82,48 +82,34 @@ function adaptationBody(adaptation: PlanAdaptation): string {
 
 export function AdaptationNotice({ dogName, adaptation, onSeeWhy }: AdaptationNoticeProps) {
   return (
-    <View
-      style={{
-        backgroundColor: colors.status.infoBg,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: colors.status.infoBorder,
-        padding: spacing.lg,
-        gap: spacing.xs,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-        <AppIcon name="sparkles" size={14} color={colors.brand.coach} />
-        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.brand.coach, letterSpacing: 0.6, textTransform: 'uppercase' }}>
-          Plan updated
-        </Text>
+    <Card style={{ gap: spacing.xs }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+        <AppIcon name="sync-outline" size={20} color={colors.accent} />
+        <Text variant="caption">Plan updated</Text>
       </View>
 
-      <Text style={{ fontWeight: '700', fontSize: 15, color: colors.text.primary }}>
-        {adaptationTitle(adaptation, dogName)}
-      </Text>
+      <Text variant="bodyStrong">{adaptationTitle(adaptation, dogName)}</Text>
 
-      <Text style={{ fontSize: 13, lineHeight: 19, color: colors.text.secondary }}>
+      <Text variant="body" color={colors.text.secondary}>
         {adaptationBody(adaptation)}
       </Text>
 
       <Pressable
         onPress={onSeeWhy}
+        accessibilityRole="button"
+        accessibilityLabel="See why the plan changed"
+        hitSlop={8}
         style={({ pressed }) => ({
           alignSelf: 'flex-start',
-          marginTop: spacing.xs,
-          paddingHorizontal: spacing.lg,
-          paddingVertical: 7,
-          borderRadius: radii.full,
-          backgroundColor: pressed ? `${colors.brand.coach}22` : `${colors.brand.coach}14`,
-          borderWidth: 1,
-          borderColor: `${colors.brand.coach}30`,
+          minHeight: 44,
+          justifyContent: 'center',
+          opacity: pressed ? 0.6 : 1,
         })}
       >
-        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.brand.coach }}>
-          See why →
+        <Text variant="bodyStrong" color={colors.accent}>
+          See why
         </Text>
       </Pressable>
-    </View>
+    </Card>
   );
 }
