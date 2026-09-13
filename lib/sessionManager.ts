@@ -35,6 +35,12 @@ export interface SaveSessionParams {
   // PR17: post-session reflection (optional — null when handler skips the flow)
   /** Structured handler reflection captured after the session review step. */
   postSessionReflection?: PostSessionReflection | null;
+  /**
+   * Quick reps: a short rerun of one step outside the plan. The log is still
+   * written (it counts toward the streak) but the plan is left alone: no
+   * plan-session completion and no adaptation run.
+   */
+  isQuickReps?: boolean;
 }
 
 export interface CompletedSession {
@@ -139,7 +145,7 @@ export async function saveSession(params: SaveSessionParams): Promise<SaveSessio
   let adaptation: AdaptationApiResult | null = null;
   try {
     await updateLearningStateFromSessionLog(data.id);
-    if ((params.sessionStatus ?? 'completed') === 'completed') {
+    if ((params.sessionStatus ?? 'completed') === 'completed' && !params.isQuickReps) {
       adaptation = await invokeAdaptPlan({
         dogId: params.dogId,
         planId: params.planId,

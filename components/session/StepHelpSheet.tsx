@@ -16,13 +16,13 @@ interface StepHelpSheetProps {
   step: ProtocolStep;
   stepNumber: number;
   dogName: string;
-  /** Records the step as skipped and moves on. */
-  onSkipStep: () => void;
+  /** Records the step as skipped and moves on. Omit to hide the skip (quick reps). */
+  onSkipStep?: () => void;
 }
 
 /**
- * Mid-session help. Surfaces the guidance the course already contains and
- * offers an honest skip that is recorded as such.
+ * "Why this step": the reason behind the step first, then the course guidance
+ * the handler may need mid-session, and an honest skip that is recorded as such.
  */
 export function StepHelpSheet({
   visible,
@@ -34,26 +34,22 @@ export function StepHelpSheet({
   onSkipStep,
 }: StepHelpSheetProps) {
   return (
-    <BottomSheet visible={visible} onClose={onClose} title={`Step ${stepNumber}`} padded={false}>
+    <BottomSheet visible={visible} onClose={onClose} title="Why this step" padded={false}>
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+        contentContainerStyle={{ padding: spacing.xl, gap: spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
-        <Text variant="body">
-          {dogName} isn't getting it? That's normal. Try one of these before moving on.
-        </Text>
+        <View>
+          <SectionHeader title="Why" />
+          <Text variant="body">
+            {step.tip ?? `Step ${stepNumber} raises one thing at a time so ${dogName} keeps winning.`}
+          </Text>
+        </View>
 
         <View>
           <SectionHeader title="What you're looking for" />
           <Text variant="body">{step.successLook}</Text>
         </View>
-
-        {step.tip ? (
-          <View>
-            <SectionHeader title="Try this" />
-            <Text variant="body">{step.tip}</Text>
-          </View>
-        ) : null}
 
         {protocol.commonMistakes.length > 0 ? (
           <View>
@@ -80,8 +76,12 @@ export function StepHelpSheet({
 
         <View style={{ gap: spacing.sm }}>
           <Button label="Back to the step" onPress={onClose} />
-          <Button label="Skip this step today" variant="secondary" onPress={onSkipStep} />
-          <Text variant="caption">Skipping is recorded so your plan can adjust. It's better than guessing.</Text>
+          {onSkipStep ? (
+            <>
+              <Button label="Skip this step today" variant="secondary" onPress={onSkipStep} />
+              <Text variant="caption">Skipping is recorded so your plan can adjust. It's better than guessing.</Text>
+            </>
+          ) : null}
         </View>
       </ScrollView>
     </BottomSheet>

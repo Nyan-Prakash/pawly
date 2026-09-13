@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 
+import { AppIcon } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
@@ -13,69 +14,109 @@ interface RepCounterProps {
   count: number;
   target: number | null;
   onIncrement: () => void;
-  onReset: () => void;
+  onDecrement: () => void;
 }
 
+/** The "+ Rep" button is taller than any other control on purpose: it is hit while watching the dog. */
+const REP_BUTTON_HEIGHT = 72;
+/** Same tactile edge as the Button primitive. */
+const EDGE = 4;
+
 /**
- * A large tap zone that counts reps. The count bounces once per rep (state
- * driven) and a selection haptic confirms each count.
+ * The hero of a rep step: the count, its target, and one big "+ Rep" button.
+ * The count bounces once per rep (state driven), a selection haptic confirms
+ * each rep, and a success haptic fires once when the target is reached.
  */
-export function RepCounter({ count, target, onIncrement, onReset }: RepCounterProps) {
+export function RepCounter({ count, target, onIncrement, onDecrement }: RepCounterProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const reducedMotion = useReducedMotion();
   const targetReached = target !== null && count >= target;
+  const previousCount = useRef(count);
 
   useEffect(() => {
-    if (count === 0 || reducedMotion) return;
+    const wentUp = count > previousCount.current;
+    previousCount.current = count;
+    if (!wentUp) return;
+    if (target !== null && count === target) haptics.success();
+    if (reducedMotion) return;
     Animated.sequence([
       Animated.timing(scaleAnim, { toValue: 1.15, duration: durations.fast, useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 1, duration: durations.fast, useNativeDriver: true }),
     ]).start();
-  }, [count, reducedMotion, scaleAnim]);
+  }, [count, target, reducedMotion, scaleAnim]);
 
-  const handlePress = () => {
+  const handleRep = () => {
     haptics.selection();
     onIncrement();
   };
 
+  const countColor = targetReached ? colors.accent : colors.text.primary;
+  const countLabel =
+    target !== null ? `${count} of ${target} reps${targetReached ? ', target reached' : ''}` : `${count} reps`;
+
   return (
-    <View style={{ gap: spacing.sm }}>
-      <Pressable
-        onPress={handlePress}
-        accessibilityRole="button"
-        accessibilityLabel={
-          target !== null ? `${count} of ${target} reps. Tap to count a rep.` : `${count} reps. Tap to count a rep.`
-        }
-        style={({ pressed }) => ({
-          minHeight: 160,
-          padding: spacing.lg,
-          borderRadius: radii.md,
-          backgroundColor: targetReached ? colors.accentSoft : pressed ? colors.bg.fill : colors.bg.surface,
-          justifyContent: 'center',
-          gap: spacing.xs,
-        })}
+    <View style={{ gap: spacing.lg }}>
+      <View
+        accessible
+        accessibilityRole="text"
+        accessibilityLabel={countLabel}
+        accessibilityLiveRegion="polite"
+        style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}
       >
-        <Animated.View style={{ transform: [{ scale: scaleAnim }], alignSelf: 'flex-start' }}>
-          <Text variant="display" color={targetReached ? colors.accent : colors.text.primary}>
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          <Text variant="display" color={countColor}>
             {count}
           </Text>
         </Animated.View>
         {target !== null ? (
-          <Text variant="captionStrong" color={targetReached ? colors.accent : colors.text.secondary}>
-            {targetReached ? 'Target reached' : `of ${target} reps`}
+          <Text variant="caption" color={targetReached ? colors.accent : colors.text.secondary}>
+            of {target}
           </Text>
         ) : null}
-        <Text variant="caption">Tap to count a rep</Text>
-      </Pressable>
+      </View>
 
-      <Button
-        label="Reset count"
-        variant="ghost"
-        size="md"
-        onPress={onReset}
-        disabled={count === 0}
-        style={{ alignSelf: 'flex-start' }}
-      />
+      <View style={{ gap: spacing.xs }}>
+        <Pressable
+          onPress={handleRep}
+          accessibilityRole="button"
+          accessibilityLabel="Count a rep"
+          style={({ pressed }) => ({
+            height: REP_BUTTON_HEIGHT + EDGE,
+            borderRadius: radii.md,
+            backgroundColor: colors.accentEdge,
+            paddingTop: pressed ? EDGE : 0,
+          })}
+        >
+          {({ pressed }) => (
+            <View
+              style={{
+                height: REP_BUTTON_HEIGHT,
+                borderRadius: radii.md,
+                backgroundColor: colors.accent,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.sm,
+                opacity: pressed ? 0.92 : 1,
+              }}
+            >
+              <AppIcon name="add" size={24} color={colors.text.onAccent} />
+              <Text variant="action" color={colors.text.onAccent}>
+                Rep
+              </Text>
+            </View>
+          )}
+        </Pressable>
+
+        <Button
+          label="Undo rep"
+          variant="ghost"
+          size="md"
+          onPress={onDecrement}
+          disabled={count === 0}
+          style={{ alignSelf: 'flex-start' }}
+        />
+      </View>
     </View>
   );
 }

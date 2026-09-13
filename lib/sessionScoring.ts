@@ -32,16 +32,16 @@ export interface StepResultLike {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Outcome → score mappings (single source of truth)
+// Outcome -> score mappings (single source of truth)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * 1–5 success score written to `session_logs.success_score` and used by the
  * learning engine. Abandoned sessions are always 1.
  *
- *   met      → 5, or 4 when the handler marked one or more steps as a struggle
- *   partial  → 3
- *   not_met  → 2
+ *   met      -> 5, or 4 when the handler marked one or more steps as a struggle
+ *   partial  -> 3
+ *   not_met  -> 2
  */
 export function outcomeToSuccessScore(
   outcome: SessionOutcome,

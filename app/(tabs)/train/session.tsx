@@ -76,29 +76,26 @@ import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
 // ── Local UI state for live coaching (does not touch session store) ──────────
 type LocalOverlayState = 'NONE' | 'MODE_PICKER' | 'LIVE_COACHING';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// "Before you start" items derived from equipment
-// ─────────────────────────────────────────────────────────────────────────────
-
-const BASE_CHECKLIST = ['A low-distraction space', 'High-value treats within reach'];
-
-function buildChecklist(equipment: string[]): string[] {
-  const items = [...BASE_CHECKLIST];
-  const lower = equipment.map((e) => e.toLowerCase());
-  if (lower.some((e) => e.includes('leash'))) items.push('Leash clipped on');
-  if (lower.some((e) => e.includes('clicker'))) items.push('Clicker in hand');
-  if (lower.some((e) => e.includes('mat') || e.includes('bed'))) items.push('Mat or bed in place');
-  if (lower.some((e) => e.includes('crate'))) items.push('Crate door open');
-  return items;
-}
+/** Quick reps never rerun more than this many reps; the point is 60–90 seconds. */
+const QUICK_REPS_MAX = 5;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function SessionScreen() {
-  const { id: sessionId, planId } = useLocalSearchParams<{ id: string; planId?: string }>();
+  const {
+    id: sessionId,
+    planId,
+    mode,
+    step: quickStepParam,
+  } = useLocalSearchParams<{ id: string; planId?: string; mode?: string; step?: string }>();
   const { colorScheme } = useTheme();
+
+  // Quick reps: `mode=quick&step=<index>` runs ONE step outside the plan.
+  const parsedQuickStep = quickStepParam != null ? Number.parseInt(quickStepParam, 10) : Number.NaN;
+  const quickStepIndex = mode === 'quick' && Number.isFinite(parsedQuickStep) ? Math.max(0, parsedQuickStep) : null;
+  const isQuickMode = quickStepIndex !== null;
 
   const { fetchProtocol, markSessionComplete, plansById } = usePlanStore();
   const { dog, fetchDogLearningState, dogLearningState, activePlans } = useDogStore();
@@ -125,11 +122,13 @@ export default function SessionScreen() {
     pauseTimer,
     resetTimer,
     incrementRep,
+    decrementRep,
     resetReps,
     advanceToNextStep,
     goToPreviousStep,
     submitSession,
     abandonSession,
+    endTraining,
     tick,
     clearSession,
     getTrainingSeconds,
@@ -137,6 +136,7 @@ export default function SessionScreen() {
 
   const [showAbandonSheet, setShowAbandonSheet] = useState(false);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
+  const [showNotYetSheet, setShowNotYetSheet] = useState(false);
   const [reviewOutcome, setReviewOutcome] = useState<SessionOutcome | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -177,7 +177,10 @@ export default function SessionScreen() {
     let isCancelled = false;
     setLoadError(null);
 
-    Promise.all([fetchProtocol(planSession.exerciseId), loadSessionSnapshot()]).then(
+    // Quick reps never resume and never touch a saved snapshot.
+    const snapshotPromise = isQuickMode ? Promise.resolve(null) : loadSessionSnapshot();
+
+    Promise.all([fetchProtocol(planSession.exerciseId), snapshotPromise]).then(
       ([protocol, snapshot]) => {
         if (isCancelled) return;
         if (!protocol) {
@@ -185,6 +188,15 @@ export default function SessionScreen() {
           return;
         }
         startedSessionIdRef.current = sessionId;
+
+        if (isQuickMode) {
+          if (quickStepIndex >= protocol.steps.length) {
+            setLoadError('That step is not in this session. Go back and pick another quick rep.');
+            return;
+          }
+          startSession(sessionId, planSession.exerciseId, protocol, undefined, { quickStepIndex });
+          return;
+        }
 
         const canResume =
           snapshot &&
@@ -214,7 +226,7 @@ export default function SessionScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [sessionId, activePlan, activeSession?.sessionId, fetchProtocol, startSession]);
+  }, [sessionId, activePlan, activeSession?.sessionId, fetchProtocol, startSession, isQuickMode, quickStepIndex]);
 
   useEffect(() => {
     return () => {
@@ -235,6 +247,8 @@ export default function SessionScreen() {
 
   useEffect(() => {
     if (!activeSession) return;
+    // A quick rep is not worth resuming and must not clobber a real session's snapshot.
+    if (activeSession.isQuickReps) return;
     const { state } = activeSession;
     if (state === 'COMPLETE' || state === 'ABANDONED') {
       void clearSessionSnapshot();
@@ -428,12 +442,78 @@ export default function SessionScreen() {
     [activeSession, completeStep],
   );
 
+  // ── Quick reps: one step, then straight to the log and the complete screen ─
+
+  const handleSubmitQuick = useCallback(
+    async (outcome: StepOutcome) => {
+      if (!activeSession || !user || !dog || !activePlan) return;
+      setIsSaving(true);
+      setSaveError(null);
+      endTraining();
+
+      const sessionOutcome: SessionOutcome = outcome === 'success' ? 'met' : 'not_met';
+      const stepResults = useSessionStore.getState().activeSession?.stepResults ?? activeSession.stepResults;
+
+      try {
+        await submitSession(async (sid, durationSeconds) => {
+          const planSession = activePlan.sessions.find((session) => session.id === sid);
+          const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
+
+          if (!savedLogIdRef.current) {
+            const result = await saveSession({
+              userId: user.id,
+              dogId: dog.id,
+              planId: activePlan.id,
+              sessionId: sid,
+              exerciseId: activeSession.exerciseId,
+              protocolId,
+              durationSeconds,
+              difficulty: outcomeToDifficulty(sessionOutcome),
+              notes: '',
+              completedAt: new Date().toISOString(),
+              successScore: outcomeToSuccessScore(sessionOutcome, stepResults),
+              stepResults,
+              sessionStatus: 'completed',
+              skillId: planSession?.skillId ?? null,
+              sessionKind: planSession?.sessionKind ?? null,
+              environmentTag: planSession?.environment ?? null,
+              liveCoachingUsed: false,
+              postSessionReflection: null,
+              isQuickReps: true,
+            });
+            if (result.error || !result.sessionLogId) {
+              throw new Error(result.error ?? 'Could not save the quick reps.');
+            }
+            savedLogIdRef.current = result.sessionLogId;
+          }
+
+          // Quick reps count toward the streak but never complete a plan session.
+          updateStreak(user.id, dog.id).catch(() => {});
+          fetchDogLearningState(dog.id).catch(() => {});
+        });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'The quick reps could not be saved.';
+        console.warn('[session] quick submit failed:', message);
+        setSaveError(message);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [activeSession, user, dog, activePlan, endTraining, submitSession, fetchDogLearningState],
+  );
+
   /** Manual mode: record the outcome, then either pause on it or move straight on. */
   const handleStepDone = useCallback(
     (outcome: StepOutcome) => {
       const recorded = recordStep(outcome);
       if (!recorded) return;
       setShowHelpSheet(false);
+      setShowNotYetSheet(false);
+
+      if (activeSession?.isQuickReps) {
+        void handleSubmitQuick(outcome);
+        return;
+      }
 
       // Setup-style steps and skips get no interstitial: there is nothing to
       // note, and it only slows the handler down.
@@ -445,8 +525,17 @@ export default function SessionScreen() {
       setLastStepOutcome(outcome);
       setState('STEP_COMPLETE');
     },
-    [recordStep, advanceToNextStep, setState],
+    [recordStep, advanceToNextStep, setState, activeSession?.isQuickReps, handleSubmitQuick],
   );
+
+  /** "Try this step again": back to zero on this step, nothing recorded. */
+  const handleRetryStep = useCallback(() => {
+    setShowNotYetSheet(false);
+    const step = activeSession?.protocol.steps[activeSession.currentStepIndex];
+    resetReps();
+    if (step?.durationSeconds) resetTimer(step.durationSeconds);
+    stepStartTimeRef.current = Date.now();
+  }, [activeSession, resetReps, resetTimer]);
 
   const handleNextStep = useCallback(() => advanceToNextStep(), [advanceToNextStep]);
 
@@ -629,6 +718,12 @@ export default function SessionScreen() {
       router.replace('/(tabs)/train');
       return;
     }
+    // Quick reps are throwaway until saved: leaving records nothing.
+    if (activeSession.isQuickReps) {
+      clearSession();
+      router.back();
+      return;
+    }
     // Nothing recorded yet: just leave. No guilt, no bogus log.
     if (activeSession.state === 'INTRO') {
       void clearSessionSnapshot();
@@ -744,19 +839,33 @@ export default function SessionScreen() {
   }
 
   // Progress through the steps; the review and completion states are "done".
+  const isQuickReps = activeSession.isQuickReps;
   const progress =
     state === 'INTRO'
       ? 0
       : state === 'SESSION_REVIEW' || state === 'COMPLETE'
         ? 1
-        : state === 'STEP_COMPLETE'
-          ? (currentStepIndex + 1) / totalSteps
-          : currentStepIndex / totalSteps;
+        : isQuickReps
+          ? 0
+          : state === 'STEP_COMPLETE'
+            ? (currentStepIndex + 1) / totalSteps
+            : currentStepIndex / totalSteps;
+  const stepLabel =
+    state === 'STEP_ACTIVE' || state === 'STEP_COMPLETE'
+      ? isQuickReps
+        ? 'Quick reps'
+        : `${currentStepIndex + 1} of ${totalSteps}`
+      : null;
+
+  // Quick reps: a rep step (or a setup step run as reps) stops at a handful.
+  const quickRepTarget = currentStep ? Math.min(QUICK_REPS_MAX, currentStep.reps ?? QUICK_REPS_MAX) : null;
+  const repTarget = isQuickReps ? quickRepTarget : (currentStep?.reps ?? null);
+  const showRepCounter = currentStep ? (isQuickReps ? !currentStep.durationSeconds : !!currentStep.reps) : false;
 
   return (
     <SafeScreen edges={['top', 'bottom']}>
       <StatusBar style={statusBarStyle} />
-      <TopBar onClose={handleExit} progress={progress} />
+      <TopBar onClose={handleExit} progress={progress} stepLabel={stepLabel} />
 
       {state === 'INTRO' && (
         <IntroView
@@ -772,12 +881,12 @@ export default function SessionScreen() {
       {state === 'STEP_ACTIVE' && currentStep && (
         <StepActiveView
           step={currentStep}
-          stepNumber={currentStepIndex + 1}
-          totalSteps={totalSteps}
           activeSession={activeSession}
           resumedNotice={resumedNotice}
-          onBack={goToPreviousStep}
-          onHelp={() => setShowHelpSheet(true)}
+          repTarget={repTarget}
+          showRepCounter={showRepCounter}
+          onPreviousStep={!isQuickReps && currentStepIndex > 0 ? goToPreviousStep : null}
+          onWhy={() => setShowHelpSheet(true)}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
           }}
@@ -785,8 +894,11 @@ export default function SessionScreen() {
             if (currentStep.durationSeconds) resetTimer(currentStep.durationSeconds);
           }}
           onIncrementRep={incrementRep}
-          onResetReps={resetReps}
-          onStepDone={handleStepDone}
+          onDecrementRep={decrementRep}
+          onWorked={() => handleStepDone('success')}
+          onNotYet={() => setShowNotYetSheet(true)}
+          isSaving={isSaving}
+          saveError={isQuickReps ? saveError : null}
         />
       )}
 
@@ -824,7 +936,18 @@ export default function SessionScreen() {
         />
       )}
 
-      {state === 'COMPLETE' && (
+      {state === 'COMPLETE' && isQuickReps && currentStep && (
+        <QuickCompleteView
+          totalReps={totalReps}
+          stepInstruction={currentStep.instruction}
+          onBack={() => {
+            clearSession();
+            router.replace('/(tabs)/train');
+          }}
+        />
+      )}
+
+      {state === 'COMPLETE' && !isQuickReps && (
         <CompleteView
           outcome={reviewOutcome ?? 'met'}
           totalReps={totalReps}
@@ -844,9 +967,16 @@ export default function SessionScreen() {
           step={currentStep}
           stepNumber={currentStepIndex + 1}
           dogName={dogName}
-          onSkipStep={() => handleStepDone('skipped')}
+          onSkipStep={isQuickReps ? undefined : () => handleStepDone('skipped')}
         />
       )}
+
+      <NotYetSheet
+        visible={showNotYetSheet}
+        onClose={() => setShowNotYetSheet(false)}
+        onTryAgain={handleRetryStep}
+        onMakeEasier={() => handleStepDone('struggled')}
+      />
 
       {abandonSheet}
     </SafeScreen>
@@ -858,7 +988,16 @@ export default function SessionScreen() {
 // native header, so this is the only chrome it draws.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TopBar({ onClose, progress }: { onClose: () => void; progress: number }) {
+function TopBar({
+  onClose,
+  progress,
+  stepLabel,
+}: {
+  onClose: () => void;
+  progress: number;
+  /** "3 of 5" while on a step; nothing on the intro, review, and complete screens. */
+  stepLabel?: string | null;
+}) {
   return (
     <View
       style={{
@@ -871,6 +1010,7 @@ function TopBar({ onClose, progress }: { onClose: () => void; progress: number }
     >
       <IconButton icon="close" accessibilityLabel="Leave session" tone="secondary" onPress={onClose} />
       <ProgressBar progress={progress} accessibilityLabel="Session progress" style={{ flex: 1 }} />
+      {stepLabel ? <Text variant="caption">{stepLabel}</Text> : null}
     </View>
   );
 }
@@ -904,7 +1044,17 @@ interface IntroViewProps {
 }
 
 function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, onChooseMode }: IntroViewProps) {
-  const checklist = buildChecklist(protocol.equipmentNeeded);
+  // Setup is a checklist, not a step. Ticks are for the handler's own
+  // benefit; nothing is gated on them and nothing is recorded.
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleTicked = (item: string) =>
+    setTicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(item)) next.delete(item);
+      else next.add(item);
+      return next;
+    });
+  const equipment = protocol.equipmentNeeded.filter((item) => item.trim().length > 0);
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
@@ -925,17 +1075,27 @@ function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, on
           <Text variant="body">{protocol.successCriteria}</Text>
         </View>
 
-        <View>
-          <SectionHeader title="Before you start" />
-          <ListGroup>
-            {checklist.map((item) => (
-              <ListRow key={item} icon="checkmark-circle-outline" title={item} />
-            ))}
-            {protocol.equipmentNeeded.map((item) => (
-              <ListRow key={`equipment-${item}`} icon="cube-outline" iconTone="secondary" title={item} />
-            ))}
-          </ListGroup>
-        </View>
+        {equipment.length > 0 ? (
+          <View>
+            <SectionHeader title="Before you start" />
+            <ListGroup>
+              {equipment.map((item) => {
+                const isTicked = ticked.has(item);
+                return (
+                  <ListRow
+                    key={item}
+                    icon={isTicked ? 'checkmark-circle' : 'ellipse-outline'}
+                    iconTone={isTicked ? 'accent' : 'secondary'}
+                    title={item}
+                    onPress={() => toggleTicked(item)}
+                    accessibilityLabel={`${item}, ${isTicked ? 'ready' : 'not ready'}`}
+                    accessibilityHint={isTicked ? 'Untick' : 'Tick when it is in place'}
+                  />
+                );
+              })}
+            </ListGroup>
+          </View>
+        ) : null}
 
         {protocol.trainerNote ? (
           <Card style={{ gap: spacing.xs }}>
@@ -959,43 +1119,55 @@ function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, on
 
 interface StepActiveViewProps {
   step: ProtocolStep;
-  stepNumber: number;
-  totalSteps: number;
   activeSession: ActiveSession;
   resumedNotice: boolean;
-  onBack: () => void;
-  onHelp: () => void;
+  /** Reps to aim for; quick reps cap it. */
+  repTarget: number | null;
+  showRepCounter: boolean;
+  /** Null on the first step and in quick reps. */
+  onPreviousStep: (() => void) | null;
+  onWhy: () => void;
   onToggleTimer: () => void;
   onResetTimer: () => void;
   onIncrementRep: () => void;
-  onResetReps: () => void;
-  onStepDone: (outcome: StepOutcome) => void;
+  onDecrementRep: () => void;
+  onWorked: () => void;
+  onNotYet: () => void;
+  isSaving: boolean;
+  /** Quick reps save straight from this screen, so a failed save shows here. */
+  saveError: string | null;
 }
 
+/**
+ * One step per screen: three lines of text, the one control the step needs,
+ * and two answers. Nothing advances on its own; the dog sets the pace.
+ */
 function StepActiveView({
   step,
-  stepNumber,
-  totalSteps,
   activeSession,
   resumedNotice,
-  onBack,
-  onHelp,
+  repTarget,
+  showRepCounter,
+  onPreviousStep,
+  onWhy,
   onToggleTimer,
   onResetTimer,
   onIncrementRep,
-  onResetReps,
-  onStepDone,
+  onDecrementRep,
+  onWorked,
+  onNotYet,
+  isSaving,
+  saveError,
 }: StepActiveViewProps) {
   const hasTimer = !!step.durationSeconds;
-  const hasReps = !!step.reps;
-  const setupStep = isSetupStep(step);
+  const setupStep = !hasTimer && !showRepCounter;
   const timerDone = hasTimer && activeSession.timerSeconds === 0 && !activeSession.isTimerRunning;
   const timerUntouched = !activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds;
 
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
         {resumedNotice ? (
@@ -1005,9 +1177,9 @@ function StepActiveView({
           </View>
         ) : null}
 
-        <StepCard step={step} stepNumber={stepNumber} totalSteps={totalSteps} />
+        <StepCard step={step} />
 
-        {hasTimer && (
+        {hasTimer ? (
           <View style={{ gap: spacing.lg }}>
             <TimerRing totalSeconds={step.durationSeconds!} currentSeconds={activeSession.timerSeconds} size={160} />
             <View style={{ gap: spacing.xs }}>
@@ -1033,43 +1205,77 @@ function StepActiveView({
               <Button label="Reset timer" variant="ghost" size="md" onPress={onResetTimer} disabled={timerUntouched} />
             </View>
           </View>
-        )}
-
-        {hasReps && (
-          <View style={{ gap: spacing.sm }}>
-            <RepCounter
-              count={activeSession.repCount}
-              target={step.reps}
-              onIncrement={onIncrementRep}
-              onReset={onResetReps}
-            />
-            <Text variant="caption">Counting is optional. What matters is whether it worked.</Text>
-          </View>
-        )}
+        ) : showRepCounter ? (
+          <RepCounter
+            count={activeSession.repCount}
+            target={repTarget}
+            onIncrement={onIncrementRep}
+            onDecrement={onDecrementRep}
+          />
+        ) : null}
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          <Button label="Help with this step" icon="help-circle-outline" variant="ghost" size="md" onPress={onHelp} />
-          <Button
-            label={stepNumber > 1 ? 'Previous step' : 'Back to overview'}
-            icon="chevron-back"
-            variant="ghost"
-            size="md"
-            onPress={onBack}
-          />
+          {onPreviousStep ? (
+            <Button label="Previous step" icon="chevron-back" variant="ghost" size="md" onPress={onPreviousStep} />
+          ) : null}
+          <Button label="Why this step" icon="help-circle-outline" variant="ghost" size="md" onPress={onWhy} />
         </View>
       </ScrollView>
 
       <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+        {saveError ? (
+          <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+            {saveError} Check your connection and try again.
+          </Text>
+        ) : null}
         {setupStep ? (
-          <Button label="Next step" onPress={() => onStepDone('success')} />
+          <Button label={saveError ? 'Try saving again' : 'Next step'} onPress={onWorked} loading={isSaving} />
         ) : (
           <>
-            <Button label="It worked" icon="checkmark" onPress={() => onStepDone('success')} />
-            <Button label="Didn’t quite work" variant="secondary" onPress={() => onStepDone('struggled')} />
+            <Button label={saveError ? 'Try saving again' : 'It worked'} icon="checkmark" onPress={onWorked} loading={isSaving} />
+            <Button label="Not yet" variant="ghost" onPress={onNotYet} disabled={isSaving} />
           </>
         )}
       </View>
     </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "Not yet" — stick or drop, one tap each. The owner never types.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function NotYetSheet({
+  visible,
+  onClose,
+  onTryAgain,
+  onMakeEasier,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onTryAgain: () => void;
+  onMakeEasier: () => void;
+}) {
+  return (
+    <BottomSheet visible={visible} onClose={onClose} title="Not yet">
+      <View style={{ gap: spacing.xl }}>
+        <Text variant="body">That is normal. Pick what happens next.</Text>
+        <ListGroup>
+          <ListRow
+            icon="refresh"
+            title="Try this step again"
+            subtitle="Back to zero on this step. Nothing is recorded."
+            onPress={onTryAgain}
+          />
+          <ListRow
+            icon="arrow-down-circle-outline"
+            title="Make it easier"
+            subtitle="Move on. Your plan will lighten the next attempt."
+            onPress={onMakeEasier}
+          />
+        </ListGroup>
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -1182,6 +1388,42 @@ function CompleteView({ outcome, totalReps, trainingSeconds, onBack }: CompleteV
           <ListRow title="Time" trailing={formatDuration(trainingSeconds)} />
           <ListRow title="Outcome" trailing={OUTCOME_LABEL[outcome]} />
         </ListGroup>
+      </ScrollView>
+
+      <View style={{ padding: spacing.lg }}>
+        <Button label="Back to today" onPress={onBack} />
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUICK COMPLETE — compact; no reflection, no plan changes
+// ─────────────────────────────────────────────────────────────────────────────
+
+function QuickCompleteView({
+  totalReps,
+  stepInstruction,
+  onBack,
+}: {
+  totalReps: number;
+  stepInstruction: string;
+  onBack: () => void;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }} showsVerticalScrollIndicator={false}>
+        <View style={{ alignItems: 'center', gap: spacing.lg }}>
+          <MascotCallout state="celebrating" size={120} />
+          <View style={{ alignItems: 'center', gap: spacing.sm }}>
+            <Text variant="h1" style={{ textAlign: 'center' }} accessibilityRole="header">
+              Quick reps done
+            </Text>
+            <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center' }}>
+              {totalReps} {totalReps === 1 ? 'rep' : 'reps'} of {stepInstruction}
+            </Text>
+          </View>
+        </View>
       </ScrollView>
 
       <View style={{ padding: spacing.lg }}>

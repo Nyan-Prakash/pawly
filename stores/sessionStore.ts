@@ -9,7 +9,7 @@ import type { StepOutcome } from '@/lib/sessionScoring';
 /**
  * Session state machine.
  *
- *   LOADING → INTRO → STEP_ACTIVE ⇄ STEP_COMPLETE → … → SESSION_REVIEW → COMPLETE
+ *   LOADING -> INTRO -> STEP_ACTIVE <-> STEP_COMPLETE -> … -> SESSION_REVIEW -> COMPLETE
  *                                                                   ↘ ABANDONED
  *
  * The old SETUP state was folded into INTRO: the checklist never gated
@@ -50,6 +50,17 @@ export interface ActiveSession {
   repCount: number;
   isTimerRunning: boolean;
   state: SessionState;
+  /**
+   * Quick reps: a 60–90 second rerun of ONE step outside the plan. Skips the
+   * intro and the reflection, is never snapshotted, and never marks the plan
+   * session complete.
+   */
+  isQuickReps: boolean;
+}
+
+export interface SessionStartOptions {
+  /** Start straight on this step as a quick-reps run. */
+  quickStepIndex?: number;
 }
 
 export interface SessionRestoreData {
@@ -71,6 +82,7 @@ interface SessionStore {
     exerciseId: string,
     protocol: Protocol,
     restore?: SessionRestoreData,
+    options?: SessionStartOptions,
   ) => void;
   setState: (state: SessionState) => void;
   beginTraining: () => void;
@@ -81,6 +93,8 @@ interface SessionStore {
   pauseTimer: () => void;
   resetTimer: (seconds: number) => void;
   incrementRep: () => void;
+  /** Takes back the last rep; never below zero. */
+  decrementRep: () => void;
   resetReps: () => void;
   advanceToNextStep: () => void;
   goToPreviousStep: () => void;
@@ -90,9 +104,11 @@ interface SessionStore {
    */
   submitSession: (onComplete: (sessionId: string, durationSeconds: number) => Promise<void>) => Promise<void>;
   abandonSession: () => void;
+  /** Freezes "time trained" without entering the review (quick reps). */
+  endTraining: () => void;
   tick: () => void;
   clearSession: () => void;
-  /** Seconds actually spent training (first step → last step, or now). */
+  /** Seconds actually spent training (first step -> last step, or now). */
   getTrainingSeconds: () => number;
 }
 
@@ -109,8 +125,35 @@ function trainingSeconds(s: ActiveSession, now: number = Date.now()): number {
 export const useSessionStore = create<SessionStore>((set, get) => ({
   activeSession: null,
 
-  startSession: (sessionId, exerciseId, protocol, restore) => {
+  startSession: (sessionId, exerciseId, protocol, restore, options) => {
     const lastIndex = Math.max(protocol.steps.length - 1, 0);
+    const quickStepIndex = options?.quickStepIndex;
+    const isQuickReps = typeof quickStepIndex === 'number' && Number.isFinite(quickStepIndex);
+
+    if (isQuickReps) {
+      const stepIndex = Math.min(Math.max(Math.floor(quickStepIndex), 0), lastIndex);
+      const step: ProtocolStep | undefined = protocol.steps[stepIndex];
+      const now = new Date();
+      set({
+        activeSession: {
+          sessionId,
+          exerciseId,
+          protocol,
+          startedAt: now,
+          trainingStartedAt: now,
+          trainingEndedAt: null,
+          currentStepIndex: stepIndex,
+          stepResults: [],
+          timerSeconds: step?.durationSeconds ?? 0,
+          repCount: 0,
+          isTimerRunning: false,
+          state: 'STEP_ACTIVE',
+          isQuickReps: true,
+        },
+      });
+      return;
+    }
+
     let stepIndex = restore ? Math.min(Math.max(restore.currentStepIndex, 0), lastIndex) : 0;
     let restoredState: SessionState = restore ? restore.state : 'INTRO';
 
@@ -143,6 +186,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         repCount: restore?.repCount ?? 0,
         isTimerRunning: false,
         state: restoredState,
+        isQuickReps: false,
       },
     });
   },
@@ -233,6 +277,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     });
   },
 
+  decrementRep: () => {
+    set((s) => {
+      if (!s.activeSession) return s;
+      return { activeSession: { ...s.activeSession, repCount: Math.max(0, s.activeSession.repCount - 1) } };
+    });
+  },
+
   resetReps: () => {
     set((s) => {
       if (!s.activeSession) return s;
@@ -317,6 +368,19 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set((s) => {
       if (!s.activeSession) return s;
       return { activeSession: { ...s.activeSession, state: 'ABANDONED', isTimerRunning: false } };
+    });
+  },
+
+  endTraining: () => {
+    set((s) => {
+      if (!s.activeSession) return s;
+      return {
+        activeSession: {
+          ...s.activeSession,
+          isTimerRunning: false,
+          trainingEndedAt: s.activeSession.trainingEndedAt ?? new Date(),
+        },
+      };
     });
   },
 

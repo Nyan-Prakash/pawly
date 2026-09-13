@@ -8,27 +8,27 @@ import type { ProtocolStep } from '@/constants/protocols';
 
 interface StepCardProps {
   step: ProtocolStep;
-  stepNumber: number;
-  totalSteps: number;
 }
 
 /**
- * The current step: where it sits, what to do, what success looks like, and
- * the step's own tip. Course-level guidance lives in the help sheet.
+ * The three lines of a step and nothing else: do (h1), then (body), and what
+ * success looks like (caption). The reason lives behind "Why this step".
  */
-export function StepCard({ step, stepNumber, totalSteps }: StepCardProps) {
+export function StepCard({ step }: StepCardProps) {
   return (
-    <View style={{ gap: spacing.sm }}>
-      <Text variant="caption">
-        Step {stepNumber} of {totalSteps}
+    <View style={{ gap: spacing.md }}>
+      <Text variant="h1" accessibilityRole="header">
+        {step.instruction}
       </Text>
-      <Text variant="h2">{step.instruction}</Text>
-      {step.successLook ? <Text variant="body">{step.successLook}</Text> : null}
-      {step.tip ? (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.xs }}>
-          <AppIcon name="bulb-outline" size={16} color={colors.text.secondary} />
+      {step.then ? <Text variant="body">{step.then}</Text> : null}
+      {step.successLook ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs }}>
+          {/* Sized to the caption's first line so the icon sits on it, not above it. */}
+          <View style={{ height: 20, justifyContent: 'center' }}>
+            <AppIcon name="checkmark-circle-outline" size={16} color={colors.text.secondary} />
+          </View>
           <Text variant="caption" style={{ flex: 1 }}>
-            {step.tip}
+            {step.successLook}
           </Text>
         </View>
       ) : null}
