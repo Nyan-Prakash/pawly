@@ -6,10 +6,12 @@ import { ArticleCard } from '@/components/know/ArticleCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { ListGroup } from '@/components/ui/ListRow';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { useDogStore } from '@/stores/dogStore';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { fetchPublishedArticles } from '@/lib/articles';
@@ -103,6 +105,8 @@ export default function KnowScreen() {
     : visibleArticles;
   const hasOnlyFeaturedResult = visibleArticles.length === 1 && listArticles.length === 0 && !!featuredArticle;
 
+  const dogName = useDogStore((state) => state.dog?.name) ?? 'your dog';
+
   const openArticle = (article: Article) => router.push(`/know/article/${article.slug}` as never);
 
   return (
@@ -122,6 +126,10 @@ export default function KnowScreen() {
         />
       }
     >
+      <PageHeader
+        title="Learn"
+        line={`Reading up counts as training too. Pick one for this week with ${dogName}.`}
+      />
       <Input
         value={query}
         onChangeText={setQuery}

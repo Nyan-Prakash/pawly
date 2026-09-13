@@ -7,7 +7,7 @@ export default function ProfileLayout() {
   const { colorScheme } = useTheme();
   return (
     <Stack screenOptions={stackScreenOptions(colorScheme)}>
-      <Stack.Screen name="index" options={{ title: 'Profile' }} />
+      <Stack.Screen name="index" options={{ title: 'Profile', headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ title: 'Notifications' }} />
       <Stack.Screen name="edit-dog" options={{ title: 'Edit dog' }} />
       <Stack.Screen name="privacy-policy" options={{ title: 'Privacy policy' }} />

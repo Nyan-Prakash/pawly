@@ -7,7 +7,7 @@ export default function ProgressLayout() {
   const { colorScheme } = useTheme();
   return (
     <Stack screenOptions={stackScreenOptions(colorScheme)}>
-      <Stack.Screen name="index" options={{ title: 'Progress' }} />
+      <Stack.Screen name="index" options={{ title: 'Progress', headerShown: false }} />
       <Stack.Screen name="milestones" options={{ title: 'Milestones' }} />
     </Stack>
   );

@@ -7,7 +7,7 @@ export default function CoachLayout() {
   const { colorScheme } = useTheme();
   return (
     <Stack screenOptions={stackScreenOptions(colorScheme)}>
-      <Stack.Screen name="index" options={{ title: 'Coach' }} />
+      <Stack.Screen name="index" options={{ title: 'Coach', headerShown: false }} />
     </Stack>
   );
 }

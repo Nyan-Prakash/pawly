@@ -8,6 +8,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Card } from '@/components/ui/Card';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { MascotCallout } from '@/components/ui/MascotCallout';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
@@ -74,6 +75,8 @@ export default function ProfileScreen() {
   return (
     <>
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}>
+        {/* No mascot line here: the dog's own avatar sits right below, and two dogs on one screen is one too many. */}
+        <PageHeader title="Profile" />
         <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
           <View
             style={{

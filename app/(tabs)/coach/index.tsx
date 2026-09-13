@@ -13,6 +13,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
@@ -158,8 +160,14 @@ export default function CoachScreen() {
         contentContainerStyle={{ padding: spacing.lg }}
         style={{ flex: 1 }}
         ListHeaderComponent={
-          hasMessages ? (
-            <View style={{ alignItems: 'flex-start', marginBottom: spacing.sm }}>
+          <View style={{ gap: spacing.lg, marginBottom: spacing.xl }}>
+            <PageHeader
+              title="Coach"
+              line={hasMessages ? `Still here. Ask me anything else about ${dog.name}.` : `Ask me anything about ${dog.name}. I know the whole history.`}
+              mascotState={isTyping ? 'thinking' : 'happy'}
+            />
+            {hasMessages ? (
+            <View style={{ alignItems: 'flex-start' }}>
               <Button
                 label="New chat"
                 variant="ghost"
@@ -170,15 +178,12 @@ export default function CoachScreen() {
                 style={{ paddingHorizontal: 0 }}
               />
             </View>
-          ) : null
+            ) : null}
+          </View>
         }
         ListEmptyComponent={
-          <View style={{ gap: spacing.xl }}>
-            <EmptyState
-              mascotState="happy"
-              title="Ask the coach anything"
-              subtitle="Questions about today's session, a behavior, or what to try next."
-            />
+          <View style={{ gap: spacing.sm }}>
+            <SectionHeader title="Good places to start" />
             <QuickSuggestions suggestions={suggestions} onSelect={handleSuggestion} disabled={isTyping} />
           </View>
         }

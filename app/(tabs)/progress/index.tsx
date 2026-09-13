@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { MascotCallout } from '@/components/ui/MascotCallout';
 import { Tag } from '@/components/ui/PillTag';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
@@ -299,14 +300,22 @@ export default function ProgressScreen() {
   const upcoming: MilestoneDefinition[] = MILESTONE_DEFINITIONS.filter((def) => !reachedIds.includes(def.id)).slice(0, 3);
 
   // Always show the last eight weeks so one session is a bar, not a block.
+  // Keys are local YYYY-MM-DD, matching the store's weekStart values.
   const WEEKS_SHOWN = 8;
   const weekBuckets = (() => {
+    const toKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const parseKey = (key: string) => {
+      const [y, m, day] = key.split('-').map(Number);
+      return new Date(y, (m ?? 1) - 1, day ?? 1);
+    };
     const byStart = new Map(sessionsByWeek.map((w) => [w.weekStart, w.sessionsCompleted]));
-    const latest = sessionsByWeek.length ? new Date(sessionsByWeek[sessionsByWeek.length - 1].weekStart) : new Date();
+    const latestKey = [...byStart.keys()].sort().at(-1);
+    const latest = latestKey ? parseKey(latestKey) : new Date();
     return Array.from({ length: WEEKS_SHOWN }, (_, i) => {
       const d = new Date(latest);
       d.setDate(d.getDate() - (WEEKS_SHOWN - 1 - i) * 7);
-      const key = d.toISOString().slice(0, 10);
+      const key = toKey(d);
       return { weekStart: key, sessionsCompleted: byStart.get(key) ?? 0 };
     });
   })();
@@ -331,6 +340,16 @@ export default function ProgressScreen() {
 
   const showSkeleton = isLoading && totalSessionsCompleted === 0;
   const isNewUser = !isLoading && totalSessionsCompleted === 0;
+  const name = dog?.name ?? 'your dog';
+  const headerLine = showSkeleton
+    ? 'Adding it all up.'
+    : isNewUser
+      ? `Nothing to count yet. The first session with ${name} changes that.`
+      : sessionStreak >= 3
+        ? `${sessionStreak} days in a row. That's a habit forming.`
+        : totalSessionsCompleted === 1
+          ? `One session with ${name} in the book. Let's make it two.`
+          : `${totalSessionsCompleted} sessions with ${name} so far. Keep it steady.`;
 
   return (
     <>
@@ -341,6 +360,11 @@ export default function ProgressScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text.secondary} />
         }
       >
+        <PageHeader
+          title="Progress"
+          line={headerLine}
+          mascotState={showSkeleton ? 'thinking' : sessionStreak >= 3 ? 'celebrating' : 'happy'}
+        />
         {showSkeleton ? (
           <ProgressSkeleton />
         ) : isNewUser ? (

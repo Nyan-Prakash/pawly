@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { MascotCallout } from '@/components/ui/MascotCallout';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { StreakBadge } from '@/components/ui/StreakBadge';
@@ -112,23 +113,6 @@ function pickQuickWins(todayKey: string, count = 3): QuickWin[] {
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading skeleton — mirrors the real layout so the swap doesn't jump
 // ─────────────────────────────────────────────────────────────────────────────
-
-function TodayHeader({ dogName, line }: { dogName: string | null; line: string }) {
-  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  return (
-    <View style={{ gap: spacing.lg, paddingTop: spacing.sm }}>
-      <View style={{ gap: spacing.xs }}>
-        <Text variant="captionStrong" color={colors.text.secondary}>
-          {dateLabel}
-        </Text>
-        <Text variant="display" accessibilityRole="header">
-          {dogName ? `${dogName}'s day` : 'Today'}
-        </Text>
-      </View>
-      <MascotCallout state="happy" size={72} callout={line} calloutPlacement="right" />
-    </View>
-  );
-}
 
 function LoadingSkeleton() {
   return (
@@ -360,6 +344,7 @@ export default function TrainScreen() {
     router.push('/(tabs)/train/plan');
   };
 
+  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const greeting = (() => {
     const name = dog?.name ?? 'your dog';
     if (resumeTarget) return `We left a session half done. Shall we finish it?`;
@@ -378,7 +363,7 @@ export default function TrainScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
       >
-        <TodayHeader dogName={dog?.name ?? null} line="One sec, fetching the plan." />
+        <PageHeader eyebrow={dateLabel} title={dog?.name ? `${dog.name}'s day` : 'Today'} line="One sec, fetching the plan." mascotState="thinking" />
         <LoadingSkeleton />
       </ScrollView>
     );
@@ -393,7 +378,12 @@ export default function TrainScreen() {
         }
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
       >
-        <TodayHeader dogName={dog?.name ?? null} line={greeting} />
+        <PageHeader
+          eyebrow={dateLabel}
+          title={dog?.name ? `${dog.name}'s day` : 'Today'}
+          line={greeting}
+          mascotState={resumeTarget || heroVariant === 'overdue' || firstMissed ? 'encouraging' : 'happy'}
+        />
 
         {/* ── No plan ── */}
         {!hasPlans ? (

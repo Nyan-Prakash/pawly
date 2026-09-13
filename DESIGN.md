@@ -108,7 +108,7 @@ Motion answers an action or shows a state change. Nothing animates on mount. Not
 
 ## The mascot
 
-The mascot is the app icon's dog, drawn in `MascotCallout` from `colors.mascot`. It has five expressions (`happy`, `encouraging`, `thinking`, `celebrating`, `waiting`) that change only the eyes, mouth and head tilt. It appears in exactly these places: the Today greeting (with a speech bubble in its own voice), empty states, loading, and session completion. It never decorates a list, a card corner, or a button. Its speech-bubble lines are short, first-person plural ("We missed one. No big deal, let's pick it back up."), and never instruct the user to feel something.
+The mascot is the app icon's dog, drawn in `MascotCallout` from `colors.mascot`. It has five expressions (`happy`, `encouraging`, `thinking`, `celebrating`, `waiting`) that change only the eyes, mouth and head tilt. It appears in exactly these places: the header of each tab root through `PageHeader` (with a speech bubble in its own voice, saying something true about that page), empty states, loading, and session completion. Profile is the exception: the dog's own avatar is already there, so the header has no mascot. It never appears twice on one screen, and never decorates a list, a card corner, or a button. Its speech-bubble lines are short, first-person plural ("We missed one. No big deal, let's pick it back up."), and never instruct the user to feel something.
 
 The streak is the one small warm flourish outside the mascot: a flame in `status.warning` next to "n-day streak". Nothing else is amber.
 
