@@ -1,179 +1,118 @@
 import { type ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  View,
-  Pressable,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
+import { SafeScreen } from '@/components/ui/SafeScreen';
 import { Text } from '@/components/ui/Text';
 import { OnboardingProgressBar } from '@/components/onboarding/ProgressBar';
-import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 
 type QuestionScreenProps = {
   title: string;
   subtitle?: string;
   children: ReactNode;
-  onContinue: () => void;
-  canContinue: boolean;
+  /**
+   * The footer's primary action. Name the step ("Add a photo", "Build the
+   * plan"); use "Next" only when the next step is unknown to the user.
+   * Omit to draw no primary button (pass `footerExtra` instead).
+   */
   continueLabel?: string;
+  onContinue?: () => void;
+  canContinue?: boolean;
   onBack?: () => void;
   currentStep?: number;
   totalSteps?: number;
   scrollable?: boolean;
+  /** Extra footer content under (or instead of) the primary button. */
   footerExtra?: ReactNode;
 };
 
+/**
+ * One onboarding step: stepper header, title block, content, and a footer
+ * that sits in the same flex column as the content (no absolute footer, no
+ * magic bottom padding).
+ */
 export function QuestionScreen({
   title,
   subtitle,
   children,
+  continueLabel,
   onContinue,
-  canContinue,
-  continueLabel = 'Continue',
+  canContinue = true,
   onBack,
   currentStep,
   totalSteps,
   scrollable = true,
   footerExtra,
 }: QuestionScreenProps) {
-  const insets = useSafeAreaInsets();
-  const showProgress =
-    typeof currentStep === 'number' && typeof totalSteps === 'number';
+  const showProgress = typeof currentStep === 'number' && typeof totalSteps === 'number';
+  const showHeader = showProgress || Boolean(onBack);
+
+  const titleBlock = (
+    <View style={{ gap: spacing.xs }}>
+      <Text variant="h1">{title}</Text>
+      {subtitle ? <Text variant="body">{subtitle}</Text> : null}
+    </View>
+  );
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.bg.app }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      {/* Warm gradient blush — matches train screen */}
-      <LinearGradient
-        colors={[`${colors.brand.primary}0A`, 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.4 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 200 }}
-        pointerEvents="none"
-      />
-
-      {/* Header */}
-      <View
-        style={{
-          paddingTop: insets.top + 8,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: 4,
-          gap: 10,
-        }}
+    <SafeScreen>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {showProgress && (
-          <OnboardingProgressBar
-            currentStep={currentStep!}
-            totalSteps={totalSteps!}
-          />
-        )}
-        {onBack && (
-          <Pressable
-            onPress={onBack}
-            hitSlop={8}
-            style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+        {showHeader ? (
+          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm }}>
+            {showProgress ? (
+              <OnboardingProgressBar currentStep={currentStep} totalSteps={totalSteps} />
+            ) : null}
+            {onBack ? (
+              <IconButton
+                icon="chevron-back"
+                accessibilityLabel="Back"
+                tone="primary"
+                onPress={onBack}
+                style={{ alignSelf: 'flex-start', marginLeft: -spacing.md }}
+              />
+            ) : null}
+          </View>
+        ) : null}
+
+        {scrollable ? (
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.xl, gap: spacing.xl }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
           >
-            <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
-          </Pressable>
+            {titleBlock}
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={{ flex: 1, padding: spacing.lg, paddingTop: spacing.xl, gap: spacing.xl }}>
+            {titleBlock}
+            {children}
+          </View>
         )}
-      </View>
 
-      {/* Body */}
-      {scrollable ? (
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: spacing.xl,
-            paddingTop: spacing.xl,
-            paddingBottom: 140,
-            gap: spacing.xxl,
-          }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={{ gap: spacing.xs }}>
-            <Text
-              variant="h1"
-              style={{ fontSize: 28, fontWeight: '800', lineHeight: 36, letterSpacing: -0.5, color: colors.text.primary }}
-            >
-              {title}
-            </Text>
-            {subtitle && (
-              <Text variant="body" color={colors.text.secondary} style={{ lineHeight: 22 }}>
-                {subtitle}
-              </Text>
-            )}
+        {continueLabel || footerExtra ? (
+          <View
+            style={{
+              paddingHorizontal: spacing.lg,
+              paddingTop: spacing.sm,
+              paddingBottom: spacing.lg,
+              gap: spacing.sm,
+            }}
+          >
+            {continueLabel && onContinue ? (
+              <Button label={continueLabel} onPress={onContinue} disabled={!canContinue} />
+            ) : null}
+            {footerExtra}
           </View>
-          {children}
-        </ScrollView>
-      ) : (
-        <View
-          style={{
-            flex: 1,
-            paddingHorizontal: spacing.xl,
-            paddingTop: spacing.xl,
-            paddingBottom: 140,
-            gap: spacing.xxl,
-          }}
-        >
-          <View style={{ gap: spacing.xs }}>
-            <Text
-              variant="h1"
-              style={{ fontSize: 28, fontWeight: '800', lineHeight: 36, letterSpacing: -0.5, color: colors.text.primary }}
-            >
-              {title}
-            </Text>
-            {subtitle && (
-              <Text variant="body" color={colors.text.secondary} style={{ lineHeight: 22 }}>
-                {subtitle}
-              </Text>
-            )}
-          </View>
-          {children}
-        </View>
-      )}
-
-      {/* Fixed footer with gradient fade */}
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-        }}
-        pointerEvents="box-none"
-      >
-        <LinearGradient
-          colors={[`${colors.bg.app}00`, colors.bg.app]}
-          style={{ height: 32 }}
-          pointerEvents="none"
-        />
-        <View
-          style={{
-            paddingHorizontal: spacing.xl,
-            paddingTop: spacing.sm,
-            paddingBottom: insets.bottom + spacing.lg,
-            backgroundColor: colors.bg.app,
-            gap: spacing.sm,
-          }}
-        >
-          <Button
-            label={continueLabel}
-            onPress={onContinue}
-            disabled={!canContinue}
-            style={{ opacity: canContinue ? 1 : 0.4 }}
-          />
-          {footerExtra}
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+        ) : null}
+      </KeyboardAvoidingView>
+    </SafeScreen>
   );
 }
