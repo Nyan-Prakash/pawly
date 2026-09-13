@@ -1164,7 +1164,7 @@ function StepActiveView({
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl, flexGrow: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.xl, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
         {resumedNotice ? (
