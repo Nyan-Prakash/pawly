@@ -17,6 +17,7 @@ const SECONDARY_VARIANTS: ReadonlySet<TypographyVariant> = new Set(['caption', '
 /**
  * The only way to render text. Picks a variant from the type scale; never
  * accepts fontSize / fontWeight / lineHeight overrides (see DESIGN.md).
+ * Heading variants carry the Nunito family; the rest use the system font.
  */
 export function Text({ variant = 'body', color, style, children, ...props }: TextProps) {
   const resolvedColor = color ?? (SECONDARY_VARIANTS.has(variant) ? colors.text.secondary : colors.text.primary);

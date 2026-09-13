@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { ThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
+import { Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -243,6 +244,11 @@ export default function RootLayout() {
   const queryClient = useMemo(() => new QueryClient(), []);
   const { colorScheme } = useTheme();
   const theme = useMemo(() => navigationTheme(colorScheme), [colorScheme]);
+  // The heading face. If it fails to load, headings fall back to the system
+  // font rather than blocking the app.
+  const [fontsLoaded, fontError] = useFonts({ Nunito_800ExtraBold });
+
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <QueryClientProvider client={queryClient}>

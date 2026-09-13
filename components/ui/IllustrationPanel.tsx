@@ -11,8 +11,8 @@ type IllustrationPanelProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-const fur = colors.mascot.fur;
-const furDark = colors.mascot.furDark;
+const fur = colors.mascot.cream;
+const furDark = colors.mascot.brown;
 const green = colors.accent;
 
 function SitIllustration({ size }: { size: number }) {

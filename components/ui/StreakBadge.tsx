@@ -9,13 +9,13 @@ type StreakBadgeProps = {
   count: number;
 };
 
-/** "4-day streak" as quiet metadata. Not a pill, not a flame. */
+/** "4-day streak": the one small warm flourish, in amber. */
 export function StreakBadge({ count }: StreakBadgeProps) {
   if (!count) return null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-      <AppIcon name="calendar-outline" size={16} color={colors.text.secondary} />
-      <Text variant="captionStrong" color={colors.text.secondary}>
+      <AppIcon name="flame" size={16} color={colors.status.warning} />
+      <Text variant="captionStrong" color={colors.status.warning}>
         {count}-day streak
       </Text>
     </View>

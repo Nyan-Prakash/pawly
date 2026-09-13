@@ -11,21 +11,24 @@
 
 export type AppColorScheme = 'light' | 'dark';
 
+/** The mascot's own colours, taken from the app icon. Not for UI. */
 const mascot = {
-  fur: '#F6B66E',
-  furDark: '#E19A53',
-  earInner: '#FFD9B3',
-  nose: '#3A3A3A',
-  eye: '#1C1917',
-  blush: '#F59A9A',
+  cream: '#F5E2B3',
+  brown: '#4A2C18',
+  patch: '#6B4527',
+  eye: '#2B1A0E',
+  nose: '#3B2314',
+  blush: '#F2B8A2',
   tongue: '#F26D6D',
-  tongueLine: '#DC4C4C',
   highlight: '#FFFFFF',
+  sky: '#4F6BE0',
 } as const;
 
 export const lightColors = {
-  accent: '#1E6B3A',
-  accentSoft: '#DCEFE2',
+  accent: '#3F5BD1',
+  accentSoft: '#E3E8FB',
+  /** Darker accent for the pressed-edge of primary buttons. */
+  accentEdge: '#2F46B0',
   bg: {
     app: '#F7F2EC',
     surface: '#FFFDF9',
@@ -47,12 +50,13 @@ export const lightColors = {
     warningSoft: '#FBEBC9',
   },
   scrim: 'rgba(28, 25, 23, 0.45)',
-  mascot: { ...mascot, collar: '#1E6B3A' },
+  mascot,
 } as const;
 
 export const darkColors = {
-  accent: '#4CBF7E',
-  accentSoft: '#1E3A2A',
+  accent: '#9AAEF7',
+  accentSoft: '#1F2A55',
+  accentEdge: '#6F86E0',
   bg: {
     app: '#151412',
     surface: '#201E1B',
@@ -61,7 +65,7 @@ export const darkColors = {
   text: {
     primary: '#F3EFE9',
     secondary: '#ABA39A',
-    onAccent: '#0D1F14',
+    onAccent: '#0F1735',
     onDanger: '#1C1917',
   },
   border: {
@@ -74,7 +78,7 @@ export const darkColors = {
     warningSoft: '#3A2C12',
   },
   scrim: 'rgba(0, 0, 0, 0.6)',
-  mascot: { ...mascot, collar: '#4CBF7E' },
+  mascot,
 } as const;
 
 type DeepNormalize<T> = T extends string

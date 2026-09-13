@@ -26,7 +26,9 @@ type ButtonProps = Omit<PressableProps, 'style'> & {
   style?: StyleProp<ViewStyle>;
 };
 
-const HEIGHT: Record<ButtonSize, number> = { lg: 50, md: 44 };
+const HEIGHT: Record<ButtonSize, number> = { lg: 52, md: 44 };
+/** The tactile signature: filled buttons stand on a darker edge and press down into it. */
+const EDGE = 4;
 
 export function Button({
   label,
@@ -38,13 +40,14 @@ export function Button({
   disabled,
   ...props
 }: ButtonProps) {
-  const palette: Record<ButtonVariant, { bg: string; text: string }> = {
-    primary: { bg: colors.accent, text: colors.text.onAccent },
-    secondary: { bg: colors.bg.fill, text: colors.text.primary },
-    ghost: { bg: 'transparent', text: colors.accent },
-    destructive: { bg: colors.status.danger, text: colors.text.onDanger },
+  const palette: Record<ButtonVariant, { bg: string; edge: string; text: string }> = {
+    primary: { bg: colors.accent, edge: colors.accentEdge, text: colors.text.onAccent },
+    secondary: { bg: colors.bg.fill, edge: colors.border.hairline, text: colors.text.primary },
+    ghost: { bg: 'transparent', edge: 'transparent', text: colors.accent },
+    destructive: { bg: colors.status.danger, edge: colors.status.dangerSoft, text: colors.text.onDanger },
   };
-  const { bg, text } = palette[variant];
+  const { bg, edge, text } = palette[variant];
+  const raised = variant !== 'ghost';
   const isDisabled = disabled || loading;
 
   return (
@@ -54,27 +57,44 @@ export function Button({
       disabled={isDisabled}
       style={({ pressed }) => [
         {
-          height: HEIGHT[size],
+          height: HEIGHT[size] + (raised ? EDGE : 0),
           minWidth: 44,
           borderRadius: radii.md,
           paddingHorizontal: spacing.xl,
-          backgroundColor: bg,
+          paddingTop: raised && pressed ? EDGE : 0,
+          backgroundColor: raised ? edge : 'transparent',
           alignItems: 'center',
-          justifyContent: 'center',
-          opacity: isDisabled ? 0.4 : pressed ? 0.7 : 1,
+          justifyContent: 'flex-start',
+          opacity: isDisabled ? 0.4 : !raised && pressed ? 0.6 : 1,
         },
         style,
       ]}
       {...props}
     >
-      {loading ? (
-        <ActivityIndicator color={text} />
-      ) : (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          {icon ? <AppIcon name={icon} size={20} color={text} /> : null}
-          <Text variant="bodyStrong" color={text}>
-            {label}
-          </Text>
+      {({ pressed }) => (
+        <View
+          style={{
+            height: HEIGHT[size],
+            alignSelf: 'stretch',
+            borderRadius: radii.md,
+            backgroundColor: bg,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginHorizontal: -spacing.xl,
+            paddingHorizontal: spacing.xl,
+            opacity: raised && pressed ? 0.92 : 1,
+          }}
+        >
+          {loading ? (
+            <ActivityIndicator color={text} />
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              {icon ? <AppIcon name={icon} size={20} color={text} /> : null}
+              <Text variant="action" color={text}>
+                {label}
+              </Text>
+            </View>
+          )}
         </View>
       )}
     </Pressable>

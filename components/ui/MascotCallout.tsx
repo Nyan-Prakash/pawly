@@ -1,13 +1,5 @@
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import Svg, {
-  Circle,
-  ClipPath,
-  Defs,
-  Ellipse,
-  G,
-  Path,
-  Rect,
-} from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, Rect } from 'react-native-svg';
 
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
@@ -19,189 +11,153 @@ export type MascotState = 'happy' | 'encouraging' | 'thinking' | 'celebrating' |
 type MascotCalloutProps = {
   state?: MascotState;
   size?: number;
+  /** A short line the mascot says, in a speech bubble. */
   callout?: string;
+  /** `below` (default, for empty states) or `right` (for a greeting row). */
+  calloutPlacement?: 'below' | 'right';
   style?: StyleProp<ViewStyle>;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MascotSvg — viewBox 0 0 100 100
-//
-// Key design decisions that make this read as a DOG not a bear:
-//   1. Large floppy ears that HANG DOWN from sides of head (not sit on top)
-//   2. Distinct elongated snout pushed forward from the face
-//   3. Wet oval nose on snout tip
-//   4. Wide-set eyes high on the face (above snout)
-//   5. Droopy jowl cheeks framing the snout
-// ─────────────────────────────────────────────────────────────────────────────
-
-function MascotSvg({ state = 'happy', size }: { state: MascotState; size: number }) {
-  const fur      = colors.mascot.fur;      // warm golden
-  const furDark  = colors.mascot.furDark;  // ears, tuft, shading
-  const cream    = colors.mascot.earInner; // muzzle + inner ear
-  const collar   = colors.mascot.collar;   // brand green
-  const tag      = colors.status.warning;
-  const ink      = colors.mascot.eye;              // nose + mouth
-  const eyeCol   = colors.mascot.eye;
-  const blush    = colors.mascot.blush;
-
-  const isWaiting     = state === 'waiting';
+/**
+ * The Pawly mascot, drawn from the app icon: cream face, brown patch over
+ * the right eye, big floppy ears, brown body with a cream belly. Expressions
+ * change only the eyes, mouth and head tilt so it always reads as the same dog.
+ */
+function MascotSvg({ state, size }: { state: MascotState; size: number }) {
+  const m = colors.mascot;
+  const isWaiting = state === 'waiting';
   const isCelebrating = state === 'celebrating';
-  const isThinking    = state === 'thinking';
+  const isThinking = state === 'thinking';
   const isEncouraging = state === 'encouraging';
 
-  // Face geometry — head centred at (50,48), eyes on the upper third, muzzle
-  // below. Kept in variables so expressions only move a few numbers.
-  const eyeY = 45;
-  const lx = 37;
-  const rx = 63;
-  const eyeRy: Record<MascotState, number> = {
-    happy: 6.5, encouraging: 6, thinking: 6, celebrating: 7.2, waiting: 6.5,
-  };
+  const tilt: Record<MascotState, number> = { happy: -6, encouraging: -8, thinking: 4, celebrating: -4, waiting: 0 };
+  const eyeY = 47;
+  const lx = 38;
+  const rx = 62;
 
-  // Mouth — a soft "w" built from two arcs meeting under the nose.
   const mouth: Record<MascotState, string> = {
-    happy:       'M 43 67 Q 50 72.5 57 67',
-    encouraging: 'M 42.5 67 Q 50 73 57.5 67',
-    thinking:    'M 45 68.5 Q 50 69.5 55 68.5',
-    celebrating: 'M 41 66 Q 50 76 59 66',
-    waiting:     'M 45.5 68 Q 50 70.5 54.5 68',
+    happy: 'M 43 63 Q 50 69 57 63',
+    encouraging: 'M 43 63 Q 50 70 57 63',
+    thinking: 'M 45 65 Q 50 66 55 65',
+    celebrating: 'M 41 62 Q 50 73 59 62',
+    waiting: 'M 45 64 Q 50 67 55 64',
   };
-
 
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100">
       <Defs>
-        <ClipPath id="sleepL"><Rect x={lx - 8} y={eyeY} width={16} height={12} /></ClipPath>
-        <ClipPath id="sleepR"><Rect x={rx - 8} y={eyeY} width={16} height={12} /></ClipPath>
-        <ClipPath id="head"><Ellipse cx={50} cy={48} rx={31} ry={29} /></ClipPath>
+        <ClipPath id="head">
+          <Ellipse cx={50} cy={48} rx={30} ry={27} />
+        </ClipPath>
+        <ClipPath id="frame">
+          <Rect x={0} y={0} width={100} height={100} />
+        </ClipPath>
       </Defs>
 
-      {/* ── Thought bubbles ── */}
-      {isThinking && (
+      {isThinking ? (
         <>
-          <Circle cx={80} cy={22} r={5.5} fill={colors.bg.fill} />
-          <Circle cx={88} cy={13} r={3.5} fill={colors.bg.fill} />
-          <Circle cx={93} cy={6}  r={2}   fill={colors.bg.fill} />
+          <Circle cx={84} cy={20} r={5} fill={colors.bg.fill} />
+          <Circle cx={91} cy={11} r={3.2} fill={colors.bg.fill} />
+          <Circle cx={95} cy={4} r={1.8} fill={colors.bg.fill} />
         </>
-      )}
+      ) : null}
 
-      {/* ── Confetti ── */}
-      {isCelebrating && (
+      {isCelebrating ? (
         <>
-          <Rect x={8}  y={12} width={6} height={6} rx={1.5} fill={tag}                  transform="rotate(20 11 15)" />
-          <Rect x={84} y={10} width={5} height={5} rx={1}   fill={colors.accent} transform="rotate(-18 86 12)" />
-          <Rect x={16} y={26} width={4} height={4} rx={1}   fill={colors.mascot.blush}              transform="rotate(35 18 28)" />
-          <Rect x={80} y={28} width={5} height={5} rx={1.5} fill={colors.accent}   transform="rotate(-25 82 30)" />
-          <Circle cx={50} cy={7} r={2.5} fill={colors.mascot.collar} />
+          <Rect x={8} y={14} width={6} height={6} rx={1.5} fill={colors.status.warning} transform="rotate(20 11 17)" />
+          <Rect x={86} y={8} width={5} height={5} rx={1} fill={colors.accent} transform="rotate(-18 88 10)" />
+          <Rect x={14} y={30} width={4} height={4} rx={1} fill={colors.accent} transform="rotate(35 16 32)" />
+          <Rect x={82} y={28} width={5} height={5} rx={1.5} fill={colors.status.warning} transform="rotate(-25 84 30)" />
+          <Circle cx={50} cy={6} r={2.5} fill={colors.accent} />
         </>
-      )}
+      ) : null}
 
-      {/* ── Ears — one outer shape + one solid inner shape, mirrored exactly ── */}
-      <Path d="M 33 25 C 16 22 2 44 7 62 C 10 76 24 80 29 70 C 32 60 33 42 33 25 Z" fill={furDark} />
-      <Path d="M 67 25 C 84 22 98 44 93 62 C 90 76 76 80 71 70 C 68 60 67 42 67 25 Z" fill={furDark} />
-      <Path d="M 30 38 C 20 40 13 54 16 64 C 18 70 25 71 27 64 C 29 56 30 47 30 38 Z" fill={cream} />
-      <Path d="M 70 38 C 80 40 87 54 84 64 C 82 70 75 71 73 64 C 71 56 70 47 70 38 Z" fill={cream} />
+      {/* Body sits behind the head and runs off the bottom of the frame. */}
+      <G clipPath="url(#frame)">
+        <Ellipse cx={54} cy={100} rx={34} ry={30} fill={m.brown} />
+        <Ellipse cx={56} cy={104} rx={13} ry={14} fill={m.cream} />
+      </G>
 
-      {/* ── Head ── */}
-      <Ellipse cx={50} cy={48} rx={31} ry={29} fill={fur} />
-      {/* soft under-shadow, clipped to the head so it reads as form not a stain */}
-      <Ellipse cx={50} cy={63} rx={34} ry={22} fill={furDark} opacity={0.12} clipPath="url(#head)" />
+      <G transform={`rotate(${tilt[state]} 50 50)`}>
+        {/* Ears: one hangs down on the left, one sweeps up to the right, as in the icon. */}
+        <Path d="M 30 30 C 14 34 8 58 16 70 C 20 76 30 74 33 66 C 36 56 34 42 30 30 Z" fill={m.brown} />
+        <Path d="M 66 26 C 78 18 96 26 95 42 C 94 52 84 56 76 50 C 70 45 66 36 66 26 Z" fill={m.brown} />
 
-      {/* ── Muzzle — one clean shape ── */}
-      <Path d="M 50 50 C 62 50 70 57 70 65 C 70 73 61 77 50 77 C 39 77 30 73 30 65 C 30 57 38 50 50 50 Z" fill={cream} />
+        {/* Head */}
+        <Ellipse cx={50} cy={48} rx={30} ry={27} fill={m.cream} />
+        {/* Patch over the right eye */}
+        <Ellipse cx={66} cy={42} rx={15} ry={17} fill={m.patch} clipPath="url(#head)" />
 
-      {/* ── Brows ── */}
-      <Path d={`M ${lx - 6} ${eyeY - 10.5} Q ${lx} ${eyeY - (isThinking ? 15 : 13)} ${lx + 6} ${eyeY - 10.5}`}
-        stroke={furDark} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.75} />
-      <Path d={`M ${rx - 6} ${eyeY - 10.5} Q ${rx} ${eyeY - 13} ${rx + 6} ${eyeY - 10.5}`}
-        stroke={furDark} strokeWidth={2} strokeLinecap="round" fill="none" opacity={0.75} />
+        {/* Eyes */}
+        {isWaiting ? (
+          <>
+            <Path d={`M ${lx - 5} ${eyeY} Q ${lx} ${eyeY + 3} ${lx + 5} ${eyeY}`} stroke={m.eye} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+            <Path d={`M ${rx - 5} ${eyeY} Q ${rx} ${eyeY + 3} ${rx + 5} ${eyeY}`} stroke={m.eye} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+          </>
+        ) : (
+          <>
+            <Ellipse cx={lx} cy={eyeY} rx={5.2} ry={6} fill={m.eye} />
+            <Circle cx={lx - 1.6} cy={eyeY - 2.4} r={1.8} fill={m.highlight} />
+            {isEncouraging ? (
+              <Path d={`M ${rx - 5} ${eyeY + 1} Q ${rx} ${eyeY - 4} ${rx + 5} ${eyeY + 1}`} stroke={m.eye} strokeWidth={2.8} strokeLinecap="round" fill="none" />
+            ) : (
+              <>
+                <Ellipse cx={rx} cy={eyeY} rx={5.2} ry={6} fill={m.eye} />
+                <Circle cx={rx - 1.6} cy={eyeY - 2.4} r={1.8} fill={m.highlight} />
+              </>
+            )}
+          </>
+        )}
 
-      {/* ── Eyes ── */}
-      {isWaiting ? (
-        <>
-          <Ellipse cx={lx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} clipPath="url(#sleepL)" />
-          <Ellipse cx={rx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} clipPath="url(#sleepR)" />
-          <Path d={`M ${lx - 6} ${eyeY} Q ${lx} ${eyeY - 3} ${lx + 6} ${eyeY}`} stroke={furDark} strokeWidth={2.2} strokeLinecap="round" fill="none" />
-          <Path d={`M ${rx - 6} ${eyeY} Q ${rx} ${eyeY - 3} ${rx + 6} ${eyeY}`} stroke={furDark} strokeWidth={2.2} strokeLinecap="round" fill="none" />
-        </>
-      ) : isEncouraging ? (
-        <>
-          <Ellipse cx={lx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} />
-          <Circle cx={lx + 2} cy={eyeY - 2.4} r={2} fill="white" />
-          <Circle cx={lx - 1.6} cy={eyeY + 2.2} r={1} fill="white" opacity={0.6} />
-          {/* wink */}
-          <Path d={`M ${rx - 6} ${eyeY + 1} Q ${rx} ${eyeY - 5} ${rx + 6} ${eyeY + 1}`} stroke={eyeCol} strokeWidth={3} strokeLinecap="round" fill="none" />
-        </>
-      ) : (
-        <>
-          <Ellipse cx={lx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} />
-          <Ellipse cx={rx} cy={eyeY} rx={5.5} ry={eyeRy[state]} fill={eyeCol} />
-          <Circle cx={lx + 2} cy={eyeY - 2.4} r={2} fill="white" />
-          <Circle cx={rx + 2} cy={eyeY - 2.4} r={2} fill="white" />
-          <Circle cx={lx - 1.6} cy={eyeY + 2.2} r={1} fill="white" opacity={0.6} />
-          <Circle cx={rx - 1.6} cy={eyeY + 2.2} r={1} fill="white" opacity={0.6} />
-        </>
-      )}
-
-      {/* ── Cheeks ── */}
-      <Ellipse cx={27} cy={59} rx={5} ry={3} fill={blush} opacity={0.35} />
-      <Ellipse cx={73} cy={59} rx={5} ry={3} fill={blush} opacity={0.35} />
-
-      {/* ── Nose — rounded heart ── */}
-      <Path d="M 45 57 C 45 54 55 54 55 57 C 55 60.2 52 62.5 50 62.5 C 48 62.5 45 60.2 45 57 Z" fill={ink} />
-      <Ellipse cx={48} cy={56.6} rx={1.7} ry={1} fill="white" opacity={0.45} />
-
-      {/* ── Mouth ── */}
-      <Path d={mouth[state]} stroke={ink} strokeWidth={1.8} strokeLinecap="round" fill="none" opacity={0.85} />
-
-      {/* ── Tongue — celebrating only ── */}
-      {isCelebrating && (
-        <G>
-          <Path d="M 45.5 69 L 54.5 69 L 54.5 73.5 C 54.5 77.5 45.5 77.5 45.5 73.5 Z" fill={colors.mascot.tongue} />
-          <Path d="M 50 70 L 50 75.5" stroke={colors.mascot.tongueLine} strokeWidth={1.2} strokeLinecap="round" opacity={0.7} />
-        </G>
-      )}
-
-      {/* ── Collar — thin, slightly muted so the face keeps focus ── */}
-      <Path d="M 25 73 C 35 82 65 82 75 73 L 75 77.5 C 65 86.5 35 86.5 25 77.5 Z" fill={collar} />
-      <Path d="M 25 73 C 35 82 65 82 75 73 L 75 77.5 C 65 86.5 35 86.5 25 77.5 Z" fill={colors.mascot.eye} opacity={0.14} />
-      <Circle cx={50} cy={83} r={5.5} fill={tag} />
-
-      {/* ── Encouraging paw ── */}
-      {isEncouraging && (
-        <G transform="translate(86, 62)">
-          <Ellipse cx={0} cy={2} rx={6} ry={7.5} fill={fur} />
-          <Circle cx={-4.5} cy={-5} r={2.8} fill={fur} />
-          <Circle cx={0}    cy={-6.5} r={2.8} fill={fur} />
-          <Circle cx={4.5}  cy={-5} r={2.8} fill={fur} />
-          <Ellipse cx={0} cy={3} rx={3.2} ry={3.6} fill={cream} opacity={0.8} />
-        </G>
-      )}
+        {/* Cheeks, nose, mouth */}
+        <Ellipse cx={30} cy={58} rx={4.5} ry={2.6} fill={m.blush} opacity={0.5} />
+        <Ellipse cx={70} cy={58} rx={4.5} ry={2.6} fill={m.blush} opacity={0.5} />
+        <Ellipse cx={50} cy={57.5} rx={4.6} ry={3.4} fill={m.nose} />
+        <Path d={mouth[state]} stroke={m.nose} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+        {isCelebrating ? (
+          <Path d="M 46 66 L 54 66 L 54 70 C 54 74 46 74 46 70 Z" fill={m.tongue} />
+        ) : null}
+      </G>
     </Svg>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Exported component
-// ─────────────────────────────────────────────────────────────────────────────
+function Bubble({ text, placement }: { text: string; placement: 'below' | 'right' }) {
+  return (
+    <View
+      style={{
+        backgroundColor: colors.bg.surface,
+        borderRadius: radii.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        flexShrink: 1,
+        ...(placement === 'right' ? { borderBottomLeftRadius: spacing.xs } : { borderTopLeftRadius: spacing.xs }),
+      }}
+    >
+      <Text variant="body" style={{ textAlign: placement === 'below' ? 'center' : 'left' }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
 
-export function MascotCallout({ state = 'happy', size = 120, callout, style }: MascotCalloutProps) {
+export function MascotCallout({ state = 'happy', size = 120, callout, calloutPlacement = 'below', style }: MascotCalloutProps) {
+  if (callout && calloutPlacement === 'right') {
+    return (
+      <View style={[{ flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm }, style]}>
+        <MascotSvg state={state} size={size} />
+        <View style={{ flex: 1, paddingBottom: size * 0.2 }}>
+          <Bubble text={callout} placement="right" />
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={[{ alignItems: 'center', gap: spacing.sm }, style]}>
       <MascotSvg state={state} size={size} />
       {callout ? (
-        <View
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.md,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            maxWidth: size * 1.8,
-          }}
-        >
-          <Text variant="caption" style={{ textAlign: 'center' }}>
-            {callout}
-          </Text>
+        <View style={{ maxWidth: size * 2 }}>
+          <Bubble text={callout} placement="below" />
         </View>
       ) : null}
     </View>

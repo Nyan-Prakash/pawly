@@ -113,16 +113,19 @@ function pickQuickWins(todayKey: string, count = 3): QuickWin[] {
 // Loading skeleton — mirrors the real layout so the swap doesn't jump
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TodayHeader() {
+function TodayHeader({ dogName, line }: { dogName: string | null; line: string }) {
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   return (
-    <View style={{ gap: spacing.xs, paddingTop: spacing.sm }}>
-      <Text variant="captionStrong" color={colors.text.secondary}>
-        {dateLabel}
-      </Text>
-      <Text variant="display" accessibilityRole="header">
-        Today
-      </Text>
+    <View style={{ gap: spacing.lg, paddingTop: spacing.sm }}>
+      <View style={{ gap: spacing.xs }}>
+        <Text variant="captionStrong" color={colors.text.secondary}>
+          {dateLabel}
+        </Text>
+        <Text variant="display" accessibilityRole="header">
+          {dogName ? `${dogName}'s day` : 'Today'}
+        </Text>
+      </View>
+      <MascotCallout state="happy" size={72} callout={line} calloutPlacement="right" />
     </View>
   );
 }
@@ -357,6 +360,16 @@ export default function TrainScreen() {
     router.push('/(tabs)/train/plan');
   };
 
+  const greeting = (() => {
+    const name = dog?.name ?? 'your dog';
+    if (resumeTarget) return `We left a session half done. Shall we finish it?`;
+    if (heroVariant === 'today' && heroSession) return `${heroSession.durationMinutes} minutes with ${name} today. Ready when you are.`;
+    if (heroVariant === 'overdue') return `We missed one. No big deal, let's pick it back up.`;
+    if (firstMissed) return `One session slipped. Move it and the week is back on track.`;
+    if (!hasPlans) return `Let's set up a plan for ${name}.`;
+    return `Nothing due today. A short walk still counts.`;
+  })();
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (isLoading && !hasPlans) {
@@ -365,7 +378,7 @@ export default function TrainScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
       >
-        <TodayHeader />
+        <TodayHeader dogName={dog?.name ?? null} line="One sec, fetching the plan." />
         <LoadingSkeleton />
       </ScrollView>
     );
@@ -380,7 +393,7 @@ export default function TrainScreen() {
         }
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
       >
-        <TodayHeader />
+        <TodayHeader dogName={dog?.name ?? null} line={greeting} />
 
         {/* ── No plan ── */}
         {!hasPlans ? (
