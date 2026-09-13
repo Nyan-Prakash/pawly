@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, useState, type ReactNode } from 'react';
 import { TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
@@ -11,6 +11,8 @@ type InputProps = Omit<TextInputProps, 'style'> & {
   label?: string;
   /** Says what is wrong and what to do: "Enter a valid email address." */
   error?: string;
+  /** A 44pt control inside the field's right edge, e.g. a show/hide password toggle. */
+  trailing?: ReactNode;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -20,7 +22,7 @@ type InputProps = Omit<TextInputProps, 'style'> & {
  * so the keyboard is right and the return key does something.
  */
 export const Input = forwardRef<TextInput, InputProps>(function Input(
-  { label, error, style, multiline, numberOfLines, onFocus, onBlur, ...props },
+  { label, error, trailing, style, multiline, numberOfLines, onFocus, onBlur, ...props },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
@@ -29,6 +31,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   return (
     <View style={[{ gap: spacing.xs }, style]}>
       {label ? <Text variant="captionStrong">{label}</Text> : null}
+      <View>
       <TextInput
         ref={ref}
         multiline={multiline}
@@ -50,6 +53,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           borderWidth: 2,
           borderColor,
           paddingHorizontal: spacing.md,
+          paddingRight: trailing ? spacing.xxxl : spacing.md,
           paddingVertical: multiline ? spacing.md : 0,
           height: multiline ? undefined : 48,
           minHeight: multiline ? 24 * (numberOfLines ?? 3) + spacing.md * 2 : undefined,
@@ -60,6 +64,12 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         }}
         {...props}
       />
+      {trailing ? (
+        <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center', paddingRight: spacing.xs }}>
+          {trailing}
+        </View>
+      ) : null}
+      </View>
       {error ? (
         <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
           {error}

@@ -5,6 +5,8 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
+import { MascotCallout } from '@/components/ui/MascotCallout';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { supabase, createUserRecord } from '@/lib/supabase';
@@ -48,6 +50,11 @@ export default function SignUpScreen() {
   const [generalError, setGeneralError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Validate on blur (after the owner leaves the field), never while typing.
+  const checkEmail = () => setEmailError(email.trim() && !EMAIL_REGEX.test(email.trim()) ? 'Enter a valid email address.' : '');
+  const checkPassword = () => setPasswordError(password && password.length < 8 ? 'Use at least 8 characters.' : '');
 
   const validate = () => {
     let valid = true;
@@ -173,6 +180,7 @@ export default function SignUpScreen() {
       >
         {pendingConfirmationEmail ? (
           <>
+            <MascotCallout state="waiting" size={64} calloutPlacement="right" callout="Almost there. One tap in your inbox." />
             <View style={{ gap: spacing.sm }}>
               <Text variant="h1">Check your email</Text>
               <Text variant="body">
@@ -197,13 +205,48 @@ export default function SignUpScreen() {
           </>
         ) : (
           <>
-            <Text variant="h1">Create account</Text>
+            <View style={{ gap: spacing.lg }}>
+              <View style={{ gap: spacing.xs }}>
+                <Text variant="h1">{fromOnboarding && dogName ? `Save ${dogName}'s plan` : 'Create account'}</Text>
+              </View>
+              <MascotCallout
+                state="happy"
+                size={64}
+                calloutPlacement="right"
+                callout={fromOnboarding && dogName ? `${dogName}'s plan is ready. Let's keep it.` : 'Takes about a minute.'}
+              />
+            </View>
+
+            {Platform.OS === 'ios' ? (
+              <View style={{ gap: spacing.lg }}>
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+                  buttonStyle={
+                    isDark
+                      ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                      : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                  }
+                  cornerRadius={radii.md}
+                  style={{ height: 52 }}
+                  onPress={handleAppleSignIn}
+                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
+                  <Text variant="caption">or with email</Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
+                </View>
+              </View>
+            ) : null}
 
             <View style={{ gap: spacing.lg }}>
               <Input
                 label="Email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError('');
+                }}
+                onBlur={checkEmail}
                 keyboardType="email-address"
                 textContentType="emailAddress"
                 autoCapitalize="none"
@@ -219,8 +262,12 @@ export default function SignUpScreen() {
                 ref={passwordRef}
                 label="Password"
                 value={password}
-                onChangeText={setPassword}
-                secureTextEntry
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError('');
+                }}
+                onBlur={checkPassword}
+                secureTextEntry={!showPassword}
                 textContentType="newPassword"
                 autoComplete="password-new"
                 passwordRules="minlength: 8;"
@@ -228,37 +275,25 @@ export default function SignUpScreen() {
                 onSubmitEditing={handleSignUp}
                 placeholder="At least 8 characters"
                 error={passwordError || undefined}
+                trailing={
+                  <IconButton
+                    icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                    tone="secondary"
+                    onPress={() => setShowPassword((v) => !v)}
+                  />
+                }
               />
               {generalError ? (
                 <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
                   {generalError}
                 </Text>
               ) : null}
-            </View>
-
-            <View style={{ gap: spacing.lg }}>
-              <Button label="Create account" onPress={handleSignUp} loading={isLoading} />
-
-              {Platform.OS === 'ios' ? (
-                <>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
-                    <Text variant="caption">or</Text>
-                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
-                  </View>
-                  <AppleAuthentication.AppleAuthenticationButton
-                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
-                    buttonStyle={
-                      isDark
-                        ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                        : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                    }
-                    cornerRadius={radii.md}
-                    style={{ height: 50 }}
-                    onPress={handleAppleSignIn}
-                  />
-                </>
-              ) : null}
+              <Button
+                label={fromOnboarding && dogName ? `Save ${dogName}'s plan` : 'Create account'}
+                onPress={handleSignUp}
+                loading={isLoading}
+              />
             </View>
           </>
         )}

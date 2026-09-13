@@ -5,6 +5,8 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
+import { MascotCallout } from '@/components/ui/MascotCallout';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { supabase } from '@/lib/supabase';
@@ -26,6 +28,7 @@ export default function LoginScreen() {
   const [authError, setAuthError] = useState('');
   const [generalError, setGeneralError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setAuthError('');
@@ -96,7 +99,31 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <Text variant="h1">Log in</Text>
+        <View style={{ gap: spacing.lg }}>
+          <Text variant="h1">Welcome back</Text>
+          <MascotCallout state="happy" size={64} calloutPlacement="right" callout="Your dog's plan is right where you left it." />
+        </View>
+
+        {Platform.OS === 'ios' ? (
+          <View style={{ gap: spacing.lg }}>
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={
+                isDark
+                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+              }
+              cornerRadius={radii.md}
+              style={{ height: 52 }}
+              onPress={handleAppleSignIn}
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
+              <Text variant="caption">or with email</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
+            </View>
+          </View>
+        ) : null}
 
         <View style={{ gap: spacing.lg }}>
           <Input
@@ -118,51 +145,35 @@ export default function LoginScreen() {
             label="Password"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
             textContentType="password"
             autoComplete="password"
             returnKeyType="go"
             onSubmitEditing={handleLogin}
             placeholder="Your password"
             error={authError || undefined}
+            trailing={
+              <IconButton
+                icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                tone="secondary"
+                onPress={() => setShowPassword((v) => !v)}
+              />
+            }
           />
           {generalError ? (
             <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
               {generalError}
             </Text>
           ) : null}
+          <Button label="Log in" onPress={handleLogin} loading={isLoading} />
           <Button
             label="Forgot password?"
             variant="ghost"
             size="md"
             onPress={() => router.push('/(auth)/forgot-password')}
-            style={{ alignSelf: 'flex-start', paddingHorizontal: 0 }}
+            style={{ alignSelf: 'center' }}
           />
-        </View>
-
-        <View style={{ gap: spacing.lg }}>
-          <Button label="Log in" onPress={handleLogin} loading={isLoading} />
-
-          {Platform.OS === 'ios' ? (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
-                <Text variant="caption">or</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
-              </View>
-              <AppleAuthentication.AppleAuthenticationButton
-                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                buttonStyle={
-                  isDark
-                    ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                    : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                }
-                cornerRadius={radii.md}
-                style={{ height: 50 }}
-                onPress={handleAppleSignIn}
-              />
-            </>
-          ) : null}
         </View>
 
         {/* Account creation routes to onboarding: dog profile and plan come before the account. */}
