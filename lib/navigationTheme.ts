@@ -32,7 +32,7 @@ export function stackScreenOptions(scheme: AppColorScheme): NativeStackNavigatio
     headerShown: true,
     headerShadowVisible: false,
     headerStyle: { backgroundColor: c.bg.app },
-    headerLargeTitleStyle: { color: c.text.primary, fontWeight: typography.display.fontWeight },
+    headerLargeTitleStyle: { color: c.text.primary, fontWeight: String(typography.display.fontWeight) },
     headerTitleStyle: { color: c.text.primary, fontWeight: typography.bodyStrong.fontWeight },
     headerTintColor: c.accent,
     headerBackTitleVisible: false,
