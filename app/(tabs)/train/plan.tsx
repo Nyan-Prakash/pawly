@@ -424,49 +424,32 @@ export default function PlanScreen() {
           <Card style={{ gap: spacing.lg }}>
             <View style={{ gap: spacing.xs }}>
               <Text variant="h1">{courseTitle}</Text>
-              {currentStage?.protocol?.objective ? (
-                <Text variant="body" color={colors.text.secondary}>
-                  {currentStage.protocol.objective}
-                </Text>
-              ) : null}
+              <Text variant="caption">
+                {currentStage
+                  ? `Stage ${currentStage.stage} of ${stages.length}${currentStage.protocol ? `, ${currentStage.protocol.title}` : ''}`
+                  : 'All stages complete'}
+              </Text>
             </View>
 
             <View style={{ gap: spacing.sm }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <Text variant="captionStrong">Course progress</Text>
-                <Text variant="caption">
-                  {completedCount} of {totalCount} sessions
-                </Text>
-              </View>
               <ProgressBar
                 progress={completionPct / 100}
                 height={8}
                 accessibilityLabel={`${completedCount} of ${totalCount} sessions complete`}
               />
-            </View>
-
-            <View style={{ gap: spacing.xs }}>
-              <Fact icon="flag-outline">
-                {currentStage
-                  ? `Stage ${currentStage.stage} of ${stages.length}${currentStage.protocol ? `: ${currentStage.protocol.title}` : ''}`
-                  : 'All stages complete'}
-              </Fact>
-              <Fact icon="calendar-outline">
-                {`${displayPlan.sessionsPerWeek} sessions a week, about ${Math.max(1, Math.ceil((totalCount - completedCount) / Math.max(1, displayPlan.sessionsPerWeek)))} weeks to go`}
-              </Fact>
-              {nextSession ? (
-                <Fact icon="play-outline">{`Next: ${nextSession.title}, ${sessionSubtitle(nextSession)}`}</Fact>
-              ) : null}
-              {adaptedCount > 0 ? (
-                <Fact icon="sync-outline">
-                  {adaptedCount === 1 ? '1 session adjusted by the coach' : `${adaptedCount} sessions adjusted by the coach`}
-                </Fact>
-              ) : null}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text variant="caption">
+                  {completedCount} of {totalCount} sessions
+                </Text>
+                <Text variant="caption">
+                  {`About ${Math.max(1, Math.ceil((totalCount - completedCount) / Math.max(1, displayPlan.sessionsPerWeek)))} weeks to go`}
+                </Text>
+              </View>
             </View>
 
             {nextSession ? (
               <Button
-                label="Start next session"
+                label={`Start: ${nextSession.title}`}
                 onPress={() => router.push(`/(tabs)/train/session?id=${nextSession.id}&planId=${displayPlanId ?? ''}`)}
               />
             ) : null}
