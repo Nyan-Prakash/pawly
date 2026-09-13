@@ -1,5 +1,5 @@
-import React from 'react';
-import { TouchableOpacity, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
@@ -13,11 +13,16 @@ interface CalendarDayCellProps {
   hasSessions: boolean;
   allCompleted: boolean;
   hasUpcoming: boolean;
-  accentColor: string;
   onPress: () => void;
 }
 
-export const CalendarDayCell: React.FC<CalendarDayCellProps> = ({
+const CIRCLE = 44;
+
+/**
+ * One day in the month grid. Selected day is an accentSoft circle with accent
+ * text; today wears an accent ring. A small dot marks days with sessions.
+ */
+export function CalendarDayCell({
   date,
   isCurrentMonth,
   isToday,
@@ -25,75 +30,56 @@ export const CalendarDayCell: React.FC<CalendarDayCellProps> = ({
   hasSessions,
   allCompleted,
   hasUpcoming,
-  accentColor,
   onPress,
-}) => {
+}: CalendarDayCellProps) {
   const dayNumber = date.getDate();
+  const textColor = isSelected || isToday ? colors.accent : colors.text.primary;
+  const dotColor = allCompleted ? colors.accent : hasUpcoming ? colors.text.secondary : null;
+  const dateLabel = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
-      activeOpacity={0.7}
-      style={{
+      accessibilityRole="button"
+      accessibilityLabel={`${dateLabel}${hasSessions ? ', has sessions' : ''}`}
+      accessibilityState={{ selected: isSelected }}
+      style={({ pressed }) => ({
         flex: 1,
         aspectRatio: 1,
+        minHeight: CIRCLE,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: radii.md,
-        backgroundColor: isSelected
-          ? accentColor
-          : 'transparent',
-        opacity: isCurrentMonth ? 1 : 0.3,
-        margin: 2,
-        position: 'relative',
-        borderWidth: isToday && !isSelected ? 1.5 : 0,
-        borderColor: accentColor,
-      }}
+        opacity: pressed ? 0.6 : isCurrentMonth ? 1 : 0.4,
+      })}
     >
-      <Text
+      <View
         style={{
-          fontSize: 16,
-          fontWeight: isToday || isSelected ? '700' : '400',
-          color: isSelected
-            ? '#FFF'
-            : isToday
-              ? accentColor
-              : colors.text.primary,
+          width: CIRCLE,
+          height: CIRCLE,
+          borderRadius: radii.full,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isSelected ? colors.accentSoft : 'transparent',
+          borderWidth: isToday ? 2 : 0,
+          borderColor: isToday ? colors.accent : 'transparent',
         }}
       >
-        {dayNumber}
-      </Text>
-
-      {hasSessions && (
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 4,
-            flexDirection: 'row',
-            gap: 2
-          }}
-        >
-          {allCompleted ? (
-            <View
-              style={{
-                width: 4,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: isSelected ? '#FFF' : accentColor
-              }}
-            />
-          ) : hasUpcoming ? (
-            <View
-              style={{
-                width: 4,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: isSelected ? '#FFF' : colors.brand.secondary
-              }}
-            />
-          ) : null}
-        </View>
-      )}
-    </TouchableOpacity>
+        <Text variant={isSelected || isToday ? 'bodyStrong' : 'body'} color={textColor}>
+          {dayNumber}
+        </Text>
+        {dotColor ? (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: spacing.xs,
+              width: 6,
+              height: 6,
+              borderRadius: radii.full,
+              backgroundColor: dotColor,
+            }}
+          />
+        ) : null}
+      </View>
+    </Pressable>
   );
-};
+}

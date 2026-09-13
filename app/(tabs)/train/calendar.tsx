@@ -1,27 +1,49 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { SafeScreen } from '@/components/ui/SafeScreen';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { Text } from '@/components/ui/Text';
-import { colors } from '@/constants/colors';
-import { getCourseUiColors } from '@/constants/courseColors';
-import { spacing } from '@/constants/spacing';
-import { selectSelectedPlanTheme, usePlanStore } from '@/stores/planStore';
-import { useDogStore } from '@/stores/dogStore';
-import { TrainingCalendar } from '@/components/train/TrainingCalendar';
+
 import { DaySessionList } from '@/components/train/DaySessionList';
+import { TrainingCalendar } from '@/components/train/TrainingCalendar';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
+import { radii } from '@/constants/radii';
+import { spacing } from '@/constants/spacing';
 import { toDateKey } from '@/lib/calendarSessions';
+import { useDogStore } from '@/stores/dogStore';
+import { usePlanStore } from '@/stores/planStore';
 import type { EnrichedPlanSession } from '@/types';
 
+/** Mirrors the month grid so the swap to real data doesn't jump. */
+function CalendarSkeleton() {
+  return (
+    <View style={{ gap: spacing.xl }}>
+      <View style={{ gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SkeletonBlock height={26} width={160} />
+          <SkeletonBlock height={44} width={88} borderRadius={radii.full} />
+        </View>
+        {Array.from({ length: 6 }, (_, row) => (
+          <View key={row} style={{ flexDirection: 'row' }}>
+            {Array.from({ length: 7 }, (_, col) => (
+              <View key={col} style={{ flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <SkeletonBlock height={44} width={44} borderRadius={radii.full} />
+              </View>
+            ))}
+          </View>
+        ))}
+      </View>
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={26} width={200} />
+        <SkeletonBlock height={2 * 64} borderRadius={radii.md} />
+      </View>
+    </View>
+  );
+}
+
 export default function CalendarScreen() {
-  const planStore = usePlanStore();
-  const { isLoading, fetchActivePlans, getGroupedSessionsForCalendar, activePlanIds } = planStore;
+  const { isLoading, fetchActivePlans, getGroupedSessionsForCalendar, activePlanIds } = usePlanStore();
   const { dog } = useDogStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const selectedPlanTheme = selectSelectedPlanTheme(planStore);
-  const accentColor = selectedPlanTheme?.solid ?? getCourseUiColors('fallback').solid;
 
   useEffect(() => {
     if (dog?.id && activePlanIds.length === 0) {
@@ -60,69 +82,35 @@ export default function CalendarScreen() {
   const multiplePlans = activePlanIds.length > 1;
 
   return (
-    <SafeScreen>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.lg,
-          paddingBottom: spacing.sm,
-          gap: spacing.sm,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text variant="title" style={{ fontSize: 20 }}>Training Calendar</Text>
-          {dog?.name && (
-            <Text variant="micro" color={colors.text.secondary}>
-              {multiplePlans
-                ? `All active courses · ${dog.name}`
-                : `Stay on track with ${dog.name}`}
-            </Text>
-          )}
-        </View>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl }}
-      >
-        {isLoading && !hasPlans ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 }}>
-            <LoadingSpinner />
-          </View>
-        ) : !hasPlans ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 }}>
-            <Ionicons name="calendar-outline" size={64} color={colors.border.default} />
-            <Text variant="h3" style={{ marginTop: spacing.lg }}>No Active Plan</Text>
-            <Text color={colors.text.secondary} style={{ textAlign: 'center', marginTop: spacing.xs }}>
-              Start a training plan to see your sessions on the calendar.
-            </Text>
-          </View>
-        ) : (
-          <>
-            <TrainingCalendar
-              groupedSessions={groupedSessions}
-              selectedDate={selectedDate}
-              accentColor={accentColor}
-              onDateSelect={setSelectedDate}
-            />
-
-            <DaySessionList
-              date={selectedDate}
-              sessions={selectedDateSessions}
-              showCourseBadge={multiplePlans}
-            />
-          </>
-        )}
-      </ScrollView>
-    </SafeScreen>
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl, flexGrow: 1 }}
+    >
+      {isLoading && !hasPlans ? (
+        <CalendarSkeleton />
+      ) : !hasPlans ? (
+        <EmptyState
+          icon="calendar-outline"
+          title="No active plan"
+          subtitle="Add a course to see your sessions on the calendar."
+          action={{ label: 'Add a course', onPress: () => router.push('/(tabs)/train/add-course' as never) }}
+          style={{ flex: 1, justifyContent: 'center' }}
+        />
+      ) : (
+        <>
+          <TrainingCalendar
+            groupedSessions={groupedSessions}
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+          />
+          <DaySessionList
+            date={selectedDate}
+            sessions={selectedDateSessions}
+            showCourseBadge={multiplePlans}
+          />
+        </>
+      )}
+    </ScrollView>
   );
 }

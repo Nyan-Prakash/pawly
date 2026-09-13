@@ -1,37 +1,34 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
+
+import { IconButton } from '@/components/ui/IconButton';
 import { Text } from '@/components/ui/Text';
-import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
-import { getMonthGrid, toDateKey, getDayStatus } from '@/lib/calendarSessions';
-import { CalendarDayCell } from './CalendarDayCell';
+import { getDayStatus, getMonthGrid, toDateKey } from '@/lib/calendarSessions';
 import type { PlanSession } from '@/types';
+
+import { CalendarDayCell } from './CalendarDayCell';
 
 interface TrainingCalendarProps {
   groupedSessions: Record<string, PlanSession[]>;
   selectedDate: Date;
-  accentColor: string;
   onDateSelect: (date: Date) => void;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
-  groupedSessions,
-  selectedDate,
-  accentColor,
-  onDateSelect,
-}) => {
+/** Month grid with native-feeling month navigation. Sits directly on the page. */
+export function TrainingCalendar({ groupedSessions, selectedDate, onDateSelect }: TrainingCalendarProps) {
   const [viewDate, setViewDate] = useState(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
 
   useEffect(() => {
     setViewDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
   }, [selectedDate]);
 
-  const monthGrid = useMemo(() => {
-    return getMonthGrid(viewDate.getFullYear(), viewDate.getMonth());
-  }, [viewDate]);
+  const monthGrid = useMemo(
+    () => getMonthGrid(viewDate.getFullYear(), viewDate.getMonth()),
+    [viewDate],
+  );
 
   const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -46,64 +43,24 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
   const selectedDateKey = toDateKey(selectedDate);
 
   return (
-    <View style={{ backgroundColor: colors.bg.surface, borderRadius: 24, padding: spacing.lg }}>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: spacing.xl,
-          paddingHorizontal: spacing.xs,
-        }}
-      >
-        <Text variant="h3">{monthLabel}</Text>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <TouchableOpacity
-            onPress={prevMonth}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: colors.bg.surfaceAlt,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.text.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={nextMonth}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: colors.bg.surfaceAlt,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons name="chevron-forward" size={20} color={colors.text.primary} />
-          </TouchableOpacity>
+    <View style={{ gap: spacing.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text variant="h2">{monthLabel}</Text>
+        <View style={{ flexDirection: 'row' }}>
+          <IconButton icon="chevron-back" accessibilityLabel="Previous month" tone="primary" onPress={prevMonth} />
+          <IconButton icon="chevron-forward" accessibilityLabel="Next month" tone="primary" onPress={nextMonth} />
         </View>
       </View>
 
-      {/* Weekday labels */}
-      <View style={{ flexDirection: 'row', marginBottom: spacing.sm }}>
+      <View style={{ flexDirection: 'row' }}>
         {WEEKDAYS.map((day) => (
-          <Text
-            key={day}
-            variant="micro"
-            color={colors.text.secondary}
-            style={{ flex: 1, textAlign: 'center', fontWeight: '700' }}
-          >
+          <Text key={day} variant="label" style={{ flex: 1, textAlign: 'center' }}>
             {day}
           </Text>
         ))}
       </View>
 
-      {/* Month grid */}
-      <View style={{ gap: 2 }}>
+      <View>
         {monthGrid.map((week, weekIdx) => (
           <View key={weekIdx} style={{ flexDirection: 'row' }}>
             {week.map((day) => {
@@ -118,7 +75,6 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
                   hasSessions={status.hasSessions}
                   allCompleted={status.allCompleted}
                   hasUpcoming={status.hasUpcoming}
-                  accentColor={accentColor}
                   onPress={() => onDateSelect(day.date)}
                 />
               );
@@ -128,4 +84,4 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
       </View>
     </View>
   );
-};
+}
