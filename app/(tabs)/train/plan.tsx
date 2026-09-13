@@ -179,7 +179,7 @@ function SessionDetailSheet({
       <BottomSheet visible={visible} onClose={onClose} title={session.title} padded={false}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.lg, gap: spacing.xl }}
           showsVerticalScrollIndicator={false}
         >
           <View style={{ gap: spacing.md }}>
@@ -203,7 +203,7 @@ function SessionDetailSheet({
                 {protocol.steps.map((step, index) => (
                   <View
                     key={step.order}
-                    style={{ flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}
+                    style={{ flexDirection: 'row', gap: spacing.md, paddingLeft: spacing.lg, paddingRight: spacing.xl, paddingVertical: spacing.lg }}
                   >
                     <Text variant="captionStrong" color={colors.accent} style={{ width: spacing.xl }}>
                       {index + 1}
@@ -258,7 +258,7 @@ function SessionDetailSheet({
         </ScrollView>
 
         {!session.isCompleted ? (
-          <View style={{ padding: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
+          <View style={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
             <Button label="Start session" onPress={onStart} />
           </View>
         ) : null}

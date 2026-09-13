@@ -39,8 +39,8 @@ export function BottomSheet({ visible, onClose, title, padded = true, children }
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingLeft: spacing.lg,
-            paddingRight: spacing.xs,
+            paddingLeft: spacing.xl,
+            paddingRight: spacing.md,
             paddingTop: Platform.OS === 'android' ? spacing.xl : spacing.sm,
             minHeight: 52,
           }}
@@ -54,7 +54,7 @@ export function BottomSheet({ visible, onClose, title, padded = true, children }
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
-          <View style={{ flex: 1, padding: padded ? spacing.lg : 0, paddingTop: padded ? spacing.sm : 0 }}>
+          <View style={{ flex: 1, paddingHorizontal: padded ? spacing.xl : 0, paddingBottom: padded ? spacing.lg : 0, paddingTop: padded ? spacing.sm : 0 }}>
             {children}
           </View>
         </KeyboardAvoidingView>
