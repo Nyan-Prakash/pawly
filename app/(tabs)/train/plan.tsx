@@ -3,6 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { WhyThisChangedSheet } from '@/components/adaptive/WhyThisChangedSheet';
+import { buildStageGroups, resolveProtocol, StagePath } from '@/components/train/CoursePath';
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Card } from '@/components/ui/Card';
@@ -15,14 +16,14 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { EXERCISE_TO_PROTOCOL, PROTOCOLS_BY_ID, type Protocol, type ProtocolStep } from '@/constants/protocols';
+import type { ProtocolStep } from '@/constants/protocols';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { MAX_ACTIVE_COURSES } from '@/lib/addCourse';
 import { formatDisplayTime, formatScheduleLabel, getBehaviorLabel, getPlanCompletion } from '@/lib/scheduleEngine';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
-import type { Plan, PlanAdaptation, PlanSession } from '@/types';
+import type { PlanAdaptation, PlanSession } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -107,11 +108,6 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
 // Session detail sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
-function resolveProtocol(session: PlanSession): Protocol | null {
-  const byExercise = EXERCISE_TO_PROTOCOL[session.exerciseId];
-  return PROTOCOLS_BY_ID[byExercise ?? session.exerciseId] ?? null;
-}
-
 function stepMeta(step: ProtocolStep): string | null {
   if (step.reps) return `${step.reps} reps`;
   if (step.durationSeconds) {
@@ -135,6 +131,7 @@ function SessionDetailSheet({
   visible,
   onClose,
   onStart,
+  canStart,
   dogName,
   recentAdaptations,
 }: {
@@ -142,6 +139,8 @@ function SessionDetailSheet({
   visible: boolean;
   onClose: () => void;
   onStart: () => void;
+  /** Only the course's next session can be started; locked ones explain why. */
+  canStart: boolean;
   dogName: string;
   recentAdaptations: PlanAdaptation[];
 }) {
@@ -261,7 +260,11 @@ function SessionDetailSheet({
 
         {!session.isCompleted ? (
           <View style={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
-            <Button label="Start session" onPress={onStart} />
+            {canStart ? (
+              <Button label="Start session" onPress={onStart} />
+            ) : (
+              <Text variant="caption">Unlocks after the sessions before it</Text>
+            )}
           </View>
         ) : null}
       </BottomSheet>
@@ -279,37 +282,21 @@ function SessionDetailSheet({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Week header — h2 with an optional "Current" tag trailing
+// Loading skeleton — mirrors progress bar + three stage cards
 // ─────────────────────────────────────────────────────────────────────────────
-
-function WeekHeader({ weekNumber, isCurrentWeek }: { weekNumber: number; isCurrentWeek: boolean }) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        minHeight: 44,
-        marginBottom: spacing.sm,
-      }}
-    >
-      <Text variant="h2">Week {weekNumber}</Text>
-      {isCurrentWeek ? <Tag label="Current" tone="accent" /> : null}
-    </View>
-  );
-}
 
 function LoadingSkeleton() {
   return (
     <View style={{ gap: spacing.xl }}>
       <View style={{ gap: spacing.sm }}>
-        <SkeletonBlock height={4} borderRadius={radii.full} />
-        <SkeletonBlock height={20} width={140} />
+        <SkeletonBlock height={spacing.sm} borderRadius={radii.full} />
+        <SkeletonBlock height={spacing.lg} width={140} />
       </View>
-      {[0, 1].map((week) => (
-        <View key={week} style={{ gap: spacing.sm }}>
-          <SkeletonBlock height={26} width={96} />
-          <SkeletonBlock height={3 * 64} borderRadius={radii.md} />
+      {[0, 1, 2].map((stage) => (
+        <View key={stage} style={{ gap: spacing.sm }}>
+          <SkeletonBlock height={spacing.xl} width={96} />
+          <SkeletonBlock height={spacing.lg} width={200} />
+          <SkeletonBlock height={spacing.xxxl + spacing.xxl + spacing.xxl} borderRadius={radii.md} />
         </View>
       ))}
     </View>
@@ -320,34 +307,6 @@ function LoadingSkeleton() {
 // Plan screen
 // ─────────────────────────────────────────────────────────────────────────────
 
-type WeekGroup = {
-  weekNumber: number;
-  isCurrentWeek: boolean;
-  sessions: Array<{ session: PlanSession; isToday: boolean; isFuture: boolean }>;
-};
-
-function buildWeeks(plan: Plan, todaySessionId: string | null): WeekGroup[] {
-  const weeks: WeekGroup[] = [];
-  const firstIncompleteIdx = plan.sessions.findIndex((s) => !s.isCompleted);
-
-  plan.sessions.forEach((session, sessionIdx) => {
-    let week = weeks[weeks.length - 1];
-    if (!week || week.weekNumber !== session.weekNumber) {
-      week = {
-        weekNumber: session.weekNumber,
-        isCurrentWeek: session.weekNumber === plan.currentWeek,
-        sessions: [],
-      };
-      weeks.push(week);
-    }
-    const isToday = session.id === todaySessionId;
-    const isFuture = !session.isCompleted && !isToday && sessionIdx > firstIncompleteIdx;
-    week.sessions.push({ session, isToday, isFuture });
-  });
-
-  return weeks;
-}
-
 export default function PlanScreen() {
   const { dog } = useDogStore();
   const planStoreState = usePlanStore();
@@ -355,7 +314,6 @@ export default function PlanScreen() {
     plansById,
     activePlanIds,
     selectedPlanId,
-    recommendedTodaySession,
     recentAdaptations,
     isLoading,
     fetchActivePlans,
@@ -394,10 +352,6 @@ export default function PlanScreen() {
     label: s.courseTitle ?? getBehaviorLabel(s.goal),
   }));
 
-  const todaySessionId = recommendedTodaySession?.planId === displayPlanId
-    ? recommendedTodaySession?.id ?? null
-    : null;
-
   const noPlans = !isLoading && activePlanIds.length === 0;
   const goToAddCourse = () => router.push('/(tabs)/train/add-course' as never);
 
@@ -432,7 +386,8 @@ export default function PlanScreen() {
   const completedCount = displayPlan.sessions.filter((s) => s.isCompleted).length;
   const totalCount = displayPlan.sessions.length;
   const adaptedCount = displayPlan.sessions.filter((s) => s.adaptationSource === 'adaptation_engine').length;
-  const weeks = buildWeeks(displayPlan, todaySessionId);
+  const stages = buildStageGroups(displayPlan.sessions);
+  const nextSessionId = stages.flatMap((g) => g.nodes).find((n) => n.state === 'next')?.session.id ?? null;
   const courseTitle = displayPlan.courseTitle ?? getBehaviorLabel(displayPlan.goal);
 
   return (
@@ -478,24 +433,8 @@ export default function PlanScreen() {
           ) : null}
         </View>
 
-        {weeks.map((week) => (
-          <View key={week.weekNumber}>
-            <WeekHeader weekNumber={week.weekNumber} isCurrentWeek={week.isCurrentWeek} />
-            <ListGroup>
-              {week.sessions.map(({ session, isToday, isFuture }) => (
-                <ListRow
-                  key={session.id}
-                  icon={session.isCompleted ? 'checkmark-circle' : 'ellipse-outline'}
-                  iconTone={session.isCompleted ? 'accent' : 'secondary'}
-                  title={session.title}
-                  subtitle={sessionSubtitle(session)}
-                  trailing={isToday ? <Tag label="Today" tone="accent" /> : isFuture ? undefined : 'chevron'}
-                  onPress={isFuture ? undefined : () => setSelectedSession(session)}
-                  accessibilityHint={isFuture ? undefined : 'Opens session details'}
-                />
-              ))}
-            </ListGroup>
-          </View>
+        {stages.map((group) => (
+          <StagePath key={group.stage} group={group} onSelectSession={setSelectedSession} />
         ))}
       </ScrollView>
 
@@ -511,6 +450,7 @@ export default function PlanScreen() {
             setSelectedSession(null);
           }
         }}
+        canStart={!!selectedSession && selectedSession.id === nextSessionId}
         dogName={dog?.name ?? 'your dog'}
         recentAdaptations={recentAdaptations}
       />
