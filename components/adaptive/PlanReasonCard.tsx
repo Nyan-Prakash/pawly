@@ -18,7 +18,7 @@ interface PlanReasonCardProps {
   dogName: string;
   summary: AIPlanningSummary;
   /**
-   * Profile facts, e.g. "9 months old · Apartment · 3×/week". Rendered as a
+   * Legacy profile facts joined by a middle dot (age, home, sessions per week). Rendered as a
    * single caption sentence: "9 months old, lives in an apartment, trains
    * 3 times a week". Prefer the structured fields below when available.
    */
@@ -70,7 +70,7 @@ function buildProfileLines(
   if (homeType) facts.push(homeType);
   if (typeof sessionsPerWeek === 'number' && sessionsPerWeek > 0) clauses.push(timesAWeek(sessionsPerWeek));
   if (facts.length === 0 && clauses.length === 0 && profileCaption) {
-    facts.push(...profileCaption.split(/\s*·\s*|\s*\|\s*/));
+    facts.push(...profileCaption.split(/\s*\u00B7\s*|\s*\|\s*/));
   }
 
   for (const fact of facts) {

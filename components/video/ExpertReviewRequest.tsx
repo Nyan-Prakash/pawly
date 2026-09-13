@@ -1,19 +1,14 @@
-import { useState, useEffect } from 'react';
-import {
-  View,
-  Pressable,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, View } from 'react-native';
 
 import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Text } from '@/components/ui/Text';
-import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
-import { useVideoStore } from '@/stores/videoStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useVideoStore } from '@/stores/videoStore';
 
 interface Props {
   visible: boolean;
@@ -23,10 +18,10 @@ interface Props {
 }
 
 const WHAT_IS_INCLUDED = [
-  { icon: 'flag', text: 'Timestamped feedback on your specific video' },
-  { icon: 'chatbubble-ellipses', text: 'One follow-up question answered by your trainer' },
-  { icon: 'time', text: '48-hour turnaround guaranteed' },
-  { icon: 'list', text: 'Actionable next steps tailored to your dog' },
+  'Timestamped feedback on your video',
+  'One follow-up question answered by your trainer',
+  'Reviews usually come back within 48 hours',
+  'Next steps tailored to your dog',
 ];
 
 export function ExpertReviewRequest({ visible, videoId, onClose, onConfirmed }: Props) {
@@ -49,9 +44,8 @@ export function ExpertReviewRequest({ visible, videoId, onClose, onConfirmed }: 
     try {
       await requestExpertReview(videoId, userId);
       onConfirmed();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong';
-      Alert.alert('Could not request review', message);
+    } catch {
+      Alert.alert('Review not requested', "Couldn't request the review. Check your connection and try again.");
     } finally {
       setRequesting(false);
     }
@@ -60,90 +54,45 @@ export function ExpertReviewRequest({ visible, videoId, onClose, onConfirmed }: 
   const hasCredits = credits !== null && credits > 0;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} title="Request a trainer review">
+      <View style={{ flex: 1, gap: spacing.xl }}>
+        <Text variant="body" color={colors.text.secondary}>
+          A certified trainer will watch your video and send back personalized feedback.
+        </Text>
 
-            <Text variant="title" style={{ color: colors.textPrimary, marginBottom: spacing.xs }}>
-              Get a trainer's eyes on this
-            </Text>
-            <Text variant="body" style={{ color: colors.textSecondary, marginBottom: spacing.xl }}>
-              A certified trainer will watch your video and send back personalized feedback.
-            </Text>
+        <ListGroup>
+          {WHAT_IS_INCLUDED.map((item) => (
+            <ListRow key={item} icon="checkmark-circle-outline" title={item} />
+          ))}
+        </ListGroup>
 
-            {/* What's included */}
-            <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
-              {WHAT_IS_INCLUDED.map((item) => (
-                <View key={item.text} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-                  <AppIcon
-                    name={item.icon as AppIconName}
-                    size={18}
-                    color={colors.primary}
-                  />
-                  <Text variant="body" style={{ color: colors.textPrimary, flex: 1 }}>
-                    {item.text}
-                  </Text>
-                </View>
-              ))}
-            </View>
+        <ListGroup>
+          <ListRow
+            icon="ticket-outline"
+            iconTone="secondary"
+            title="Review credits"
+            subtitle={credits === 0 ? 'You have none yet' : undefined}
+            trailing={credits === null ? <ActivityIndicator color={colors.text.secondary} /> : String(credits)}
+          />
+        </ListGroup>
 
-            {/* Credits display */}
-            <View
-              style={{
-                backgroundColor: colors.secondary,
-                borderRadius: 14,
-                padding: spacing.lg,
-                marginBottom: spacing.xl,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.sm,
+        <View style={{ gap: spacing.sm }}>
+          {hasCredits ? (
+            <Button label="Use 1 credit for this video" onPress={handleConfirm} loading={requesting} />
+          ) : (
+            <Button
+              label="Get review credits"
+              disabled={credits === null}
+              onPress={() => {
+                onClose();
+                // TODO: navigate to paywall / add-on purchase screen (future PR)
+                Alert.alert('Review credits', "Review credits aren't available yet.", [{ text: 'OK' }]);
               }}
-            >
-              <AppIcon name="ticket" size={22} color={colors.primary} />
-              {credits === null ? (
-                <ActivityIndicator color={colors.primary} size="small" />
-              ) : hasCredits ? (
-                <Text variant="body" style={{ color: colors.textPrimary }}>
-                  You have{' '}
-                  <Text style={{ fontWeight: '700', color: colors.primary }}>
-                    {credits} review credit{credits !== 1 ? 's' : ''}
-                  </Text>{' '}
-                  remaining
-                </Text>
-              ) : (
-                <Text variant="body" style={{ color: colors.textPrimary }}>
-                  You have{' '}
-                  <Text style={{ fontWeight: '700', color: colors.error }}>
-                    no review credits
-                  </Text>
-                </Text>
-              )}
-            </View>
-
-            {/* CTA */}
-            {hasCredits ? (
-              <Button
-                label={requesting ? 'Requesting…' : 'Use 1 credit for this video'}
-                onPress={handleConfirm}
-                disabled={requesting}
-              />
-            ) : (
-              <Button
-                label="Get review credits"
-                onPress={() => {
-                  onClose();
-                  // TODO: navigate to paywall / add-on purchase screen (future PR)
-                  Alert.alert('Coming soon', 'Purchase credits coming in a future update.');
-                }}
-              />
-            )}
-
-            <Pressable
-              onPress={onClose}
-              style={{ alignItems: 'center', paddingTop: spacing.lg }}
-            >
-              <Text variant="caption" style={{ color: colors.textSecondary }}>
-                Cancel
-              </Text>
-            </Pressable>
+            />
+          )}
+          <Button label="Cancel" variant="ghost" size="md" onPress={onClose} disabled={requesting} />
+        </View>
+      </View>
     </BottomSheet>
   );
 }
