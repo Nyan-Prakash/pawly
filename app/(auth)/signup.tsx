@@ -1,38 +1,40 @@
-import { useState } from 'react';
-import {
-  View,
-  TextInput,
-  ActivityIndicator,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-  KeyboardAvoidingView,
-  ScrollView,
-  Pressable
-} from 'react-native';
+import { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Linking, Platform, ScrollView, TextInput, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
-import { SafeScreen } from '@/components/ui/SafeScreen';
-import { AppIcon } from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { supabase, createUserRecord } from '@/lib/supabase';
+import { useTheme } from '@/lib/theme';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useAuthStore } from '@/stores/authStore';
 import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NETWORK_ERROR = "Couldn't reach Pawly. Check your connection and try again.";
+
+/** Opens the Mail inbox on iOS; falls back to the default mail handler. */
+function openMail() {
+  Linking.openURL('message:')
+    .catch(() => Linking.openURL('mailto:'))
+    .catch(() => {});
+}
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
+  const { isDark } = useTheme();
+  const passwordRef = useRef<TextInput>(null);
   const { from } = useLocalSearchParams<{ from?: string }>();
   const fromOnboarding = from === 'onboarding';
   const submitOnboarding = useOnboardingStore((s) => s.submitOnboarding);
-  const resetOnboarding = useOnboardingStore((s) => s.reset);
   const setOnboardingField = useOnboardingStore((s) => s.setField);
   const setDog = useDogStore((s) => s.setDog);
   const setActiveDogPlan = useDogStore((s) => s.setActivePlan);
@@ -54,11 +56,11 @@ export default function SignUpScreen() {
     setGeneralError('');
 
     if (!EMAIL_REGEX.test(email.trim())) {
-      setEmailError('Please enter a valid email address.');
+      setEmailError('Enter a valid email address.');
       valid = false;
     }
     if (password.length < 8) {
-      setPasswordError('Password must be at least 8 characters.');
+      setPasswordError('Use at least 8 characters.');
       valid = false;
     }
     return valid;
@@ -71,14 +73,15 @@ export default function SignUpScreen() {
       const trimmedEmail = email.trim();
       const { data, error } = await supabase.auth.signUp({
         email: trimmedEmail,
-        password
+        password,
       });
 
       if (error) {
-        if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already in use')) {
-          setEmailError('Email already in use. Try logging in instead.');
+        const message = error.message.toLowerCase();
+        if (message.includes('already registered') || message.includes('already in use')) {
+          setEmailError('An account already uses this email. Log in instead.');
         } else {
-          setGeneralError('Something went wrong. Please try again.');
+          setGeneralError("Couldn't create your account. Check the details and try again.");
         }
         return;
       }
@@ -113,9 +116,7 @@ export default function SignUpScreen() {
       // Otherwise root layout auth listener handles redirect
     } catch (err) {
       console.error('[signup] handleSignUp failed:', err);
-      setGeneralError(
-        `Something went wrong: ${err instanceof Error ? err.message : JSON.stringify(err)}`
-      );
+      setGeneralError(NETWORK_ERROR);
     } finally {
       setIsLoading(false);
     }
@@ -123,34 +124,35 @@ export default function SignUpScreen() {
 
   const handleAppleSignIn = async () => {
     if (Platform.OS !== 'ios') return;
+    setGeneralError('');
     setIsLoading(true);
     try {
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL
-        ]
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
       });
 
       if (!credential.identityToken) {
-        setGeneralError('Something went wrong. Please try again.');
+        setGeneralError("Apple didn't return a login token. Try again.");
         return;
       }
 
       const { data: appleData, error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
-        token: credential.identityToken
+        token: credential.identityToken,
       });
 
       if (error) {
-        setGeneralError('Something went wrong. Please try again.');
+        setGeneralError("Couldn't create your account with Apple. Try again or use your email.");
       } else if (fromOnboarding && appleData.session) {
         setOnboardingField('submissionIntent', 'onboarding');
         router.replace('/(onboarding)/plan-preview');
       }
     } catch (err: unknown) {
       if ((err as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
-        setGeneralError('Something went wrong. Please try again.');
+        setGeneralError(NETWORK_ERROR);
       }
     } finally {
       setIsLoading(false);
@@ -158,249 +160,120 @@ export default function SignUpScreen() {
   };
 
   return (
-    <SafeScreen>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={headerHeight}
+    >
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing.xxl, paddingTop: spacing.xxxl, paddingBottom: spacing.xxl }}
-            keyboardShouldPersistTaps="handled"
-          >
-            {pendingConfirmationEmail ? (
-              <>
-                <View
-                  style={{
-                    alignSelf: 'center',
-                    width: 88,
-                    height: 88,
-                    borderRadius: 44,
-                    backgroundColor: colors.status.successBg,
-                    borderWidth: 1,
-                    borderColor: colors.status.successBorder,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: spacing.xl
-                  }}
-                >
-                  <AppIcon name="mail-open-outline" size={38} color={colors.success} />
-                </View>
-
-                <Text variant="title" style={{ marginBottom: spacing.sm, textAlign: 'center' }}>
-                  Confirm your email
-                </Text>
-                <Text variant="caption" style={{ marginBottom: spacing.xxl, color: colors.textSecondary, textAlign: 'center' }}>
-                  We sent a confirmation link to {pendingConfirmationEmail}. Open that email and accept it before logging in.
-                </Text>
-
-                <View
-                  style={{
-                    backgroundColor: colors.status.successBg,
-                    borderColor: colors.status.successBorder,
-                    borderWidth: 1,
-                    borderRadius: 20,
-                    padding: spacing.xl,
-                    marginBottom: spacing.xxl
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-                    <AppIcon name="checkmark-circle" size={18} color={colors.success} />
-                    <Text style={{ marginLeft: spacing.sm, color: colors.textPrimary, fontWeight: typography.weights.semibold }}>
-                      Your account was created
-                    </Text>
-                  </View>
-                  <Text variant="caption" style={{ color: colors.textSecondary }}>
-                    After you verify your email, return here and log in with the same address and password.
-                  </Text>
-                </View>
-
-                <Pressable
-                  onPress={() => router.replace('/(auth)/login')}
-                  style={[primaryButtonStyle, { marginBottom: spacing.lg }]}
-                >
-                  <Text style={{ color: colors.surface, fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>
-                    Go to log in
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => setPendingConfirmationEmail(null)}
-                  style={secondaryButtonStyle}
-                >
-                  <Text style={{ color: colors.textPrimary, fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>
-                    Use a different email
-                  </Text>
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <Text
-                  style={{
-                    fontSize: 34,
-                    fontWeight: '800',
-                    color: colors.textPrimary,
-                    letterSpacing: -0.5,
-                    lineHeight: 40,
-                    marginBottom: spacing.xs,
-                  }}
-                >
-                  Create your account
-                </Text>
-                <Text
-                  variant="body"
-                  style={{ marginBottom: spacing.xxxl, color: colors.textSecondary }}
-                >
-                  Start training smarter today.
-                </Text>
-
-                {/* Email */}
-                <Text
-                  style={{
-                    marginBottom: spacing.xs,
-                    fontWeight: '600',
-                    fontSize: typography.sizes.sm,
-                    color: colors.textPrimary,
-                  }}
-                >
-                  Email
-                </Text>
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  autoCorrect={false}
-                  placeholder="you@example.com"
-                  placeholderTextColor={colors.textSecondary}
-                  style={inputStyle(!!emailError)}
-                />
-                {!!emailError && (
-                  <Text variant="caption" style={{ color: colors.error, marginTop: spacing.xs, marginBottom: spacing.sm }}>
-                    {emailError}
-                  </Text>
-                )}
-
-                {/* Password */}
-                <Text
-                  style={{
-                    marginTop: spacing.lg,
-                    marginBottom: spacing.xs,
-                    fontWeight: '600',
-                    fontSize: typography.sizes.sm,
-                    color: colors.textPrimary,
-                  }}
-                >
-                  Password
-                </Text>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoComplete="password-new"
-                  placeholder="Min. 8 characters"
-                  placeholderTextColor={colors.textSecondary}
-                  style={inputStyle(!!passwordError)}
-                />
-                {!!passwordError && (
-                  <Text variant="caption" style={{ color: colors.error, marginTop: spacing.xs, marginBottom: spacing.sm }}>
-                    {passwordError}
-                  </Text>
-                )}
-
-                {!!generalError && (
-                  <Text variant="caption" style={{ color: colors.error, marginTop: spacing.sm }}>
-                    {generalError}
-                  </Text>
-                )}
-
-                {/* Submit */}
-                <Pressable
-                  onPress={handleSignUp}
-                  disabled={isLoading}
-                  style={[primaryButtonStyle, { marginTop: spacing.xxl, opacity: isLoading ? 0.7 : 1 }]}
-                >
-                  {isLoading
-                    ? <ActivityIndicator color={colors.surface} />
-                    : <Text style={{ color: colors.surface, fontWeight: '700', fontSize: typography.sizes.md }}>Create account</Text>
-                  }
-                </Pressable>
-
-                {/* Apple Sign In — iOS only */}
-                {Platform.OS === 'ios' && (
-                  <>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xxl }}>
-                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
-                    <Text variant="caption" style={{ marginHorizontal: spacing.lg, color: colors.textSecondary }}>OR</Text>
-                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
-                  </View>
-                  <Pressable
-                    onPress={handleAppleSignIn}
-                    disabled={isLoading}
-                    style={[appleButtonStyle, { marginBottom: spacing.lg, opacity: isLoading ? 0.7 : 1 }]}
-                  >
-                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: typography.sizes.md }}>
-                      Continue with Apple
-                    </Text>
-                  </Pressable>
-                  </>
-                )}
-              </>
-            )}
-
-            {/* Login link */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 'auto' }}>
-              <Text variant="caption" style={{ color: colors.textSecondary }}>Already have an account? </Text>
-              <Pressable onPress={() => router.replace('/(auth)/login')}>
-                <Text variant="caption" style={{ color: colors.primary, fontWeight: typography.weights.semibold }}>Log in</Text>
-              </Pressable>
+        {pendingConfirmationEmail ? (
+          <>
+            <View style={{ gap: spacing.sm }}>
+              <Text variant="h1">Check your email</Text>
+              <Text variant="body">
+                We sent a confirmation link to {pendingConfirmationEmail}. Open it, then log in with
+                the same email and password.
+              </Text>
             </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
-    </SafeScreen>
+
+            <View style={{ gap: spacing.sm }}>
+              <Button label="Open Mail" onPress={openMail} />
+              <Button
+                label="Go to log in"
+                variant="secondary"
+                onPress={() => router.replace('/(auth)/login')}
+              />
+              <Button
+                label="Use a different email"
+                variant="ghost"
+                onPress={() => setPendingConfirmationEmail(null)}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <Text variant="h1">Create account</Text>
+
+            <View style={{ gap: spacing.lg }}>
+              <Input
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                textContentType="emailAddress"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                blurOnSubmit={false}
+                placeholder="you@example.com"
+                error={emailError || undefined}
+              />
+              <Input
+                ref={passwordRef}
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                textContentType="newPassword"
+                autoComplete="password-new"
+                passwordRules="minlength: 8;"
+                returnKeyType="go"
+                onSubmitEditing={handleSignUp}
+                placeholder="At least 8 characters"
+                error={passwordError || undefined}
+              />
+              {generalError ? (
+                <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+                  {generalError}
+                </Text>
+              ) : null}
+            </View>
+
+            <View style={{ gap: spacing.lg }}>
+              <Button label="Create account" onPress={handleSignUp} loading={isLoading} />
+
+              {Platform.OS === 'ios' ? (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
+                    <Text variant="caption">or</Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
+                  </View>
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+                    buttonStyle={
+                      isDark
+                        ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                        : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                    }
+                    cornerRadius={radii.md}
+                    style={{ height: 50 }}
+                    onPress={handleAppleSignIn}
+                  />
+                </>
+              ) : null}
+            </View>
+          </>
+        )}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+          <Text variant="caption">Already have an account?</Text>
+          <Button
+            label="Log in"
+            variant="ghost"
+            size="md"
+            onPress={() => router.replace('/(auth)/login')}
+            style={{ paddingHorizontal: 0 }}
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
-
-const inputStyle = (hasError: boolean) => ({
-  borderWidth: 1.5,
-  borderColor: hasError ? colors.error : colors.border.soft,
-  borderRadius: 16,
-  paddingVertical: spacing.xl,
-  paddingHorizontal: spacing.xl,
-  fontSize: typography.sizes.md,
-  color: colors.textPrimary,
-  backgroundColor: colors.surface,
-  minHeight: 58,
-});
-
-const primaryButtonStyle = {
-  backgroundColor: colors.primary,
-  borderRadius: 16,
-  paddingVertical: spacing.xl,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  minHeight: 58,
-};
-
-const secondaryButtonStyle = {
-  backgroundColor: colors.surface,
-  borderRadius: 16,
-  borderWidth: 1.5,
-  borderColor: colors.border.default,
-  paddingVertical: spacing.xl,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  minHeight: 58,
-};
-
-const appleButtonStyle = {
-  backgroundColor: '#000000',
-  borderRadius: 16,
-  paddingVertical: spacing.xl,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  minHeight: 58,
-};
-
