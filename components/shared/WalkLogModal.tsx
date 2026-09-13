@@ -1,19 +1,15 @@
 import { useRef, useState } from 'react';
-import {
-  Keyboard,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Keyboard, ScrollView, TextInput, View } from 'react-native';
 
-import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import type { AppIconName } from '@/components/ui/AppIcon';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
 
 type WalkQuality = 1 | 2 | 3;
 
@@ -26,40 +22,13 @@ interface WalkLogModalProps {
   onClose: () => void;
 }
 
-const QUALITY_OPTIONS: {
-  value: WalkQuality;
-  icon: AppIconName;
-  label: string;
-  bg: string;
-  border: string;
-  textColor: string;
-}[] = [
-  {
-    value: 3,
-    icon: 'thumbs-up',
-    label: 'Better than before',
-    bg: '#DCFCE7',
-    border: colors.brand.primary,
-    textColor: '#166534',
-  },
-  {
-    value: 2,
-    icon: 'remove-circle',
-    label: 'About the same',
-    bg: colors.bg.surfaceAlt,
-    border: colors.border.default,
-    textColor: colors.text.primary,
-  },
-  {
-    value: 1,
-    icon: 'warning',
-    label: 'Harder today',
-    bg: '#FFF1F2',
-    border: '#FECACA',
-    textColor: '#9F1239',
-  },
+const QUALITY_OPTIONS: { value: WalkQuality; icon: AppIconName; label: string }[] = [
+  { value: 3, icon: 'thumbs-up-outline', label: 'Better than before' },
+  { value: 2, icon: 'remove-circle-outline', label: 'About the same' },
+  { value: 1, icon: 'alert-circle-outline', label: 'Harder today' },
 ];
 
+/** "Log a walk" sheet: how it went, optional notes and minutes. */
 export function WalkLogModal({
   visible,
   dogName,
@@ -73,6 +42,7 @@ export function WalkLogModal({
   const [durationText, setDurationText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const durationRef = useRef<TextInput>(null);
 
   function resetState() {
     setSelectedQuality(null);
@@ -92,9 +62,15 @@ export function WalkLogModal({
     onSkip();
   }
 
+  function selectQuality(value: WalkQuality) {
+    haptics.selection();
+    setSelectedQuality(value);
+    setError(null);
+  }
+
   async function handleSave() {
     if (!selectedQuality) {
-      setError('Please select how the walk went.');
+      setError('Pick how the walk went, then save.');
       return;
     }
     setError(null);
@@ -106,180 +82,78 @@ export function WalkLogModal({
       await onSave(selectedQuality, notes.trim() || undefined, duration);
       resetState();
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError("Couldn't save the walk. Check your connection and try again.");
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <BottomSheet visible={visible} onClose={handleClose} avoidKeyboard>
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                style={{ maxHeight: 560 }}
-              >
-                {/* Header */}
-                <Text variant="h2" style={{ marginBottom: spacing.sm }}>
-                  How was the walk?
-                </Text>
+    <BottomSheet visible={visible} onClose={handleClose} title="Log a walk" padded={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ gap: spacing.xs }}>
+          <Text variant="captionStrong">{dogName}'s walk goal</Text>
+          <Text variant="body">{walkGoalText}</Text>
+        </View>
 
-                {/* Walk goal reminder */}
-                <View
-                  style={{
-                    backgroundColor: colors.bg.surfaceAlt,
-                    borderRadius: radii.md,
-                    paddingHorizontal: spacing.lg,
-                    paddingVertical: spacing.sm,
-                    marginBottom: spacing.xl,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                  }}
-                >
-                  <AppIcon name="walk" size={16} color={colors.text.primary} />
-                  <View style={{ flex: 1 }}>
-                    <Text variant="micro" color={colors.text.secondary}>
-                      {dogName}'s walk goal
-                    </Text>
-                    <Text style={{ fontSize: 13, color: colors.text.primary, lineHeight: 18, marginTop: 2 }}>
-                      {walkGoalText}
-                    </Text>
-                  </View>
-                </View>
+        <View style={{ gap: spacing.sm }}>
+          <Text variant="captionStrong">How was the walk?</Text>
+          <ListGroup>
+            {QUALITY_OPTIONS.map((opt) => (
+              <ListRow
+                key={opt.value}
+                icon={opt.icon}
+                iconTone={selectedQuality === opt.value ? 'accent' : 'secondary'}
+                title={opt.label}
+                selected={selectedQuality === opt.value}
+                onPress={() => selectQuality(opt.value)}
+                accessibilityHint="Selects how the walk went"
+              />
+            ))}
+          </ListGroup>
+        </View>
 
-                {/* Quality options */}
-                <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
-                  {QUALITY_OPTIONS.map((opt) => {
-                    const selected = selectedQuality === opt.value;
-                    return (
-                      <TouchableOpacity
-                        key={opt.value}
-                        activeOpacity={0.8}
-                        onPress={() => setSelectedQuality(opt.value)}
-                        style={{
-                          backgroundColor: selected ? opt.bg : colors.bg.surface,
-                          borderWidth: selected ? 2 : 1,
-                          borderColor: selected ? opt.border : colors.border.default,
-                          borderRadius: radii.md,
-                          padding: spacing.lg,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: spacing.lg,
-                          minHeight: 64,
-                        }}
-                      >
-                        <AppIcon name={opt.icon} size={28} color={selected ? opt.textColor : colors.text.secondary} />
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            fontWeight: selected ? '700' : '500',
-                            color: selected ? opt.textColor : colors.text.primary,
-                          }}
-                        >
-                          {opt.label}
-                        </Text>
-                        {selected && (
-                          <View style={{ marginLeft: 'auto' }}>
-                            <AppIcon name="checkmark" size={18} color={opt.border} />
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+        <Input
+          label="What happened? (optional)"
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="She pulled a lot near the park gate"
+          multiline
+          numberOfLines={2}
+          maxLength={280}
+          returnKeyType="next"
+          blurOnSubmit
+          onSubmitEditing={() => durationRef.current?.focus()}
+        />
 
-                {/* Notes input */}
-                <View style={{ marginBottom: spacing.lg }}>
-                  <Text variant="micro" color={colors.text.secondary} style={{ marginBottom: 6 }}>
-                    What happened? (optional)
-                  </Text>
-                  <TextInput
-                    value={notes}
-                    onChangeText={setNotes}
-                    placeholder="e.g. She pulled a lot near the park gate..."
-                    placeholderTextColor={colors.text.secondary + '80'}
-                    multiline
-                    numberOfLines={2}
-                    maxLength={280}
-                    style={{
-                      backgroundColor: colors.bg.surfaceAlt,
-                      borderRadius: radii.md,
-                      padding: spacing.lg,
-                      fontSize: 14,
-                      color: colors.text.primary,
-                      minHeight: 72,
-                      textAlignVertical: 'top',
-                      borderWidth: 1.5,
-                      borderColor: colors.border.default,
-                    }}
-                  />
-                </View>
+        <Input
+          ref={durationRef}
+          label="Minutes walked (optional)"
+          value={durationText}
+          onChangeText={(t) => setDurationText(t.replace(/[^0-9]/g, ''))}
+          placeholder="20"
+          keyboardType="number-pad"
+          returnKeyType="done"
+          maxLength={3}
+          onSubmitEditing={Keyboard.dismiss}
+        />
 
-                {/* Duration input */}
-                <View style={{ marginBottom: spacing.xl }}>
-                  <Text variant="micro" color={colors.text.secondary} style={{ marginBottom: 6 }}>
-                    How long? — minutes (optional)
-                  </Text>
-                  <TextInput
-                    value={durationText}
-                    onChangeText={(t) => setDurationText(t.replace(/[^0-9]/g, ''))}
-                    placeholder="e.g. 20"
-                    placeholderTextColor={colors.text.secondary + '80'}
-                    keyboardType="number-pad"
-                    maxLength={3}
-                    style={{
-                      backgroundColor: colors.bg.surfaceAlt,
-                      borderRadius: radii.md,
-                      padding: spacing.lg,
-                      fontSize: 16,
-                      color: colors.text.primary,
-                      borderWidth: 1.5,
-                      borderColor: colors.border.default,
-                      width: 120,
-                    }}
-                  />
-                </View>
+        {error ? (
+          <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+            {error}
+          </Text>
+        ) : null}
+      </ScrollView>
 
-                {/* Error */}
-                {error && (
-                  <Text
-                    style={{
-                      color: colors.error,
-                      fontSize: 13,
-                      marginBottom: spacing.sm,
-                    }}
-                  >
-                    {error}
-                  </Text>
-                )}
-
-                {/* Save button */}
-                <Button
-                  label={isSaving ? 'Saving…' : 'Save walk'}
-                  onPress={handleSave}
-                  loading={isSaving}
-                  disabled={!selectedQuality}
-                  style={{ marginBottom: spacing.lg }}
-                />
-
-                {/* Skip link */}
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={handleSkip}
-                  style={{ alignItems: 'center', paddingVertical: spacing.sm }}
-                >
-                  <Text
-                    style={{
-                      color: colors.text.secondary,
-                      fontSize: 13,
-                      textDecorationLine: 'underline',
-                    }}
-                  >
-                    Skip logging
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
+      <View style={{ padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm, backgroundColor: colors.bg.app }}>
+        <Button label="Save walk" onPress={handleSave} loading={isSaving} disabled={!selectedQuality} />
+        <Button label="Not today" variant="ghost" size="md" onPress={handleSkip} />
+      </View>
     </BottomSheet>
   );
 }
