@@ -134,7 +134,6 @@ export default function SessionScreen() {
     getTrainingSeconds,
   } = useSessionStore();
 
-  const [showAbandonSheet, setShowAbandonSheet] = useState(false);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
   const [reviewOutcome, setReviewOutcome] = useState<SessionOutcome | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
@@ -652,7 +651,6 @@ export default function SessionScreen() {
     : false;
 
   const handleAbandonConfirm = useCallback(async () => {
-    setShowAbandonSheet(false);
 
     // Only a real attempt is recorded. Backing out of the intro is not a
     // failed session and must not poison the learning state.
@@ -728,7 +726,7 @@ export default function SessionScreen() {
       router.back();
       return;
     }
-    setShowAbandonSheet(true);
+    confirmLeave();
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -769,16 +767,18 @@ export default function SessionScreen() {
   );
   const totalReps = activeSession.stepResults.reduce((sum, r) => sum + r.repCount, 0);
 
-  const abandonSheet = (
-    <AbandonSheet
-      visible={showAbandonSheet}
-      willRecord={abandonWouldLog}
-      stepsDone={stepSummary.total}
-      totalSteps={totalSteps}
-      onKeepGoing={() => setShowAbandonSheet(false)}
-      onLeave={handleAbandonConfirm}
-    />
-  );
+  const confirmLeave = () => {
+    haptics.warning();
+    const body = abandonWouldLog
+      ? stepSummary.total > 0
+        ? `You've done ${stepSummary.total} of ${totalSteps} steps. It will be saved as unfinished so your plan can adjust.`
+        : 'This will be noted as an unfinished attempt so your plan can adjust.'
+      : 'Nothing has been recorded yet. Come back whenever you and your dog are ready.';
+    Alert.alert('Leave this session?', body, [
+      { text: 'Keep training', style: 'cancel' },
+      { text: 'Leave session', style: 'destructive', onPress: () => void handleAbandonConfirm() },
+    ]);
+  };
 
   if (overlayState === 'MODE_PICKER') {
     return (
@@ -819,7 +819,7 @@ export default function SessionScreen() {
           onSummary={(summary: LiveAiTrainerSummary) => {
             liveAiSummaryRef.current = summary;
           }}
-          onExit={() => setShowAbandonSheet(true)}
+          onExit={confirmLeave}
           onManualSwitch={() => {
             setOverlayState('NONE');
             setState('STEP_ACTIVE');
@@ -830,7 +830,6 @@ export default function SessionScreen() {
           }}
           onIncrementRep={incrementRep}
         />
-        {abandonSheet}
       </View>
     );
   }
@@ -974,7 +973,6 @@ export default function SessionScreen() {
         />
       )}
 
-      {abandonSheet}
     </SafeScreen>
   );
 }
@@ -1407,44 +1405,6 @@ function QuickCompleteView({
 // ─────────────────────────────────────────────────────────────────────────────
 // Abandon sheet — honest about what happens
 // ─────────────────────────────────────────────────────────────────────────────
-
-function AbandonSheet({
-  visible,
-  willRecord,
-  stepsDone,
-  totalSteps,
-  onKeepGoing,
-  onLeave,
-}: {
-  visible: boolean;
-  willRecord: boolean;
-  stepsDone: number;
-  totalSteps: number;
-  onKeepGoing: () => void;
-  onLeave: () => void;
-}) {
-  useEffect(() => {
-    if (visible) haptics.warning();
-  }, [visible]);
-
-  const body = willRecord
-    ? stepsDone > 0
-      ? `You've done ${stepsDone} of ${totalSteps} steps. It will be saved as unfinished so your plan can adjust.`
-      : 'This will be noted as an unfinished attempt so your plan can adjust.'
-    : 'Nothing has been recorded yet. Come back whenever you and your dog are ready.';
-
-  return (
-    <BottomSheet visible={visible} onClose={onKeepGoing} title="Leave this session?">
-      <View style={{ flex: 1, gap: spacing.xl }}>
-        <Text variant="body">{body}</Text>
-        <View style={{ gap: spacing.sm }}>
-          <Button label="Leave session" variant="destructive" onPress={onLeave} />
-          <Button label="Keep training" variant="ghost" onPress={onKeepGoing} />
-        </View>
-      </View>
-    </BottomSheet>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LiveAiTrainerScreen
