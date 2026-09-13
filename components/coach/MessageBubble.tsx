@@ -1,8 +1,8 @@
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 
-import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import type { ChatMessage } from '@/types';
 
@@ -12,105 +12,47 @@ interface MessageBubbleProps {
   message: ChatMessage;
 }
 
+/**
+ * One chat message. The owner's messages sit on the right on the accent; the
+ * coach's sit on the left on the surface. Alignment tells the roles apart, so
+ * there is no avatar and no role label.
+ */
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
-  const styles = createStyles();
 
   if (isUser) {
     return (
-      <View style={styles.userWrap}>
-        <View style={styles.userBubble}>
-          <Text style={styles.userText}>{message.content}</Text>
+      <View style={{ alignItems: 'flex-end', marginBottom: spacing.md }} accessibilityLabel={`You: ${message.content}`}>
+        <View
+          style={{
+            maxWidth: '82%',
+            backgroundColor: colors.accent,
+            borderRadius: radii.md,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+          }}
+        >
+          <Text variant="body" color={colors.text.onAccent} selectable>
+            {message.content}
+          </Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.assistantWrap}>
-      <View style={styles.assistantRow}>
-        <View style={styles.avatar}>
-          <Ionicons name="paw" size={20} color={colors.brand.primary} />
-        </View>
-
-        <View style={styles.assistantContent}>
-          <Text variant="micro" color={colors.text.secondary} style={styles.roleLabel}>
-            Pawly Coach
-          </Text>
-          <View style={styles.assistantBubble}>
-            <FormattedCoachMessage message={message.content} />
-          </View>
-        </View>
+    <View style={{ alignItems: 'flex-start', marginBottom: spacing.md }} accessibilityLabel={`Coach: ${message.content}`}>
+      <View
+        style={{
+          maxWidth: '92%',
+          backgroundColor: colors.bg.surface,
+          borderRadius: radii.md,
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.md,
+        }}
+      >
+        <FormattedCoachMessage message={message.content} />
       </View>
     </View>
   );
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    userWrap: {
-      alignItems: 'flex-end',
-      marginBottom: spacing.lg,
-    },
-    userBubble: {
-      maxWidth: '82%',
-      backgroundColor: colors.brand.primary,
-      borderRadius: 24,
-      borderBottomRightRadius: 8,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.lg,
-      shadowColor: colors.shadow.success,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.18,
-      shadowRadius: 14,
-      elevation: 6,
-    },
-    userText: {
-      color: '#FFFFFF',
-      fontSize: 15,
-      lineHeight: 22,
-    },
-    assistantWrap: {
-      marginBottom: spacing.lg,
-    },
-    assistantRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-    },
-    avatar: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      backgroundColor: colors.status.successBg,
-      borderWidth: 1,
-      borderColor: colors.status.successBorder,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-    },
-    assistantContent: {
-      flex: 1,
-    },
-    roleLabel: {
-      marginBottom: 6,
-      marginLeft: spacing.xs,
-      fontWeight: '700',
-      letterSpacing: 0.2,
-    },
-    assistantBubble: {
-      borderRadius: 26,
-      borderTopLeftRadius: 10,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.lg,
-      backgroundColor: colors.bg.elevated,
-      borderWidth: 1,
-      borderColor: colors.border.soft,
-    },
-    assistantText: {
-      color: colors.text.primary,
-      fontSize: 15,
-      lineHeight: 22,
-    },
-  });
 }
