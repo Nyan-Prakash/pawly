@@ -20,8 +20,12 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const heroHeight = Math.round(height * 0.52);
-  const mascotSize = Math.min(width * 0.78, heroHeight - insets.top - spacing.xl);
+  // The dog fills the width like it fills the icon. The artwork carries about
+  // a fifth of empty sky above the ears, so the image is pulled up by that
+  // much and the hero is only as tall as the dog itself plus the status bar.
+  const HEADROOM = 0.19;
+  const mascotSize = Math.round(Math.min(width * 0.98, height * 0.5));
+  const heroHeight = Math.round(insets.top + spacing.md + mascotSize * (1 - HEADROOM));
 
   // Light status bar over the blue only while this screen is in front.
   useFocusEffect(
@@ -48,7 +52,7 @@ export default function WelcomeScreen() {
       >
         <Image
           source={MASCOT}
-          style={{ width: mascotSize, height: mascotSize }}
+          style={{ width: mascotSize, height: mascotSize, marginBottom: 0 }}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
           accessible
@@ -56,7 +60,7 @@ export default function WelcomeScreen() {
         />
       </View>
 
-      <View style={{ flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: Math.max(insets.bottom, spacing.lg), gap: spacing.xl }}>
+      <View style={{ flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: Math.max(insets.bottom, spacing.lg) }}>
         <View style={{ gap: spacing.sm }}>
           <Text variant="display">Pawly</Text>
           <Text variant="body" color={colors.text.secondary}>
