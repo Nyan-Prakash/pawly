@@ -1,18 +1,13 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  TextInput,
-  View,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ArticleCard } from '@/components/know/ArticleCard';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { SafeScreen } from '@/components/ui/SafeScreen';
+import { Input } from '@/components/ui/Input';
+import { ListGroup } from '@/components/ui/ListRow';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
@@ -20,6 +15,56 @@ import { spacing } from '@/constants/spacing';
 import { fetchPublishedArticles } from '@/lib/articles';
 import { filterArticles, getArticleCategories } from '@/lib/articleContent';
 import type { Article } from '@/types';
+
+function CategoryChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      style={({ pressed }) => ({
+        minHeight: 44,
+        justifyContent: 'center',
+        paddingHorizontal: spacing.lg,
+        borderRadius: radii.sm,
+        backgroundColor: selected ? colors.accentSoft : colors.bg.fill,
+        opacity: pressed ? 0.6 : 1,
+      })}
+    >
+      <Text variant="bodyStrong" color={selected ? colors.accent : colors.text.primary}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function GuidesSkeleton() {
+  return (
+    <View style={{ gap: spacing.xl }}>
+      <View>
+        <SkeletonBlock height={26} width="35%" style={{ marginBottom: spacing.sm }} />
+        <View style={{ backgroundColor: colors.bg.surface, borderRadius: radii.md, overflow: 'hidden' }}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View
+              key={i}
+              style={{
+                minHeight: 60,
+                justifyContent: 'center',
+                gap: spacing.xs,
+                paddingHorizontal: spacing.lg,
+                borderTopWidth: i === 0 ? 0 : 1,
+                borderTopColor: colors.border.hairline,
+              }}
+            >
+              <SkeletonBlock height={16} width="70%" />
+              <SkeletonBlock height={14} width="40%" />
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function KnowScreen() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -35,8 +80,8 @@ export default function KnowScreen() {
       const nextArticles = await fetchPublishedArticles();
       setArticles(nextArticles);
     } catch (err) {
-      console.warn('[Know] failed to load articles', err);
-      setError('We could not load the library right now.');
+      console.warn('[Learn] failed to load guides', err);
+      setError("Couldn't load the guides. Check your connection and try again.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -48,10 +93,7 @@ export default function KnowScreen() {
   }, []);
 
   const categories = ['All', ...getArticleCategories(articles)];
-  const visibleArticles = filterArticles(articles, {
-    category: selectedCategory,
-    query,
-  });
+  const visibleArticles = filterArticles(articles, { category: selectedCategory, query });
   const featuredArticle =
     (selectedCategory === 'All' && !query.trim()
       ? articles.find((article) => article.isFeatured)
@@ -59,147 +101,106 @@ export default function KnowScreen() {
   const listArticles = featuredArticle
     ? visibleArticles.filter((article) => article.slug !== featuredArticle.slug)
     : visibleArticles;
-  const hasOnlyFeaturedResult = visibleArticles.length === 1 && listArticles.length === 0 && featuredArticle;
+  const hasOnlyFeaturedResult = visibleArticles.length === 1 && listArticles.length === 0 && !!featuredArticle;
+
+  const openArticle = (article: Article) => router.push(`/know/article/${article.slug}` as never);
 
   return (
-    <SafeScreen>
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            tintColor={colors.brand.primary}
-            refreshing={isRefreshing}
-            onRefresh={() => {
-              setIsRefreshing(true);
-              load();
-            }}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.lg,
-          paddingBottom: spacing.xxxl * 2,
-          gap: spacing.xl,
-        }}
-      >
-        <View style={{ gap: 4 }}>
-          <Text variant="h2">Know</Text>
-          <Text variant="body" color={colors.text.secondary}>
-            Clear, practical dog training guides
-          </Text>
-        </View>
-
-        <View
-          style={{
-            borderRadius: radii.md,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            backgroundColor: colors.bg.surface,
-            paddingHorizontal: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.sm,
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+      keyboardDismissMode="on-drag"
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          tintColor={colors.text.secondary}
+          refreshing={isRefreshing}
+          onRefresh={() => {
+            setIsRefreshing(true);
+            load();
           }}
+        />
+      }
+    >
+      <Input
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search guides"
+        accessibilityLabel="Search guides"
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+        autoCorrect={false}
+        autoCapitalize="none"
+      />
+
+      {categories.length > 1 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: spacing.sm }}
         >
-          <Ionicons name="search" size={18} color={colors.text.secondary} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search articles, topics, or skills"
-            placeholderTextColor={colors.text.secondary + '80'}
-            style={{
-              flex: 1,
-              minHeight: 52,
-              color: colors.text.primary,
-              fontSize: 16,
-            }}
-          />
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {categories.map((category) => {
-            const isSelected = category === selectedCategory;
-            return (
-              <Pressable
-                key={category}
-                onPress={() => setSelectedCategory(category)}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: radii.full,
-                  backgroundColor: isSelected ? colors.brand.primary : colors.bg.surface,
-                  borderWidth: 1,
-                  borderColor: isSelected ? colors.brand.primary : colors.border.default,
-                }}
-              >
-                <Text
-                  variant="caption"
-                  style={{
-                    color: isSelected ? colors.text.inverse : colors.text.secondary,
-                    fontWeight: '700',
-                  }}
-                >
-                  {category}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {categories.map((category) => (
+            <CategoryChip
+              key={category}
+              label={category}
+              selected={category === selectedCategory}
+              onPress={() => setSelectedCategory(category)}
+            />
+          ))}
         </ScrollView>
+      ) : null}
 
-        {isLoading ? (
-          <View style={{ paddingTop: spacing.xxxl, alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={colors.brand.primary} />
-          </View>
-        ) : error ? (
-          <EmptyState
-            icon="library"
-            title="Library unavailable"
-            subtitle={error}
-            action={{ label: 'Try again', onPress: load }}
-          />
-        ) : (
-          <View style={{ gap: spacing.xl }}>
-            {featuredArticle ? (
-              <View style={{ gap: spacing.sm }}>
-                <Text variant="bodyStrong">Featured</Text>
-                <ArticleCard
-                  article={featuredArticle}
-                  featuredStyle
-                  onPress={() => router.push(`/know/article/${featuredArticle.slug}` as never)}
-                />
-              </View>
-            ) : null}
-
-            <View style={{ gap: spacing.sm }}>
-              <Text variant="bodyStrong">
-                {selectedCategory === 'All' ? 'Library' : `${selectedCategory} Articles`}
-              </Text>
-
-              {visibleArticles.length === 0 ? (
-                <EmptyState
-                  icon="search"
-                  title="No articles found"
-                  subtitle="Try a different keyword or switch categories."
-                />
-              ) : hasOnlyFeaturedResult ? (
-                <Text variant="caption" color={colors.text.secondary}>
-                  You&apos;re viewing the only matching article above.
-                </Text>
-              ) : (
-                <View style={{ gap: spacing.lg }}>
-                  {listArticles.map((article) => (
-                    <ArticleCard
-                      key={article.id}
-                      article={article}
-                      onPress={() => router.push(`/know/article/${article.slug}` as never)}
-                    />
-                  ))}
-                </View>
-              )}
+      {isLoading ? (
+        <GuidesSkeleton />
+      ) : error ? (
+        <EmptyState
+          icon="book-outline"
+          title="Guides didn't load"
+          subtitle={error}
+          action={{ label: 'Try again', onPress: load }}
+        />
+      ) : (
+        <>
+          {featuredArticle ? (
+            <View>
+              <SectionHeader title="Featured" />
+              <ListGroup>
+                <ArticleCard article={featuredArticle} onPress={() => openArticle(featuredArticle)} />
+              </ListGroup>
             </View>
+          ) : null}
+
+          <View>
+            <SectionHeader title={selectedCategory === 'All' ? 'All guides' : selectedCategory} />
+            {visibleArticles.length === 0 ? (
+              <EmptyState
+                icon="search-outline"
+                title="No guides match"
+                subtitle="Try another word or pick a different category."
+                action={
+                  query.trim() || selectedCategory !== 'All'
+                    ? {
+                        label: 'Clear search',
+                        onPress: () => {
+                          setQuery('');
+                          setSelectedCategory('All');
+                        },
+                      }
+                    : undefined
+                }
+              />
+            ) : hasOnlyFeaturedResult ? (
+              <Text variant="caption">The only matching guide is the featured one above.</Text>
+            ) : (
+              <ListGroup>
+                {listArticles.map((article) => (
+                  <ArticleCard key={article.id} article={article} onPress={() => openArticle(article)} />
+                ))}
+              </ListGroup>
+            )}
           </View>
-        )}
-      </ScrollView>
-    </SafeScreen>
+        </>
+      )}
+    </ScrollView>
   );
 }
