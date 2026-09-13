@@ -11,6 +11,7 @@
 import type { TextStyle } from 'react-native';
 
 export type TypographyVariant =
+  | 'numeral'
   | 'display'
   | 'h1'
   | 'h2'
@@ -26,6 +27,8 @@ export const HEADING_FONT = 'Nunito_800ExtraBold';
 type TypeSpec = Required<Pick<TextStyle, 'fontSize' | 'lineHeight' | 'fontWeight'>> & Pick<TextStyle, 'fontFamily'>;
 
 export const typography: Record<TypographyVariant, TypeSpec> = {
+  /** Counters and timers only: the number the owner glances at from arm's length. */
+  numeral:       { fontSize: 64, lineHeight: 72, fontWeight: '800', fontFamily: HEADING_FONT },
   display:       { fontSize: 32, lineHeight: 38, fontWeight: '800', fontFamily: HEADING_FONT },
   h1:            { fontSize: 24, lineHeight: 30, fontWeight: '800', fontFamily: HEADING_FONT },
   h2:            { fontSize: 20, lineHeight: 26, fontWeight: '800', fontFamily: HEADING_FONT },

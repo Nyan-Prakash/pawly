@@ -44,7 +44,8 @@ Two typefaces with assigned roles. **Nunito ExtraBold** is the voice: display, h
 
 | Variant | Size / line | Weight | Use |
 |---|---|---|---|
-| `display` | 32 / 38 | Nunito 800 | One per screen at most: the page title, the session timer |
+| `numeral` | 64 / 72 | Nunito 800 | Rep counter and timer only, read from arm's length |
+| `display` | 32 / 38 | Nunito 800 | One per screen at most: the page title |
 | `h1` | 24 / 30 | Nunito 800 | Card title, screen title under a plain header |
 | `h2` | 20 / 26 | Nunito 800 | Section heading, sheet title |
 | `action` | 16 / 22 | Nunito 800 | Button labels only |

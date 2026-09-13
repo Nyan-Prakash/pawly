@@ -17,15 +17,14 @@ interface RepCounterProps {
   onDecrement: () => void;
 }
 
-/** The "+ Rep" button is taller than any other control on purpose: it is hit while watching the dog. */
-const REP_BUTTON_HEIGHT = 72;
-/** Same tactile edge as the Button primitive. */
-const EDGE = 4;
+/** Big enough to hit while watching the dog, not the phone. */
+const DIAL = 220;
+const EDGE = 6;
 
 /**
- * The hero of a rep step: the count, its target, and one big "+ Rep" button.
- * The count bounces once per rep (state driven), a selection haptic confirms
- * each rep, and a success haptic fires once when the target is reached.
+ * The hero of a rep step: the counter is the button. Tap the dial to count a
+ * rep; it presses down on its edge, the number bounces once, a selection
+ * haptic confirms it, and the dial fills when the target is reached.
  */
 export function RepCounter({ count, target, onIncrement, onDecrement }: RepCounterProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -40,7 +39,7 @@ export function RepCounter({ count, target, onIncrement, onDecrement }: RepCount
     if (target !== null && count === target) haptics.success();
     if (reducedMotion) return;
     Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 1.15, duration: durations.fast, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1.12, duration: durations.fast, useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 1, duration: durations.fast, useNativeDriver: true }),
     ]).start();
   }, [count, target, reducedMotion, scaleAnim]);
@@ -50,73 +49,66 @@ export function RepCounter({ count, target, onIncrement, onDecrement }: RepCount
     onIncrement();
   };
 
-  const countColor = targetReached ? colors.accent : colors.text.primary;
+  const fill = targetReached ? colors.accent : colors.bg.surface;
+  const edge = targetReached ? colors.accentEdge : colors.bg.fill;
+  const numberColor = targetReached ? colors.text.onAccent : colors.text.primary;
+  const captionColor = targetReached ? colors.text.onAccent : colors.text.secondary;
   const countLabel =
     target !== null ? `${count} of ${target} reps${targetReached ? ', target reached' : ''}` : `${count} reps`;
 
   return (
-    <View style={{ gap: spacing.lg }}>
-      <View
-        accessible
-        accessibilityRole="text"
-        accessibilityLabel={countLabel}
-        accessibilityLiveRegion="polite"
-        style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}
+    <View style={{ alignItems: 'center', gap: spacing.md }}>
+      <Pressable
+        onPress={handleRep}
+        accessibilityRole="button"
+        accessibilityLabel="Count a rep"
+        accessibilityValue={{ text: countLabel }}
+        style={({ pressed }) => ({
+          width: DIAL,
+          height: DIAL + EDGE,
+          borderRadius: radii.full,
+          backgroundColor: edge,
+          paddingTop: pressed ? EDGE : 0,
+        })}
       >
-        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-          <Text variant="display" color={countColor}>
-            {count}
-          </Text>
-        </Animated.View>
-        {target !== null ? (
-          <Text variant="caption" color={targetReached ? colors.accent : colors.text.secondary}>
-            of {target}
-          </Text>
-        ) : null}
-      </View>
-
-      <View style={{ gap: spacing.xs }}>
-        <Pressable
-          onPress={handleRep}
-          accessibilityRole="button"
-          accessibilityLabel="Count a rep"
-          style={({ pressed }) => ({
-            height: REP_BUTTON_HEIGHT + EDGE,
-            borderRadius: radii.md,
-            backgroundColor: colors.accentEdge,
-            paddingTop: pressed ? EDGE : 0,
-          })}
-        >
-          {({ pressed }) => (
-            <View
-              style={{
-                height: REP_BUTTON_HEIGHT,
-                borderRadius: radii.md,
-                backgroundColor: colors.accent,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: spacing.sm,
-                opacity: pressed ? 0.92 : 1,
-              }}
-            >
-              <AppIcon name="add" size={24} color={colors.text.onAccent} />
-              <Text variant="action" color={colors.text.onAccent}>
-                Rep
+        {({ pressed }) => (
+          <View
+            style={{
+              width: DIAL,
+              height: DIAL,
+              borderRadius: radii.full,
+              backgroundColor: fill,
+              borderWidth: targetReached ? 0 : 2,
+              borderColor: colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.92 : 1,
+            }}
+          >
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }} accessibilityLiveRegion="polite">
+              <Text variant="numeral" color={numberColor} style={{ textAlign: 'center' }}>
+                {count}
               </Text>
-            </View>
-          )}
-        </Pressable>
+            </Animated.View>
+            {target !== null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                {targetReached ? <AppIcon name="checkmark-circle" size={16} color={captionColor} /> : null}
+                <Text variant="captionStrong" color={captionColor}>
+                  of {target}
+                </Text>
+              </View>
+            ) : (
+              <Text variant="captionStrong" color={captionColor}>
+                reps
+              </Text>
+            )}
+          </View>
+        )}
+      </Pressable>
 
-        <Button
-          label="Undo rep"
-          variant="ghost"
-          size="md"
-          onPress={onDecrement}
-          disabled={count === 0}
-          style={{ alignSelf: 'flex-start' }}
-        />
-      </View>
+      <Text variant="caption">{targetReached ? 'Target reached. Finish on this one.' : 'Tap the dial for every rep'}</Text>
+
+      <Button label="Undo" variant="ghost" size="md" onPress={onDecrement} disabled={count === 0} />
     </View>
   );
 }

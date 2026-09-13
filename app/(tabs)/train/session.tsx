@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, AppState, type AppStateStatus, ScrollView, View } from 'react-native';
+import { Alert, Animated, AppState, type AppStateStatus, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
@@ -136,7 +136,6 @@ export default function SessionScreen() {
 
   const [showAbandonSheet, setShowAbandonSheet] = useState(false);
   const [showHelpSheet, setShowHelpSheet] = useState(false);
-  const [showNotYetSheet, setShowNotYetSheet] = useState(false);
   const [reviewOutcome, setReviewOutcome] = useState<SessionOutcome | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -508,7 +507,6 @@ export default function SessionScreen() {
       const recorded = recordStep(outcome);
       if (!recorded) return;
       setShowHelpSheet(false);
-      setShowNotYetSheet(false);
 
       if (activeSession?.isQuickReps) {
         void handleSubmitQuick(outcome);
@@ -530,7 +528,6 @@ export default function SessionScreen() {
 
   /** "Try this step again": back to zero on this step, nothing recorded. */
   const handleRetryStep = useCallback(() => {
-    setShowNotYetSheet(false);
     const step = activeSession?.protocol.steps[activeSession.currentStepIndex];
     resetReps();
     if (step?.durationSeconds) resetTimer(step.durationSeconds);
@@ -896,7 +893,13 @@ export default function SessionScreen() {
           onIncrementRep={incrementRep}
           onDecrementRep={decrementRep}
           onWorked={() => handleStepDone('success')}
-          onNotYet={() => setShowNotYetSheet(true)}
+          onNotYet={() =>
+            Alert.alert('Not yet', 'That is normal. Pick what happens next.', [
+              { text: 'Try this step again', onPress: handleRetryStep },
+              { text: 'Make it easier', onPress: () => handleStepDone('struggled') },
+              { text: 'Cancel', style: 'cancel' },
+            ])
+          }
           isSaving={isSaving}
           saveError={isQuickReps ? saveError : null}
         />
@@ -970,13 +973,6 @@ export default function SessionScreen() {
           onSkipStep={isQuickReps ? undefined : () => handleStepDone('skipped')}
         />
       )}
-
-      <NotYetSheet
-        visible={showNotYetSheet}
-        onClose={() => setShowNotYetSheet(false)}
-        onTryAgain={handleRetryStep}
-        onMakeEasier={() => handleStepDone('struggled')}
-      />
 
       {abandonSheet}
     </SafeScreen>
@@ -1170,7 +1166,7 @@ function StepActiveView({
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xxl }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
         {resumedNotice ? (
@@ -1182,42 +1178,48 @@ function StepActiveView({
 
         <StepCard step={step} />
 
-        {hasTimer ? (
-          <View style={{ gap: spacing.lg }}>
-            <TimerRing totalSeconds={step.durationSeconds!} currentSeconds={activeSession.timerSeconds} size={160} />
-            <View style={{ gap: spacing.xs }}>
-              <Text
-                variant="display"
-                color={timerDone ? colors.accent : colors.text.primary}
-                accessibilityLiveRegion={timerDone ? 'polite' : 'none'}
-              >
-                {formatTimer(activeSession.timerSeconds)}
-              </Text>
-              <Text variant="caption">
-                {activeSession.isTimerRunning ? 'Running' : timerDone ? 'Time’s up' : 'Start the timer when you’re ready'}
-              </Text>
+        {/* The one control sits in the middle of whatever space is left, so the
+            thumb finds it in the same place on every step. */}
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.xl, paddingVertical: spacing.lg }}>
+          {hasTimer ? (
+            <View style={{ alignItems: 'center', gap: spacing.lg }}>
+              <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                <TimerRing totalSeconds={step.durationSeconds!} currentSeconds={activeSession.timerSeconds} size={220} />
+                <View style={{ position: 'absolute', alignItems: 'center' }}>
+                  <Text
+                    variant="numeral"
+                    color={timerDone ? colors.accent : colors.text.primary}
+                    accessibilityLiveRegion={timerDone ? 'polite' : 'none'}
+                  >
+                    {formatTimer(activeSession.timerSeconds)}
+                  </Text>
+                  <Text variant="caption">
+                    {activeSession.isTimerRunning ? 'Running' : timerDone ? 'Time’s up' : 'Ready'}
+                  </Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <Button
+                  label={activeSession.isTimerRunning ? 'Pause' : timerDone ? 'Finished' : 'Start timer'}
+                  icon={activeSession.isTimerRunning ? 'pause' : 'play'}
+                  size="md"
+                  onPress={onToggleTimer}
+                  disabled={timerDone}
+                />
+                <Button label="Reset" variant="ghost" size="md" onPress={onResetTimer} disabled={timerUntouched} />
+              </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <Button
-                label={activeSession.isTimerRunning ? 'Pause timer' : timerDone ? 'Timer finished' : 'Start timer'}
-                icon={activeSession.isTimerRunning ? 'pause' : 'play'}
-                size="md"
-                onPress={onToggleTimer}
-                disabled={timerDone}
-              />
-              <Button label="Reset timer" variant="ghost" size="md" onPress={onResetTimer} disabled={timerUntouched} />
-            </View>
-          </View>
-        ) : showRepCounter ? (
-          <RepCounter
-            count={activeSession.repCount}
-            target={repTarget}
-            onIncrement={onIncrementRep}
-            onDecrement={onDecrementRep}
-          />
-        ) : null}
+          ) : showRepCounter ? (
+            <RepCounter
+              count={activeSession.repCount}
+              target={repTarget}
+              onIncrement={onIncrementRep}
+              onDecrement={onDecrementRep}
+            />
+          ) : null}
+        </View>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.sm }}>
           {onPreviousStep ? (
             <Button label="Previous step" icon="chevron-back" variant="ghost" size="md" onPress={onPreviousStep} />
           ) : null}
@@ -1247,40 +1249,6 @@ function StepActiveView({
 // ─────────────────────────────────────────────────────────────────────────────
 // "Not yet" — stick or drop, one tap each. The owner never types.
 // ─────────────────────────────────────────────────────────────────────────────
-
-function NotYetSheet({
-  visible,
-  onClose,
-  onTryAgain,
-  onMakeEasier,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onTryAgain: () => void;
-  onMakeEasier: () => void;
-}) {
-  return (
-    <BottomSheet visible={visible} onClose={onClose} title="Not yet">
-      <View style={{ gap: spacing.xl }}>
-        <Text variant="body">That is normal. Pick what happens next.</Text>
-        <ListGroup>
-          <ListRow
-            icon="refresh"
-            title="Try this step again"
-            subtitle="Back to zero on this step. Nothing is recorded."
-            onPress={onTryAgain}
-          />
-          <ListRow
-            icon="arrow-down-circle-outline"
-            title="Make it easier"
-            subtitle="Move on. Your plan will lighten the next attempt."
-            onPress={onMakeEasier}
-          />
-        </ListGroup>
-      </View>
-    </BottomSheet>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STEP_COMPLETE — brief, undoable, outcome-aware. The handler moves on.
