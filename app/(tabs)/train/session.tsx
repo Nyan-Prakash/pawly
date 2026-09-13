@@ -1054,7 +1054,10 @@ function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, on
       else next.add(item);
       return next;
     });
-  const equipment = protocol.equipmentNeeded.filter((item) => item.trim().length > 0);
+  // Setup lines first ("Quiet room"), then equipment, de-duplicated.
+  const equipment = [...(protocol.setup ?? []), ...protocol.equipmentNeeded].filter(
+    (item, index, all) => item.trim().length > 0 && all.indexOf(item) === index,
+  );
   return (
     <View style={{ flex: 1 }}>
       <ScrollView

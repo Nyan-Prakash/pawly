@@ -219,11 +219,11 @@ function SessionDetailSheet({
             </View>
           ) : null}
 
-          {protocol?.equipmentNeeded.length ? (
+          {protocol && (protocol.setup?.length || protocol.equipmentNeeded.length) ? (
             <View>
               <SectionHeader title="You'll need" />
               <ListGroup>
-                {protocol.equipmentNeeded.map((item) => (
+                {[...(protocol.setup ?? []), ...protocol.equipmentNeeded].map((item) => (
                   <ListRow key={item} icon="checkmark-circle-outline" iconTone="secondary" title={item} />
                 ))}
               </ListGroup>
@@ -248,6 +248,13 @@ function SessionDetailSheet({
                 ) : null}
               </Card>
             </View>
+          ) : null}
+
+          {protocol?.guide ? (
+            <Card style={{ gap: spacing.xs }}>
+              <Text variant="captionStrong">Between sessions</Text>
+              <Text variant="body">{protocol.guide}</Text>
+            </Card>
           ) : null}
 
           {protocol?.trainerNote ? (
