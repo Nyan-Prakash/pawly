@@ -1,18 +1,14 @@
 import { useState } from 'react';
-import {
-  Keyboard,
-  ScrollView,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Keyboard, ScrollView, View } from 'react-native';
 
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { submitUserFeedback, type FeedbackType } from '@/lib/feedback';
 
@@ -21,33 +17,17 @@ interface FeedbackModalProps {
   onClose: () => void;
 }
 
-const FEEDBACK_OPTIONS: {
-  value: FeedbackType;
-  icon: AppIconName;
-  label: string;
-}[] = [
-  {
-    value: 'bug',
-    icon: 'bug',
-    label: 'Bug Report',
-  },
-  {
-    value: 'feature_request',
-    icon: 'star',
-    label: 'Feature Request',
-  },
-  {
-    value: 'general',
-    icon: 'chatbubble-ellipses',
-    label: 'General Feedback',
-  },
+const FEEDBACK_OPTIONS: { value: FeedbackType; icon: AppIconName; label: string }[] = [
+  { value: 'bug', icon: 'bug-outline', label: 'Something is broken' },
+  { value: 'feature_request', icon: 'bulb-outline', label: 'An idea or request' },
+  { value: 'general', icon: 'chatbubble-ellipses-outline', label: 'General feedback' },
 ];
 
+/** Feedback sheet. Sends and closes; nothing else is shown on success. */
 export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function resetState() {
@@ -55,7 +35,6 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
     setMessage('');
     setError(null);
     setIsSubmitting(false);
-    setIsSuccess(false);
   }
 
   function handleClose() {
@@ -66,7 +45,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
 
   async function handleSubmit() {
     if (!selectedType) {
-      setError('Please select a feedback type.');
+      setError('Pick what the feedback is about.');
       return;
     }
     setError(null);
@@ -79,131 +58,63 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
         message: message.trim(),
         source_screen: 'profile',
       });
-      setIsSuccess(true);
-      setTimeout(() => {
-        handleClose();
-      }, 2000);
-    } catch (err) {
-      setError('Failed to send feedback. Please try again.');
-    } finally {
+      resetState();
+      onClose();
+    } catch {
+      setError("Couldn't send the feedback. Check your connection and try again.");
       setIsSubmitting(false);
     }
   }
 
   return (
-    <BottomSheet visible={visible} onClose={handleClose} avoidKeyboard>
+    <BottomSheet visible={visible} onClose={handleClose} title="Send feedback">
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ gap: spacing.xl, paddingBottom: spacing.lg }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View>
+          <SectionHeader title="What is it about" />
+          <ListGroup>
+            {FEEDBACK_OPTIONS.map((opt) => {
+              const selected = selectedType === opt.value;
+              return (
+                <ListRow
+                  key={opt.value}
+                  icon={opt.icon}
+                  iconTone={selected ? 'accent' : 'secondary'}
+                  title={opt.label}
+                  selected={selected}
+                  trailing={selected ? <AppIcon name="checkmark" color={colors.accent} /> : undefined}
+                  onPress={() => {
+                    setSelectedType(opt.value);
+                    if (error) setError(null);
+                  }}
+                />
+              );
+            })}
+          </ListGroup>
+        </View>
 
-              {isSuccess ? (
-                <View style={{ alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.lg }}>
-                  <View
-                    style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 32,
-                      backgroundColor: colors.brand.primary + '20',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <AppIcon name="checkmark" size={32} color={colors.brand.primary} />
-                  </View>
-                  <Text variant="h2" style={{ textAlign: 'center' }}>Thank you!</Text>
-                  <Text color={colors.text.secondary} style={{ textAlign: 'center' }}>
-                    Your feedback helps us make Pawly better for everyone.
-                  </Text>
-                </View>
-              ) : (
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  <Text variant="h2" style={{ marginBottom: spacing.xs }}>
-                    Send Feedback
-                  </Text>
-                  <Text variant="body" color={colors.text.secondary} style={{ marginBottom: spacing.xl }}>
-                    Tell us what's working, what's broken, or what you'd like to see.
-                  </Text>
+        <Input
+          label="Message (optional)"
+          placeholder="What happened, or what would help"
+          value={message}
+          onChangeText={setMessage}
+          multiline
+          numberOfLines={4}
+          maxLength={1000}
+          returnKeyType="default"
+        />
 
-                  {/* Type options */}
-                  <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
-                    <Text variant="micro" color={colors.text.secondary} style={{ fontWeight: '600' }}>
-                      FEEDBACK TYPE
-                    </Text>
-                    {FEEDBACK_OPTIONS.map((opt) => {
-                      const selected = selectedType === opt.value;
-                      return (
-                        <TouchableOpacity
-                          key={opt.value}
-                          activeOpacity={0.8}
-                          onPress={() => setSelectedType(opt.value)}
-                          style={{
-                            backgroundColor: selected ? colors.brand.primary + '10' : colors.bg.surface,
-                            borderWidth: 1.5,
-                            borderColor: selected ? colors.brand.primary : colors.border.default,
-                            borderRadius: radii.md,
-                            padding: spacing.lg,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: spacing.lg,
-                          }}
-                        >
-                          <AppIcon
-                            name={opt.icon}
-                            size={24}
-                            color={selected ? colors.brand.primary : colors.text.secondary}
-                          />
-                          <Text
-                            variant="bodyStrong"
-                            color={selected ? colors.brand.primary : colors.text.primary}
-                          >
-                            {opt.label}
-                          </Text>
-                          {selected && (
-                            <View style={{ marginLeft: 'auto' }}>
-                              <AppIcon name="checkmark-circle" size={20} color={colors.brand.primary} />
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+        {error ? (
+          <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+            {error}
+          </Text>
+        ) : null}
 
-                  {/* Message input */}
-                  <Input
-                    label="MESSAGE (OPTIONAL)"
-                    placeholder="Tell us more..."
-                    value={message}
-                    onChangeText={setMessage}
-                    multiline
-                    numberOfLines={4}
-                    maxLength={1000}
-                    style={{ marginBottom: spacing.xl }}
-                  />
-
-                  {/* Error */}
-                  {error && (
-                    <Text color={colors.error} variant="caption" style={{ marginBottom: spacing.lg }}>
-                      {error}
-                    </Text>
-                  )}
-
-                  {/* Actions */}
-                  <View style={{ gap: spacing.sm }}>
-                    <Button
-                      label={isSubmitting ? 'Sending...' : 'Submit Feedback'}
-                      onPress={handleSubmit}
-                      loading={isSubmitting}
-                      disabled={!selectedType || isSubmitting}
-                    />
-                    <Button
-                      label="Cancel"
-                      variant="ghost"
-                      onPress={handleClose}
-                      disabled={isSubmitting}
-                    />
-                  </View>
-                </ScrollView>
-              )}
+        <Button label="Send feedback" onPress={handleSubmit} loading={isSubmitting} disabled={!selectedType || isSubmitting} />
+      </ScrollView>
     </BottomSheet>
   );
 }
