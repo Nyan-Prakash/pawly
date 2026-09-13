@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  AppState,
-  type AppStateStatus,
-  Modal,
-  Pressable,
-  ScrollView,
-  View,
-  Vibration,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Animated, AppState, type AppStateStatus, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
-import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import { AppIcon } from '@/components/ui/AppIcon';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { MascotCallout } from '@/components/ui/MascotCallout';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { SafeScreen } from '@/components/ui/SafeScreen';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { TimerRing } from '@/components/session/TimerRing';
 import { RepCounter } from '@/components/session/RepCounter';
@@ -24,8 +23,11 @@ import { StepHelpSheet } from '@/components/session/StepHelpSheet';
 import { SessionModePicker } from '@/components/session/SessionModePicker';
 import { LiveAiTrainerOverlay } from '@/components/vision/LiveAiTrainerOverlay';
 import { colors } from '@/constants/colors';
-import { getCourseUiColors, hexToRgba, type CourseUiColors } from '@/constants/courseColors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
+import { durations, useReducedMotion } from '@/lib/motion';
+import { useTheme } from '@/lib/theme';
 import { useSessionStore, type ActiveSession, type StepResult } from '@/stores/sessionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useDogStore } from '@/stores/dogStore';
@@ -96,7 +98,7 @@ function buildChecklist(equipment: string[]): string[] {
 
 export default function SessionScreen() {
   const { id: sessionId, planId } = useLocalSearchParams<{ id: string; planId?: string }>();
-  const insets = useSafeAreaInsets();
+  const { colorScheme } = useTheme();
 
   const { fetchProtocol, markSessionComplete, plansById } = usePlanStore();
   const { dog, fetchDogLearningState, dogLearningState, activePlans } = useDogStore();
@@ -139,7 +141,6 @@ export default function SessionScreen() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [completedSessionCount, setCompletedSessionCount] = useState(0);
   const [lastStepOutcome, setLastStepOutcome] = useState<StepOutcome>('success');
   const [resumedNotice, setResumedNotice] = useState(false);
 
@@ -169,7 +170,7 @@ export default function SessionScreen() {
 
     const planSession = activePlan.sessions.find((s) => s.id === sessionId);
     if (!planSession) {
-      setLoadError('This session was not found in your active plan.');
+      setLoadError('This session is not in your active plan. Go back and pick a session from today.');
       return;
     }
 
@@ -180,7 +181,7 @@ export default function SessionScreen() {
       ([protocol, snapshot]) => {
         if (isCancelled) return;
         if (!protocol) {
-          setLoadError('We could not load this session protocol.');
+          setLoadError("Couldn't load this session. Check your connection and try again.");
           return;
         }
         startedSessionIdRef.current = sessionId;
@@ -209,9 +210,6 @@ export default function SessionScreen() {
         }
       },
     );
-
-    const completedCount = activePlan.sessions.filter((s) => s.isCompleted).length;
-    setCompletedSessionCount(completedCount + 1); // +1 for this session
 
     return () => {
       isCancelled = true;
@@ -281,6 +279,8 @@ export default function SessionScreen() {
   }, [activeSession?.isTimerRunning]);
 
   // ── Timer reaches zero ─────────────────────────────────────────────────────
+  // The handler is usually looking at the dog, not the phone, so the end of a
+  // timed step is announced with a haptic.
 
   useEffect(() => {
     if (
@@ -290,10 +290,16 @@ export default function SessionScreen() {
     ) {
       const step = activeSession.protocol.steps[activeSession.currentStepIndex];
       if (step?.durationSeconds && step.durationSeconds > 0) {
-        Vibration.vibrate([0, 100, 50, 100]);
+        haptics.warning();
       }
     }
   }, [activeSession?.timerSeconds, activeSession?.isTimerRunning]);
+
+  // ── Session complete: the one orchestrated moment ──────────────────────────
+
+  useEffect(() => {
+    if (activeSession?.state === 'COMPLETE') haptics.success();
+  }, [activeSession?.state]);
 
   // ── AppState — keep a running timer honest across backgrounding ───────────
 
@@ -345,8 +351,6 @@ export default function SessionScreen() {
   }, [activeSession?.state]);
 
   // ── Reflection questions are built from the REAL outcome ──────────────────
-  // The old code built them on entering review, before the handler had
-  // answered anything, so the engine always saw "okay".
 
   const buildQuestionsFor = useCallback(
     (outcome: SessionOutcome): ReflectionQuestionConfig[] => {
@@ -424,22 +428,20 @@ export default function SessionScreen() {
     [activeSession, completeStep],
   );
 
-  /** Manual mode: record the outcome, then either celebrate or move straight on. */
+  /** Manual mode: record the outcome, then either pause on it or move straight on. */
   const handleStepDone = useCallback(
     (outcome: StepOutcome) => {
       const recorded = recordStep(outcome);
       if (!recorded) return;
       setShowHelpSheet(false);
 
-      // Setup-style steps and skips don't get a celebration — there is nothing
-      // to celebrate, and the interstitial only slows the handler down.
+      // Setup-style steps and skips get no interstitial: there is nothing to
+      // note, and it only slows the handler down.
       if (isSetupStep(recorded.step) || outcome === 'skipped') {
-        Vibration.vibrate(40);
         advanceToNextStep();
         return;
       }
 
-      Vibration.vibrate(outcome === 'success' ? [0, 60, 40, 120] : [0, 60]);
       setLastStepOutcome(outcome);
       setState('STEP_COMPLETE');
     },
@@ -448,16 +450,12 @@ export default function SessionScreen() {
 
   const handleNextStep = useCallback(() => advanceToNextStep(), [advanceToNextStep]);
 
-  const handleUndoStep = useCallback(() => {
-    Vibration.vibrate(30);
-    undoLastStep();
-  }, [undoLastStep]);
+  const handleUndoStep = useCallback(() => undoLastStep(), [undoLastStep]);
 
-  // Live AI Trainer: no interstitial; record + advance immediately.
+  // Live coach: no interstitial; record + advance immediately.
   const handleLiveStepDone = useCallback(() => {
     const recorded = recordStep('success');
     if (!recorded) return;
-    Vibration.vibrate(recorded.isLast ? [0, 60, 40, 120, 40, 200] : [0, 60, 40, 120]);
     advanceToNextStep();
     if (recorded.isLast) setOverlayState('NONE');
   }, [recordStep, advanceToNextStep]);
@@ -535,7 +533,7 @@ export default function SessionScreen() {
       });
       await clearSessionSnapshot();
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Something went wrong while saving.';
+      const message = e instanceof Error ? e.message : 'The session could not be saved.';
       console.warn('[session] submit failed:', message);
       setSaveError(message);
     } finally {
@@ -616,18 +614,13 @@ export default function SessionScreen() {
     getTrainingSeconds,
   ]);
 
-  // ── Intro → training (or mode picker) ─────────────────────────────────────
+  // ── Intro to training ───────────────────────────────────────────────────────
 
-  const handleStart = useCallback(() => {
-    if (activeSession?.protocol.supportsLiveAiTrainer) {
-      setOverlayState('MODE_PICKER');
-    } else {
-      beginTraining();
-    }
-  }, [activeSession?.protocol, beginTraining]);
+  const handleStart = useCallback(() => beginTraining(), [beginTraining]);
+  const handleChooseMode = useCallback(() => setOverlayState('MODE_PICKER'), []);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Back press guard
+  // Leaving
   // ─────────────────────────────────────────────────────────────────────────
 
   const handleExit = () => {
@@ -636,7 +629,7 @@ export default function SessionScreen() {
       router.replace('/(tabs)/train');
       return;
     }
-    // Nothing recorded yet → just leave. No guilt, no bogus log.
+    // Nothing recorded yet: just leave. No guilt, no bogus log.
     if (activeSession.state === 'INTRO') {
       void clearSessionSnapshot();
       clearSession();
@@ -650,10 +643,25 @@ export default function SessionScreen() {
   // Render states
   // ─────────────────────────────────────────────────────────────────────────
 
-  const courseTheme = getCourseUiColors(activePlan ?? { id: sessionId ?? 'session-fallback' });
+  const statusBarStyle = colorScheme === 'dark' ? 'light' : 'dark';
 
   if (!activeSession || activeSession.state === 'LOADING') {
-    return <LoadingView insets={insets} error={loadError} onBack={() => router.back()} theme={courseTheme} />;
+    return (
+      <SafeScreen edges={['top', 'bottom']}>
+        <StatusBar style={statusBarStyle} />
+        <TopBar onClose={() => router.back()} progress={0} />
+        {loadError ? (
+          <EmptyState
+            icon="alert-circle-outline"
+            title="Session unavailable"
+            subtitle={loadError}
+            action={{ label: 'Back to Train', onPress: () => router.back() }}
+          />
+        ) : (
+          <LoadingSkeleton />
+        )}
+      </SafeScreen>
+    );
   }
 
   const { state, protocol, currentStepIndex } = activeSession;
@@ -667,16 +675,25 @@ export default function SessionScreen() {
       return step ? !isSetupStep(step) : true;
     }),
   );
+  const totalReps = activeSession.stepResults.reduce((sum, r) => sum + r.repCount, 0);
+
+  const abandonSheet = (
+    <AbandonSheet
+      visible={showAbandonSheet}
+      willRecord={abandonWouldLog}
+      stepsDone={stepSummary.total}
+      totalSteps={totalSteps}
+      onKeepGoing={() => setShowAbandonSheet(false)}
+      onLeave={handleAbandonConfirm}
+    />
+  );
 
   if (overlayState === 'MODE_PICKER') {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar style="dark" />
+      <SafeScreen edges={['top', 'bottom']}>
+        <StatusBar style={statusBarStyle} />
         <SessionModePicker
           dogName={dogName}
-          accentColor={courseTheme.solid}
-          accentTint={courseTheme.tint}
-          contrastTextColor={courseTheme.contrastText}
           onBack={() => {
             setOverlayState('NONE');
             setState('INTRO');
@@ -690,13 +707,13 @@ export default function SessionScreen() {
             beginTraining();
           }}
         />
-      </View>
+      </SafeScreen>
     );
   }
 
   if (overlayState === 'LIVE_COACHING') {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <View style={{ flex: 1 }}>
         <StatusBar style="light" />
         <LiveAiTrainerScreen
           protocol={activeSession.protocol}
@@ -721,30 +738,34 @@ export default function SessionScreen() {
           }}
           onIncrementRep={incrementRep}
         />
-        <AbandonSheet
-          visible={showAbandonSheet}
-          willRecord={abandonWouldLog}
-          stepsDone={stepSummary.total}
-          totalSteps={totalSteps}
-          onKeepGoing={() => setShowAbandonSheet(false)}
-          onLeave={handleAbandonConfirm}
-        />
+        {abandonSheet}
       </View>
     );
   }
 
+  // Progress through the steps; the review and completion states are "done".
+  const progress =
+    state === 'INTRO'
+      ? 0
+      : state === 'SESSION_REVIEW' || state === 'COMPLETE'
+        ? 1
+        : state === 'STEP_COMPLETE'
+          ? (currentStepIndex + 1) / totalSteps
+          : currentStepIndex / totalSteps;
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar style="dark" />
+    <SafeScreen edges={['top', 'bottom']}>
+      <StatusBar style={statusBarStyle} />
+      <TopBar onClose={handleExit} progress={progress} />
 
       {state === 'INTRO' && (
         <IntroView
           protocol={protocol}
+          courseTitle={activePlan?.courseTitle ?? null}
           dogName={dogName}
-          theme={courseTheme}
-          insets={insets}
-          onBack={handleExit}
+          showModeChoice={protocol.supportsLiveAiTrainer}
           onStart={handleStart}
+          onChooseMode={handleChooseMode}
         />
       )}
 
@@ -754,10 +775,8 @@ export default function SessionScreen() {
           stepNumber={currentStepIndex + 1}
           totalSteps={totalSteps}
           activeSession={activeSession}
-          theme={courseTheme}
           resumedNotice={resumedNotice}
           onBack={goToPreviousStep}
-          onExit={handleExit}
           onHelp={() => setShowHelpSheet(true)}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
@@ -768,7 +787,6 @@ export default function SessionScreen() {
           onIncrementRep={incrementRep}
           onResetReps={resetReps}
           onStepDone={handleStepDone}
-          insets={insets}
         />
       )}
 
@@ -778,10 +796,8 @@ export default function SessionScreen() {
           totalSteps={totalSteps}
           outcome={lastStepOutcome}
           nextStep={protocol.steps[currentStepIndex + 1]}
-          theme={courseTheme}
           onNext={handleNextStep}
           onUndo={handleUndoStep}
-          insets={insets}
         />
       )}
 
@@ -805,20 +821,14 @@ export default function SessionScreen() {
           onSubmit={handleSubmitSession}
           isSaving={isSaving}
           saveError={saveError}
-          insets={insets}
-          theme={courseTheme}
         />
       )}
 
       {state === 'COMPLETE' && (
         <CompleteView
-          dogName={dogName}
           outcome={reviewOutcome ?? 'met'}
-          completedSessionCount={completedSessionCount}
-          totalSessions={activePlan?.sessions.length ?? 0}
+          totalReps={totalReps}
           trainingSeconds={getTrainingSeconds()}
-          nextSessionTitle={findNextSessionTitle(activePlan?.sessions ?? [], activeSession.sessionId)}
-          theme={courseTheme}
           onBack={() => {
             clearSession();
             router.replace('/(tabs)/train');
@@ -832,78 +842,50 @@ export default function SessionScreen() {
           onClose={() => setShowHelpSheet(false)}
           protocol={protocol}
           step={currentStep}
+          stepNumber={currentStepIndex + 1}
           dogName={dogName}
-          accentColor={courseTheme.solid}
           onSkipStep={() => handleStepDone('skipped')}
         />
       )}
 
-      <AbandonSheet
-        visible={showAbandonSheet}
-        willRecord={abandonWouldLog}
-        stepsDone={stepSummary.total}
-        totalSteps={totalSteps}
-        onKeepGoing={() => setShowAbandonSheet(false)}
-        onLeave={handleAbandonConfirm}
-      />
+      {abandonSheet}
+    </SafeScreen>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Top bar: leave + step progress. The screen is a fullScreenModal with no
+// native header, so this is the only chrome it draws.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TopBar({ onClose, progress }: { onClose: () => void; progress: number }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        paddingLeft: spacing.sm,
+        paddingRight: spacing.lg,
+      }}
+    >
+      <IconButton icon="close" accessibilityLabel="Leave session" tone="secondary" onPress={onClose} />
+      <ProgressBar progress={progress} accessibilityLabel="Session progress" style={{ flex: 1 }} />
     </View>
   );
 }
 
-function findNextSessionTitle(
-  sessions: { id: string; title: string; isCompleted: boolean }[],
-  currentId: string,
-): string | null {
-  const idx = sessions.findIndex((s) => s.id === currentId);
-  const after = idx >= 0 ? sessions.slice(idx + 1) : sessions;
-  return after.find((s) => !s.isCompleted && s.id !== currentId)?.title ?? null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-views
-// ─────────────────────────────────────────────────────────────────────────────
-
-function LoadingView({
-  insets,
-  error,
-  onBack,
-  theme,
-}: {
-  insets: ReturnType<typeof useSafeAreaInsets>;
-  error?: string | null;
-  onBack?: () => void;
-  theme?: CourseUiColors;
-}) {
-  const accentColor = theme?.solid ?? colors.primary;
+function LoadingSkeleton() {
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.background,
-        paddingTop: insets.top,
-        gap: spacing.lg,
-      }}
-    >
-      <AppIcon name="paw" size={48} color={accentColor} />
-      {!error && <ActivityIndicator size="large" color={accentColor} />}
-      <Text style={{ marginTop: spacing.sm, color: colors.textSecondary, fontSize: 16, textAlign: 'center', paddingHorizontal: spacing.xxl }}>
-        {error ?? 'Getting your session ready...'}
-      </Text>
-      {error && onBack ? (
-        <Pressable
-          onPress={onBack}
-          style={({ pressed }) => ({
-            marginTop: spacing.sm,
-            opacity: pressed ? 0.7 : 1,
-            minHeight: 44,
-            justifyContent: 'center',
-          })}
-        >
-          <Text style={{ color: accentColor, fontSize: 16, fontWeight: '600' }}>Back</Text>
-        </Pressable>
-      ) : null}
+    <View style={{ padding: spacing.lg, gap: spacing.xl }} accessibilityLabel="Loading session">
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={20} width="40%" />
+        <SkeletonBlock height={30} width="80%" />
+        <SkeletonBlock height={22} width="95%" />
+        <SkeletonBlock height={22} width="70%" />
+      </View>
+      <SkeletonBlock height={156} borderRadius={radii.md} />
+      <Text variant="caption">Loading session</Text>
     </View>
   );
 }
@@ -914,126 +896,58 @@ function LoadingView({
 
 interface IntroViewProps {
   protocol: Protocol;
+  courseTitle: string | null;
   dogName: string;
-  theme: CourseUiColors;
-  insets: ReturnType<typeof useSafeAreaInsets>;
-  onBack: () => void;
+  showModeChoice: boolean;
   onStart: () => void;
+  onChooseMode: () => void;
 }
 
-function IntroView({ protocol, dogName, theme, insets, onBack, onStart }: IntroViewProps) {
+function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, onChooseMode }: IntroViewProps) {
   const checklist = buildChecklist(protocol.equipmentNeeded);
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + spacing.lg,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: insets.bottom + 140,
-          gap: spacing.xxl,
-        }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
-        <BackButton onPress={onBack} label="Close" icon="close" />
-
         <View style={{ gap: spacing.sm }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.textPrimary, lineHeight: 36 }}>
-            {protocol.title}
+          {courseTitle ? <Text variant="caption">{courseTitle}</Text> : null}
+          <Text variant="h1">{protocol.title}</Text>
+          <Text variant="body">{protocol.objective}</Text>
+          <Text variant="caption">
+            {protocol.durationMinutes} min, {protocol.steps.length} steps
           </Text>
-          <Text style={{ fontSize: 16, lineHeight: 24, color: colors.textSecondary }}>{protocol.objective}</Text>
         </View>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          <Chip label={`${protocol.durationMinutes} min`} icon="time" color={theme.solid} textColor={theme.text} />
-          <Chip label={`${protocol.steps.length} steps`} icon="list" color={theme.solid} textColor={theme.text} />
+        <View>
+          <SectionHeader title={`Today's goal for ${dogName}`} />
+          <Text variant="body">{protocol.successCriteria}</Text>
         </View>
 
-        {/* Goal — the same criterion the review will ask about */}
-        <View
-          style={{
-            backgroundColor: colors.surface,
-            borderRadius: 16,
-            padding: spacing.xl,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            gap: spacing.xs,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-            <AppIcon name="flag" size={14} color={theme.text} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              Today's goal for {dogName}
-            </Text>
-          </View>
-          <Text style={{ fontSize: 15, lineHeight: 22, color: colors.textPrimary }}>{protocol.successCriteria}</Text>
-        </View>
-
-        {/* Before you start */}
-        <View style={{ gap: spacing.sm }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-            Before you start
-          </Text>
-          <View style={{ gap: spacing.sm }}>
+        <View>
+          <SectionHeader title="Before you start" />
+          <ListGroup>
             {checklist.map((item) => (
-              <View key={item} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <AppIcon name="checkmark-circle" size={18} color={theme.solid} />
-                <Text style={{ fontSize: 15, color: colors.textPrimary, lineHeight: 22 }}>{item}</Text>
-              </View>
+              <ListRow key={item} icon="checkmark-circle-outline" title={item} />
             ))}
-          </View>
-          {protocol.equipmentNeeded.length > 0 && (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
-              {protocol.equipmentNeeded.map((item) => (
-                <Chip key={item} label={item} color={colors.secondary} textColor={colors.textPrimary} />
-              ))}
-            </View>
-          )}
+            {protocol.equipmentNeeded.map((item) => (
+              <ListRow key={`equipment-${item}`} icon="cube-outline" iconTone="secondary" title={item} />
+            ))}
+          </ListGroup>
         </View>
 
         {protocol.trainerNote ? (
-          <View
-            style={{
-              backgroundColor: theme.tint,
-              borderRadius: 14,
-              padding: spacing.xl,
-              borderLeftWidth: 4,
-              borderLeftColor: theme.solid,
-              gap: spacing.xs,
-            }}
-          >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              Trainer note
-            </Text>
-            <Text style={{ fontSize: 15, lineHeight: 22, color: colors.textPrimary }}>{protocol.trainerNote}</Text>
-          </View>
+          <Card style={{ gap: spacing.xs }}>
+            <Text variant="caption">From the coach</Text>
+            <Text variant="body">{protocol.trainerNote}</Text>
+          </Card>
         ) : null}
       </ScrollView>
 
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: insets.bottom + spacing.lg,
-          paddingTop: spacing.lg,
-          backgroundColor: colors.background,
-        }}
-      >
-        <Button
-          label="Start session"
-          leftIcon="play"
-          onPress={onStart}
-          size="lg"
-          style={{
-            minHeight: 58,
-            borderRadius: 16,
-            backgroundColor: theme.solid,
-            borderColor: theme.solid,
-            borderWidth: 1,
-          }}
-        />
+      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <Button label="Start session" icon="play" onPress={onStart} />
+        {showModeChoice ? <Button label="Choose how to train" variant="secondary" onPress={onChooseMode} /> : null}
       </View>
     </View>
   );
@@ -1048,17 +962,14 @@ interface StepActiveViewProps {
   stepNumber: number;
   totalSteps: number;
   activeSession: ActiveSession;
-  theme: CourseUiColors;
   resumedNotice: boolean;
   onBack: () => void;
-  onExit: () => void;
   onHelp: () => void;
   onToggleTimer: () => void;
   onResetTimer: () => void;
   onIncrementRep: () => void;
   onResetReps: () => void;
   onStepDone: (outcome: StepOutcome) => void;
-  insets: ReturnType<typeof useSafeAreaInsets>;
 }
 
 function StepActiveView({
@@ -1066,213 +977,95 @@ function StepActiveView({
   stepNumber,
   totalSteps,
   activeSession,
-  theme,
   resumedNotice,
   onBack,
-  onExit,
   onHelp,
   onToggleTimer,
   onResetTimer,
   onIncrementRep,
   onResetReps,
   onStepDone,
-  insets,
 }: StepActiveViewProps) {
   const hasTimer = !!step.durationSeconds;
   const hasReps = !!step.reps;
   const setupStep = isSetupStep(step);
   const timerDone = hasTimer && activeSession.timerSeconds === 0 && !activeSession.isTimerRunning;
   const timerUntouched = !activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds;
-  const progressRatio = (stepNumber - 1) / totalSteps;
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ height: 4, backgroundColor: colors.border.default, marginTop: insets.top }}>
-        <View style={{ height: 4, width: `${progressRatio * 100}%`, backgroundColor: theme.solid }} />
-      </View>
-
       <ScrollView
-        contentContainerStyle={{
-          paddingTop: spacing.lg,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: insets.bottom + 160,
-          gap: spacing.xxl,
-        }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header row: back · step counter · help · exit */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <BackButton onPress={onBack} />
-          <View
-            style={{
-              backgroundColor: hexToRgba(theme.solid, 0.12),
-              paddingHorizontal: spacing.lg,
-              paddingVertical: spacing.xs,
-              borderRadius: 99,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, letterSpacing: 0.3 }}>
-              Step {stepNumber} of {totalSteps}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <IconTap name="help-circle-outline" label="Help with this step" onPress={onHelp} color={theme.text} />
-            <IconTap name="close" label="Leave session" onPress={onExit} color={colors.textSecondary} />
-          </View>
-        </View>
-
         {resumedNotice ? (
-          <View
-            style={{
-              backgroundColor: colors.status.infoBg,
-              borderColor: colors.status.infoBorder,
-              borderWidth: 1,
-              borderRadius: 12,
-              paddingHorizontal: spacing.lg,
-              paddingVertical: spacing.sm,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.sm,
-            }}
-          >
-            <AppIcon name="refresh" size={16} color={colors.textPrimary} />
-            <Text style={{ fontSize: 14, color: colors.textPrimary }}>Picked up where you left off.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLiveRegion="polite">
+            <AppIcon name="refresh" size={16} color={colors.text.secondary} />
+            <Text variant="caption">Picked up where you left off.</Text>
           </View>
         ) : null}
 
-        <StepCard step={step} stepNumber={stepNumber} totalSteps={totalSteps} accentColor={theme.solid} />
+        <StepCard step={step} stepNumber={stepNumber} totalSteps={totalSteps} />
 
         {hasTimer && (
-          <View
-            style={{
-              backgroundColor: hexToRgba(theme.solid, 0.06),
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: hexToRgba(theme.solid, 0.12),
-              paddingVertical: spacing.xxl,
-              paddingHorizontal: spacing.xl,
-              alignItems: 'center',
-              gap: spacing.xl,
-            }}
-          >
-            <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm }}>
-              <TimerRing
-                totalSeconds={step.durationSeconds!}
-                currentSeconds={activeSession.timerSeconds}
-                size={200}
-                color={timerDone ? colors.success : theme.solid}
-              />
-              <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 40, fontWeight: '700', lineHeight: 46, color: timerDone ? colors.success : colors.textPrimary }}>
-                  {formatTimer(activeSession.timerSeconds)}
-                </Text>
-                {timerDone && (
-                  <Text style={{ fontSize: 13, color: colors.success, fontWeight: '600', marginTop: 4 }}>Done!</Text>
-                )}
-              </View>
-            </View>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
-              <Pressable
-                onPress={onResetTimer}
-                disabled={timerUntouched}
-                accessibilityLabel="Reset timer"
-                style={({ pressed }) => ({
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: pressed ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: timerUntouched ? 0 : 1,
-                })}
+          <View style={{ gap: spacing.lg }}>
+            <TimerRing totalSeconds={step.durationSeconds!} currentSeconds={activeSession.timerSeconds} size={160} />
+            <View style={{ gap: spacing.xs }}>
+              <Text
+                variant="display"
+                color={timerDone ? colors.accent : colors.text.primary}
+                accessibilityLiveRegion={timerDone ? 'polite' : 'none'}
               >
-                <AppIcon name="refresh" size={20} color={colors.textSecondary} />
-              </Pressable>
-              <Pressable
+                {formatTimer(activeSession.timerSeconds)}
+              </Text>
+              <Text variant="caption">
+                {activeSession.isTimerRunning ? 'Running' : timerDone ? 'Time’s up' : 'Start the timer when you’re ready'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <Button
+                label={activeSession.isTimerRunning ? 'Pause timer' : timerDone ? 'Timer finished' : 'Start timer'}
+                icon={activeSession.isTimerRunning ? 'pause' : 'play'}
+                size="md"
                 onPress={onToggleTimer}
-                accessibilityLabel={activeSession.isTimerRunning ? 'Pause timer' : 'Start timer'}
-                style={({ pressed }) => ({
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  backgroundColor: pressed
-                    ? timerDone ? hexToRgba(colors.success, 0.85) : theme.selectedBorder
-                    : timerDone ? colors.success : theme.solid,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  shadowColor: timerDone ? colors.success : theme.solid,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 8,
-                  elevation: 4,
-                })}
-              >
-                <AppIcon name={activeSession.isTimerRunning ? 'pause' : 'play'} size={28} color="#FFFFFF" />
-              </Pressable>
-              <View style={{ width: 48, height: 48 }} />
+                disabled={timerDone}
+              />
+              <Button label="Reset timer" variant="ghost" size="md" onPress={onResetTimer} disabled={timerUntouched} />
             </View>
-
-            <Text style={{ fontSize: 14, fontWeight: '600', color: timerDone ? colors.success : colors.textSecondary, textAlign: 'center', letterSpacing: 0.3 }}>
-              {activeSession.isTimerRunning ? 'Running…' : timerDone ? 'Time’s up' : 'Tap play when you’re ready'}
-            </Text>
           </View>
         )}
 
         {hasReps && (
-          <View style={{ gap: spacing.xs }}>
-            <View style={{ height: 300 }}>
-              <RepCounter
-                count={activeSession.repCount}
-                target={step.reps}
-                onIncrement={onIncrementRep}
-                onReset={onResetReps}
-                accentColor={theme.solid}
-              />
-            </View>
-            <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 }}>
-              Counting is optional — what matters is whether it worked.
-            </Text>
+          <View style={{ gap: spacing.sm }}>
+            <RepCounter
+              count={activeSession.repCount}
+              target={step.reps}
+              onIncrement={onIncrementRep}
+              onReset={onResetReps}
+            />
+            <Text variant="caption">Counting is optional. What matters is whether it worked.</Text>
           </View>
         )}
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+          <Button label="Help with this step" icon="help-circle-outline" variant="ghost" size="md" onPress={onHelp} />
+          <Button
+            label={stepNumber > 1 ? 'Previous step' : 'Back to overview'}
+            icon="chevron-back"
+            variant="ghost"
+            size="md"
+            onPress={onBack}
+          />
+        </View>
       </ScrollView>
 
-      {/* Outcome CTA */}
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: insets.bottom + spacing.xl,
-          paddingTop: spacing.lg,
-          backgroundColor: colors.background,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.default,
-          gap: spacing.sm,
-        }}
-      >
+      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
         {setupStep ? (
-          <PrimaryCta label="Next" icon="arrow-forward" theme={theme} onPress={() => onStepDone('success')} />
+          <Button label="Next step" onPress={() => onStepDone('success')} />
         ) : (
           <>
-            <PrimaryCta label="It worked" icon="checkmark" theme={theme} onPress={() => onStepDone('success')} />
-            <Pressable
-              onPress={() => onStepDone('struggled')}
-              accessibilityRole="button"
-              style={({ pressed }) => ({
-                borderWidth: 1.5,
-                borderColor: colors.border.strong,
-                borderRadius: 14,
-                minHeight: 50,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: pressed ? colors.bg.surfaceAlt : 'transparent',
-              })}
-            >
-              <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>Didn’t quite work</Text>
-            </Pressable>
+            <Button label="It worked" icon="checkmark" onPress={() => onStepDone('success')} />
+            <Button label="Didn’t quite work" variant="secondary" onPress={() => onStepDone('struggled')} />
           </>
         )}
       </View>
@@ -1280,77 +1073,8 @@ function StepActiveView({
   );
 }
 
-function PrimaryCta({
-  label,
-  icon,
-  theme,
-  onPress,
-}: {
-  label: string;
-  icon: AppIconName;
-  theme: CourseUiColors;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      style={({ pressed }) => ({
-        backgroundColor: pressed ? theme.selectedBorder : theme.solid,
-        borderWidth: 1,
-        borderColor: pressed ? theme.solid : theme.selectedBorder,
-        borderRadius: 14,
-        paddingVertical: spacing.xl,
-        alignItems: 'center',
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: spacing.sm,
-        minHeight: 54,
-        shadowColor: theme.solid,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.14,
-        shadowRadius: 10,
-        elevation: 3,
-      })}
-    >
-      <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>{label}</Text>
-      <AppIcon name={icon} size={16} color={colors.text.primary} />
-    </Pressable>
-  );
-}
-
-function IconTap({
-  name,
-  label,
-  onPress,
-  color,
-}: {
-  name: AppIconName;
-  label: string;
-  onPress: () => void;
-  color: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => ({
-        opacity: pressed ? 0.6 : 1,
-        minHeight: 44,
-        minWidth: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-      })}
-    >
-      <AppIcon name={name} size={24} color={color} />
-    </Pressable>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// STEP_COMPLETE — brief, undoable, outcome-aware
+// STEP_COMPLETE — brief, undoable, outcome-aware. The handler moves on.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface StepCompleteViewProps {
@@ -1358,214 +1082,110 @@ interface StepCompleteViewProps {
   totalSteps: number;
   outcome: StepOutcome;
   nextStep: ProtocolStep | undefined;
-  theme: CourseUiColors;
   onNext: () => void;
   onUndo: () => void;
-  insets: ReturnType<typeof useSafeAreaInsets>;
 }
 
-const ADVANCE_MS = 2500;
-
-function StepCompleteView({ stepNumber, totalSteps, outcome, nextStep, theme, onNext, onUndo, insets }: StepCompleteViewProps) {
+function StepCompleteView({ stepNumber, totalSteps, outcome, nextStep, onNext, onUndo }: StepCompleteViewProps) {
   const isLast = !nextStep;
   const struggled = outcome === 'struggled';
-  const countdownAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (isLast) return undefined;
-    countdownAnim.setValue(1);
-    const anim = Animated.timing(countdownAnim, { toValue: 0, duration: ADVANCE_MS, useNativeDriver: false });
-    anim.start();
-    const t = setTimeout(onNext, ADVANCE_MS);
-    return () => {
-      anim.stop();
-      clearTimeout(t);
-    };
-  }, [isLast]);
-
-  const nextStepLabel = nextStep
-    ? nextStep.instruction.length > 48
-      ? nextStep.instruction.slice(0, 48).replace(/\s\S+$/, '') + '…'
-      : nextStep.instruction
-    : '';
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: spacing.xxl,
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-        gap: spacing.xxl,
-        backgroundColor: colors.background,
-      }}
-    >
-      <AppIcon
-        name={struggled ? 'bookmark' : 'checkmark-circle'}
-        size={64}
-        color={struggled ? colors.accent : colors.success}
-      />
-      <View style={{ alignItems: 'center', gap: spacing.sm }}>
-        <Text style={{ fontSize: 26, fontWeight: '700', lineHeight: 32, color: colors.textPrimary, textAlign: 'center' }}>
-          {struggled ? `Step ${stepNumber} noted` : `Step ${stepNumber} done`}
-        </Text>
-        <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', lineHeight: 24 }}>
-          {struggled
-            ? 'Struggles are useful data. Your plan will factor it in.'
-            : isLast
-              ? 'That was the last step.'
-              : `${totalSteps - stepNumber} to go.`}
-        </Text>
-      </View>
-
-      {isLast ? (
-        <PrimaryCta label="Wrap up" icon="arrow-forward" theme={theme} onPress={onNext} />
-      ) : (
-        <View style={{ alignItems: 'center', gap: spacing.lg, width: '100%' }}>
-          <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>Next: {nextStepLabel}</Text>
-          <PrimaryCta label="Next step" icon="arrow-forward" theme={theme} onPress={onNext} />
-          <View style={{ width: '60%', height: 3, borderRadius: 99, backgroundColor: colors.border.soft, overflow: 'hidden' }}>
-            <Animated.View
-              style={{
-                height: 3,
-                borderRadius: 99,
-                backgroundColor: theme.solid,
-                width: countdownAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-              }}
-            />
-          </View>
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }} showsVerticalScrollIndicator={false}>
+        <AppIcon
+          name={struggled ? 'bookmark-outline' : 'checkmark-circle'}
+          size={40}
+          color={struggled ? colors.text.secondary : colors.accent}
+        />
+        <View style={{ gap: spacing.sm }}>
+          <Text variant="h1">{struggled ? `Step ${stepNumber} noted` : `Step ${stepNumber} done`}</Text>
+          <Text variant="body">
+            {struggled
+              ? 'Struggles are useful data. Your plan will factor it in.'
+              : isLast
+                ? 'That was the last step.'
+                : `${totalSteps - stepNumber} to go.`}
+          </Text>
         </View>
-      )}
 
-      <Pressable
-        onPress={onUndo}
-        accessibilityRole="button"
-        accessibilityLabel="Undo, go back to this step"
-        style={({ pressed }) => ({
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.xs,
-          minHeight: 44,
-          paddingHorizontal: spacing.lg,
-          opacity: pressed ? 0.5 : 1,
-        })}
-      >
-        <AppIcon name="arrow-undo" size={16} color={colors.textSecondary} />
-        <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSecondary }}>Oops, undo</Text>
-      </Pressable>
+        {nextStep ? (
+          <View>
+            <SectionHeader title="Next step" />
+            <Text variant="body">{nextStep.instruction}</Text>
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <Button label={isLast ? 'Review session' : 'Next step'} onPress={onNext} />
+        <Button label="Undo" variant="ghost" onPress={onUndo} accessibilityLabel="Undo, go back to this step" />
+      </View>
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPLETE
+// COMPLETE — the one orchestrated moment
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CompleteViewProps {
-  dogName: string;
   outcome: SessionOutcome;
-  completedSessionCount: number;
-  totalSessions: number;
+  totalReps: number;
   trainingSeconds: number;
-  nextSessionTitle: string | null;
-  theme: CourseUiColors;
   onBack: () => void;
 }
 
-function CompleteView({
-  dogName,
-  outcome,
-  completedSessionCount,
-  totalSessions,
-  trainingSeconds,
-  nextSessionTitle,
-  theme,
-  onBack,
-}: CompleteViewProps) {
-  const insets = useSafeAreaInsets();
-  const headline =
-    outcome === 'met'
-      ? `${dogName} crushed it!`
-      : outcome === 'partial'
-        ? `Solid work, ${dogName}`
-        : `Logged. ${dogName} will get there.`;
-  const sub =
-    outcome === 'met'
-      ? 'Saved. Your plan will build on this.'
-      : outcome === 'partial'
-        ? 'Saved. Partial wins still count — your plan will adjust the next session.'
-        : 'Saved. Sessions that don’t land are how the plan learns what to change.';
+const OUTCOME_LABEL: Record<SessionOutcome, string> = {
+  met: 'Goal met',
+  partial: 'Mostly met',
+  not_met: 'Not yet',
+};
+
+function CompleteView({ outcome, totalReps, trainingSeconds, onBack }: CompleteViewProps) {
+  const reducedMotion = useReducedMotion();
+  const reveal = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+
+  // Draws in once when the complete state is entered; instant under reduced motion.
+  useEffect(() => {
+    if (reducedMotion) {
+      reveal.setValue(1);
+      return;
+    }
+    Animated.timing(reveal, { toValue: 1, duration: durations.base, useNativeDriver: true }).start();
+  }, [reducedMotion, reveal]);
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        paddingHorizontal: spacing.xxl,
-        paddingTop: insets.top + spacing.xxl * 2,
-        paddingBottom: insets.bottom + spacing.xxl,
-        gap: spacing.xxl,
-        backgroundColor: theme.tint,
-      }}
-    >
-      <View style={{ alignItems: 'center', gap: spacing.lg }}>
-        <AppIcon name={outcome === 'not_met' ? 'bookmark' : 'ribbon'} size={72} color={theme.solid} />
-        <Text style={{ fontSize: 30, fontWeight: '800', color: theme.text, textAlign: 'center', lineHeight: 40 }}>
-          {headline}
-        </Text>
-        <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 }}>{sub}</Text>
-      </View>
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }} showsVerticalScrollIndicator={false}>
+        <Animated.View
+          style={{
+            alignItems: 'center',
+            gap: spacing.lg,
+            opacity: reveal,
+            transform: [{ scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }],
+          }}
+        >
+          <MascotCallout state="celebrating" size={120} />
+          <View style={{ alignItems: 'center', gap: spacing.sm }}>
+            <Text variant="display" style={{ textAlign: 'center' }} accessibilityRole="header">
+              Session complete
+            </Text>
+            <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center' }}>
+              Your plan will adjust from what happened today.
+            </Text>
+          </View>
+        </Animated.View>
 
-      <View
-        style={{
-          backgroundColor: colors.surface,
-          borderRadius: 20,
-          padding: spacing.xxl,
-          gap: spacing.xl,
-          width: '100%',
-          borderWidth: 1,
-          borderColor: colors.border.default,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          elevation: 3,
-        }}
-      >
-        <StatRow emoji="paw" label="Sessions completed" value={`${completedSessionCount} of ${totalSessions}`} color={theme.solid} />
-        <StatRow emoji="time" label="Time trained" value={formatDuration(trainingSeconds)} color={theme.solid} />
-        {nextSessionTitle && <StatRow emoji="arrow-forward" label="Next up" value={nextSessionTitle} color={theme.solid} />}
-      </View>
+        <ListGroup>
+          <ListRow title="Reps" trailing={`${totalReps}`} />
+          <ListRow title="Time" trailing={formatDuration(trainingSeconds)} />
+          <ListRow title="Outcome" trailing={OUTCOME_LABEL[outcome]} />
+        </ListGroup>
+      </ScrollView>
 
-      <Pressable
-        onPress={onBack}
-        accessibilityRole="button"
-        style={({ pressed }) => ({
-          backgroundColor: pressed ? theme.selectedBorder : theme.solid,
-          borderRadius: 14,
-          paddingVertical: spacing.xl,
-          paddingHorizontal: spacing.xxxl,
-          alignItems: 'center',
-          minHeight: 54,
-          width: '100%',
-        })}
-      >
-        <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Back to today</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function StatRow({ emoji, label, value, color }: { emoji: AppIconName; label: string; value: string; color: string }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
-      <AppIcon name={emoji} size={20} color={color} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, color: colors.textSecondary }}>{label}</Text>
-        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }} numberOfLines={2}>{value}</Text>
+      <View style={{ padding: spacing.lg }}>
+        <Button label="Back to today" onPress={onBack} />
       </View>
     </View>
   );
@@ -1590,147 +1210,26 @@ function AbandonSheet({
   onKeepGoing: () => void;
   onLeave: () => void;
 }) {
-  const insets = useSafeAreaInsets();
-  const title = willRecord ? 'Leave this session?' : 'Leave for now?';
+  useEffect(() => {
+    if (visible) haptics.warning();
+  }, [visible]);
+
   const body = willRecord
     ? stepsDone > 0
-      ? `You've done ${stepsDone} of ${totalSteps} steps. We'll save it as unfinished so your plan can adjust.`
-      : "We'll note this as an unfinished attempt so your plan can adjust."
+      ? `You've done ${stepsDone} of ${totalSteps} steps. It will be saved as unfinished so your plan can adjust.`
+      : 'This will be noted as an unfinished attempt so your plan can adjust.'
     : 'Nothing has been recorded yet. Come back whenever you and your dog are ready.';
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onKeepGoing}>
-      <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(6,10,18,0.72)' }} onPress={onKeepGoing}>
-        <Pressable
-          onPress={() => {}}
-          style={{
-            backgroundColor: colors.surface,
-            borderTopLeftRadius: 32,
-            borderTopRightRadius: 32,
-            paddingTop: spacing.sm,
-            paddingHorizontal: spacing.xxl,
-            paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.xl,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -8 },
-            shadowOpacity: 0.22,
-            shadowRadius: 28,
-            elevation: 16,
-            overflow: 'hidden',
-          }}
-        >
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 999, backgroundColor: colors.borderColor, marginBottom: spacing.xl }} />
-
-          <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 36,
-                backgroundColor: '#FEF3C7',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <AppIcon name="paw" size={32} color="#D97706" />
-            </View>
-          </View>
-
-          <View style={{ alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xxl }}>
-            <Text style={{ fontSize: 22, fontWeight: '800', lineHeight: 30, color: colors.textPrimary, textAlign: 'center', letterSpacing: -0.3 }}>
-              {title}
-            </Text>
-            <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 23, maxWidth: 300 }}>
-              {body}
-            </Text>
-          </View>
-
-          <View style={{ gap: spacing.sm }}>
-            <Pressable onPress={onKeepGoing} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}>
-              <View
-                style={{
-                  backgroundColor: colors.brand.primary,
-                  borderRadius: 18,
-                  paddingVertical: 17,
-                  alignItems: 'center',
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                  gap: spacing.sm,
-                }}
-              >
-                <AppIcon name="paw" size={18} color="#fff" />
-                <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.1 }}>Keep going</Text>
-              </View>
-            </Pressable>
-
-            <Pressable onPress={onLeave} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}>
-              <View
-                style={{
-                  borderWidth: 1.5,
-                  borderColor: willRecord ? colors.error : colors.border.strong,
-                  borderRadius: 18,
-                  paddingVertical: 15,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '600', color: willRecord ? colors.error : colors.textPrimary }}>
-                  {willRecord ? 'Leave and save as unfinished' : 'Leave'}
-                </Text>
-              </View>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared tiny components
-// ─────────────────────────────────────────────────────────────────────────────
-
-function BackButton({ onPress, label = 'Back', icon = 'chevron-back' }: { onPress: () => void; label?: string; icon?: AppIconName }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={12}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => ({
-        alignSelf: 'flex-start',
-        opacity: pressed ? 0.6 : 1,
-        minHeight: 44,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        justifyContent: 'center',
-      })}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <AppIcon name={icon} size={18} color={colors.textSecondary} />
-        <Text style={{ fontSize: 16, color: colors.textSecondary }}>{label}</Text>
+    <BottomSheet visible={visible} onClose={onKeepGoing} title="Leave this session?">
+      <View style={{ flex: 1, gap: spacing.xl }}>
+        <Text variant="body">{body}</Text>
+        <View style={{ gap: spacing.sm }}>
+          <Button label="Leave session" variant="destructive" onPress={onLeave} />
+          <Button label="Keep training" variant="ghost" onPress={onKeepGoing} />
+        </View>
       </View>
-    </Pressable>
-  );
-}
-
-function Chip({ label, icon, color, textColor }: { label: string; icon?: AppIconName; color?: string; textColor?: string }) {
-  const chipColor = color ?? colors.primary;
-  const chipTextColor = textColor ?? chipColor;
-  return (
-    <View
-      style={{
-        backgroundColor: hexToRgba(chipColor, 0.12),
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.xs + 2,
-        borderRadius: 99,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.xs,
-      }}
-    >
-      {icon ? <AppIcon name={icon} size={14} color={chipTextColor} /> : null}
-      <Text style={{ fontSize: 14, color: chipTextColor, fontWeight: '500' }}>{label}</Text>
-    </View>
+    </BottomSheet>
   );
 }
 
@@ -1780,7 +1279,7 @@ function LiveAiTrainerScreen({
   const handleAutoRep = useCallback(() => {
     onIncrementRep();
     setAutoRepPulse((n) => n + 1);
-    Vibration.vibrate([0, 40, 30, 40]);
+    haptics.selection();
   }, [onIncrementRep]);
 
   const coaching = useLiveAiTrainerSession({
@@ -1791,7 +1290,7 @@ function LiveAiTrainerScreen({
     currentStepIndex,
     repCount,
     onAutoRep: handleAutoRep,
-    onFallback: () => Vibration.vibrate([0, 80, 60, 80]),
+    onFallback: () => haptics.warning(),
   });
 
   const onSummaryRef = useRef(onSummary);
@@ -1807,10 +1306,6 @@ function LiveAiTrainerScreen({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (coaching.lastResponse?.coachMessage) Vibration.vibrate(60);
-  }, [coaching.lastResponse]);
 
   const currentStep = protocol.steps[currentStepIndex];
   const stepInfo = {

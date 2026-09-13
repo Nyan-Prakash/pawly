@@ -1,228 +1,77 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // SessionModePicker
 //
-// Shown after SETUP when the protocol supports the Live AI Trainer.
-// The user picks "Do Normally" or "Use Live AI Trainer".
-//
-// Props:
-//   onNormal  — start session in normal (manual) mode
-//   onCamera  — start session in Live AI Trainer mode
-//   dogName   — used in the description copy
+// Shown from the session intro when the course supports the live coach.
+// The handler picks how to train, then starts the session.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Pressable, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useState } from 'react';
+import { View } from 'react-native';
 
-import { AppIcon } from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { Text } from '@/components/ui/Text';
-import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
+
+type SessionMode = 'live' | 'manual';
 
 interface SessionModePickerProps {
   dogName: string;
+  /** Start in manual mode. */
   onNormal: () => void;
+  /** Start with the live coach (camera). */
   onCamera: () => void;
+  /** Return to the session overview. */
   onBack: () => void;
-  accentColor?: string;
-  accentTint?: string;
-  contrastTextColor?: string;
 }
 
-export function SessionModePicker({
-  dogName,
-  onNormal,
-  onCamera,
-  onBack,
-  accentColor = colors.primary,
-  accentTint = colors.status.successBg,
-  contrastTextColor = '#fff',
-}: SessionModePickerProps) {
-  const insets = useSafeAreaInsets();
+export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: SessionModePickerProps) {
+  const [mode, setMode] = useState<SessionMode>('live');
+
+  const select = (next: SessionMode) => {
+    if (next !== mode) haptics.selection();
+    setMode(next);
+  };
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.background,
-        paddingTop: insets.top + spacing.lg,
-        paddingHorizontal: spacing.xl,
-        paddingBottom: insets.bottom + spacing.xl,
-      }}
-    >
-      {/* Back button */}
-      <Pressable
-        onPress={onBack}
-        hitSlop={12}
-        style={({ pressed }) => ({
-          alignSelf: 'flex-start',
-          paddingVertical: spacing.sm,
-          paddingHorizontal: spacing.sm,
-          opacity: pressed ? 0.6 : 1,
-          minHeight: 44,
-          justifyContent: 'center',
-          marginBottom: spacing.lg,
-        })}
-      >
-        <Text style={{ fontSize: 16, color: colors.textSecondary }}>← Back</Text>
-      </Pressable>
+    <View style={{ flex: 1 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm }}>
+        <IconButton icon="close" accessibilityLabel="Back to the session overview" tone="secondary" onPress={onBack} />
+      </View>
 
-      {/* Header */}
-      <View style={{ alignItems: 'center', gap: spacing.lg, marginBottom: spacing.xxl * 1.5 }}>
-        <View
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: 24,
-            backgroundColor: accentTint,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: spacing.xs,
-          }}
-        >
-          <AppIcon name="videocam" size={36} color={accentColor} />
+      <View style={{ flex: 1, padding: spacing.lg, gap: spacing.xl }}>
+        <View style={{ gap: spacing.sm }}>
+          <Text variant="h1">How do you want to train?</Text>
+          <Text variant="body">
+            The coach uses the camera to count reps and give feedback as you train.
+          </Text>
         </View>
-        <Text
-          style={{
-            fontSize: 26,
-            fontWeight: '700',
-            color: colors.textPrimary,
-            textAlign: 'center',
-            letterSpacing: -0.5,
-          }}
-        >
-          How do you want{'\n'}to train?
-        </Text>
-        <Text
-          style={{
-            fontSize: 15,
-            color: colors.textSecondary,
-            textAlign: 'center',
-            lineHeight: 22,
-            maxWidth: 300,
-          }}
-        >
-          Our expert AI watches and listens to provide real-time coaching for {dogName}.
-        </Text>
+
+        <ListGroup>
+          <ListRow
+            icon="videocam-outline"
+            title="Train with the live coach"
+            subtitle={`Needs the camera pointed at ${dogName} and a steady spot for your phone`}
+            selected={mode === 'live'}
+            onPress={() => select('live')}
+            accessibilityHint="Uses the camera during the session"
+          />
+          <ListRow
+            icon="list-outline"
+            title="Train manually"
+            subtitle="Follow the steps and count reps yourself"
+            selected={mode === 'manual'}
+            onPress={() => select('manual')}
+          />
+        </ListGroup>
+
+        <Text variant="caption">You can switch to manual at any point in the session.</Text>
       </View>
 
-      {/* Options */}
-      <View style={{ gap: spacing.lg}}>
-        {/* Camera mode — primary/featured option */}
-        <Pressable
-          onPress={onCamera}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? accentTint : colors.surface,
-            borderRadius: 20,
-            padding: spacing.xl,
-            shadowColor: colors.shadow.success,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.14,
-            shadowRadius: 12,
-            elevation: 4,
-            opacity: pressed ? 0.9 : 1,
-          })}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 18,
-                backgroundColor: accentTint,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <AppIcon name="videocam" size={28} color={accentColor} />
-            </View>
-
-            <View style={{ flex: 1, gap: 4 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>
-                  Live AI Trainer
-                </Text>
-                <View
-                  style={{
-                    backgroundColor: accentColor,
-                    paddingHorizontal: 7,
-                    paddingVertical: 2,
-                    borderRadius: 99,
-                  }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: contrastTextColor, letterSpacing: 0.5 }}>
-                    NEW
-                  </Text>
-                </View>
-              </View>
-              <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
-                Point your camera at {dogName} and talk naturally. The AI gives live advice and judges progress.
-              </Text>
-            </View>
-
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 10,
-                backgroundColor: accentColor,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <AppIcon name="chevron-forward" size={16} color={contrastTextColor} />
-            </View>
-          </View>
-
-        </Pressable>
-
-        {/* Normal mode */}
-        <Pressable
-          onPress={onNormal}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? colors.bg.surfaceAlt : colors.surface,
-            borderRadius: 20,
-            padding: spacing.xl,
-            borderWidth: 1.5,
-            borderColor: colors.border.strong,
-            opacity: pressed ? 0.85 : 1,
-          })}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 18,
-                backgroundColor: colors.bg.surfaceAlt,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <AppIcon name="list" size={28} color={colors.textSecondary} />
-            </View>
-
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>
-                Do Normally
-              </Text>
-              <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
-                Follow the step-by-step guide and mark reps manually.
-              </Text>
-            </View>
-
-            <AppIcon name="chevron-forward" size={18} color={colors.textSecondary} />
-          </View>
-        </Pressable>
-      </View>
-
-      {/* Bottom note */}
-      <View style={{ marginTop: spacing.xxl, alignItems: 'center' }}>
-        <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
-          You can switch modes anytime from a session
-        </Text>
+      <View style={{ padding: spacing.lg }}>
+        <Button label="Start session" onPress={mode === 'live' ? onCamera : onNormal} />
       </View>
     </View>
   );

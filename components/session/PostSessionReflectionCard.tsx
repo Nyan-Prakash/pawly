@@ -1,17 +1,15 @@
-import { useRef, useState } from 'react';
-import {
-  Animated,
-  Pressable,
-  ScrollView,
-  TextInput,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 
+import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
+import { Input } from '@/components/ui/Input';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { Text } from '@/components/ui/Text';
-import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { colors } from '@/constants/colors';
-import type { CourseUiColors } from '@/constants/courseColors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
 import type { ReflectionQuestionConfig, ReflectionAnswerOption } from '@/lib/adaptivePlanning/reflectionQuestionTypes';
 import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
 import type { SessionOutcome } from '@/lib/sessionScoring';
@@ -30,11 +28,11 @@ export { getAnswerValue, applyReflectionAnswer, areRequiredQuestionsAnswered, ma
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PostSessionReflectionCardProps {
-  /** Dog name — used in the outcome step copy. */
+  /** Dog name, used in the outcome step copy. */
   dogName: string;
-  /** Duration string already formatted — shown in the header. */
+  /** Duration string already formatted. */
   durationLabel: string;
-  /** The protocol's own success criterion — the primary question. */
+  /** The course's own success criterion, the primary question. */
   successCriteria: string;
   /** Short per-step summary, e.g. "3 of 4 steps worked". Optional. */
   stepSummaryLabel?: string | null;
@@ -47,16 +45,14 @@ export interface PostSessionReflectionCardProps {
   onNotesChange: (text: string) => void;
   onSubmit: () => void;
   isSaving: boolean;
-  /** Shown on the final step when the save failed; submit becomes "Try again". */
+  /** Shown on the final step when the save failed. */
   saveError?: string | null;
-  insets: { top: number; bottom: number };
-  theme: CourseUiColors;
 }
 
 // Step indices:
-//   0            → outcome step ("Did {dog} hit the goal?")
-//   1 … Q        → reflection questions
-//   Q + 1        → notes + submit
+//   0            outcome step ("Did {dog} hit the goal?")
+//   1 … Q        reflection questions
+//   Q + 1        notes + save
 
 export function PostSessionReflectionCard({
   dogName,
@@ -73,233 +69,101 @@ export function PostSessionReflectionCard({
   onSubmit,
   isSaving,
   saveError,
-  insets,
-  theme,
 }: PostSessionReflectionCardProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const slideAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(1)).current;
-  const isTransitioning = useRef(false);
 
-  // 1 difficulty step + N question steps + 1 notes step
   const totalSteps = 1 + questions.length + 1;
-  const isDifficultyStep = currentStep === 0;
+  const isOutcomeStep = currentStep === 0;
   const isNotesStep = currentStep === totalSteps - 1;
-  const questionIndex = isDifficultyStep ? -1 : currentStep - 1; // 0-based index into questions[]
-  const currentQuestion = (!isDifficultyStep && !isNotesStep) ? questions[questionIndex] : null;
-
-  function animateTransition(forward: boolean) {
-    if (isTransitioning.current) return;
-    isTransitioning.current = true;
-    const outX = forward ? -30 : 30;
-    Animated.parallel([
-      Animated.timing(opacityAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: outX, duration: 100, useNativeDriver: true }),
-    ]).start(() => {
-      slideAnim.setValue(forward ? 30 : -30);
-      setCurrentStep((s) => {
-        const next = s + (forward ? 1 : -1);
-        return Math.max(0, Math.min(next, totalSteps - 1));
-      });
-      Animated.parallel([
-        Animated.timing(opacityAnim, { toValue: 1, duration: 160, useNativeDriver: true }),
-        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, speed: 28, bounciness: 3 }),
-      ]).start(() => {
-        isTransitioning.current = false;
-      });
-    });
-  }
+  const questionIndex = isOutcomeStep ? -1 : currentStep - 1;
+  const currentQuestion = !isOutcomeStep && !isNotesStep ? questions[questionIndex] : null;
 
   function goNext() {
-    if (currentStep < totalSteps - 1) animateTransition(true);
+    setCurrentStep((s) => Math.min(s + 1, totalSteps - 1));
   }
 
   function goBack() {
-    if (currentStep > 0) animateTransition(false);
+    setCurrentStep((s) => Math.max(s - 1, 0));
   }
 
   function handleOutcomeSelect(o: SessionOutcome) {
+    haptics.selection();
     onSelectOutcome(o);
     goNext();
   }
 
   function handleAnswer(qId: ReflectionQuestionId, value: string | number) {
+    haptics.selection();
     onAnswer(qId, value);
     goNext();
   }
 
   const allRequiredAnswered = areRequiredQuestionsAnswered(questions, answers) && outcome !== null;
 
-  // Progress: step 0 = 1 segment filled (after selecting), step N = all filled
-  // We treat each step as one segment. Current step is "active" (half-filled).
-  const segmentCount = totalSteps;
+  const positionLabel = isNotesStep
+    ? 'Notes'
+    : currentQuestion && !currentQuestion.required
+      ? `Question ${currentStep + 1} of ${totalSteps}, optional`
+      : `Question ${currentStep + 1} of ${totalSteps}`;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      {/* ── Fixed header ─────────────────────────────────────────────────── */}
-      <View
-        style={{
-          paddingTop: insets.top + spacing.sm,
-          paddingHorizontal: spacing.xl,
-          paddingBottom: spacing.sm,
-        }}
-      >
-        {/* Back button — top left, matches rest of app */}
-        <Pressable
-          onPress={goBack}
-          hitSlop={12}
-          style={({ pressed }) => ({
-            alignSelf: 'flex-start',
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.sm,
-            opacity: currentStep > 0 ? (pressed ? 0.4 : 1) : 0,
-            minHeight: 44,
-            justifyContent: 'center',
-            pointerEvents: currentStep > 0 ? 'auto' : 'none',
-          })}
-          accessibilityLabel="Go back"
-        >
-          <Text style={{ fontSize: 16, color: colors.textSecondary }}>← Back</Text>
-        </Pressable>
-
-        {/* Session complete badge */}
-        <View style={{ alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <AppIcon name="ribbon" size={22} color={theme.solid} />
-            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>
-              Session complete
-            </Text>
-          </View>
-          <Text style={{ fontSize: 14, color: colors.textSecondary }}>
-            {stepSummaryLabel ? `${durationLabel} · ${stepSummaryLabel}` : durationLabel}
-          </Text>
-        </View>
-      </View>
-
-      {/* ── Progress bar ─────────────────────────────────────────────────── */}
-      <View style={{ paddingHorizontal: spacing.xl, gap: spacing.xs, paddingBottom: spacing.lg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text
-            style={{
-              fontSize: 11,
-              fontWeight: '600',
-              color: colors.textSecondary,
-              textTransform: 'uppercase',
-              letterSpacing: 0.8,
-            }}
-          >
-            {isDifficultyStep
-              ? 'Step 1 of ' + totalSteps
-              : isNotesStep
-              ? 'Notes'
-              : `Step ${currentStep + 1} of ${totalSteps}`}
-          </Text>
-          {!isDifficultyStep && !isNotesStep && currentQuestion && !currentQuestion.required && (
-            <Text style={{ fontSize: 11, color: colors.textSecondary, opacity: 0.7 }}>
-              Optional
-            </Text>
-          )}
-        </View>
-
-        {/* Segmented bar */}
-        <View style={{ flexDirection: 'row', gap: 3 }}>
-          {Array.from({ length: segmentCount }).map((_, i) => {
-            const completed = i < currentStep;
-            const active = i === currentStep;
-            return (
-              <View
-                key={i}
-                style={{
-                  flex: 1,
-                  height: 3,
-                  borderRadius: 2,
-                  backgroundColor: completed || active ? theme.solid : colors.border.default,
-                  opacity: active ? 0.45 : 1,
-                }}
-              />
-            );
-          })}
-        </View>
-      </View>
-
-      {/* ── Scrollable step content ───────────────────────────────────────── */}
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: spacing.xl,
-          paddingBottom: insets.bottom + spacing.xxxl,
-          flexGrow: 1,
-        }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
       >
-        <Animated.View
-          style={{
-            opacity: opacityAnim,
-            transform: [{ translateX: slideAnim }],
-            gap: spacing.xl,
-            flex: 1,
-          }}
-        >
-          {isDifficultyStep ? (
-            <OutcomeStep
-              dogName={dogName}
-              successCriteria={successCriteria}
-              selected={outcome}
-              onSelect={handleOutcomeSelect}
-            />
-          ) : isNotesStep ? (
-            <NotesStep
-              notes={notes}
-              onNotesChange={onNotesChange}
-              onSubmit={onSubmit}
-              isSaving={isSaving}
-              canSubmit={allRequiredAnswered && !isSaving}
-              saveError={saveError ?? null}
-              theme={theme}
-            />
-          ) : currentQuestion ? (
-            <QuestionStep
-              question={currentQuestion}
-              answers={answers}
-              onAnswer={handleAnswer}
+        <View style={{ gap: spacing.xs }}>
+          {currentStep > 0 ? (
+            <IconButton
+              icon="chevron-back"
+              accessibilityLabel="Previous question"
+              tone="secondary"
+              onPress={goBack}
+              style={{ marginLeft: -spacing.md }}
             />
           ) : null}
-        </Animated.View>
-      </ScrollView>
-
-      {/* ── Skip footer — optional questions only ────────────────────────── */}
-      {!isDifficultyStep && !isNotesStep && currentQuestion && !currentQuestion.required && (
-        <View
-          style={{
-            alignItems: 'flex-end',
-            paddingHorizontal: spacing.xl,
-            paddingTop: spacing.sm,
-            paddingBottom: insets.bottom + spacing.lg,
-            borderTopWidth: 1,
-            borderTopColor: colors.border.soft,
-          }}
-        >
-          <Pressable
-            onPress={goNext}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.4 : 1,
-              paddingVertical: spacing.sm,
-              paddingLeft: spacing.lg,
-            })}
-            accessibilityLabel="Skip this question"
-          >
-            <Text style={{ fontSize: 15, color: colors.textSecondary, fontWeight: '500' }}>
-              Skip
-            </Text>
-          </Pressable>
+          <Text variant="caption">{durationLabel}</Text>
+          {stepSummaryLabel ? <Text variant="caption">{stepSummaryLabel}</Text> : null}
+          <Text variant="caption">{positionLabel}</Text>
         </View>
-      )}
-    </View>
+
+        {isOutcomeStep ? (
+          <OutcomeStep
+            dogName={dogName}
+            successCriteria={successCriteria}
+            selected={outcome}
+            onSelect={handleOutcomeSelect}
+          />
+        ) : isNotesStep ? (
+          <NotesStep
+            notes={notes}
+            onNotesChange={onNotesChange}
+            onSubmit={onSubmit}
+            isSaving={isSaving}
+            canSubmit={allRequiredAnswered && !isSaving}
+            saveError={saveError ?? null}
+          />
+        ) : currentQuestion ? (
+          <QuestionStep question={currentQuestion} answers={answers} onAnswer={handleAnswer} />
+        ) : null}
+
+        {currentQuestion && !currentQuestion.required ? (
+          <Button
+            label="Skip this question"
+            variant="ghost"
+            size="md"
+            onPress={goNext}
+            style={{ alignSelf: 'flex-start' }}
+          />
+        ) : null}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Outcome step — the protocol's own success criterion
+// Outcome step, the course's own success criterion
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface OutcomeStepProps {
@@ -311,35 +175,31 @@ interface OutcomeStepProps {
 
 const OUTCOME_OPTIONS: Array<{
   value: SessionOutcome;
-  icon: AppIconName;
+  icon: 'checkmark-circle-outline' | 'remove-circle-outline' | 'close-circle-outline';
+  iconTone: 'accent' | 'secondary' | 'danger';
   label: string;
   sub: (dog: string) => string;
-  color: string;
-  bg: string;
 }> = [
   {
     value: 'met',
-    icon: 'checkmark-circle',
-    label: 'Yes, nailed it',
-    sub: (dog) => `${dog} hit the goal — ready to build on this`,
-    color: '#16a34a',
-    bg: '#dcfce7',
+    icon: 'checkmark-circle-outline',
+    iconTone: 'accent',
+    label: 'Yes',
+    sub: (dog) => `${dog} hit the goal. Ready to build on this.`,
   },
   {
     value: 'partial',
-    icon: 'remove-circle',
+    icon: 'remove-circle-outline',
+    iconTone: 'secondary',
     label: 'Mostly',
-    sub: () => 'Got there some of the time',
-    color: '#d97706',
-    bg: '#fef3c7',
+    sub: () => 'Got there some of the time.',
   },
   {
     value: 'not_met',
-    icon: 'close-circle',
+    icon: 'close-circle-outline',
+    iconTone: 'danger',
     label: 'Not yet',
-    sub: () => "Didn't get there today — that's useful to know",
-    color: '#dc2626',
-    bg: '#fee2e2',
+    sub: () => "Didn't get there today. That's useful to know.",
   },
 ];
 
@@ -347,93 +207,25 @@ function OutcomeStep({ dogName, successCriteria, selected, onSelect }: OutcomeSt
   return (
     <View style={{ gap: spacing.xl }}>
       <View style={{ gap: spacing.sm }}>
-        <Text
-          style={{
-            fontSize: 26,
-            fontWeight: '700',
-            color: colors.textPrimary,
-            lineHeight: 34,
-          }}
-        >
-          Did {dogName} hit the goal?
+        <Text variant="h1">Did {dogName} hit the goal?</Text>
+        <Text variant="body" color={colors.text.secondary}>
+          {successCriteria}
         </Text>
-        <View
-          style={{
-            backgroundColor: colors.bg.sand,
-            borderRadius: 12,
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.sm + 2,
-            flexDirection: 'row',
-            gap: spacing.sm,
-            alignItems: 'flex-start',
-          }}
-        >
-          <AppIcon name="flag" size={16} color={colors.textSecondary} />
-          <Text style={{ flex: 1, fontSize: 14, lineHeight: 21, color: colors.textPrimary }}>
-            {successCriteria}
-          </Text>
-        </View>
       </View>
 
-      <View style={{ gap: spacing.lg }}>
-        {OUTCOME_OPTIONS.map((opt) => {
-          const isSelected = selected === opt.value;
-          return (
-            <Pressable
-              key={opt.value}
-              onPress={() => onSelect(opt.value)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isSelected }}
-              accessibilityLabel={opt.label}
-              style={({ pressed }) => ({
-                borderRadius: 16,
-                borderWidth: 2,
-                minHeight: 72,
-                backgroundColor: isSelected ? opt.bg : pressed ? colors.bg.surfaceAlt : colors.surface,
-                borderColor: isSelected ? opt.color : colors.border.default,
-              })}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.lg,
-                  padding: spacing.xl,
-                  minHeight: 84,
-                }}
-              >
-                <View
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 14,
-                    backgroundColor: isSelected ? opt.color : colors.bg.surfaceAlt,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <AppIcon name={opt.icon} size={26} color={isSelected ? '#fff' : colors.textSecondary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: 19,
-                      fontWeight: '700',
-                      color: isSelected ? opt.color : colors.textPrimary,
-                    }}
-                  >
-                    {opt.label}
-                  </Text>
-                  <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 3, lineHeight: 20 }}>
-                    {opt.sub(dogName)}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
+      <ListGroup>
+        {OUTCOME_OPTIONS.map((opt) => (
+          <ListRow
+            key={opt.value}
+            icon={opt.icon}
+            iconTone={opt.iconTone}
+            title={opt.label}
+            subtitle={opt.sub(dogName)}
+            selected={selected === opt.value}
+            onPress={() => onSelect(opt.value)}
+          />
+        ))}
+      </ListGroup>
     </View>
   );
 }
@@ -453,27 +245,19 @@ function QuestionStep({ question, answers, onAnswer }: QuestionStepProps) {
 
   return (
     <View style={{ gap: spacing.xl }}>
-      <Text
-        style={{
-          fontSize: 26,
-          fontWeight: '700',
-          color: colors.textPrimary,
-          lineHeight: 34,
-        }}
-      >
-        {question.prompt}
-      </Text>
+      <View style={{ gap: spacing.sm }}>
+        <Text variant="h1">{question.prompt}</Text>
+        {question.helperText ? <Text variant="caption">{question.helperText}</Text> : null}
+      </View>
 
       {question.answerType === 'single_select' && question.options ? (
         <SingleSelectInput
-          questionId={question.id}
           options={question.options}
           selected={typeof currentValue === 'string' ? currentValue : null}
           onSelect={(value) => onAnswer(question.id, value)}
         />
       ) : question.answerType === 'scale' ? (
         <ScaleInput
-          questionId={question.id}
           min={question.scaleMin ?? 1}
           max={question.scaleMax ?? 5}
           minLabel={question.scaleMinLabel ?? null}
@@ -482,27 +266,12 @@ function QuestionStep({ question, answers, onAnswer }: QuestionStepProps) {
           onSelect={(value) => onAnswer(question.id, value)}
         />
       ) : null}
-
-      {question.helperText ? (
-        <View
-          style={{
-            backgroundColor: colors.bg.surfaceAlt,
-            borderRadius: 10,
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.sm,
-          }}
-        >
-          <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>
-            {question.helperText}
-          </Text>
-        </View>
-      ) : null}
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Notes + submit step
+// Notes + save step
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface NotesStepProps {
@@ -512,110 +281,61 @@ interface NotesStepProps {
   isSaving: boolean;
   canSubmit: boolean;
   saveError: string | null;
-  theme: CourseUiColors;
 }
 
-function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveError, theme }: NotesStepProps) {
+function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveError }: NotesStepProps) {
   return (
-    <View style={{ gap: spacing.xxl }}>
+    <View style={{ gap: spacing.xl }}>
       {saveError ? (
         <View
-          style={{
-            backgroundColor: colors.status.dangerBg,
-            borderColor: colors.status.dangerBorder,
-            borderWidth: 1,
-            borderRadius: 12,
-            padding: spacing.lg,
-            flexDirection: 'row',
-            gap: spacing.sm,
-            alignItems: 'flex-start',
-          }}
           accessibilityRole="alert"
+          style={{
+            backgroundColor: colors.status.dangerSoft,
+            borderRadius: radii.md,
+            padding: spacing.lg,
+            gap: spacing.xs,
+          }}
         >
-          <AppIcon name="alert-circle" size={18} color={colors.error} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>
-              We couldn't save this session
-            </Text>
-            <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 19 }}>
-              Your answers are still here. Check your connection and try again.
-            </Text>
-          </View>
+          <Text variant="bodyStrong">Couldn't save this session</Text>
+          <Text variant="caption">Your answers are still here. Check your connection and try again.</Text>
         </View>
       ) : null}
-      <View style={{ gap: spacing.xs }}>
-        <Text style={{ fontSize: 26, fontWeight: '700', color: colors.textPrimary, lineHeight: 34 }}>
-          Anything to note?
-        </Text>
-        <Text style={{ fontSize: 15, color: colors.textSecondary, lineHeight: 22 }}>
-          Optional — observations or reminders for next time.
+
+      <View style={{ gap: spacing.sm }}>
+        <Text variant="h1">Anything to note?</Text>
+        <Text variant="body" color={colors.text.secondary}>
+          Optional. Observations or reminders for next time.
         </Text>
       </View>
 
-      <TextInput
+      <Input
+        label="Notes"
         value={notes}
         onChangeText={onNotesChange}
-        placeholder="e.g. Tried near the park gate, wind was an issue…"
-        placeholderTextColor={colors.textSecondary}
+        placeholder="Tried near the park gate, wind was an issue"
         multiline
-        style={{
-          backgroundColor: colors.surface,
-          borderRadius: 14,
-          borderWidth: 1.5,
-          borderColor: colors.border.default,
-          padding: spacing.lg,
-          fontSize: 15,
-          color: colors.textPrimary,
-          minHeight: 110,
-          textAlignVertical: 'top',
-          lineHeight: 22,
-        }}
+        numberOfLines={4}
+        keyboardType="default"
+        returnKeyType="default"
+        textContentType="none"
+        autoCapitalize="sentences"
       />
 
-      <Pressable
+      <Button
+        label="Save session"
         onPress={onSubmit}
         disabled={!canSubmit}
-        style={({ pressed }) => ({
-          backgroundColor: !canSubmit
-            ? colors.border.default
-            : pressed
-            ? theme.selectedBorder
-            : theme.solid,
-          borderWidth: canSubmit ? 1 : 0,
-          borderColor: canSubmit ? theme.selectedBorder : colors.border.default,
-          borderRadius: 14,
-          paddingVertical: spacing.lg + 4,
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 56,
-          shadowColor: canSubmit ? theme.solid : 'transparent',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.18,
-          shadowRadius: 10,
-          elevation: canSubmit ? 4 : 0,
-        })}
-      >
-        <Text
-          style={{
-            fontSize: 17,
-            fontWeight: '700',
-            color: canSubmit ? colors.text.primary : colors.textSecondary,
-            letterSpacing: 0.2,
-          }}
-        >
-          {isSaving ? 'Saving…' : saveError ? 'Try again' : 'Save session'}
-        </Text>
-      </Pressable>
+        loading={isSaving}
+      />
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Single-select chip group
+// Single-select list
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SingleSelectInputProps {
-  questionId: ReflectionQuestionId;
   options: ReflectionAnswerOption[];
   selected: string | null;
   onSelect: (value: string) => void;
@@ -623,77 +343,25 @@ interface SingleSelectInputProps {
 
 function SingleSelectInput({ options, selected, onSelect }: SingleSelectInputProps) {
   return (
-    <View style={{ gap: spacing.sm }}>
-      {options.map((opt) => {
-        const isSelected = selected === opt.value;
-        return (
-          <Pressable
-            key={opt.value}
-            onPress={() => onSelect(opt.value)}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: isSelected }}
-            accessibilityLabel={opt.label}
-            style={({ pressed }) => ({
-              borderRadius: 14,
-              borderWidth: 2,
-              minHeight: 52,
-              backgroundColor: isSelected
-                ? '#E6F4F1'
-                : pressed
-                ? colors.bg.surfaceAlt
-                : colors.surface,
-              borderColor: isSelected ? colors.primary : colors.border.default,
-            })}
-          >
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.lg,
-                paddingVertical: spacing.lg + 4,
-                paddingHorizontal: spacing.lg,
-                minHeight: 62,
-              }}
-            >
-              <View
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: 13,
-                  borderWidth: 2,
-                  borderColor: isSelected ? colors.primary : colors.border.default,
-                  backgroundColor: isSelected ? colors.primary : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {isSelected && <AppIcon name="checkmark" size={14} color="#fff" />}
-              </View>
-              <Text
-                style={{
-                  flex: 1,
-                  fontSize: 17,
-                  fontWeight: isSelected ? '600' : '400',
-                  color: isSelected ? colors.primary : colors.textPrimary,
-                }}
-              >
-                {opt.label}
-              </Text>
-            </View>
-          </Pressable>
-        );
-      })}
-    </View>
+    <ListGroup>
+      {options.map((opt) => (
+        <ListRow
+          key={opt.value}
+          title={opt.label}
+          selected={selected === opt.value}
+          onPress={() => onSelect(opt.value)}
+          trailing={selected === opt.value ? <SelectedMark /> : undefined}
+        />
+      ))}
+    </ListGroup>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scale input (1–N)
+// Scale input (1–N) as a list, so the end labels sit where they belong
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface ScaleInputProps {
-  questionId: ReflectionQuestionId;
   min: number;
   max: number;
   minLabel: string | null;
@@ -706,63 +374,21 @@ function ScaleInput({ min, max, minLabel, maxLabel, selected, onSelect }: ScaleI
   const ticks = Array.from({ length: max - min + 1 }, (_, i) => min + i);
 
   return (
-    <View style={{ gap: spacing.sm }}>
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        {ticks.map((n) => {
-          const isSelected = selected === n;
-          return (
-            <Pressable
-              key={n}
-              onPress={() => onSelect(n)}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isSelected }}
-              accessibilityLabel={`${n}`}
-              style={({ pressed }) => ({
-                flex: 1,
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingVertical: spacing.lg,
-                borderRadius: 12,
-                borderWidth: 2,
-                borderColor: isSelected ? colors.primary : colors.border.default,
-                backgroundColor: isSelected
-                  ? '#E6F4F1'
-                  : pressed
-                  ? colors.bg.surfaceAlt
-                  : colors.surface,
-                minHeight: 56,
-              })}
-            >
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: isSelected ? '700' : '500',
-                  color: isSelected ? colors.primary : colors.textSecondary,
-                }}
-              >
-                {n}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {(minLabel || maxLabel) && (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          {minLabel ? (
-            <Text style={{ fontSize: 11, color: colors.textSecondary, maxWidth: '40%' }}>
-              {minLabel}
-            </Text>
-          ) : (
-            <View />
-          )}
-          {maxLabel ? (
-            <Text style={{ fontSize: 11, color: colors.textSecondary, maxWidth: '40%', textAlign: 'right' }}>
-              {maxLabel}
-            </Text>
-          ) : null}
-        </View>
-      )}
-    </View>
+    <ListGroup>
+      {ticks.map((n) => (
+        <ListRow
+          key={n}
+          title={`${n}`}
+          subtitle={n === min ? minLabel ?? undefined : n === max ? maxLabel ?? undefined : undefined}
+          selected={selected === n}
+          onPress={() => onSelect(n)}
+          trailing={selected === n ? <SelectedMark /> : undefined}
+        />
+      ))}
+    </ListGroup>
   );
+}
+
+function SelectedMark() {
+  return <Text variant="captionStrong" color={colors.accent}>Selected</Text>;
 }
