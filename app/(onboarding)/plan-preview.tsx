@@ -1,41 +1,65 @@
-import { useEffect, useState, useMemo } from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
-import Animated, {
-  FadeIn,
-  FadeInDown,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-  useAnimatedStyle,
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useMemo, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { AppIcon } from '@/components/ui/AppIcon';
-import { SafeScreen } from '@/components/ui/SafeScreen';
-import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { MascotCallout } from '@/components/ui/MascotCallout';
+import { SafeScreen } from '@/components/ui/SafeScreen';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
+import { Text } from '@/components/ui/Text';
 import { PlanReasonCard } from '@/components/adaptive/PlanReasonCard';
 import { colors } from '@/constants/colors';
-import { spacing } from '@/constants/spacing';
 import { radii } from '@/constants/radii';
-import { shadows } from '@/constants/shadows';
-import { hexToRgba } from '@/constants/courseColors';
+import { spacing } from '@/constants/spacing';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
-import { getPlanTitle, getPlanBullets } from '@/lib/planGenerator';
+import { getPlanBullets } from '@/lib/planGenerator';
 import { formatDisplayTime, getBehaviorLabel } from '@/lib/scheduleEngine';
-import { mapPlanRowToPlan } from '@/lib/modelMappers';
+import { mapDogRowToDog, mapPlanRowToPlan } from '@/lib/modelMappers';
 import { supabase } from '@/lib/supabase';
 import { usePlanStore } from '@/stores/planStore';
-import type { AdaptivePlanMetadata, Plan } from '@/types';
+import type { AdaptivePlanMetadata, Plan, Weekday } from '@/types';
 
-const LOADING_MESSAGES = [
-  "Analyzing your dog's profile…",
-  'Selecting the right exercises…',
-  'Building your personalized plan…',
-];
+const ROW_HEIGHT = 52;
+
+const DAY_LABELS: Record<Weekday, string> = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+};
+
+/** Mirrors the loaded layout: title, caption, then two grouped lists. */
+function PlanSkeleton({ dogName }: { dogName: string }) {
+  return (
+    <View style={{ gap: spacing.xl }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <MascotCallout state="thinking" size={64} />
+        <Text variant="caption">Building {dogName ? `${dogName}'s` : 'the'} plan</Text>
+      </View>
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={30} width="60%" />
+        <SkeletonBlock height={20} width="80%" />
+      </View>
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={26} width="45%" />
+        <SkeletonBlock height={ROW_HEIGHT * 3} borderRadius={radii.md} />
+      </View>
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={26} width="35%" />
+        <SkeletonBlock height={ROW_HEIGHT} borderRadius={radii.md} />
+      </View>
+    </View>
+  );
+}
 
 export default function PlanPreviewScreen() {
   const router = useRouter();
@@ -43,39 +67,20 @@ export default function PlanPreviewScreen() {
   const dogName = useOnboardingStore((s) => s.dogName);
   const primaryGoal = useOnboardingStore((s) => s.primaryGoal);
   const equipment = useOnboardingStore((s) => s.equipment);
+  const availableDaysPerWeek = useOnboardingStore((s) => s.availableDaysPerWeek);
   const availableMinutesPerDay = useOnboardingStore((s) => s.availableMinutesPerDay);
   const secondaryGoals = useOnboardingStore((s) => s.secondaryGoals);
   const scheduleSummary = useOnboardingStore((s) => s.buildScheduleSummary());
   const isSubmittingOnboarding = useOnboardingStore((s) => s.isSubmitting);
   const setOnboardingField = useOnboardingStore((s) => s.setField);
   const user = useAuthStore((s) => s.user);
-  const subscriptionTier = useAuthStore((s) => s.subscriptionTier);
   const existingActivePlan = usePlanStore((s) => s.activePlan);
 
   const [loading, setLoading] = useState(true);
-  const [msgIndex, setMsgIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [createdPlan, setCreatedPlan] = useState<Plan | null>(null);
-
-  const opacity = useSharedValue(1);
-  const logoScale = useSharedValue(1);
-  const logoStyle = useAnimatedStyle(() => ({ transform: [{ scale: logoScale.value }] }));
-  const msgStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  useEffect(() => {
-    logoScale.value = withRepeat(withTiming(1.1, { duration: 1100 }), -1, true);
-  }, [logoScale]);
-
-  useEffect(() => {
-    if (!loading) return;
-    const interval = setInterval(() => {
-      opacity.value = withTiming(0, { duration: 200 }, () => {
-        opacity.value = withTiming(1, { duration: 200 });
-      });
-      setMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length);
-    }, 1800);
-    return () => clearInterval(interval);
-  }, [loading, opacity]);
+  // Bumped by "Try again" so the same generation call runs again.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!user?.id) { setLoading(false); return; }
@@ -84,11 +89,15 @@ export default function PlanPreviewScreen() {
 
     let cancelled = false;
     setLoading(true);
+    setError(null);
 
     const submit = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { if (!cancelled) setError('Session expired. Please log in again.'); return; }
+        if (!session) {
+          if (!cancelled) setError('Your session expired. Log in again to save the plan.');
+          return;
+        }
 
         await supabase.from('dogs').select('id').eq('owner_id', user.id).limit(1);
 
@@ -96,7 +105,7 @@ export default function PlanPreviewScreen() {
         if (refreshError) {
           console.warn('[plan-preview] Session invalid, signing out:', refreshError.message);
           await supabase.auth.signOut();
-          if (!cancelled) setError('Your session was invalid. Please sign up again.');
+          if (!cancelled) setError('Your session is no longer valid. Create your account again.');
           return;
         }
 
@@ -107,7 +116,6 @@ export default function PlanPreviewScreen() {
           const { data: existingDogRow } = await supabase
             .from('dogs').select('*').eq('id', existingDog.id).single();
           if (existingDogRow) {
-            const { mapDogRowToDog } = await import('@/lib/modelMappers');
             useDogStore.getState().setDog(mapDogRowToDog(existingDogRow));
           }
 
@@ -134,73 +142,41 @@ export default function PlanPreviewScreen() {
         setCreatedPlan(plan);
       } catch (err) {
         console.error('[plan-preview] submitOnboarding failed:', err);
-        if (!cancelled)
-          setError(`Something went wrong: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
+        if (!cancelled) setError("Couldn't build the plan. Check your connection and try again.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     submit();
     return () => { cancelled = true; };
-  }, [user?.id, existingActivePlan]);
+  }, [user?.id, existingActivePlan, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStart = () => {
     setOnboardingField('submissionIntent', null);
     resetOnboarding();
     router.replace('/(tabs)/train');
   };
-  const handleUnlock = () => router.push('/(tabs)/profile');
 
-  const isPaid = subscriptionTier !== 'free';
-  const planTitle = getPlanTitle(dogName, primaryGoal);
   const bullets = getPlanBullets(primaryGoal);
   const goalLabel = getBehaviorLabel(primaryGoal);
+  const sessionsPerWeek = createdPlan?.sessionsPerWeek ?? availableDaysPerWeek;
 
   const firstScheduledSession = useMemo(
     () => createdPlan?.sessions.find((s) => !s.isCompleted) ?? null,
-    [createdPlan]
+    [createdPlan],
   );
   const explanationBullets = createdPlan?.metadata?.explanation ?? [];
   const adaptiveMetadata = createdPlan?.metadata as AdaptivePlanMetadata | undefined;
   const isAdaptivePlan = adaptiveMetadata?.plannerMode === 'adaptive_ai';
   const adaptiveSummary = adaptiveMetadata?.planningSummary;
+  const skillCount = adaptiveMetadata?.selectedSkillIds?.length ?? 0;
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <SafeScreen>
-        <LinearGradient
-          colors={[hexToRgba(colors.brand.primary, 0.1), colors.bg.app]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 0.7 }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-          pointerEvents="none"
-        />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xxl }}>
-          <Animated.View
-            style={[
-              logoStyle,
-              {
-                width: 88,
-                height: 88,
-                borderRadius: 44,
-                backgroundColor: hexToRgba(colors.brand.primary, 0.12),
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: spacing.xxl,
-              },
-            ]}
-          >
-            <AppIcon name="paw" size={44} color={colors.brand.primary} />
-          </Animated.View>
-          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text.primary, letterSpacing: -0.4, marginBottom: spacing.sm }}>
-            Building your plan…
-          </Text>
-          <Animated.View style={msgStyle}>
-            <Text style={{ fontSize: 15, color: colors.text.secondary, textAlign: 'center', lineHeight: 22 }}>
-              {LOADING_MESSAGES[msgIndex]}
-            </Text>
-          </Animated.View>
+        <View style={{ flex: 1, padding: spacing.lg, paddingTop: spacing.xl }}>
+          <PlanSkeleton dogName={dogName} />
         </View>
       </SafeScreen>
     );
@@ -210,391 +186,133 @@ export default function PlanPreviewScreen() {
   if (error) {
     return (
       <SafeScreen>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xxl }}>
-          <AppIcon name="help-circle" size={40} color={colors.text.secondary} />
-          <Text style={{ textAlign: 'center', color: colors.text.secondary, marginTop: spacing.lg, marginBottom: spacing.xxl, lineHeight: 22 }}>
-            {error}
-          </Text>
-          <Button label="Try again" onPress={() => router.replace('/(onboarding)/dog-basics')} />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <EmptyState
+            title="Couldn't build the plan"
+            subtitle={error}
+            mascotState="waiting"
+            action={{ label: 'Try again', onPress: () => setAttempt((a) => a + 1) }}
+          />
         </View>
       </SafeScreen>
     );
   }
 
   // ─── Main ──────────────────────────────────────────────────────────────────
+  const firstSessionWhen = firstScheduledSession
+    ? [
+        firstScheduledSession.scheduledDay
+          ? DAY_LABELS[firstScheduledSession.scheduledDay] ?? firstScheduledSession.scheduledDay
+          : `Week ${firstScheduledSession.weekNumber}`,
+        firstScheduledSession.scheduledTime
+          ? `at ${formatDisplayTime(firstScheduledSession.scheduledTime)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : '';
+
   return (
     <SafeScreen>
-      <Animated.View entering={FadeIn.duration(500)} style={{ flex: 1 }}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 120 }}
-        >
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.xl, gap: spacing.xl }}
+      >
+        <View style={{ gap: spacing.xs }}>
+          <Text variant="h1">{dogName}'s plan</Text>
+          <Text variant="caption">
+            {goalLabel}. {sessionsPerWeek} {sessionsPerWeek === 1 ? 'session' : 'sessions'} a week,{' '}
+            {availableMinutesPerDay} min each.
+          </Text>
+        </View>
 
-          {/* ══════════════════════════════════════════════════════
-              HERO — calm, focused, uncluttered
-          ══════════════════════════════════════════════════════ */}
-          <LinearGradient
-            colors={[colors.brand.primary, '#16A34A']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ paddingTop: spacing.xxl + spacing.xl, paddingBottom: spacing.xxxl, paddingHorizontal: spacing.xl }}
-          >
-            {/* Course chip — small, quiet */}
-            <Animated.View entering={FadeInDown.delay(60).duration(350)}>
-              <View style={{
-                flexDirection: 'row',
-                alignSelf: 'flex-start',
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                paddingHorizontal: spacing.lg,
-                paddingVertical: 5,
-                borderRadius: radii.full,
-                marginBottom: spacing.lg,
-              }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.95)', letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                  {goalLabel} · Stage 1
-                </Text>
-              </View>
-            </Animated.View>
+        <View>
+          <SectionHeader title="What you'll work on" />
+          <ListGroup>
+            {bullets.map((b) => (
+              <ListRow key={b} icon="checkmark-circle-outline" title={b} />
+            ))}
+            {equipment.length > 0 ? (
+              <ListRow icon="bag-handle-outline" title="You'll need" subtitle={equipment.join(', ')} />
+            ) : null}
+          </ListGroup>
+        </View>
 
-            {/* Dog name — the hero moment */}
-            <Animated.View entering={FadeInDown.delay(120).duration(350)}>
-              <Text style={{ fontSize: 40, fontWeight: '800', color: '#fff', letterSpacing: -1.5, lineHeight: 46, marginBottom: spacing.xs }}>
-                {dogName}'s plan
-              </Text>
-            </Animated.View>
+        {firstScheduledSession ? (
+          <View>
+            <SectionHeader title="First session" />
+            <ListGroup>
+              <ListRow
+                icon="play-circle-outline"
+                title={firstScheduledSession.title}
+                subtitle={`${firstSessionWhen}, ${firstScheduledSession.durationMinutes} min`}
+              />
+            </ListGroup>
+          </View>
+        ) : null}
 
-            {/* Plan subtitle — one line, secondary */}
-            <Animated.View entering={FadeInDown.delay(180).duration(350)}>
-              <Text style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', lineHeight: 24, marginBottom: spacing.xxl }}>
-                {planTitle}
-              </Text>
-            </Animated.View>
-
-            {/* 3 stats — clean row */}
-            <Animated.View entering={FadeInDown.delay(240).duration(350)}>
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                {[
-                  { label: 'Duration', value: '4 weeks' },
-                  { label: 'Per session', value: `${availableMinutesPerDay} min` },
-                  { label: 'Sessions/wk', value: '3–5 days' },
-                ].map((stat, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      flex: 1,
-                      backgroundColor: 'rgba(255,255,255,0.15)',
-                      borderRadius: radii.md,
-                      padding: spacing.sm + 2,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.5 }}>
-                      {stat.value}
+        <View>
+          <SectionHeader title="Why this plan" />
+          {isAdaptivePlan && adaptiveSummary ? (
+            <PlanReasonCard
+              dogName={dogName}
+              summary={adaptiveSummary}
+              profileCaption={[skillCount > 0 ? `${skillCount} skills.` : null, scheduleSummary]
+                .filter(Boolean)
+                .join(' ')}
+            />
+          ) : (
+            <Card>
+              <View style={{ gap: spacing.sm }}>
+                {explanationBullets.length > 0 ? (
+                  explanationBullets.map((bullet) => (
+                    <Text key={bullet} variant="body">
+                      {bullet}
                     </Text>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.9)', marginTop: 3 }}>
-                      {stat.label}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </Animated.View>
-          </LinearGradient>
-
-          {/* ══════════════════════════════════════════════════════
-              CONTENT — cards float below hero
-          ══════════════════════════════════════════════════════ */}
-          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.sm }}>
-
-            {/* ── WHAT YOU'LL WORK ON ── */}
-            <Animated.View
-              entering={FadeInDown.delay(300).duration(380)}
-              style={{
-                backgroundColor: colors.bg.surface,
-                borderRadius: radii.md,
-                padding: spacing.xl,
-                borderWidth: 1,
-                borderColor: colors.border.soft,
-                ...shadows.card,
-              }}
-            >
-              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.lg }}>
-                What you'll work on
-              </Text>
-              <View style={{ gap: spacing.lg }}>
-                {bullets.map((b, i) => (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand.primary, marginTop: 9, flexShrink: 0 }} />
-                    <Text style={{ flex: 1, fontSize: 17, color: colors.text.primary, lineHeight: 26 }}>
-                      {b}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              {equipment.length > 0 && (
-                <View style={{ marginTop: spacing.xl, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border.soft }}>
-                  <Text style={{ fontSize: 15, color: colors.text.primary, lineHeight: 22 }}>
-                    <Text style={{ fontWeight: '700' }}>You'll need: </Text>
-                    {equipment.join(', ')}
+                  ))
+                ) : (
+                  <Text variant="body">
+                    It matches {dogName}'s age, home and goal. {scheduleSummary}
                   </Text>
-                </View>
-              )}
-            </Animated.View>
-
-            {/* ── YOUR SCHEDULE ── */}
-            <Animated.View
-              entering={FadeInDown.delay(360).duration(380)}
-              style={{
-                backgroundColor: colors.bg.surface,
-                borderRadius: radii.md,
-                overflow: 'hidden',
-                borderWidth: 1,
-                borderColor: colors.border.soft,
-                ...shadows.card,
-              }}
-            >
-              {/* Amber accent bar */}
-              <View style={{ height: 4, backgroundColor: colors.brand.secondary }} />
-
-              <View style={{ padding: spacing.xl }}>
-                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.sm }}>
-                  Your schedule
-                </Text>
-                <Text style={{ fontSize: 17, color: colors.text.primary, lineHeight: 26 }}>
-                  {scheduleSummary}
-                </Text>
-
-                {firstScheduledSession && (
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.lg,
-                    marginTop: spacing.lg,
-                    paddingTop: spacing.lg,
-                    borderTopWidth: 1,
-                    borderTopColor: colors.border.soft,
-                  }}>
-                    <View style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 21,
-                      backgroundColor: hexToRgba(colors.brand.secondary, 0.12),
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <AppIcon name="play" size={16} color={colors.brand.secondary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: colors.text.secondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
-                        First session
-                      </Text>
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text.primary }} numberOfLines={1}>
-                        {firstScheduledSession.title}
-                      </Text>
-                      <Text style={{ fontSize: 14, color: colors.text.secondary, marginTop: 2 }}>
-                        {firstScheduledSession.scheduledDay
-                          ? firstScheduledSession.scheduledDay.slice(0, 3)
-                          : `Week ${firstScheduledSession.weekNumber}`}
-                        {firstScheduledSession.scheduledTime
-                          ? ` at ${formatDisplayTime(firstScheduledSession.scheduledTime)}`
-                          : ''}
-                        {` · ${firstScheduledSession.durationMinutes} min`}
-                      </Text>
-                    </View>
-                  </View>
                 )}
               </View>
-            </Animated.View>
-
-            {/* ── WHY THIS PLAN (AI explanation) ── */}
-            {explanationBullets.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(420).duration(380)}
-                style={{
-                  backgroundColor: colors.bg.surface,
-                  borderRadius: radii.md,
-                  overflow: 'hidden',
-                  borderWidth: 1,
-                  borderColor: colors.border.soft,
-                  ...shadows.card,
-                }}
-              >
-                <View style={{ height: 4, backgroundColor: colors.brand.coach }} />
-                <View style={{ padding: spacing.xl }}>
-                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.lg }}>
-                    Why this plan?
-                  </Text>
-                  <View style={{ gap: spacing.lg }}>
-                    {explanationBullets.map((bullet, i) => (
-                      <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-                        <View style={{ marginTop: 4 }}><AppIcon name="sparkles" size={15} color={colors.brand.coach} /></View>
-                        <Text style={{ flex: 1, fontSize: 17, color: colors.text.primary, lineHeight: 26 }}>
-                          {bullet}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              </Animated.View>
-            )}
-
-            {/* ── ADAPTIVE SUMMARY ── */}
-            {isAdaptivePlan && adaptiveSummary && (
-              <Animated.View entering={FadeInDown.delay(460).duration(380)}>
-                <PlanReasonCard
-                  dogName={dogName}
-                  summary={adaptiveSummary}
-                  profileCaption={[
-                    adaptiveMetadata?.selectedSkillIds?.length
-                      ? `${adaptiveMetadata.selectedSkillIds.length} skills`
-                      : null,
-                    scheduleSummary,
-                  ].filter(Boolean).join(' · ')}
-                  delay={0}
-                />
-              </Animated.View>
-            )}
-
-            {isAdaptivePlan && !adaptiveSummary && (
-              <Animated.View
-                entering={FadeInDown.delay(460).duration(380)}
-                style={{
-                  backgroundColor: colors.bg.surface,
-                  borderRadius: radii.md,
-                  padding: spacing.xl,
-                  borderWidth: 1,
-                  borderColor: colors.border.soft,
-                  ...shadows.card,
-                }}
-              >
-                <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.sm }}>
-                  Built for {dogName}
-                </Text>
-                <Text style={{ fontSize: 17, color: colors.text.primary, lineHeight: 26 }}>
-                  {"This plan was tailored to " + dogName + "'s age, environment, and current training goal."}
-                </Text>
-              </Animated.View>
-            )}
-
-            {/* ── BONUS COURSES ── */}
-            {secondaryGoals.length > 0 && (
-              <Animated.View
-                entering={FadeInDown.delay(500).duration(380)}
-                style={{
-                  backgroundColor: colors.bg.surface,
-                  borderRadius: radii.md,
-                  padding: spacing.xl,
-                  borderWidth: 1,
-                  borderColor: colors.border.soft,
-                  ...shadows.card,
-                }}
-              >
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.lg }}>
-                  {secondaryGoals.length === 1 ? 'Also included' : `${secondaryGoals.length} courses also included`}
-                </Text>
-
-                <View style={{ gap: spacing.sm }}>
-                  {secondaryGoals.map((goal) => (
-                    <View
-                      key={goal}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: spacing.sm,
-                        paddingVertical: spacing.sm,
-                        paddingHorizontal: spacing.lg,
-                        backgroundColor: colors.bg.surfaceAlt,
-                        borderRadius: radii.sm,
-                      }}
-                    >
-                      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand.primary, flexShrink: 0 }} />
-                      <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text.primary }}>
-                        {getBehaviorLabel(goal)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                <Text style={{ fontSize: 14, color: colors.text.secondary, marginTop: spacing.lg, lineHeight: 21 }}>
-                  These run alongside your main plan. Switch between courses anytime from the Train tab.
-                </Text>
-              </Animated.View>
-            )}
-
-            {/* ── PAYWALL (free users) ── */}
-            {!isPaid && (
-              <Animated.View
-                entering={FadeInDown.delay(540).duration(380)}
-                style={{
-                  borderRadius: radii.md,
-                  overflow: 'hidden',
-                  borderWidth: 1,
-                  borderColor: colors.border.soft,
-                  ...shadows.card,
-                }}
-              >
-                {/* Blurred preview */}
-                <View style={{ padding: spacing.xl, backgroundColor: colors.bg.surfaceAlt, gap: spacing.xs }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing.xs }}>
-                    Full plan preview
-                  </Text>
-                  {[0.5, 0.35, 0.2].map((op, i) => (
-                    <View key={i} style={{ height: 42, backgroundColor: colors.border.default, borderRadius: radii.sm, opacity: op }} />
-                  ))}
-                </View>
-
-                {/* Unlock section */}
-                <View style={{ padding: spacing.xl, alignItems: 'center', backgroundColor: colors.bg.surface, borderTopWidth: 1, borderTopColor: colors.border.soft }}>
-                  <AppIcon name="lock-closed" size={24} color={colors.brand.primary} />
-                  <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text.primary, marginTop: spacing.sm, marginBottom: spacing.xs, textAlign: 'center', letterSpacing: -0.3 }}>
-                    Unlock your full plan
-                  </Text>
-                  <Text style={{ fontSize: 15, color: colors.text.secondary, textAlign: 'center', lineHeight: 22 }}>
-                    All 4 weeks, session-by-session guidance, and progress tracking.
-                  </Text>
-                </View>
-              </Animated.View>
-            )}
-
-          </View>
-        </ScrollView>
-
-        {/* ── STICKY FOOTER CTA ── */}
-        <View style={{
-          position: 'absolute',
-          bottom: 0, left: 0, right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.lg,
-          paddingBottom: spacing.xl,
-          backgroundColor: colors.bg.elevated,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.soft,
-          ...shadows.modal,
-        }}>
-          {!user ? (
-            <>
-              <Button
-                label="Save my plan — Create account"
-                onPress={() => router.push('/(auth)/signup?from=onboarding')}
-                style={{ marginBottom: spacing.sm }}
-              />
-              <Text style={{ textAlign: 'center', fontSize: 14, color: colors.text.secondary }}>
-                Your plan is ready. Create a free account to save it.
-              </Text>
-            </>
-          ) : isPaid ? (
-            <Button label="Start my first session →" onPress={handleStart} />
-          ) : (
-            <>
-              <Button label="Unlock full plan →" onPress={handleUnlock} style={{ marginBottom: spacing.sm }} />
-              <TouchableOpacity onPress={handleStart} activeOpacity={0.7} style={{ alignItems: 'center', paddingVertical: spacing.xs }}>
-                <Text style={{ fontSize: 15, color: colors.text.secondary }}>Continue with free plan</Text>
-              </TouchableOpacity>
-            </>
+            </Card>
           )}
         </View>
-      </Animated.View>
+
+        {secondaryGoals.length > 0 ? (
+          <View>
+            <SectionHeader title="Also included" />
+            <ListGroup>
+              {secondaryGoals.map((goal) => (
+                <ListRow key={goal} icon="paw" title={getBehaviorLabel(goal)} />
+              ))}
+            </ListGroup>
+            <Text variant="caption" style={{ marginTop: spacing.sm }}>
+              These courses run alongside the main one. Switch between them from the Train tab.
+            </Text>
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <View
+        style={{
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.sm,
+          paddingBottom: spacing.lg,
+          backgroundColor: colors.bg.app,
+        }}
+      >
+        {!user ? (
+          <Button
+            label="Create account to save this plan"
+            onPress={() => router.push('/(auth)/signup?from=onboarding')}
+          />
+        ) : (
+          <Button label="Start first session" onPress={handleStart} />
+        )}
+      </View>
     </SafeScreen>
   );
 }
