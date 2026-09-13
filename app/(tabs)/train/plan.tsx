@@ -119,9 +119,13 @@ function stepMeta(step: ProtocolStep): string | null {
 
 function Fact({ icon, children }: { icon: AppIconName; children: string }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-      <AppIcon name={icon} size={16} color={colors.text.secondary} />
-      <Text variant="caption">{children}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+      <View style={{ paddingTop: 2 }}>
+        <AppIcon name={icon} size={16} color={colors.text.secondary} />
+      </View>
+      <Text variant="caption" style={{ flex: 1 }}>
+        {children}
+      </Text>
     </View>
   );
 }
@@ -396,6 +400,12 @@ export default function PlanScreen() {
   const stages = buildStageGroups(displayPlan.sessions);
   const nextSessionId = stages.flatMap((g) => g.nodes).find((n) => n.state === 'next')?.session.id ?? null;
   const courseTitle = displayPlan.courseTitle ?? getBehaviorLabel(displayPlan.goal);
+  const nextSession = displayPlan.sessions.find((session) => session.id === nextSessionId) ?? null;
+  const currentStage = (() => {
+    const group = nextSession ? stages.find((g) => g.nodes.some((n) => n.session.id === nextSession.id)) : null;
+    if (!group) return null;
+    return { stage: group.stage, protocol: resolveProtocol(nextSession!) };
+  })();
 
   return (
     <>
@@ -411,22 +421,56 @@ export default function PlanScreen() {
             onSelect={(id) => setSelectedPlan(id)}
           />
 
-          <View style={{ gap: spacing.sm }}>
-            {switcherPlans.length <= 1 ? <Text variant="caption">{courseTitle}</Text> : null}
-            <ProgressBar
-              progress={completionPct / 100}
-              height={8}
-              accessibilityLabel={`${completedCount} of ${totalCount} sessions complete`}
-            />
-            <Text variant="caption">
-              {completedCount} of {totalCount} sessions
-            </Text>
-            {adaptedCount > 0 ? (
-              <Text variant="caption">
-                {adaptedCount === 1 ? '1 session adjusted' : `${adaptedCount} sessions adjusted`} by the coach
-              </Text>
+          <Card style={{ gap: spacing.lg }}>
+            <View style={{ gap: spacing.xs }}>
+              <Text variant="h1">{courseTitle}</Text>
+              {currentStage?.protocol?.objective ? (
+                <Text variant="body" color={colors.text.secondary}>
+                  {currentStage.protocol.objective}
+                </Text>
+              ) : null}
+            </View>
+
+            <View style={{ gap: spacing.sm }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <Text variant="captionStrong">Course progress</Text>
+                <Text variant="caption">
+                  {completedCount} of {totalCount} sessions
+                </Text>
+              </View>
+              <ProgressBar
+                progress={completionPct / 100}
+                height={8}
+                accessibilityLabel={`${completedCount} of ${totalCount} sessions complete`}
+              />
+            </View>
+
+            <View style={{ gap: spacing.xs }}>
+              <Fact icon="flag-outline">
+                {currentStage
+                  ? `Stage ${currentStage.stage} of ${stages.length}${currentStage.protocol ? `: ${currentStage.protocol.title}` : ''}`
+                  : 'All stages complete'}
+              </Fact>
+              <Fact icon="calendar-outline">
+                {`${displayPlan.sessionsPerWeek} sessions a week, about ${Math.max(1, Math.ceil((totalCount - completedCount) / Math.max(1, displayPlan.sessionsPerWeek)))} weeks to go`}
+              </Fact>
+              {nextSession ? (
+                <Fact icon="play-outline">{`Next: ${nextSession.title}, ${sessionSubtitle(nextSession)}`}</Fact>
+              ) : null}
+              {adaptedCount > 0 ? (
+                <Fact icon="sync-outline">
+                  {adaptedCount === 1 ? '1 session adjusted by the coach' : `${adaptedCount} sessions adjusted by the coach`}
+                </Fact>
+              ) : null}
+            </View>
+
+            {nextSession ? (
+              <Button
+                label="Start next session"
+                onPress={() => router.push(`/(tabs)/train/session?id=${nextSession.id}&planId=${displayPlanId ?? ''}`)}
+              />
             ) : null}
-          </View>
+          </Card>
 
           {activePlanIds.length < MAX_ACTIVE_COURSES ? (
             <Button
