@@ -23,8 +23,8 @@ export function navigationTheme(scheme: AppColorScheme): Theme {
 }
 
 /**
- * Default native-stack header. Large title on tab roots (pass
- * `headerLargeTitle: true` per screen); plain back button everywhere else.
+ * Default native-stack header. Standard title on every screen (large titles do not render on
+ * react-native-screens 4.1 with iOS 26); system back button everywhere.
  */
 export function stackScreenOptions(scheme: AppColorScheme): NativeStackNavigationOptions {
   const c = getThemeColors(scheme);
@@ -32,11 +32,9 @@ export function stackScreenOptions(scheme: AppColorScheme): NativeStackNavigatio
     headerShown: true,
     headerShadowVisible: false,
     headerStyle: { backgroundColor: c.bg.app },
-    headerLargeTitleStyle: { color: c.text.primary, fontWeight: String(typography.display.fontWeight) },
     headerTitleStyle: { color: c.text.primary, fontWeight: typography.bodyStrong.fontWeight },
     headerTintColor: c.accent,
     headerBackButtonDisplayMode: 'minimal',
-    headerLargeTitleShadowVisible: false,
     contentStyle: { backgroundColor: c.bg.app },
   };
 }

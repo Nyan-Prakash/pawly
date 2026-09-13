@@ -7,7 +7,7 @@ export default function TrainLayout() {
   const { colorScheme } = useTheme();
   return (
     <Stack screenOptions={stackScreenOptions(colorScheme)}>
-      <Stack.Screen name="index" options={{ title: 'Train', headerLargeTitle: true }} />
+      <Stack.Screen name="index" options={{ title: 'Train' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="tools" options={{ title: 'Training tools' }} />
       <Stack.Screen name="plan" options={{ title: 'Plan' }} />

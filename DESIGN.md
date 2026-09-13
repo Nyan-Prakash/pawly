@@ -98,7 +98,7 @@ Motion answers an action or shows a state change. Nothing animates on mount. Not
 
 ## Navigation
 
-- Native stack headers on every stack, large titles on tab roots. Back is the system back button and swipe. No custom back buttons.
+- Native stack headers on every stack with the standard title (large titles are off until react-native-screens is upgraded; they do not render on iOS 26 with 4.1). Back is the system back button and swipe. No custom back buttons.
 - The native tab bar with the platform's own height, tinted `accent`, labels in sentence case.
 - Sheets are the platform sheet: `BottomSheet` presents as a page sheet on iOS with swipe-to-dismiss and a `Done`/`Close` header; full-screen with a header on Android.
 - Modals that need full attention (a live session) are `fullScreenModal`.
