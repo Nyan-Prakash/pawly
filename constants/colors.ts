@@ -13,7 +13,7 @@ export type AppColorScheme = 'light' | 'dark';
 
 /** The mascot's own colours, taken from the app icon. Not for UI. */
 const mascot = {
-  cream: '#F5E2B3',
+  cream: '#FCE1B2',
   brown: '#4A2C18',
   patch: '#6B4527',
   eye: '#2B1A0E',
@@ -21,7 +21,7 @@ const mascot = {
   blush: '#F2B8A2',
   tongue: '#F26D6D',
   highlight: '#FFFFFF',
-  sky: '#4F6BE0',
+  sky: '#5974DB',
 } as const;
 
 export const lightColors = {
