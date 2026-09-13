@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 
+import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -25,9 +26,22 @@ type HeroSessionCardProps = {
   onDiscard?: () => void;
 };
 
+function Fact({ icon, children, tone = 'secondary' }: { icon: AppIconName; children: string; tone?: 'secondary' | 'warning' }) {
+  const color = tone === 'warning' ? colors.status.warning : colors.text.secondary;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+      <AppIcon name={icon} size={16} color={color} />
+      <Text variant="caption" color={color}>
+        {children}
+      </Text>
+    </View>
+  );
+}
+
 /**
- * The one card on the Today screen: today's session, its course, where the
- * course stands, and the single action that matters.
+ * The one card on the Today screen. Reads top to bottom in the order the
+ * owner needs it: what state we are in, what the session is, when and how
+ * long, how far the course has come, and the single action that matters.
  */
 export function HeroSessionCard({
   session,
@@ -45,60 +59,79 @@ export function HeroSessionCard({
   const completed = plan.sessions.filter((s) => s.isCompleted).length;
   const total = plan.sessions.length;
 
-  const whenLine = (() => {
+  const stateLabel = {
+    today: "Today's session",
+    overdue: 'Missed session',
+    upcoming: 'Next session',
+    resume: 'In progress',
+  }[variant];
+
+  const whenText = (() => {
     if (variant === 'resume') return resumeLabel ?? 'Picked up where you left off';
-    if (variant === 'overdue') return `Was scheduled for ${formatScheduleLabel(session)}`;
-    if (variant === 'upcoming') return `Scheduled for ${formatScheduleLabel(session)}`;
-    return session.scheduledTime ? `Today at ${formatDisplayTime(session.scheduledTime)}` : 'Today';
+    if (variant === 'today') {
+      return session.scheduledTime ? `Today at ${formatDisplayTime(session.scheduledTime)}` : 'Today';
+    }
+    return formatScheduleLabel(session);
   })();
-  const whenColor = variant === 'overdue' ? colors.status.warning : colors.text.secondary;
 
   const primaryLabel =
     variant === 'resume' ? 'Resume session' : variant === 'upcoming' ? 'View plan' : 'Start session';
   const primaryAction = variant === 'upcoming' ? onViewPlan : onStart;
 
+  const secondary = [
+    variant !== 'upcoming' ? { label: 'View plan', onPress: onViewPlan } : null,
+    variant === 'overdue' && canReschedule && onReschedule ? { label: rescheduleLabel, onPress: onReschedule } : null,
+    variant === 'resume' && onDiscard
+      ? { label: 'Discard', onPress: onDiscard, accessibilityLabel: 'Discard unfinished session' }
+      : null,
+  ].filter((item): item is NonNullable<typeof item> => item !== null);
+
   return (
-    <Card accessibilityRole="summary">
-      <View style={{ gap: spacing.xs }}>
-        <Text variant="caption">{courseLabel}</Text>
-        <Text variant="h2">{session.title}</Text>
-        <Text variant="caption">
-          {session.durationMinutes} min, week {session.weekNumber}
-        </Text>
-        <Text variant="caption" color={whenColor}>
-          {whenLine}
-        </Text>
+    <Card accessibilityRole="summary" style={{ gap: spacing.xl }}>
+      <View style={{ gap: spacing.md }}>
+        <View style={{ gap: spacing.xs }}>
+          <Text variant="captionStrong" color={variant === 'overdue' ? colors.status.warning : colors.accent}>
+            {stateLabel}
+          </Text>
+          <Text variant="h1">{session.title}</Text>
+        </View>
+        <View style={{ gap: spacing.xs }}>
+          <Fact icon={variant === 'resume' ? 'play-outline' : 'calendar-outline'} tone={variant === 'overdue' ? 'warning' : 'secondary'}>
+            {whenText}
+          </Fact>
+          <Fact icon="time-outline">{`${session.durationMinutes} min`}</Fact>
+        </View>
       </View>
 
-      <View style={{ gap: spacing.sm, marginTop: spacing.lg }}>
+      <View style={{ gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <Text variant="caption">{courseLabel}</Text>
+          <Text variant="caption">
+            {completed} of {total} sessions
+          </Text>
+        </View>
         <ProgressBar
           progress={total > 0 ? completed / total : 0}
-          accessibilityLabel={`${completed} of ${total} sessions complete`}
+          accessibilityLabel={`${courseLabel}: ${completed} of ${total} sessions complete`}
         />
-        <Text variant="caption">
-          {completed} of {total} sessions
-        </Text>
       </View>
 
-      <View style={{ gap: spacing.sm, marginTop: spacing.xl }}>
+      <View style={{ gap: spacing.xs }}>
         <Button label={primaryLabel} onPress={primaryAction} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          {variant !== 'upcoming' ? (
-            <Button label="View plan" variant="ghost" size="md" onPress={onViewPlan} />
-          ) : null}
-          {variant === 'overdue' && canReschedule && onReschedule ? (
-            <Button label={rescheduleLabel} variant="ghost" size="md" onPress={onReschedule} />
-          ) : null}
-          {variant === 'resume' && onDiscard ? (
-            <Button
-              label="Discard"
-              variant="ghost"
-              size="md"
-              onPress={onDiscard}
-              accessibilityLabel="Discard unfinished session"
-            />
-          ) : null}
-        </View>
+        {secondary.length ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {secondary.map((item) => (
+              <Button
+                key={item.label}
+                label={item.label}
+                variant="ghost"
+                size="md"
+                onPress={item.onPress}
+                accessibilityLabel={item.accessibilityLabel}
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
     </Card>
   );

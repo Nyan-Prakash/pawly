@@ -113,10 +113,24 @@ function pickQuickWins(todayKey: string, count = 3): QuickWin[] {
 // Loading skeleton — mirrors the real layout so the swap doesn't jump
 // ─────────────────────────────────────────────────────────────────────────────
 
+function TodayHeader() {
+  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return (
+    <View style={{ gap: spacing.xs, paddingTop: spacing.sm }}>
+      <Text variant="captionStrong" color={colors.text.secondary}>
+        {dateLabel}
+      </Text>
+      <Text variant="display" accessibilityRole="header">
+        Today
+      </Text>
+    </View>
+  );
+}
+
 function LoadingSkeleton() {
   return (
-    <View style={{ padding: spacing.lg, gap: spacing.xl }}>
-      <SkeletonBlock height={232} borderRadius={radii.md} />
+    <View style={{ gap: spacing.xl }}>
+      <SkeletonBlock height={296} borderRadius={radii.md} />
       <View style={{ gap: spacing.sm }}>
         <SkeletonBlock height={26} width={120} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -347,7 +361,11 @@ export default function TrainScreen() {
 
   if (isLoading && !hasPlans) {
     return (
-      <ScrollView contentInsetAdjustmentBehavior="automatic">
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+      >
+        <TodayHeader />
         <LoadingSkeleton />
       </ScrollView>
     );
@@ -362,6 +380,8 @@ export default function TrainScreen() {
         }
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
       >
+        <TodayHeader />
+
         {/* ── No plan ── */}
         {!hasPlans ? (
           <EmptyState
