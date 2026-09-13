@@ -34,13 +34,13 @@ function ToggleRow({
         borderRadius: radii.md,
         borderWidth: 1,
         borderColor: colors.border.default,
-        padding: spacing.md,
+        padding: spacing.lg,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
       }}
     >
-      <View style={{ flex: 1, paddingRight: spacing.md }}>
+      <View style={{ flex: 1, paddingRight: spacing.lg }}>
         <Text variant="bodyStrong">{label}</Text>
         <Text variant="caption">{description}</Text>
       </View>
@@ -106,8 +106,8 @@ export default function NotificationSettingsScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           gap: spacing.sm,
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
         }}
       >
@@ -117,14 +117,14 @@ export default function NotificationSettingsScreen() {
         <Text variant="title">Notifications</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, paddingBottom: spacing.xl * 2 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.xxl * 2 }}>
         <View
           style={{
             backgroundColor: colors.bg.surface,
             borderRadius: radii.md,
             borderWidth: 1,
             borderColor: colors.border.default,
-            padding: spacing.md,
+            padding: spacing.lg,
           }}
         >
           <Text variant="micro" color={colors.text.secondary}>
@@ -149,7 +149,7 @@ export default function NotificationSettingsScreen() {
             borderRadius: radii.md,
             borderWidth: 1,
             borderColor: colors.border.default,
-            padding: spacing.md,
+            padding: spacing.lg,
           }}
         >
           <Text variant="bodyStrong">Fallback reminder time</Text>
@@ -173,7 +173,7 @@ export default function NotificationSettingsScreen() {
             borderRadius: radii.md,
             borderWidth: 1,
             borderColor: colors.border.default,
-            padding: spacing.md,
+            padding: spacing.lg,
           }}
         >
           <Text variant="bodyStrong">Reminder lead time</Text>

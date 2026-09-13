@@ -49,9 +49,9 @@ function SettingsRow({
       onPress={onPress}
       style={{
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
+        borderRadius: radii.md,
         paddingVertical: spacing.sm + 2,
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.lg,
         borderWidth: 1.5,
         borderColor: colors.border.soft,
         flexDirection: 'row',
@@ -108,7 +108,7 @@ function StatPill({
         alignItems: 'center',
         gap: spacing.xs,
         backgroundColor: hexToRgba(color, 0.08),
-        borderRadius: radii.pill,
+        borderRadius: radii.full,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.sm,
         borderWidth: 1,
@@ -161,15 +161,15 @@ export default function ProfileScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
+        contentContainerStyle={{ paddingBottom: spacing.xxxl * 2 }}
       >
         {/* ── Profile header ── */}
         <View
           style={{
             alignItems: 'center',
-            paddingTop: spacing.xl,
-            paddingBottom: spacing.lg,
-            paddingHorizontal: spacing.md,
+            paddingTop: spacing.xxl,
+            paddingBottom: spacing.xl,
+            paddingHorizontal: spacing.lg,
             gap: spacing.sm,
           }}
         >
@@ -266,7 +266,7 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <View style={{ paddingHorizontal: spacing.md, gap: 20 }}>
+        <View style={{ paddingHorizontal: spacing.lg, gap: 20 }}>
 
           {/* ── Appearance ── */}
           <View style={{ gap: spacing.sm }}>
@@ -274,8 +274,8 @@ export default function ProfileScreen() {
             <View
               style={{
                 backgroundColor: colors.bg.surface,
-                borderRadius: radii.lg,
-                padding: spacing.md,
+                borderRadius: radii.md,
+                padding: spacing.lg,
                 borderWidth: 1.5,
                 borderColor: colors.border.soft,
                 ...shadows.card,
@@ -294,7 +294,7 @@ export default function ProfileScreen() {
                       style={{
                         flex: 1,
                         paddingVertical: 10,
-                        borderRadius: radii.pill,
+                        borderRadius: radii.full,
                         borderWidth: 1.5,
                         borderColor: selected ? colors.brand.primary : colors.border.default,
                         backgroundColor: selected
@@ -333,9 +333,9 @@ export default function ProfileScreen() {
             <View
               style={{
                 backgroundColor: colors.bg.surface,
-                borderRadius: radii.lg,
+                borderRadius: radii.md,
                 paddingVertical: spacing.sm + 2,
-                paddingHorizontal: spacing.md,
+                paddingHorizontal: spacing.lg,
                 borderWidth: 1.5,
                 borderColor: colors.border.soft,
                 flexDirection: 'row',

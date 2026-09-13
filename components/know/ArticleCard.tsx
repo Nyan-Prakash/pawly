@@ -23,14 +23,14 @@ export function ArticleCard({ article, onPress, featuredStyle = false }: Article
             backgroundColor: pressed ? colors.bg.surfaceAlt : colors.bg.surface,
             borderColor: pressed ? colors.brand.primary + '40' : colors.border.default,
             gap: spacing.sm,
-            padding: featuredStyle ? spacing.xl : spacing.lg,
+            padding: featuredStyle ? spacing.xxl : spacing.xl,
           }}
         >
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {article.isFeatured ? (
               <View
                 style={{
-                  borderRadius: radii.pill,
+                  borderRadius: radii.full,
                   backgroundColor: colors.status.warningBg,
                   paddingHorizontal: 10,
                   paddingVertical: 4,
@@ -44,7 +44,7 @@ export function ArticleCard({ article, onPress, featuredStyle = false }: Article
 
             <View
               style={{
-                borderRadius: radii.pill,
+                borderRadius: radii.full,
                 backgroundColor: colors.brand.primary + '14',
                 paddingHorizontal: 10,
                 paddingVertical: 4,
@@ -57,7 +57,7 @@ export function ArticleCard({ article, onPress, featuredStyle = false }: Article
 
             <View
               style={{
-                borderRadius: radii.pill,
+                borderRadius: radii.full,
                 backgroundColor: colors.bg.surfaceAlt,
                 paddingHorizontal: 10,
                 paddingVertical: 4,

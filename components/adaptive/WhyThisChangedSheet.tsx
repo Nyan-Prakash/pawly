@@ -126,8 +126,8 @@ export function WhyThisChangedSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} padded={false}>
             <ScrollView
-              style={{ flexGrow: 0, paddingHorizontal: spacing.lg }}
-              contentContainerStyle={{ paddingBottom: spacing.xl}}
+              style={{ flexGrow: 0, paddingHorizontal: spacing.xl }}
+              contentContainerStyle={{ paddingBottom: spacing.xxl}}
               showsVerticalScrollIndicator={false}
             >
               {/* Kind badge + title */}
@@ -144,7 +144,7 @@ export function WhyThisChangedSheet({
                     backgroundColor: `${colors.brand.coach}14`,
                     paddingHorizontal: spacing.sm,
                     paddingVertical: 4,
-                    borderRadius: radii.pill,
+                    borderRadius: radii.full,
                   }}
                 >
                   <Text style={{ fontSize: 11, fontWeight: '700', color: colors.brand.coach, letterSpacing: 0.5 }}>
@@ -157,10 +157,10 @@ export function WhyThisChangedSheet({
               </View>
 
               {/* What changed */}
-              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text.primary, lineHeight: 28, marginBottom: spacing.md }}>
+              <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text.primary, lineHeight: 28, marginBottom: spacing.lg }}>
                 What changed
               </Text>
-              <Text style={{ fontSize: 14, lineHeight: 22, color: colors.text.secondary, marginBottom: spacing.lg }}>
+              <Text style={{ fontSize: 14, lineHeight: 22, color: colors.text.secondary, marginBottom: spacing.xl }}>
                 {adaptation.reasonSummary || 'The plan was adjusted based on recent training patterns.'}
               </Text>
 
@@ -169,9 +169,9 @@ export function WhyThisChangedSheet({
                 style={{
                   backgroundColor: colors.bg.surfaceAlt,
                   borderRadius: radii.md,
-                  padding: spacing.md,
+                  padding: spacing.lg,
                   gap: spacing.xs,
-                  marginBottom: spacing.lg,
+                  marginBottom: spacing.xl,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
@@ -190,11 +190,11 @@ export function WhyThisChangedSheet({
                 style={{
                   backgroundColor: `${colors.success}10`,
                   borderRadius: radii.md,
-                  padding: spacing.md,
+                  padding: spacing.lg,
                   gap: spacing.xs,
                   borderWidth: 1,
                   borderColor: `${colors.success}25`,
-                  marginBottom: spacing.lg,
+                  marginBottom: spacing.xl,
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
@@ -213,9 +213,9 @@ export function WhyThisChangedSheet({
             {/* Fixed footer — paddingBottom accounts for home indicator */}
             <View
               style={{
-                paddingHorizontal: spacing.lg,
-                paddingTop: spacing.md,
-                paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.md : spacing.lg,
+                paddingHorizontal: spacing.xl,
+                paddingTop: spacing.lg,
+                paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.lg : spacing.xl,
                 borderTopWidth: 1,
                 borderTopColor: colors.border.soft,
                 backgroundColor: colors.bg.surface,

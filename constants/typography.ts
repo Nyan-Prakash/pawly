@@ -1,33 +1,32 @@
-const regular   = 'Nunito_400Regular';
-const medium    = 'Nunito_500Medium';
-const semibold  = 'Nunito_600SemiBold';
-const bold      = 'Nunito_700Bold';
-const extrabold = 'Nunito_800ExtraBold';
+/**
+ * Pawly type scale. See DESIGN.md.
+ *
+ * Platform system font (SF Pro / Roboto). Eight variants, three weights,
+ * letter-spacing always 0. Screens pick a variant; they never set
+ * fontSize / fontWeight / lineHeight directly.
+ */
 
-export const typography = {
-  // ── New named scale ────────────────────────────────────────────────────
-  display:    { fontSize: 32, fontFamily: extrabold },
-  h1:         { fontSize: 28, fontFamily: extrabold },
-  h2:         { fontSize: 22, fontFamily: bold },
-  h3:         { fontSize: 18, fontFamily: bold },
-  body:       { fontSize: 16, fontFamily: regular },
-  bodyStrong: { fontSize: 16, fontFamily: semibold },
-  caption:    { fontSize: 14, fontFamily: regular },
-  micro:      { fontSize: 12, fontFamily: medium },
+import type { TextStyle } from 'react-native';
 
-  // ── Legacy aliases (kept for backward compat during migration) ─────────
-  sizes: {
-    xs: 12,
-    sm: 14,
-    md: 16,
-    lg: 20,
-    xl: 24,
-    xxl: 32,
-  },
-  weights: {
-    regular: '400' as const,
-    medium: '500' as const,
-    semibold: '600' as const,
-    bold: '700' as const,
-  },
-} as const;
+export type TypographyVariant =
+  | 'display'
+  | 'h1'
+  | 'h2'
+  | 'body'
+  | 'bodyStrong'
+  | 'caption'
+  | 'captionStrong'
+  | 'label';
+
+type TypeSpec = Required<Pick<TextStyle, 'fontSize' | 'lineHeight' | 'fontWeight'>>;
+
+export const typography: Record<TypographyVariant, TypeSpec> = {
+  display:       { fontSize: 32, lineHeight: 38, fontWeight: '700' },
+  h1:            { fontSize: 24, lineHeight: 30, fontWeight: '700' },
+  h2:            { fontSize: 20, lineHeight: 26, fontWeight: '600' },
+  body:          { fontSize: 16, lineHeight: 22, fontWeight: '400' },
+  bodyStrong:    { fontSize: 16, lineHeight: 22, fontWeight: '600' },
+  caption:       { fontSize: 14, lineHeight: 20, fontWeight: '400' },
+  captionStrong: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  label:         { fontSize: 12, lineHeight: 16, fontWeight: '600' },
+};

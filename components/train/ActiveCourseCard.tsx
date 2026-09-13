@@ -85,8 +85,8 @@ export const ActiveCourseCard: React.FC<ActiveCourseCardProps> = ({ plan, onPres
         overflow: 'hidden',
         flexDirection: 'row',
         alignItems: 'center',
-        paddingLeft: spacing.md + 8, // compensate for stripe
-        paddingRight: spacing.md,
+        paddingLeft: spacing.lg + 8, // compensate for stripe
+        paddingRight: spacing.lg,
         paddingVertical: 20,
         gap: 14,
         ...shadow,

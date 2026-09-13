@@ -61,8 +61,8 @@ export function MilestoneCard({ milestone, definition, variant, onShare }: Miles
       style={{
         width: 160,
         backgroundColor: isLocked ? '#F3F4F6' : colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: spacing.md,
+        borderRadius: radii.md,
+        padding: spacing.lg,
         borderWidth: isNext ? 2 : 1,
         borderColor: isNext
           ? colors.brand.primary
@@ -97,7 +97,7 @@ export function MilestoneCard({ milestone, definition, variant, onShare }: Miles
             backgroundColor: '#DCFCE7',
             paddingHorizontal: 8,
             paddingVertical: 3,
-            borderRadius: radii.pill,
+            borderRadius: radii.full,
             marginBottom: 2,
           }}
         >
@@ -139,7 +139,7 @@ export function MilestoneCard({ milestone, definition, variant, onShare }: Miles
             backgroundColor: '#FEF3C7',
             paddingHorizontal: 8,
             paddingVertical: 3,
-            borderRadius: radii.pill,
+            borderRadius: radii.full,
             marginTop: 2,
           }}
         >
@@ -196,8 +196,8 @@ export function MilestoneGridCard({
       style={{
         flex: 1,
         backgroundColor: isLocked ? '#F9FAFB' : colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: spacing.md,
+        borderRadius: radii.md,
+        padding: spacing.lg,
         borderWidth: 1,
         borderColor: isAchieved ? '#FDE68A' : colors.border.default,
         opacity: isLocked ? 0.5 : 1,

@@ -82,10 +82,10 @@ export default function ArticleReaderScreen() {
         }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.xxl * 2,
-          gap: spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
+          paddingBottom: spacing.xxxl * 2,
+          gap: spacing.xl,
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -108,7 +108,7 @@ export default function ArticleReaderScreen() {
         </View>
 
         {isLoading ? (
-          <View style={{ paddingTop: spacing.xxl, alignItems: 'center' }}>
+          <View style={{ paddingTop: spacing.xxxl, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={colors.brand.primary} />
           </View>
         ) : error || !article ? (
@@ -119,12 +119,12 @@ export default function ArticleReaderScreen() {
             action={{ label: 'Back to library', onPress: () => router.replace('/(tabs)/know') }}
           />
         ) : (
-          <View style={{ gap: spacing.lg }}>
-            <Card variant="elevated" style={{ gap: spacing.md }}>
+          <View style={{ gap: spacing.xl }}>
+            <Card variant="elevated" style={{ gap: spacing.lg }}>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 <View
                   style={{
-                    borderRadius: radii.pill,
+                    borderRadius: radii.full,
                     backgroundColor: colors.brand.primary + '14',
                     paddingHorizontal: 10,
                     paddingVertical: 4,
@@ -136,7 +136,7 @@ export default function ArticleReaderScreen() {
                 </View>
                 <View
                   style={{
-                    borderRadius: radii.pill,
+                    borderRadius: radii.full,
                     backgroundColor: colors.bg.surfaceAlt,
                     paddingHorizontal: 10,
                     paddingVertical: 4,
@@ -164,7 +164,7 @@ export default function ArticleReaderScreen() {
               </View>
             </Card>
 
-            <Card style={{ gap: spacing.md }}>
+            <Card style={{ gap: spacing.lg }}>
               <ArticleContentRenderer content={article.content} />
             </Card>
 

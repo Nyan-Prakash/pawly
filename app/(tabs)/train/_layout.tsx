@@ -1,36 +1,23 @@
 import { Stack } from 'expo-router';
 
+import { stackScreenOptions } from '@/lib/navigationTheme';
+import { useTheme } from '@/lib/theme';
+
 export default function TrainLayout() {
+  const { colorScheme } = useTheme();
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="notifications" />
-      <Stack.Screen name="tools" />
-      <Stack.Screen name="plan" />
+    <Stack screenOptions={stackScreenOptions(colorScheme)}>
+      <Stack.Screen name="index" options={{ title: 'Train', headerLargeTitle: true }} />
+      <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+      <Stack.Screen name="tools" options={{ title: 'Training tools' }} />
+      <Stack.Screen name="plan" options={{ title: 'Plan' }} />
+      <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
       <Stack.Screen
         name="session"
-        options={{
-          presentation: 'fullScreenModal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
+        options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }}
       />
-      <Stack.Screen
-        name="upload-video"
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="add-course"
-        options={{
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen name="upload-video" options={{ presentation: 'modal', title: 'Upload a video' }} />
+      <Stack.Screen name="add-course" options={{ presentation: 'modal', title: 'Add a course' }} />
     </Stack>
   );
 }

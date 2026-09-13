@@ -24,7 +24,7 @@ export function NotificationItem({
         borderRadius: radii.md,
         borderWidth: 1,
         borderColor: item.isRead ? colors.border.default : colors.status.infoBorder,
-        padding: spacing.md,
+        padding: spacing.lg,
         opacity: pressed ? 0.82 : 1,
         gap: spacing.xs,
       })}

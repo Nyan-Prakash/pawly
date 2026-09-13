@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     justifyContent: 'space-between',
   },
@@ -318,16 +318,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xxl * 2,
-    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxxl * 2,
+    gap: spacing.lg,
   },
   card: {
     backgroundColor: colors.bg.surface,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border.soft,
-    padding: spacing.md,
+    padding: spacing.lg,
     gap: spacing.sm,
   },
   sectionLabel: {
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.status.dangerBorder,
     borderRadius: radii.md,
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   successBanner: {
     flexDirection: 'row',
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.status.successBorder,
     borderRadius: radii.md,
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   saveButton: {
     marginTop: spacing.sm,

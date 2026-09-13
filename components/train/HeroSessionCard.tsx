@@ -73,8 +73,8 @@ export function HeroSessionCard({
     <Animated.View
       style={{
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: spacing.lg,
+        borderRadius: radii.md,
+        padding: spacing.xl,
         ...softShadows.float,
         opacity: enter,
         transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
@@ -90,7 +90,7 @@ export function HeroSessionCard({
             backgroundColor: theme.tint,
             paddingHorizontal: 12,
             paddingVertical: spacing.xs + 2,
-            borderRadius: radii.pill,
+            borderRadius: radii.full,
           }}
         >
           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.solid }} />
@@ -104,7 +104,7 @@ export function HeroSessionCard({
       </View>
 
       {/* Row 2 — title + meta, mascot on the right */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.lg }}>
         <View style={{ flex: 1 }}>
           <Text variant="h2" style={{ letterSpacing: -0.4, lineHeight: 28 }}>
             {session.title}
@@ -117,7 +117,7 @@ export function HeroSessionCard({
       </View>
 
       {/* Row 3 — course progress */}
-      <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+      <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
         <ProgressBar
           progress={completion / 100}
           height={6}
@@ -130,7 +130,7 @@ export function HeroSessionCard({
       </View>
 
       {/* Row 4 — CTA */}
-      <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+      <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
         {variant === 'upcoming' ? (
           <Button
             label="View plan"
@@ -140,7 +140,7 @@ export function HeroSessionCard({
             onPress={onViewPlan}
           />
         ) : (
-          <View style={{ borderRadius: radii.pill, ...tintedShadow(colors.brand.primary, 'float') }}>
+          <View style={{ borderRadius: radii.full, ...tintedShadow(colors.brand.primary, 'float') }}>
             <Button
               label={variant === 'overdue' ? 'Start now' : 'Start session'}
               size="lg"

@@ -48,11 +48,11 @@ function QuickWinCardBase({ win, onPress }: QuickWinCardProps) {
           {
             width: TILE_WIDTH,
             height: TILE_HEIGHT,
-            borderRadius: radii.lg,
+            borderRadius: radii.md,
             backgroundColor: pastel,
             borderWidth: 1,
             borderColor: pastelEdge,
-            padding: spacing.md,
+            padding: spacing.lg,
             justifyContent: 'space-between',
             overflow: 'hidden',
             transform: [{ scale }],
@@ -97,7 +97,7 @@ function QuickWinCardBase({ win, onPress }: QuickWinCardProps) {
               backgroundColor: surface,
               paddingHorizontal: spacing.sm + 2,
               paddingVertical: spacing.xs + 1,
-              borderRadius: radii.pill,
+              borderRadius: radii.full,
             }}
           >
             <AppIcon name="time-outline" size={12} color={colors.text.secondary} />

@@ -86,8 +86,8 @@ export default function NotificationsScreen() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: spacing.sm,
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
         }}
       >
@@ -108,8 +108,8 @@ export default function NotificationsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <NotificationItem item={item} onPress={handlePressItem} />}
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xxl * 2,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.xxxl * 2,
           gap: spacing.sm,
           flexGrow: items.length === 0 ? 1 : undefined,
         }}
@@ -121,10 +121,10 @@ export default function NotificationsScreen() {
             <View
               style={{
                 backgroundColor: colors.bg.surface,
-                borderRadius: radii.lg,
+                borderRadius: radii.md,
                 borderWidth: 1,
                 borderColor: colors.border.default,
-                padding: spacing.lg,
+                padding: spacing.xl,
               }}
             >
               <Text variant="body">Loading notifications…</Text>

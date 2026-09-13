@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { Animated, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, {
   Circle,
   ClipPath,
@@ -13,6 +12,7 @@ import Svg, {
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
+import { spacing } from '@/constants/spacing';
 
 export type MascotState = 'happy' | 'encouraging' | 'thinking' | 'celebrating' | 'waiting';
 
@@ -39,10 +39,10 @@ function MascotSvg({ state = 'happy', size }: { state: MascotState; size: number
   const furDark  = colors.mascot.furDark;  // ears, tuft, shading
   const cream    = colors.mascot.earInner; // muzzle + inner ear
   const collar   = colors.mascot.collar;   // brand green
-  const tag      = colors.brand.secondary;
-  const ink      = '#2B2523';              // nose + mouth
-  const eyeCol   = '#1F2937';
-  const blush    = '#F59A9A';
+  const tag      = colors.status.warning;
+  const ink      = colors.mascot.eye;              // nose + mouth
+  const eyeCol   = colors.mascot.eye;
+  const blush    = colors.mascot.blush;
 
   const isWaiting     = state === 'waiting';
   const isCelebrating = state === 'celebrating';
@@ -79,9 +79,9 @@ function MascotSvg({ state = 'happy', size }: { state: MascotState; size: number
       {/* ── Thought bubbles ── */}
       {isThinking && (
         <>
-          <Circle cx={80} cy={22} r={5.5} fill={colors.bg.surfaceAlt} />
-          <Circle cx={88} cy={13} r={3.5} fill={colors.bg.surfaceAlt} />
-          <Circle cx={93} cy={6}  r={2}   fill={colors.bg.surfaceAlt} />
+          <Circle cx={80} cy={22} r={5.5} fill={colors.bg.fill} />
+          <Circle cx={88} cy={13} r={3.5} fill={colors.bg.fill} />
+          <Circle cx={93} cy={6}  r={2}   fill={colors.bg.fill} />
         </>
       )}
 
@@ -89,10 +89,10 @@ function MascotSvg({ state = 'happy', size }: { state: MascotState; size: number
       {isCelebrating && (
         <>
           <Rect x={8}  y={12} width={6} height={6} rx={1.5} fill={tag}                  transform="rotate(20 11 15)" />
-          <Rect x={84} y={10} width={5} height={5} rx={1}   fill={colors.brand.primary} transform="rotate(-18 86 12)" />
-          <Rect x={16} y={26} width={4} height={4} rx={1}   fill="#F472B6"              transform="rotate(35 18 28)" />
-          <Rect x={80} y={28} width={5} height={5} rx={1.5} fill={colors.brand.coach}   transform="rotate(-25 82 30)" />
-          <Circle cx={50} cy={7} r={2.5} fill="#A78BFA" />
+          <Rect x={84} y={10} width={5} height={5} rx={1}   fill={colors.accent} transform="rotate(-18 86 12)" />
+          <Rect x={16} y={26} width={4} height={4} rx={1}   fill={colors.mascot.blush}              transform="rotate(35 18 28)" />
+          <Rect x={80} y={28} width={5} height={5} rx={1.5} fill={colors.accent}   transform="rotate(-25 82 30)" />
+          <Circle cx={50} cy={7} r={2.5} fill={colors.mascot.collar} />
         </>
       )}
 
@@ -157,14 +157,14 @@ function MascotSvg({ state = 'happy', size }: { state: MascotState; size: number
       {/* ── Tongue — celebrating only ── */}
       {isCelebrating && (
         <G>
-          <Path d="M 45.5 69 L 54.5 69 L 54.5 73.5 C 54.5 77.5 45.5 77.5 45.5 73.5 Z" fill="#F26D6D" />
-          <Path d="M 50 70 L 50 75.5" stroke="#DC4C4C" strokeWidth={1.2} strokeLinecap="round" opacity={0.7} />
+          <Path d="M 45.5 69 L 54.5 69 L 54.5 73.5 C 54.5 77.5 45.5 77.5 45.5 73.5 Z" fill={colors.mascot.tongue} />
+          <Path d="M 50 70 L 50 75.5" stroke={colors.mascot.tongueLine} strokeWidth={1.2} strokeLinecap="round" opacity={0.7} />
         </G>
       )}
 
       {/* ── Collar — thin, slightly muted so the face keeps focus ── */}
       <Path d="M 25 73 C 35 82 65 82 75 73 L 75 77.5 C 65 86.5 35 86.5 25 77.5 Z" fill={collar} />
-      <Path d="M 25 73 C 35 82 65 82 75 73 L 75 77.5 C 65 86.5 35 86.5 25 77.5 Z" fill="#000" opacity={0.14} />
+      <Path d="M 25 73 C 35 82 65 82 75 73 L 75 77.5 C 65 86.5 35 86.5 25 77.5 Z" fill={colors.mascot.eye} opacity={0.14} />
       <Circle cx={50} cy={83} r={5.5} fill={tag} />
 
       {/* ── Encouraging paw ── */}
@@ -186,39 +186,24 @@ function MascotSvg({ state = 'happy', size }: { state: MascotState; size: number
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function MascotCallout({ state = 'happy', size = 120, callout, style }: MascotCalloutProps) {
-  const scaleAnim  = useRef(new Animated.Value(0.8)).current;
-
-  useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 6,
-      tension: 80,
-    }).start();
-  }, [scaleAnim]);
-
   return (
-    <View style={[{ alignItems: 'center', gap: 8 }, style]}>
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <MascotSvg state={state} size={size} />
-      </Animated.View>
-      {callout && (
+    <View style={[{ alignItems: 'center', gap: spacing.sm }, style]}>
+      <MascotSvg state={state} size={size} />
+      {callout ? (
         <View
           style={{
             backgroundColor: colors.bg.surface,
             borderRadius: radii.md,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            paddingHorizontal: 14,
-            paddingVertical: 8,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
             maxWidth: size * 1.8,
           }}
         >
-          <Text variant="caption" style={{ textAlign: 'center', lineHeight: 20 }}>
+          <Text variant="caption" style={{ textAlign: 'center' }}>
             {callout}
           </Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }

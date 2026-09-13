@@ -64,7 +64,7 @@ function PawDecor({ x, y, size, opacity, rotate }: { x: number; y: number; size:
 
 function ProgressSkeleton() {
   return (
-    <View style={{ padding: spacing.md, gap: spacing.md }}>
+    <View style={{ padding: spacing.lg, gap: spacing.lg }}>
       <SkeletonBlock height={32} width="55%" />
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
         <SkeletonBlock height={120} style={{ flex: 1 }} />
@@ -103,8 +103,8 @@ function StreakCard({
       style={{
         flex: 1,
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: spacing.md,
+        borderRadius: radii.md,
+        padding: spacing.lg,
         borderWidth: 1.5,
         borderColor: colors.border.soft,
         gap: spacing.xs,
@@ -141,7 +141,7 @@ function StreakCard({
           backgroundColor: hexToRgba(dot, 0.1),
           paddingHorizontal: 8,
           paddingVertical: 3,
-          borderRadius: radii.pill,
+          borderRadius: radii.full,
         }}
       >
         <Text style={{ fontSize: 11, color: dot, fontWeight: '700' }}>
@@ -274,7 +274,7 @@ function SessionBarChart({ data }: { data: { weekStart: string; sessionsComplete
 
 function WalkQualityChart({ data }: { data: { date: string; quality: 1 | 2 | 3 | null }[] }) {
   const chartHeight = 80;
-  const chartWidth = SCREEN_WIDTH - spacing.md * 4 - spacing.md * 2;
+  const chartWidth = SCREEN_WIDTH - spacing.lg * 4 - spacing.lg * 2;
   const pointSpacing = data.length > 1 ? chartWidth / (data.length - 1) : chartWidth;
   const qualityLabels = ['Harder', 'Same', 'Better'];
   const lineColor = colors.brand.secondary;
@@ -418,7 +418,7 @@ function BehaviorScoreCard({ score }: { score: import('@/types').BehaviorScore }
     <View
       style={{
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
+        borderRadius: radii.md,
         borderWidth: 1.5,
         borderColor: colors.border.soft,
         overflow: 'hidden',
@@ -428,7 +428,7 @@ function BehaviorScoreCard({ score }: { score: import('@/types').BehaviorScore }
       {/* Colored left accent bar */}
       <View style={{ flexDirection: 'row' }}>
         <View style={{ width: 4, backgroundColor: trend.color, alignSelf: 'stretch' }} />
-        <View style={{ flex: 1, padding: spacing.md, gap: spacing.sm }}>
+        <View style={{ flex: 1, padding: spacing.lg, gap: spacing.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text.primary, letterSpacing: -0.3 }}>
               {labelForBehavior(score.behavior)}
@@ -442,7 +442,7 @@ function BehaviorScoreCard({ score }: { score: import('@/types').BehaviorScore }
                 backgroundColor: hexToRgba(trend.color, 0.12),
                 paddingHorizontal: 10,
                 paddingVertical: 5,
-                borderRadius: radii.pill,
+                borderRadius: radii.full,
               }}
             >
               <Text style={{ fontSize: 13, color: trend.color }}>{trend.arrow}</Text>
@@ -522,11 +522,11 @@ function MilestoneCelebration({
             opacity,
             transform: [{ scale }],
             backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.xl,
-            marginHorizontal: spacing.lg,
+            borderRadius: radii.md,
+            padding: spacing.xxl,
+            marginHorizontal: spacing.xl,
             alignItems: 'center',
-            gap: spacing.md,
+            gap: spacing.lg,
             ...shadows.modal,
           }}
         >
@@ -670,10 +670,10 @@ export default function ProgressScreen() {
             tintColor={colors.brand.primary}
           />
         }
-        contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
+        contentContainerStyle={{ paddingBottom: spacing.xxxl * 2 }}
       >
         {/* ── Header ── */}
-        <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Animated.View style={{ transform: [{ translateY: mascotBounce }] }}>
               <MascotCallout
@@ -710,15 +710,15 @@ export default function ProgressScreen() {
         {isNewUser && (
           <View
             style={{
-              marginHorizontal: spacing.md,
+              marginHorizontal: spacing.lg,
               marginTop: spacing.sm,
               backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
-              padding: spacing.xl,
+              borderRadius: radii.md,
+              padding: spacing.xxl,
               borderWidth: 1.5,
               borderColor: colors.border.soft,
               alignItems: 'center',
-              gap: spacing.md,
+              gap: spacing.lg,
               ...shadows.card,
             }}
           >
@@ -751,7 +751,7 @@ export default function ProgressScreen() {
           </View>
         )}
 
-        <View style={{ paddingHorizontal: spacing.md, gap: spacing.lg, marginTop: isNewUser ? spacing.lg : 0 }}>
+        <View style={{ paddingHorizontal: spacing.lg, gap: spacing.xl, marginTop: isNewUser ? spacing.xl : 0 }}>
 
           {/* ── Stats hero banner ── */}
           {!isNewUser && (
@@ -759,12 +759,12 @@ export default function ProgressScreen() {
               colors={[colors.brand.primary, hexToRgba(colors.brand.primary, 0.78)]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={{ borderRadius: radii.lg, overflow: 'hidden' }}
+              style={{ borderRadius: radii.md, overflow: 'hidden' }}
             >
               <PawDecor x={-10} y={10} size={40} opacity={0.35} rotate={-20} />
               <PawDecor x={260} y={-5} size={32} opacity={0.25} rotate={30} />
               <PawDecor x={220} y={55} size={24} opacity={0.2} rotate={-10} />
-              <View style={{ padding: spacing.lg, gap: spacing.xs }}>
+              <View style={{ padding: spacing.xl, gap: spacing.xs }}>
                 <Text
                   style={{
                     fontSize: 11,
@@ -793,7 +793,7 @@ export default function ProgressScreen() {
                       backgroundColor: 'rgba(255,255,255,0.2)',
                       paddingHorizontal: 10,
                       paddingVertical: 5,
-                      borderRadius: radii.pill,
+                      borderRadius: radii.full,
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 4,
@@ -810,7 +810,7 @@ export default function ProgressScreen() {
                         backgroundColor: 'rgba(255,255,255,0.2)',
                         paddingHorizontal: 10,
                         paddingVertical: 5,
-                        borderRadius: radii.pill,
+                        borderRadius: radii.full,
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: 4,
@@ -866,8 +866,8 @@ export default function ProgressScreen() {
           <View
             style={{
               backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
-              padding: spacing.md,
+              borderRadius: radii.md,
+              padding: spacing.lg,
               borderWidth: 1.5,
               borderColor: colors.border.soft,
               gap: spacing.sm,
@@ -898,7 +898,7 @@ export default function ProgressScreen() {
                   backgroundColor: hexToRgba(colors.brand.primary, 0.1),
                   paddingHorizontal: 10,
                   paddingVertical: 3,
-                  borderRadius: radii.pill,
+                  borderRadius: radii.full,
                 }}
               >
                 <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '800' }}>
@@ -913,8 +913,8 @@ export default function ProgressScreen() {
           <View
             style={{
               backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
-              padding: spacing.md,
+              borderRadius: radii.md,
+              padding: spacing.lg,
               borderWidth: 1.5,
               borderColor: colors.border.soft,
               gap: spacing.sm,
@@ -952,7 +952,7 @@ export default function ProgressScreen() {
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.md }}
+                contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg }}
               >
                 {milestones.map((m) => (
                   <MilestoneCard

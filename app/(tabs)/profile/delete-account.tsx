@@ -99,8 +99,8 @@ export default function DeleteAccountScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
           gap: spacing.sm,
         }}
@@ -131,9 +131,9 @@ export default function DeleteAccountScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xxl * 2,
-          gap: spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.xxxl * 2,
+          gap: spacing.xl,
         }}
       >
         {/* Warning banner */}
@@ -142,8 +142,8 @@ export default function DeleteAccountScreen() {
             backgroundColor: hexToRgba(colors.error, 0.08),
             borderWidth: 1.5,
             borderColor: hexToRgba(colors.error, 0.25),
-            borderRadius: radii.lg,
-            padding: spacing.md,
+            borderRadius: radii.md,
+            padding: spacing.lg,
             flexDirection: 'row',
             gap: spacing.sm,
             alignItems: 'flex-start',
@@ -171,10 +171,10 @@ export default function DeleteAccountScreen() {
           <View
             style={{
               backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
+              borderRadius: radii.md,
               borderWidth: 1.5,
               borderColor: colors.border.soft,
-              padding: spacing.md,
+              padding: spacing.lg,
               gap: spacing.sm,
               ...shadows.card,
             }}
@@ -195,11 +195,11 @@ export default function DeleteAccountScreen() {
           <View
             style={{
               backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
+              borderRadius: radii.md,
               borderWidth: 1.5,
               borderColor: colors.border.soft,
               paddingVertical: spacing.sm + 2,
-              paddingHorizontal: spacing.md,
+              paddingHorizontal: spacing.lg,
               ...shadows.card,
             }}
           >

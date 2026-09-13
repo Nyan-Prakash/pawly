@@ -45,8 +45,8 @@ export function PlanReasonCard({
       entering={FadeInDown.delay(delay).duration(400)}
       style={{
         backgroundColor: `${colors.brand.primary}08`,
-        borderRadius: radii.lg,
-        padding: spacing.lg,
+        borderRadius: radii.md,
+        padding: spacing.xl,
         borderWidth: 1,
         borderColor: `${colors.brand.primary}28`,
       }}

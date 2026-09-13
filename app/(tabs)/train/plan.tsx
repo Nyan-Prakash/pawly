@@ -59,13 +59,13 @@ function PlanHeroCard({
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={{
-        borderRadius: radii.lg,
+        borderRadius: radii.md,
         overflow: 'hidden',
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
         ...shadows.card,
       }}
     >
-      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+      <View style={{ padding: spacing.xl, gap: spacing.sm }}>
         {/* Title */}
         <Text
           style={{
@@ -85,7 +85,7 @@ function PlanHeroCard({
         </Text>
 
         {/* Progress bar + % */}
-        <View style={{ marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <View style={{ marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
           <View style={{ flex: 1 }}>
             <ProgressBar
               progress={completionPct / 100}
@@ -113,7 +113,7 @@ function PlanHeroCard({
             backgroundColor: 'rgba(255,255,255,0.12)',
             borderTopWidth: 1,
             borderTopColor: 'rgba(255,255,255,0.15)',
-            paddingHorizontal: spacing.lg,
+            paddingHorizontal: spacing.xl,
             paddingVertical: 10,
             flexDirection: 'row',
             alignItems: 'center',
@@ -152,7 +152,7 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.lg,
         paddingBottom: spacing.sm+10,
         gap: spacing.xs,
       }}
@@ -180,8 +180,8 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
             activeOpacity={0.75}
             onPress={() => onSelect(plan.id)}
             style={{
-              paddingHorizontal: spacing.md,
-              borderRadius: radii.pill,
+              paddingHorizontal: spacing.lg,
+              borderRadius: radii.full,
               backgroundColor: pillColors.backgroundColor,
               borderWidth: 1,
               borderColor: pillColors.borderColor,
@@ -259,12 +259,12 @@ function SessionDetailSheet({
     <>
       <BottomSheet visible={visible} onClose={onClose} padded={false}>
               <ScrollView
-                style={{ flexGrow: 0, paddingHorizontal: spacing.lg }}
-                contentContainerStyle={{ paddingBottom: spacing.xl}}
+                style={{ flexGrow: 0, paddingHorizontal: spacing.xl }}
+                contentContainerStyle={{ paddingBottom: spacing.xxl}}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Title + badge row */}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.md }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.lg }}>
                   <View style={{ flex: 1, gap: 4 }}>
                     {isAdapted && <SessionChangeBadge kind={kind} />}
                     <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text.primary, lineHeight: 32, letterSpacing: -0.3 }}>
@@ -281,8 +281,8 @@ function SessionDetailSheet({
                   style={{
                     backgroundColor: colors.bg.surfaceAlt,
                     borderRadius: radii.md,
-                    padding: spacing.md,
-                    marginBottom: spacing.md,
+                    padding: spacing.lg,
+                    marginBottom: spacing.lg,
                   }}
                 >
                   <Text style={{ fontSize: 15, lineHeight: 22, color: colors.text.primary }}>
@@ -301,8 +301,8 @@ function SessionDetailSheet({
                     style={{
                       backgroundColor: colors.status.infoBg,
                       borderRadius: radii.md,
-                      padding: spacing.md,
-                      marginBottom: spacing.md,
+                      padding: spacing.lg,
+                      marginBottom: spacing.lg,
                       borderWidth: 1,
                       borderColor: colors.status.infoBorder,
                       gap: spacing.sm,
@@ -321,9 +321,9 @@ function SessionDetailSheet({
                       onPress={() => setShowWhySheet(true)}
                       style={({ pressed }) => ({
                         alignSelf: 'flex-start',
-                        paddingHorizontal: spacing.md,
+                        paddingHorizontal: spacing.lg,
                         paddingVertical: 8,
-                        borderRadius: radii.pill,
+                        borderRadius: radii.full,
                         backgroundColor: pressed ? `${colors.brand.coach}22` : `${colors.brand.coach}14`,
                       })}
                     >
@@ -340,8 +340,8 @@ function SessionDetailSheet({
                     style={{
                       backgroundColor: colors.status.infoBg,
                       borderRadius: radii.md,
-                      padding: spacing.md,
-                      marginBottom: spacing.md,
+                      padding: spacing.lg,
+                      marginBottom: spacing.lg,
                       borderWidth: 1,
                       borderColor: colors.status.infoBorder,
                     }}
@@ -357,9 +357,9 @@ function SessionDetailSheet({
               {/* Fixed footer button */}
               <View
                 style={{
-                  paddingHorizontal: spacing.lg,
-                  paddingTop: spacing.md,
-                  paddingBottom: insets.bottom > 0 ? insets.bottom + 4 : spacing.lg,
+                  paddingHorizontal: spacing.xl,
+                  paddingTop: spacing.lg,
+                  paddingBottom: insets.bottom > 0 ? insets.bottom + 4 : spacing.xl,
                   borderTopWidth: 1,
                   borderTopColor: colors.border.soft,
                   backgroundColor: colors.bg.surface,
@@ -419,7 +419,7 @@ function SessionRow({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
+        borderRadius: radii.md,
         borderWidth: 1.5,
         borderColor: isToday ? hexToRgba(planColor, 0.35) : colors.border.default,
         overflow: 'hidden',
@@ -439,8 +439,8 @@ function SessionRow({
           backgroundColor: iconBg,
           alignItems: 'center',
           justifyContent: 'center',
-          marginLeft: spacing.md,
-          marginVertical: spacing.md,
+          marginLeft: spacing.lg,
+          marginVertical: spacing.lg,
         }}
       >
         {session.isCompleted ? (
@@ -453,7 +453,7 @@ function SessionRow({
       </View>
 
       {/* Session info */}
-      <View style={{ flex: 1, paddingVertical: spacing.md, paddingLeft: spacing.sm, paddingRight: spacing.md, gap: 5 }}>
+      <View style={{ flex: 1, paddingVertical: spacing.lg, paddingLeft: spacing.sm, paddingRight: spacing.lg, gap: 5 }}>
         <Text
           style={{ fontSize: 18, fontWeight: '700', color: titleColor, lineHeight: 24 }}
           numberOfLines={2}
@@ -472,7 +472,7 @@ function SessionRow({
 
       {/* Chevron */}
       {!isFuture && (
-        <View style={{ paddingRight: spacing.md }}>
+        <View style={{ paddingRight: spacing.lg }}>
           <AppIcon name="chevron-forward" size={16} color={colors.text.secondary} />
         </View>
       )}
@@ -500,7 +500,7 @@ function WeekHeader({
         alignItems: 'center',
         gap: spacing.sm,
         paddingBottom: spacing.sm,
-        paddingTop: weekNumber > 1 ? spacing.lg : spacing.xs,
+        paddingTop: weekNumber > 1 ? spacing.xl : spacing.xs,
       }}
     >
       <Text
@@ -520,7 +520,7 @@ function WeekHeader({
             backgroundColor: hexToRgba(color, 0.14),
             paddingHorizontal: 8,
             paddingVertical: 3,
-            borderRadius: radii.pill,
+            borderRadius: radii.full,
             borderWidth: 1,
             borderColor: hexToRgba(color, 0.25),
           }}
@@ -627,8 +627,8 @@ export default function PlanScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
             paddingBottom: spacing.sm,
             gap: spacing.sm,
           }}
@@ -652,7 +652,7 @@ export default function PlanScreen() {
             My Plan
           </Text>
         </View>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
           <Text variant="caption" style={{ textAlign: 'center' }}>
             No active plan found. Complete onboarding to get your personalized plan.
           </Text>
@@ -688,8 +688,8 @@ export default function PlanScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
           gap: spacing.sm,
         }}
@@ -731,7 +731,7 @@ export default function PlanScreen() {
               gap: 4,
               paddingHorizontal: spacing.sm,
               paddingVertical: 8,
-              borderRadius: radii.pill,
+              borderRadius: radii.full,
               backgroundColor: uiColors.tint,
               borderWidth: 1,
               borderColor: uiColors.selectedBorder,
@@ -760,8 +760,8 @@ export default function PlanScreen() {
         }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xl * 2,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.xxl * 2,
         }}
         ListHeaderComponent={() => (
           <View>

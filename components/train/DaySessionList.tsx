@@ -40,7 +40,7 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
   });
 
   return (
-    <View style={{ gap: spacing.md, paddingVertical: spacing.md }}>
+    <View style={{ gap: spacing.lg, paddingVertical: spacing.lg }}>
       <Text variant="h3" style={{ marginBottom: spacing.xs }}>
         {dateLabel}
       </Text>
@@ -48,10 +48,10 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
       {sessions.length === 0 ? (
         <View
           style={{
-            padding: spacing.xl,
+            padding: spacing.xxl,
             alignItems: 'center',
             backgroundColor: colors.bg.surfaceAlt,
-            borderRadius: radii.lg,
+            borderRadius: radii.md,
             borderWidth: 1,
             borderColor: colors.border.soft,
             borderStyle: 'dashed',
@@ -87,9 +87,9 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
                 flexDirection: 'row',
                 alignItems: 'center',
                 backgroundColor: colors.bg.surface,
-                borderRadius: radii.lg,
-                padding: spacing.md,
-                gap: spacing.md,
+                borderRadius: radii.md,
+                padding: spacing.lg,
+                gap: spacing.lg,
                 borderWidth: 1,
                 borderColor: colors.border.default,
               }}
@@ -122,7 +122,7 @@ export const DaySessionList: React.FC<DaySessionListProps> = ({ date, sessions, 
                       backgroundColor: colors.bg.surfaceAlt,
                       borderWidth: 1,
                       borderColor: courseColors?.border ?? colors.border.default,
-                      borderRadius: radii.pill,
+                      borderRadius: radii.full,
                       paddingHorizontal: 7,
                       paddingVertical: 2,
                       marginBottom: 4,

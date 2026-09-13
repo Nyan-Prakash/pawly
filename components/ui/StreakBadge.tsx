@@ -2,37 +2,21 @@ import { View } from 'react-native';
 
 import { AppIcon } from '@/components/ui/AppIcon';
 import { Text } from '@/components/ui/Text';
-import { radii } from '@/constants/radii';
+import { colors } from '@/constants/colors';
+import { spacing } from '@/constants/spacing';
 
 type StreakBadgeProps = {
   count: number;
-  size?: 'sm' | 'md';
 };
 
-export function StreakBadge({ count, size = 'md' }: StreakBadgeProps) {
+/** "4-day streak" as quiet metadata. Not a pill, not a flame. */
+export function StreakBadge({ count }: StreakBadgeProps) {
   if (!count) return null;
-
-  const isSm = size === 'sm';
-
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 3,
-        backgroundColor: '#FEF3C7',
-        borderRadius: radii.pill,
-        paddingHorizontal: isSm ? 8 : 10,
-        paddingVertical: isSm ? 3 : 5,
-      }}
-    >
-      <AppIcon name="flame" size={isSm ? 12 : 15} color="#92400E" />
-      <Text
-        variant={isSm ? 'micro' : 'caption'}
-        color="#92400E"
-        style={{ fontWeight: '700' }}
-      >
-        {count}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+      <AppIcon name="calendar-outline" size={16} color={colors.text.secondary} />
+      <Text variant="captionStrong" color={colors.text.secondary}>
+        {count}-day streak
       </Text>
     </View>
   );

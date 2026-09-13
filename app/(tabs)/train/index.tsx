@@ -123,7 +123,7 @@ function buildWeek(plans: Plan[], todayKey: string): { days: WeekDay[]; done: nu
 
 function LoadingSkeleton() {
   return (
-    <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.lg }}>
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.xl }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ gap: spacing.sm }}>
           <SkeletonBlock height={14} width={120} />
@@ -131,9 +131,9 @@ function LoadingSkeleton() {
         </View>
         <SkeletonBlock height={44} width={44} style={{ borderRadius: 22 }} />
       </View>
-      <SkeletonBlock height={248} style={{ borderRadius: radii.lg }} />
-      <SkeletonBlock height={164} style={{ borderRadius: radii.lg }} />
-      <SkeletonBlock height={76} style={{ borderRadius: radii.lg }} />
+      <SkeletonBlock height={248} style={{ borderRadius: radii.md }} />
+      <SkeletonBlock height={164} style={{ borderRadius: radii.md }} />
+      <SkeletonBlock height={76} style={{ borderRadius: radii.md }} />
     </View>
   );
 }
@@ -156,7 +156,7 @@ function QuickWinSheet({ win, onClose }: { win: QuickWin | null; onClose: () => 
     <BottomSheet visible={!!win} onClose={onClose}>
       {shown && cat ? (
         <>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
             <View
               style={{
                 width: 56,
@@ -178,11 +178,11 @@ function QuickWinSheet({ win, onClose }: { win: QuickWin | null; onClose: () => 
           </View>
           <Text
             variant="body"
-            style={{ color: colors.text.secondary, lineHeight: 26, marginTop: spacing.lg }}
+            style={{ color: colors.text.secondary, lineHeight: 26, marginTop: spacing.xl }}
           >
             {shown.instructions}
           </Text>
-          <Button label="Got it" size="lg" onPress={onClose} style={{ marginTop: spacing.lg }} />
+          <Button label="Got it" size="lg" onPress={onClose} style={{ marginTop: spacing.xl }} />
         </>
       ) : null}
     </BottomSheet>
@@ -208,7 +208,7 @@ function SectionTitle({
         flexDirection: 'row',
         alignItems: 'baseline',
         justifyContent: 'space-between',
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
       }}
     >
       <Text variant="h2" style={{ letterSpacing: -0.4 }}>{title}</Text>
@@ -230,8 +230,8 @@ function Card({ children, padded = true }: { children: React.ReactNode; padded?:
     <View
       style={{
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: padded ? spacing.lg : 0,
+        borderRadius: radii.md,
+        padding: padded ? spacing.xl : 0,
         ...softShadows.card,
       }}
     >
@@ -243,7 +243,7 @@ function Card({ children, padded = true }: { children: React.ReactNode; padded?:
 /** Quiet, borderless surface for notes that shouldn't compete with cards. */
 function SoftNote({ children }: { children: React.ReactNode }) {
   return (
-    <View style={{ backgroundColor: colors.bg.sand, borderRadius: radii.lg, padding: spacing.lg }}>
+    <View style={{ backgroundColor: colors.bg.sand, borderRadius: radii.md, padding: spacing.xl }}>
       {children}
     </View>
   );
@@ -268,11 +268,11 @@ function SecondaryRow({
       activeOpacity={0.85}
       style={{
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: spacing.md,
+        borderRadius: radii.md,
+        padding: spacing.lg,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.md,
+        gap: spacing.lg,
         ...softShadows.card,
       }}
     >
@@ -328,11 +328,11 @@ function ResumeSessionCard({
     <View
       style={{
         backgroundColor: theme.tint,
-        borderRadius: radii.lg,
-        padding: spacing.lg,
+        borderRadius: radii.md,
+        padding: spacing.xl,
         borderWidth: 1,
         borderColor: theme.selectedBorder,
-        gap: spacing.md,
+        gap: spacing.lg,
       }}
       accessibilityRole="summary"
     >
@@ -348,7 +348,7 @@ function ResumeSessionCard({
           {stepLabel}
         </Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
         <View style={{ flex: 1 }}>
           <Button label="Resume" size="md" leftIcon="play" onPress={onResume} />
         </View>
@@ -524,10 +524,10 @@ export default function TrainScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.primary} />
         }
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.xxl * 2 + spacing.lg, // clears the floating tab bar
-          gap: spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
+          paddingBottom: spacing.xxxl * 2 + spacing.xl, // clears the floating tab bar
+          gap: spacing.xl,
         }}
       >
         {/* ── Header ── */}
@@ -644,7 +644,7 @@ export default function TrainScreen() {
         {/* ── All done / nothing due ── */}
         {hasPlans && !heroSession ? (
           <Card>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
               <View style={{ flex: 1, gap: spacing.xs }}>
                 <Text variant="h2" style={{ letterSpacing: -0.4 }}>
                   {firstMissed ? 'One to catch up on' : "You're all caught up"}
@@ -659,8 +659,8 @@ export default function TrainScreen() {
             </View>
 
             {firstMissed ? (
-              <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-                <View style={{ backgroundColor: colors.bg.sand, borderRadius: radii.md, padding: spacing.md }}>
+              <View style={{ marginTop: spacing.xl, gap: spacing.sm }}>
+                <View style={{ backgroundColor: colors.bg.sand, borderRadius: radii.md, padding: spacing.lg }}>
                   <Text variant="micro" style={{ color: colors.text.secondary, fontWeight: '600' }}>
                     Missed
                   </Text>
@@ -682,10 +682,10 @@ export default function TrainScreen() {
             ) : nextUpcoming ? (
               <View
                 style={{
-                  marginTop: spacing.lg,
+                  marginTop: spacing.xl,
                   backgroundColor: colors.bg.sand,
                   borderRadius: radii.md,
-                  padding: spacing.md,
+                  padding: spacing.lg,
                 }}
               >
                 <Text variant="micro" style={{ color: colors.text.secondary, fontWeight: '600' }}>
@@ -753,8 +753,8 @@ export default function TrainScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.md, paddingVertical: spacing.xs }}
-            style={{ marginHorizontal: -spacing.md, paddingLeft: spacing.md }}
+            contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg, paddingVertical: spacing.xs }}
+            style={{ marginHorizontal: -spacing.lg, paddingLeft: spacing.lg }}
           >
             {shuffledWins.map((win) => (
               <QuickWinCard key={win.id} win={win} onPress={() => setSelectedWin(win)} />
@@ -831,7 +831,7 @@ export default function TrainScreen() {
               backgroundColor: 'rgba(15,23,42,0.55)',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: spacing.lg,
+              padding: spacing.xl,
             }}
             onPress={() => setNewMilestone(null)}
           >
@@ -839,10 +839,10 @@ export default function TrainScreen() {
               <View
                 style={{
                   backgroundColor: colors.bg.surface,
-                  borderRadius: radii.lg,
-                  padding: spacing.xl,
+                  borderRadius: radii.md,
+                  padding: spacing.xxl,
                   alignItems: 'center',
-                  gap: spacing.md,
+                  gap: spacing.lg,
                   ...tintedShadow('#0F172A', 'lifted'),
                 }}
               >

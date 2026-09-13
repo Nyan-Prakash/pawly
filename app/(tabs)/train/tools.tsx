@@ -120,9 +120,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.lg,
   },
   backButton: {
     marginLeft: -spacing.xs,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.primary + '15',
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: radii.pill,
+    borderRadius: radii.full,
   },
   headerBadgeText: {
     letterSpacing: 0.3,
@@ -148,15 +148,15 @@ const styles = StyleSheet.create({
     width: 36,
   },
   scroll: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xxl,
-    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.xl,
   },
   errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.md,
+    padding: spacing.lg,
     backgroundColor: colors.status.dangerBg,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -170,13 +170,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   cards: {
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   tipsPanel: {
     backgroundColor: colors.bg.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    gap: spacing.md,
+    borderRadius: radii.md,
+    padding: spacing.xl,
+    gap: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border.soft,
     ...Platform.select({

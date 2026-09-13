@@ -230,7 +230,7 @@ function createStyles() {
     },
     calloutContainer: {
       backgroundColor: colors.bg.surfaceAlt,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm,
       borderRadius: 12,
       borderLeftWidth: 4,

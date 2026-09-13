@@ -42,7 +42,7 @@ export function StepHelpSheet({
         </View>
 
         <ScrollView
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
+          contentContainerStyle={{ padding: spacing.xl, gap: spacing.xl }}
           showsVerticalScrollIndicator={false}
         >
           <View style={{ gap: spacing.xs }}>

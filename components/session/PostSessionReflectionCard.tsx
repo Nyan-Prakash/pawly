@@ -140,7 +140,7 @@ export function PostSessionReflectionCard({
       <View
         style={{
           paddingTop: insets.top + spacing.sm,
-          paddingHorizontal: spacing.lg,
+          paddingHorizontal: spacing.xl,
           paddingBottom: spacing.sm,
         }}
       >
@@ -177,7 +177,7 @@ export function PostSessionReflectionCard({
       </View>
 
       {/* ── Progress bar ─────────────────────────────────────────────────── */}
-      <View style={{ paddingHorizontal: spacing.lg, gap: spacing.xs, paddingBottom: spacing.md }}>
+      <View style={{ paddingHorizontal: spacing.xl, gap: spacing.xs, paddingBottom: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text
             style={{
@@ -227,8 +227,8 @@ export function PostSessionReflectionCard({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + spacing.xxl,
+          paddingHorizontal: spacing.xl,
+          paddingBottom: insets.bottom + spacing.xxxl,
           flexGrow: 1,
         }}
       >
@@ -236,7 +236,7 @@ export function PostSessionReflectionCard({
           style={{
             opacity: opacityAnim,
             transform: [{ translateX: slideAnim }],
-            gap: spacing.lg,
+            gap: spacing.xl,
             flex: 1,
           }}
         >
@@ -272,9 +272,9 @@ export function PostSessionReflectionCard({
         <View
           style={{
             alignItems: 'flex-end',
-            paddingHorizontal: spacing.lg,
+            paddingHorizontal: spacing.xl,
             paddingTop: spacing.sm,
-            paddingBottom: insets.bottom + spacing.md,
+            paddingBottom: insets.bottom + spacing.lg,
             borderTopWidth: 1,
             borderTopColor: colors.border.soft,
           }}
@@ -284,7 +284,7 @@ export function PostSessionReflectionCard({
             style={({ pressed }) => ({
               opacity: pressed ? 0.4 : 1,
               paddingVertical: spacing.sm,
-              paddingLeft: spacing.md,
+              paddingLeft: spacing.lg,
             })}
             accessibilityLabel="Skip this question"
           >
@@ -345,7 +345,7 @@ const OUTCOME_OPTIONS: Array<{
 
 function OutcomeStep({ dogName, successCriteria, selected, onSelect }: OutcomeStepProps) {
   return (
-    <View style={{ gap: spacing.lg }}>
+    <View style={{ gap: spacing.xl }}>
       <View style={{ gap: spacing.sm }}>
         <Text
           style={{
@@ -361,7 +361,7 @@ function OutcomeStep({ dogName, successCriteria, selected, onSelect }: OutcomeSt
           style={{
             backgroundColor: colors.bg.sand,
             borderRadius: 12,
-            paddingHorizontal: spacing.md,
+            paddingHorizontal: spacing.lg,
             paddingVertical: spacing.sm + 2,
             flexDirection: 'row',
             gap: spacing.sm,
@@ -375,7 +375,7 @@ function OutcomeStep({ dogName, successCriteria, selected, onSelect }: OutcomeSt
         </View>
       </View>
 
-      <View style={{ gap: spacing.md }}>
+      <View style={{ gap: spacing.lg }}>
         {OUTCOME_OPTIONS.map((opt) => {
           const isSelected = selected === opt.value;
           return (
@@ -397,8 +397,8 @@ function OutcomeStep({ dogName, successCriteria, selected, onSelect }: OutcomeSt
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: spacing.md,
-                  padding: spacing.lg,
+                  gap: spacing.lg,
+                  padding: spacing.xl,
                   minHeight: 84,
                 }}
               >
@@ -452,7 +452,7 @@ function QuestionStep({ question, answers, onAnswer }: QuestionStepProps) {
   const currentValue = getAnswerValue(answers, question.id);
 
   return (
-    <View style={{ gap: spacing.lg }}>
+    <View style={{ gap: spacing.xl }}>
       <Text
         style={{
           fontSize: 26,
@@ -488,7 +488,7 @@ function QuestionStep({ question, answers, onAnswer }: QuestionStepProps) {
           style={{
             backgroundColor: colors.bg.surfaceAlt,
             borderRadius: 10,
-            paddingHorizontal: spacing.md,
+            paddingHorizontal: spacing.lg,
             paddingVertical: spacing.sm,
           }}
         >
@@ -517,7 +517,7 @@ interface NotesStepProps {
 
 function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveError, theme }: NotesStepProps) {
   return (
-    <View style={{ gap: spacing.xl }}>
+    <View style={{ gap: spacing.xxl }}>
       {saveError ? (
         <View
           style={{
@@ -525,7 +525,7 @@ function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveEr
             borderColor: colors.status.dangerBorder,
             borderWidth: 1,
             borderRadius: 12,
-            padding: spacing.md,
+            padding: spacing.lg,
             flexDirection: 'row',
             gap: spacing.sm,
             alignItems: 'flex-start',
@@ -563,7 +563,7 @@ function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveEr
           borderRadius: 14,
           borderWidth: 1.5,
           borderColor: colors.border.default,
-          padding: spacing.md,
+          padding: spacing.lg,
           fontSize: 15,
           color: colors.textPrimary,
           minHeight: 110,
@@ -584,7 +584,7 @@ function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveEr
           borderWidth: canSubmit ? 1 : 0,
           borderColor: canSubmit ? theme.selectedBorder : colors.border.default,
           borderRadius: 14,
-          paddingVertical: spacing.md + 4,
+          paddingVertical: spacing.lg + 4,
           alignItems: 'center',
           justifyContent: 'center',
           minHeight: 56,
@@ -649,9 +649,9 @@ function SingleSelectInput({ options, selected, onSelect }: SingleSelectInputPro
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: spacing.md,
-                paddingVertical: spacing.md + 4,
-                paddingHorizontal: spacing.md,
+                gap: spacing.lg,
+                paddingVertical: spacing.lg + 4,
+                paddingHorizontal: spacing.lg,
                 minHeight: 62,
               }}
             >
@@ -721,7 +721,7 @@ function ScaleInput({ min, max, minLabel, maxLabel, selected, onSelect }: ScaleI
                 flex: 1,
                 alignItems: 'center',
                 justifyContent: 'center',
-                paddingVertical: spacing.md,
+                paddingVertical: spacing.lg,
                 borderRadius: 12,
                 borderWidth: 2,
                 borderColor: isSelected ? colors.primary : colors.border.default,

@@ -65,12 +65,12 @@ export function ExpertReviewRequest({ visible, videoId, onClose, onConfirmed }: 
             <Text variant="title" style={{ color: colors.textPrimary, marginBottom: spacing.xs }}>
               Get a trainer's eyes on this
             </Text>
-            <Text variant="body" style={{ color: colors.textSecondary, marginBottom: spacing.lg }}>
+            <Text variant="body" style={{ color: colors.textSecondary, marginBottom: spacing.xl }}>
               A certified trainer will watch your video and send back personalized feedback.
             </Text>
 
             {/* What's included */}
-            <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
+            <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
               {WHAT_IS_INCLUDED.map((item) => (
                 <View key={item.text} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
                   <AppIcon
@@ -90,8 +90,8 @@ export function ExpertReviewRequest({ visible, videoId, onClose, onConfirmed }: 
               style={{
                 backgroundColor: colors.secondary,
                 borderRadius: 14,
-                padding: spacing.md,
-                marginBottom: spacing.lg,
+                padding: spacing.lg,
+                marginBottom: spacing.xl,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: spacing.sm,
@@ -138,7 +138,7 @@ export function ExpertReviewRequest({ visible, videoId, onClose, onConfirmed }: 
 
             <Pressable
               onPress={onClose}
-              style={{ alignItems: 'center', paddingTop: spacing.md }}
+              style={{ alignItems: 'center', paddingTop: spacing.lg }}
             >
               <Text variant="caption" style={{ color: colors.textSecondary }}>
                 Cancel

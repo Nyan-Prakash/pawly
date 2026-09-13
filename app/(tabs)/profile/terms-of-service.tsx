@@ -64,8 +64,8 @@ export default function TermsOfServiceScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
           gap: spacing.sm,
         }}
@@ -95,9 +95,9 @@ export default function TermsOfServiceScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xxl * 2,
-          gap: spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.xxxl * 2,
+          gap: spacing.xl,
         }}
       >
         {/* Last updated */}

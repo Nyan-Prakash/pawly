@@ -9,7 +9,7 @@ import type { ArticleContentBlock } from '@/types';
 
 export function ArticleContentRenderer({ content }: { content: ArticleContentBlock[] }) {
   return (
-    <View style={{ gap: spacing.md }}>
+    <View style={{ gap: spacing.lg }}>
       {content.map((block, index) => {
         if (block.type === 'paragraph') {
           return (

@@ -46,14 +46,14 @@ export const TrainingCalendar: React.FC<TrainingCalendarProps> = ({
   const selectedDateKey = toDateKey(selectedDate);
 
   return (
-    <View style={{ backgroundColor: colors.bg.surface, borderRadius: 24, padding: spacing.md }}>
+    <View style={{ backgroundColor: colors.bg.surface, borderRadius: 24, padding: spacing.lg }}>
       {/* Header */}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: spacing.lg,
+          marginBottom: spacing.xl,
           paddingHorizontal: spacing.xs,
         }}
       >

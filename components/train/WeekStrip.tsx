@@ -164,8 +164,8 @@ export function StatRow({ streak, thisWeekDone, thisWeekPlanned, total }: StatRo
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        paddingTop: spacing.md,
-        marginTop: spacing.md,
+        paddingTop: spacing.lg,
+        marginTop: spacing.lg,
         borderTopWidth: 1,
         borderTopColor: colors.border.soft,
       }}

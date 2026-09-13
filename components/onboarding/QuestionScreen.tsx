@@ -65,7 +65,7 @@ export function QuestionScreen({
       <View
         style={{
           paddingTop: insets.top + 8,
-          paddingHorizontal: spacing.lg,
+          paddingHorizontal: spacing.xl,
           paddingBottom: 4,
           gap: 10,
         }}
@@ -91,10 +91,10 @@ export function QuestionScreen({
       {scrollable ? (
         <ScrollView
           contentContainerStyle={{
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
+            paddingHorizontal: spacing.xl,
+            paddingTop: spacing.xl,
             paddingBottom: 140,
-            gap: spacing.xl,
+            gap: spacing.xxl,
           }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -118,10 +118,10 @@ export function QuestionScreen({
         <View
           style={{
             flex: 1,
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.lg,
+            paddingHorizontal: spacing.xl,
+            paddingTop: spacing.xl,
             paddingBottom: 140,
-            gap: spacing.xl,
+            gap: spacing.xxl,
           }}
         >
           <View style={{ gap: spacing.xs }}>
@@ -158,9 +158,9 @@ export function QuestionScreen({
         />
         <View
           style={{
-            paddingHorizontal: spacing.lg,
+            paddingHorizontal: spacing.xl,
             paddingTop: spacing.sm,
-            paddingBottom: insets.bottom + spacing.md,
+            paddingBottom: insets.bottom + spacing.lg,
             backgroundColor: colors.bg.app,
             gap: spacing.sm,
           }}

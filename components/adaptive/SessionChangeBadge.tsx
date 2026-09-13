@@ -42,7 +42,7 @@ export function SessionChangeBadge({ kind }: SessionChangeBadgeProps) {
       style={{
         alignSelf: 'flex-start',
         backgroundColor: style.bg,
-        borderRadius: radii.pill,
+        borderRadius: radii.full,
         paddingHorizontal: 8,
         paddingVertical: 3,
       }}

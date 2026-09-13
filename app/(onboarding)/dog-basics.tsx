@@ -456,7 +456,7 @@ export default function DogBasicsScreen() {
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
-          <View style={{ gap: spacing.xl }}>
+          <View style={{ gap: spacing.xxl }}>
             <View style={{ gap: spacing.sm }}>
               <Text variant="h3" style={{ color: colors.text.primary }}>Sex</Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -529,7 +529,7 @@ export default function DogBasicsScreen() {
           </View>
           <Pressable
             onPress={goToTrickGoal}
-            style={{ alignItems: 'center', paddingVertical: spacing.md }}
+            style={{ alignItems: 'center', paddingVertical: spacing.lg }}
           >
             <Text style={{ fontSize: 15, color: colors.brand.primary, fontWeight: '600' }}>
               Want to teach a trick or skill instead?
@@ -565,7 +565,7 @@ export default function DogBasicsScreen() {
           </View>
           <Pressable
             onPress={() => navigateTo(STEPS.indexOf('primaryGoal'), 'back')}
-            style={{ alignItems: 'center', paddingVertical: spacing.md }}
+            style={{ alignItems: 'center', paddingVertical: spacing.lg }}
           >
             <Text style={{ fontSize: 15, color: colors.brand.primary, fontWeight: '600' }}>
               Back to issues instead
@@ -695,8 +695,8 @@ export default function DogBasicsScreen() {
           totalSteps={PROGRESS_STEP_COUNT}
           scrollable={false}
         >
-          <View style={{ alignItems: 'center', gap: spacing.xl }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xl }}>
+          <View style={{ alignItems: 'center', gap: spacing.xxl }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xxl }}>
               <Pressable
                 onPress={() => setAvailableDaysPerWeek((d) => Math.max(1, d - 1))}
                 style={{
@@ -899,7 +899,7 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
     <LinearGradient
       colors={[`${colors.brand.primary}10`, colors.bg.app, colors.bg.app]}
       locations={[0, 0.45, 1]}
-      style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom + spacing.xl }}
+      style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom + spacing.xxl }}
     >
       {/* Subtle bottom-left green wash */}
       <LinearGradient
@@ -913,7 +913,7 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
       <Pressable
         onPress={onBack}
         hitSlop={12}
-        style={{ position: 'absolute', top: insets.top + spacing.sm, left: spacing.lg, zIndex: 10, padding: spacing.xs }}
+        style={{ position: 'absolute', top: insets.top + spacing.sm, left: spacing.xl, zIndex: 10, padding: spacing.xs }}
       >
         <AppIcon name="chevron-back" size={26} color={colors.text.secondary} />
       </Pressable>
@@ -923,9 +923,9 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
           flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
-          paddingHorizontal: spacing.xl,
-          paddingTop: spacing.xl,
-          gap: spacing.lg,
+          paddingHorizontal: spacing.xxl,
+          paddingTop: spacing.xxl,
+          gap: spacing.xl,
         }}
       >
         {/* Hero icon — layered rings like train screen hero cards */}
@@ -990,7 +990,7 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
             marginTop: spacing.sm,
             backgroundColor: colors.bg.surface,
             borderRadius: 20,
-            padding: spacing.lg,
+            padding: spacing.xl,
             borderWidth: 1.5,
             borderColor: colors.border.soft,
             alignSelf: 'stretch',
@@ -1034,7 +1034,7 @@ function WelcomeStep({ onStart, onBack }: { onStart: () => void; onBack: () => v
 
       <Animated.View
         entering={FadeInDown.delay(600).duration(400)}
-        style={{ paddingHorizontal: spacing.xl, gap: spacing.xs }}
+        style={{ paddingHorizontal: spacing.xxl, gap: spacing.xs }}
       >
         <Button label="Let's get started →" onPress={onStart} size="lg" />
         <Text
@@ -1123,7 +1123,7 @@ function SummaryStep({
       <View
         style={{
           paddingTop: insets.top + 8,
-          paddingHorizontal: spacing.lg,
+          paddingHorizontal: spacing.xl,
           paddingBottom: 4,
           gap: 10,
         }}
@@ -1147,10 +1147,10 @@ function SummaryStep({
 
       <ScrollView
         contentContainerStyle={{
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.xl,
+          paddingTop: spacing.lg,
           paddingBottom: 140,
-          gap: spacing.md,
+          gap: spacing.lg,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -1168,8 +1168,8 @@ function SummaryStep({
           entering={FadeInDown.delay(0).duration(400)}
           style={{
             backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.lg,
+            borderRadius: radii.md,
+            padding: spacing.xl,
             borderWidth: 1.5,
             borderColor: colors.border.soft,
             ...shadows.card,
@@ -1199,8 +1199,8 @@ function SummaryStep({
           entering={FadeInDown.delay(100).duration(400)}
           style={{
             backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.lg,
+            borderRadius: radii.md,
+            padding: spacing.xl,
             borderWidth: 1.5,
             borderColor: colors.border.soft,
             ...shadows.card,
@@ -1227,8 +1227,8 @@ function SummaryStep({
           entering={FadeInDown.delay(200).duration(400)}
           style={{
             backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.lg,
+            borderRadius: radii.md,
+            padding: spacing.xl,
             borderWidth: 1.5,
             borderColor: colors.border.soft,
             ...shadows.card,
@@ -1268,9 +1268,9 @@ function SummaryStep({
         />
         <View
           style={{
-            paddingHorizontal: spacing.lg,
+            paddingHorizontal: spacing.xl,
             paddingTop: spacing.sm,
-            paddingBottom: insets.bottom + spacing.md,
+            paddingBottom: insets.bottom + spacing.lg,
             backgroundColor: colors.bg.app,
           }}
         >
@@ -1301,7 +1301,7 @@ function GeneratingStep() {
         backgroundColor: colors.bg.app,
         alignItems: 'center',
         justifyContent: 'center',
-        gap: spacing.lg,
+        gap: spacing.xl,
       }}
     >
       <Animated.View style={pawStyle}>

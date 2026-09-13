@@ -50,15 +50,15 @@ function createStyles() {
   return StyleSheet.create({
     userWrap: {
       alignItems: 'flex-end',
-      marginBottom: spacing.md,
+      marginBottom: spacing.lg,
     },
     userBubble: {
       maxWidth: '82%',
       backgroundColor: colors.brand.primary,
       borderRadius: 24,
       borderBottomRightRadius: 8,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
       shadowColor: colors.shadow.success,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.18,
@@ -71,7 +71,7 @@ function createStyles() {
       lineHeight: 22,
     },
     assistantWrap: {
-      marginBottom: spacing.md,
+      marginBottom: spacing.lg,
     },
     assistantRow: {
       flexDirection: 'row',
@@ -101,8 +101,8 @@ function createStyles() {
     assistantBubble: {
       borderRadius: 26,
       borderTopLeftRadius: 10,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
       backgroundColor: colors.bg.elevated,
       borderWidth: 1,
       borderColor: colors.border.soft,

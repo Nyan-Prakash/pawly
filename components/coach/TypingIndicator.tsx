@@ -67,7 +67,7 @@ function createStyles() {
     row: {
       flexDirection: 'row',
       alignItems: 'flex-end',
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       marginBottom: spacing.sm,
     },
     avatar: {
@@ -89,7 +89,7 @@ function createStyles() {
       borderWidth: 1,
       borderColor: colors.border.default,
       paddingVertical: spacing.sm + 4,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       gap: 5,
     },
     dot: {

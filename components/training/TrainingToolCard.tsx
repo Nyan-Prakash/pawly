@@ -114,7 +114,7 @@ export function TrainingToolCard({
 
 const styles = StyleSheet.create({
   wrapper: {
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -129,20 +129,20 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   borderShell: {
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     borderWidth: 1.5,
     overflow: 'hidden',
   },
   pressable: {
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     overflow: 'hidden',
   },
   gradient: {
-    borderRadius: radii.lg,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   iconArea: {
     alignItems: 'center',
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
+    borderRadius: radii.full,
     borderWidth: 1,
     marginTop: spacing.xs,
   },

@@ -58,7 +58,7 @@ function FeaturePill({
           backgroundColor: 'rgba(255,255,255,0.15)',
           paddingHorizontal: 12,
           paddingVertical: 7,
-          borderRadius: radii.pill,
+          borderRadius: radii.full,
           borderWidth: 1,
           borderColor: 'rgba(255,255,255,0.22)',
         }}
@@ -130,7 +130,7 @@ function ValueRow({
 
   return (
     <Animated.View style={{ opacity, transform: [{ translateX }] }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
         <View
           style={{
             width: 40,
@@ -193,7 +193,7 @@ export default function WelcomeScreen() {
   }, []);
 
   // Bottom safe area for CTAs
-  const bottomPad = Math.max(insets.bottom, spacing.lg);
+  const bottomPad = Math.max(insets.bottom, spacing.xl);
 
   return (
     <View style={{ flex: 1, backgroundColor: HERO_GREEN }}>
@@ -229,9 +229,9 @@ export default function WelcomeScreen() {
             flex: 1,
             alignItems: 'center',
             justifyContent: 'center',
-            paddingTop: insets.top + spacing.md,
-            paddingHorizontal: spacing.xl,
-            paddingBottom: spacing.xxl,
+            paddingTop: insets.top + spacing.lg,
+            paddingHorizontal: spacing.xxl,
+            paddingBottom: spacing.xxxl,
           }}
         >
           {/* Logo */}
@@ -246,7 +246,7 @@ export default function WelcomeScreen() {
                 borderColor: 'rgba(255,255,255,0.28)',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: spacing.md,
+                marginBottom: spacing.lg,
                 overflow: 'hidden',
                 ...Platform.select({
                   ios: {
@@ -291,7 +291,7 @@ export default function WelcomeScreen() {
           </Animated.View>
 
           {/* Pills */}
-          <View style={{ flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', marginTop: spacing.lg, flexWrap: 'wrap' }}>
+          <View style={{ flexDirection: 'row', gap: spacing.xs, justifyContent: 'center', marginTop: spacing.xl, flexWrap: 'wrap' }}>
             <FeaturePill icon="sparkles" label="AI-personalized" delay={550} />
             <FeaturePill icon="trending-up" label="Tracks progress" delay={700} />
           </View>
@@ -306,8 +306,8 @@ export default function WelcomeScreen() {
             borderTopLeftRadius: 32,
             borderTopRightRadius: 32,
             marginTop: -32,
-            paddingTop: spacing.md,
-            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingHorizontal: spacing.xl,
             paddingBottom: bottomPad,
             ...Platform.select({
               ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.07, shadowRadius: 14 },
@@ -316,10 +316,10 @@ export default function WelcomeScreen() {
           }}
         >
           {/* Handle */}
-          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border.default, alignSelf: 'center', marginBottom: spacing.lg }} />
+          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.border.default, alignSelf: 'center', marginBottom: spacing.xl }} />
 
           {/* Value rows */}
-          <View style={{ gap: spacing.md, marginBottom: spacing.xl }}>
+          <View style={{ gap: spacing.lg, marginBottom: spacing.xxl }}>
             <ValueRow icon="fitness" title="Plans built for your dog" subtitle="Personalised to breed, age & goals" delay={400} />
             <ValueRow icon="chatbubble-ellipses" title="AI Coach available 24/7" subtitle="Instant expert advice, any time" delay={520} />
             <ValueRow icon="ribbon" title="Track real progress" subtitle="Streaks, milestones & behaviour scores" delay={640} />

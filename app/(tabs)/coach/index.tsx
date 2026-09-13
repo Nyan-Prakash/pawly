@@ -369,7 +369,7 @@ function createStyles(isDark: boolean) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: spacing.xl,
+      padding: spacing.xxl,
     },
     emptyWrap: {
       flex: 1,
@@ -377,8 +377,8 @@ function createStyles(isDark: boolean) {
 
     loadingCard: {
       minWidth: 180,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
       borderRadius: 24,
       alignItems: 'center',
       gap: spacing.sm,
@@ -396,7 +396,7 @@ function createStyles(isDark: boolean) {
     },
 
     header: {
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       paddingTop: spacing.sm,
       paddingBottom: spacing.sm,
     },
@@ -462,7 +462,7 @@ function createStyles(isDark: boolean) {
 
     messageList: {
       flexGrow: 1,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       paddingTop: spacing.sm,
     },
     messageListEmpty: {
@@ -472,17 +472,17 @@ function createStyles(isDark: boolean) {
     welcomeWrap: {
       flexGrow: 1,
       justifyContent: 'center',
-      paddingBottom: spacing.xl * 1.5,
+      paddingBottom: spacing.xxl * 1.5,
     },
     welcomeHero: {
       alignItems: 'center',
-      paddingHorizontal: spacing.lg,
+      paddingHorizontal: spacing.xl,
     },
     welcomePill: {
       alignSelf: 'center',
       backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.95)',
       borderRadius: 999,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       paddingVertical: spacing.xs,
       marginBottom: spacing.sm,
       shadowColor: colors.brand.primary,
@@ -523,9 +523,9 @@ function createStyles(isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-      marginHorizontal: spacing.md,
+      marginHorizontal: spacing.lg,
       marginBottom: spacing.sm,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       paddingVertical: 12,
       borderRadius: 18,
       backgroundColor: colors.status.dangerBg,
@@ -545,7 +545,7 @@ function createStyles(isDark: boolean) {
     },
 
     composerShell: {
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
       paddingTop: spacing.xs,
       marginBottom: 10,
     },
@@ -577,7 +577,7 @@ function createStyles(isDark: boolean) {
       backgroundColor: colors.bg.elevated,
       borderWidth: 1,
       borderColor: colors.border.default,
-      paddingLeft: spacing.md,
+      paddingLeft: spacing.lg,
       paddingRight: spacing.sm,
       paddingVertical: spacing.sm,
       flexDirection: 'row',

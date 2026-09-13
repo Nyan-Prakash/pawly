@@ -91,7 +91,7 @@ export default function LoginScreen() {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: spacing.xl }}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing.xxl, paddingTop: spacing.xxxl, paddingBottom: spacing.xxl }}
             keyboardShouldPersistTaps="handled"
           >
             <Text
@@ -108,7 +108,7 @@ export default function LoginScreen() {
             </Text>
             <Text
               variant="body"
-              style={{ marginBottom: spacing.xxl, color: colors.textSecondary }}
+              style={{ marginBottom: spacing.xxxl, color: colors.textSecondary }}
             >
               Log in to continue with your dog's training.
             </Text>
@@ -139,7 +139,7 @@ export default function LoginScreen() {
             {/* Password */}
             <Text
               style={{
-                marginTop: spacing.md,
+                marginTop: spacing.lg,
                 marginBottom: spacing.xs,
                 fontWeight: '600',
                 fontSize: typography.sizes.sm,
@@ -180,7 +180,7 @@ export default function LoginScreen() {
             <Pressable
               onPress={handleLogin}
               disabled={isLoading}
-              style={[primaryButtonStyle, { marginTop: spacing.xl, opacity: isLoading ? 0.7 : 1 }]}
+              style={[primaryButtonStyle, { marginTop: spacing.xxl, opacity: isLoading ? 0.7 : 1 }]}
             >
               {isLoading
                 ? <ActivityIndicator color={colors.surface} />
@@ -191,15 +191,15 @@ export default function LoginScreen() {
             {/* Apple Sign In — iOS only */}
             {Platform.OS === 'ios' && (
               <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xxl }}>
                 <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
-                <Text variant="caption" style={{ marginHorizontal: spacing.md, color: colors.textSecondary }}>OR</Text>
+                <Text variant="caption" style={{ marginHorizontal: spacing.lg, color: colors.textSecondary }}>OR</Text>
                 <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
               </View>
               <Pressable
                 onPress={handleAppleSignIn}
                 disabled={isLoading}
-                style={[appleButtonStyle, { marginBottom: spacing.md, opacity: isLoading ? 0.7 : 1 }]}
+                style={[appleButtonStyle, { marginBottom: spacing.lg, opacity: isLoading ? 0.7 : 1 }]}
               >
                 <Text style={{ color: '#FFFFFF', fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>
                    Continue with Apple
@@ -228,8 +228,8 @@ const inputStyle = (hasError: boolean) => ({
   borderWidth: 1.5,
   borderColor: hasError ? colors.error : colors.border.soft,
   borderRadius: 16,
-  paddingVertical: spacing.lg,
-  paddingHorizontal: spacing.lg,
+  paddingVertical: spacing.xl,
+  paddingHorizontal: spacing.xl,
   fontSize: typography.sizes.md,
   color: colors.textPrimary,
   backgroundColor: colors.surface,
@@ -239,7 +239,7 @@ const inputStyle = (hasError: boolean) => ({
 const primaryButtonStyle = {
   backgroundColor: colors.primary,
   borderRadius: 16,
-  paddingVertical: spacing.lg,
+  paddingVertical: spacing.xl,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
   minHeight: 58,
@@ -248,7 +248,7 @@ const primaryButtonStyle = {
 const appleButtonStyle = {
   backgroundColor: '#000000',
   borderRadius: 16,
-  paddingVertical: spacing.lg,
+  paddingVertical: spacing.xl,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
   minHeight: 58,

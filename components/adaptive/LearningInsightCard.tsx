@@ -72,8 +72,8 @@ export function LearningInsightCard({ dogName, learningState }: LearningInsightC
     <View
       style={{
         backgroundColor: '#F4FBF6',
-        borderRadius: radii.lg,
-        padding: spacing.md,
+        borderRadius: radii.md,
+        padding: spacing.lg,
         borderWidth: 1,
         borderColor: '#C6E9D4',
         gap: spacing.sm,

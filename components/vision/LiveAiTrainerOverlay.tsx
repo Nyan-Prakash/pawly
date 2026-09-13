@@ -337,7 +337,7 @@ export function LiveAiTrainerOverlay({
       {/* Bottom Controls */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.bottomControls, { bottom: insets.bottom + spacing.md }]}
+        style={[styles.bottomControls, { bottom: insets.bottom + spacing.lg }]}
       >
         {showInput ? (
           <View style={styles.inputRow}>
@@ -386,7 +386,7 @@ export function LiveAiTrainerOverlay({
           <AppIcon name="eye-off-outline" size={40} color="#fff" />
           <Text style={styles.fallbackTitle}>I'm having trouble seeing clearly</Text>
           <Text style={styles.fallbackBody}>{fallbackCopy(fallbackReason)}</Text>
-          <Button label="Switch to Manual" onPress={onManualSwitch} style={{ marginTop: spacing.lg, alignSelf: 'stretch' }} />
+          <Button label="Switch to Manual" onPress={onManualSwitch} style={{ marginTop: spacing.xl, alignSelf: 'stretch' }} />
           <Button label="Keep trying" variant="ghost" onPress={onKeepTrying} style={{ marginTop: spacing.sm, alignSelf: 'stretch' }} />
         </View>
       )}
@@ -452,7 +452,7 @@ function GateScreen({
   onExit: () => void;
 }) {
   return (
-    <View style={[styles.container, styles.gate, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}>
+    <View style={[styles.container, styles.gate, { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.xl }]}>
       <Pressable onPress={onExit} style={[styles.iconButton, { alignSelf: 'flex-start' }]} accessibilityRole="button" accessibilityLabel="Exit">
         <AppIcon name="close" size={24} color="#fff" />
       </Pressable>
@@ -460,7 +460,7 @@ function GateScreen({
         <AppIcon name={icon} size={48} color="#fff" />
         <Text style={styles.fallbackTitle}>{title}</Text>
         <Text style={styles.fallbackBody}>{body}</Text>
-        <Button label={primaryLabel} onPress={onPrimary} style={{ marginTop: spacing.lg, alignSelf: 'stretch' }} />
+        <Button label={primaryLabel} onPress={onPrimary} style={{ marginTop: spacing.xl, alignSelf: 'stretch' }} />
         {secondaryLabel && onSecondary && (
           <Button label={secondaryLabel} variant="ghost" onPress={onSecondary} style={{ marginTop: spacing.sm, alignSelf: 'stretch' }} />
         )}
@@ -515,14 +515,14 @@ function getStatusLabel(status: LiveAiTrainerStatus) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  gate: { paddingHorizontal: spacing.lg },
-  gateBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingHorizontal: spacing.lg },
+  gate: { paddingHorizontal: spacing.xl },
+  gateBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, paddingHorizontal: spacing.xl },
 
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconButton: {
@@ -562,8 +562,8 @@ const styles = StyleSheet.create({
   },
   manualButtonText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
-  stepCardContainer: { marginTop: spacing.md, marginHorizontal: spacing.lg, borderRadius: 20, overflow: 'hidden' },
-  stepCardBlur: { padding: spacing.lg, gap: spacing.sm },
+  stepCardContainer: { marginTop: spacing.lg, marginHorizontal: spacing.xl, borderRadius: 20, overflow: 'hidden' },
+  stepCardBlur: { padding: spacing.xl, gap: spacing.sm },
   stepCounterRow: { flexDirection: 'row', alignItems: 'center' },
   stepBadge: { backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99 },
   stepBadgeText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
@@ -571,8 +571,8 @@ const styles = StyleSheet.create({
   successRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 2 },
   successText: { color: GREEN, fontSize: 13, lineHeight: 19, flex: 1, fontWeight: '500' },
 
-  trackingContainer: { marginTop: spacing.sm, marginHorizontal: spacing.lg, borderRadius: 16, overflow: 'visible' },
-  trackingBlur: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: 16, overflow: 'hidden' },
+  trackingContainer: { marginTop: spacing.sm, marginHorizontal: spacing.xl, borderRadius: 16, overflow: 'visible' },
+  trackingBlur: { paddingHorizontal: spacing.xl, paddingVertical: spacing.lg, borderRadius: 16, overflow: 'hidden' },
   repRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   repCountBlock: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   repCount: { color: '#fff', fontSize: 32, fontWeight: '800', lineHeight: 38 },
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   timerLabelDone: { color: GREEN },
   autoRepBadge: {
     position: 'absolute',
-    right: spacing.md,
+    right: spacing.lg,
     top: -14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
 
   reframeHint: {
     marginTop: spacing.sm,
-    marginHorizontal: spacing.lg,
+    marginHorizontal: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -632,9 +632,9 @@ const styles = StyleSheet.create({
   },
   reframeText: { color: '#FBBF24', fontSize: 13, fontWeight: '600' },
 
-  messageContainer: { position: 'absolute', left: spacing.lg, right: spacing.lg },
+  messageContainer: { position: 'absolute', left: spacing.xl, right: spacing.xl },
   messageBlur: {
-    padding: spacing.md,
+    padding: spacing.lg,
     borderRadius: 16,
     overflow: 'hidden',
     flexDirection: 'row',
@@ -645,8 +645,8 @@ const styles = StyleSheet.create({
 
   errorBanner: {
     position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
+    left: spacing.xl,
+    right: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -657,14 +657,14 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#FECACA', fontSize: 13, fontWeight: '600', flex: 1 },
 
-  bottomControls: { position: 'absolute', left: 0, right: 0, paddingHorizontal: spacing.lg },
+  bottomControls: { position: 'absolute', left: 0, right: 0, paddingHorizontal: spacing.xl },
   buttonRow: { flexDirection: 'row', justifyContent: 'space-around', gap: spacing.sm },
   actionButton: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     paddingHorizontal: spacing.sm,
     borderRadius: 16,
     flex: 1,
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xxl,
+    padding: spacing.xxxl,
     gap: spacing.sm,
   },
   fallbackTitle: { color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center' },

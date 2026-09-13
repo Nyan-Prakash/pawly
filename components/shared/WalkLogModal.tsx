@@ -129,9 +129,9 @@ export function WalkLogModal({
                   style={{
                     backgroundColor: colors.bg.surfaceAlt,
                     borderRadius: radii.md,
-                    paddingHorizontal: spacing.md,
+                    paddingHorizontal: spacing.lg,
                     paddingVertical: spacing.sm,
-                    marginBottom: spacing.lg,
+                    marginBottom: spacing.xl,
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: spacing.sm,
@@ -149,7 +149,7 @@ export function WalkLogModal({
                 </View>
 
                 {/* Quality options */}
-                <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
+                <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
                   {QUALITY_OPTIONS.map((opt) => {
                     const selected = selectedQuality === opt.value;
                     return (
@@ -162,10 +162,10 @@ export function WalkLogModal({
                           borderWidth: selected ? 2 : 1,
                           borderColor: selected ? opt.border : colors.border.default,
                           borderRadius: radii.md,
-                          padding: spacing.md,
+                          padding: spacing.lg,
                           flexDirection: 'row',
                           alignItems: 'center',
-                          gap: spacing.md,
+                          gap: spacing.lg,
                           minHeight: 64,
                         }}
                       >
@@ -190,7 +190,7 @@ export function WalkLogModal({
                 </View>
 
                 {/* Notes input */}
-                <View style={{ marginBottom: spacing.md }}>
+                <View style={{ marginBottom: spacing.lg }}>
                   <Text variant="micro" color={colors.text.secondary} style={{ marginBottom: 6 }}>
                     What happened? (optional)
                   </Text>
@@ -205,7 +205,7 @@ export function WalkLogModal({
                     style={{
                       backgroundColor: colors.bg.surfaceAlt,
                       borderRadius: radii.md,
-                      padding: spacing.md,
+                      padding: spacing.lg,
                       fontSize: 14,
                       color: colors.text.primary,
                       minHeight: 72,
@@ -217,7 +217,7 @@ export function WalkLogModal({
                 </View>
 
                 {/* Duration input */}
-                <View style={{ marginBottom: spacing.lg }}>
+                <View style={{ marginBottom: spacing.xl }}>
                   <Text variant="micro" color={colors.text.secondary} style={{ marginBottom: 6 }}>
                     How long? — minutes (optional)
                   </Text>
@@ -231,7 +231,7 @@ export function WalkLogModal({
                     style={{
                       backgroundColor: colors.bg.surfaceAlt,
                       borderRadius: radii.md,
-                      padding: spacing.md,
+                      padding: spacing.lg,
                       fontSize: 16,
                       color: colors.text.primary,
                       borderWidth: 1.5,
@@ -260,7 +260,7 @@ export function WalkLogModal({
                   onPress={handleSave}
                   loading={isSaving}
                   disabled={!selectedQuality}
-                  style={{ marginBottom: spacing.md }}
+                  style={{ marginBottom: spacing.lg }}
                 />
 
                 {/* Skip link */}

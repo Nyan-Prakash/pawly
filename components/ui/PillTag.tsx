@@ -1,62 +1,47 @@
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
+import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
+import { spacing } from '@/constants/spacing';
 
-type PillTagVariant = 'default' | 'green' | 'gold' | 'blue' | 'muted';
-type PillTagSize = 'sm' | 'md';
+type TagTone = 'neutral' | 'accent' | 'warning' | 'danger';
 
-type PillTagProps = {
+type TagProps = {
   label: string;
-  variant?: PillTagVariant;
-  size?: PillTagSize;
-  onPress?: () => void;
+  tone?: TagTone;
 };
 
-const variantTokens: Record<PillTagVariant, { bg: string; text: string }> = {
-  default: { bg: '#F5F7F9', text: '#6B7280' },
-  green:   { bg: '#DCFCE7', text: '#15803D' },
-  gold:    { bg: '#FEF3C7', text: '#B45309' },
-  blue:    { bg: '#DBEAFE', text: '#1D4ED8' },
-  muted:   { bg: '#E5E7EB', text: '#6B7280' },
-};
+/**
+ * A small status tag: "Missed", "Today", "3 left". Used as trailing content
+ * in a row or next to a title. Never stacked above a heading, never decorative.
+ */
+export function Tag({ label, tone = 'neutral' }: TagProps) {
+  const palette: Record<TagTone, { bg: string; text: string }> = {
+    neutral: { bg: colors.bg.fill, text: colors.text.secondary },
+    accent: { bg: colors.accentSoft, text: colors.accent },
+    warning: { bg: colors.status.warningSoft, text: colors.status.warning },
+    danger: { bg: colors.status.dangerSoft, text: colors.status.danger },
+  };
+  const { bg, text } = palette[tone];
 
-const sizeTokens: Record<PillTagSize, { paddingH: number; paddingV: number }> = {
-  sm: { paddingH: 10, paddingV: 4 },
-  md: { paddingH: 12, paddingV: 6 },
-};
-
-export function PillTag({ label, variant = 'default', size = 'md', onPress }: PillTagProps) {
-  const vt = variantTokens[variant];
-  const st = sizeTokens[size];
-
-  const content = (
+  return (
     <View
       style={{
-        backgroundColor: vt.bg,
-        borderRadius: radii.pill,
-        paddingHorizontal: st.paddingH,
-        paddingVertical: st.paddingV,
+        backgroundColor: bg,
+        borderRadius: radii.sm,
+        paddingHorizontal: spacing.sm,
+        height: 24,
+        justifyContent: 'center',
         alignSelf: 'flex-start',
       }}
     >
-      <Text
-        variant={size === 'sm' ? 'micro' : 'caption'}
-        color={vt.text}
-        style={{ fontWeight: '600' }}
-      >
+      <Text variant="label" color={text}>
         {label}
       </Text>
     </View>
   );
-
-  if (onPress) {
-    return (
-      <Pressable onPress={onPress} style={{ alignSelf: 'flex-start' }}>
-        {content}
-      </Pressable>
-    );
-  }
-
-  return content;
 }
+
+/** @deprecated use Tag */
+export const PillTag = Tag;

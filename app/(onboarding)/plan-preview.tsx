@@ -176,7 +176,7 @@ export default function PlanPreviewScreen() {
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           pointerEvents="none"
         />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xxl }}>
           <Animated.View
             style={[
               logoStyle,
@@ -187,7 +187,7 @@ export default function PlanPreviewScreen() {
                 backgroundColor: hexToRgba(colors.brand.primary, 0.12),
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: spacing.xl,
+                marginBottom: spacing.xxl,
               },
             ]}
           >
@@ -210,9 +210,9 @@ export default function PlanPreviewScreen() {
   if (error) {
     return (
       <SafeScreen>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xxl }}>
           <AppIcon name="help-circle" size={40} color={colors.text.secondary} />
-          <Text style={{ textAlign: 'center', color: colors.text.secondary, marginTop: spacing.md, marginBottom: spacing.xl, lineHeight: 22 }}>
+          <Text style={{ textAlign: 'center', color: colors.text.secondary, marginTop: spacing.lg, marginBottom: spacing.xxl, lineHeight: 22 }}>
             {error}
           </Text>
           <Button label="Try again" onPress={() => router.replace('/(onboarding)/dog-basics')} />
@@ -237,7 +237,7 @@ export default function PlanPreviewScreen() {
             colors={[colors.brand.primary, '#16A34A']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ paddingTop: spacing.xl + spacing.lg, paddingBottom: spacing.xxl, paddingHorizontal: spacing.lg }}
+            style={{ paddingTop: spacing.xxl + spacing.xl, paddingBottom: spacing.xxxl, paddingHorizontal: spacing.xl }}
           >
             {/* Course chip — small, quiet */}
             <Animated.View entering={FadeInDown.delay(60).duration(350)}>
@@ -245,10 +245,10 @@ export default function PlanPreviewScreen() {
                 flexDirection: 'row',
                 alignSelf: 'flex-start',
                 backgroundColor: 'rgba(255,255,255,0.2)',
-                paddingHorizontal: spacing.md,
+                paddingHorizontal: spacing.lg,
                 paddingVertical: 5,
-                borderRadius: radii.pill,
-                marginBottom: spacing.md,
+                borderRadius: radii.full,
+                marginBottom: spacing.lg,
               }}>
                 <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.95)', letterSpacing: 0.8, textTransform: 'uppercase' }}>
                   {goalLabel} · Stage 1
@@ -265,7 +265,7 @@ export default function PlanPreviewScreen() {
 
             {/* Plan subtitle — one line, secondary */}
             <Animated.View entering={FadeInDown.delay(180).duration(350)}>
-              <Text style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', lineHeight: 24, marginBottom: spacing.xl }}>
+              <Text style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', lineHeight: 24, marginBottom: spacing.xxl }}>
                 {planTitle}
               </Text>
             </Animated.View>
@@ -303,24 +303,24 @@ export default function PlanPreviewScreen() {
           {/* ══════════════════════════════════════════════════════
               CONTENT — cards float below hero
           ══════════════════════════════════════════════════════ */}
-          <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.sm }}>
+          <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.sm }}>
 
             {/* ── WHAT YOU'LL WORK ON ── */}
             <Animated.View
               entering={FadeInDown.delay(300).duration(380)}
               style={{
                 backgroundColor: colors.bg.surface,
-                borderRadius: radii.lg,
-                padding: spacing.lg,
+                borderRadius: radii.md,
+                padding: spacing.xl,
                 borderWidth: 1,
                 borderColor: colors.border.soft,
                 ...shadows.card,
               }}
             >
-              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.md }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.lg }}>
                 What you'll work on
               </Text>
-              <View style={{ gap: spacing.md }}>
+              <View style={{ gap: spacing.lg }}>
                 {bullets.map((b, i) => (
                   <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
                     <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brand.primary, marginTop: 9, flexShrink: 0 }} />
@@ -332,7 +332,7 @@ export default function PlanPreviewScreen() {
               </View>
 
               {equipment.length > 0 && (
-                <View style={{ marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.soft }}>
+                <View style={{ marginTop: spacing.xl, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border.soft }}>
                   <Text style={{ fontSize: 15, color: colors.text.primary, lineHeight: 22 }}>
                     <Text style={{ fontWeight: '700' }}>You'll need: </Text>
                     {equipment.join(', ')}
@@ -346,7 +346,7 @@ export default function PlanPreviewScreen() {
               entering={FadeInDown.delay(360).duration(380)}
               style={{
                 backgroundColor: colors.bg.surface,
-                borderRadius: radii.lg,
+                borderRadius: radii.md,
                 overflow: 'hidden',
                 borderWidth: 1,
                 borderColor: colors.border.soft,
@@ -356,7 +356,7 @@ export default function PlanPreviewScreen() {
               {/* Amber accent bar */}
               <View style={{ height: 4, backgroundColor: colors.brand.secondary }} />
 
-              <View style={{ padding: spacing.lg }}>
+              <View style={{ padding: spacing.xl }}>
                 <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.sm }}>
                   Your schedule
                 </Text>
@@ -368,9 +368,9 @@ export default function PlanPreviewScreen() {
                   <View style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    gap: spacing.md,
-                    marginTop: spacing.md,
-                    paddingTop: spacing.md,
+                    gap: spacing.lg,
+                    marginTop: spacing.lg,
+                    paddingTop: spacing.lg,
                     borderTopWidth: 1,
                     borderTopColor: colors.border.soft,
                   }}>
@@ -413,7 +413,7 @@ export default function PlanPreviewScreen() {
                 entering={FadeInDown.delay(420).duration(380)}
                 style={{
                   backgroundColor: colors.bg.surface,
-                  borderRadius: radii.lg,
+                  borderRadius: radii.md,
                   overflow: 'hidden',
                   borderWidth: 1,
                   borderColor: colors.border.soft,
@@ -421,11 +421,11 @@ export default function PlanPreviewScreen() {
                 }}
               >
                 <View style={{ height: 4, backgroundColor: colors.brand.coach }} />
-                <View style={{ padding: spacing.lg }}>
-                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.md }}>
+                <View style={{ padding: spacing.xl }}>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.lg }}>
                     Why this plan?
                   </Text>
-                  <View style={{ gap: spacing.md }}>
+                  <View style={{ gap: spacing.lg }}>
                     {explanationBullets.map((bullet, i) => (
                       <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
                         <View style={{ marginTop: 4 }}><AppIcon name="sparkles" size={15} color={colors.brand.coach} /></View>
@@ -461,8 +461,8 @@ export default function PlanPreviewScreen() {
                 entering={FadeInDown.delay(460).duration(380)}
                 style={{
                   backgroundColor: colors.bg.surface,
-                  borderRadius: radii.lg,
-                  padding: spacing.lg,
+                  borderRadius: radii.md,
+                  padding: spacing.xl,
                   borderWidth: 1,
                   borderColor: colors.border.soft,
                   ...shadows.card,
@@ -483,14 +483,14 @@ export default function PlanPreviewScreen() {
                 entering={FadeInDown.delay(500).duration(380)}
                 style={{
                   backgroundColor: colors.bg.surface,
-                  borderRadius: radii.lg,
-                  padding: spacing.lg,
+                  borderRadius: radii.md,
+                  padding: spacing.xl,
                   borderWidth: 1,
                   borderColor: colors.border.soft,
                   ...shadows.card,
                 }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.md }}>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text.primary, marginBottom: spacing.lg }}>
                   {secondaryGoals.length === 1 ? 'Also included' : `${secondaryGoals.length} courses also included`}
                 </Text>
 
@@ -503,7 +503,7 @@ export default function PlanPreviewScreen() {
                         alignItems: 'center',
                         gap: spacing.sm,
                         paddingVertical: spacing.sm,
-                        paddingHorizontal: spacing.md,
+                        paddingHorizontal: spacing.lg,
                         backgroundColor: colors.bg.surfaceAlt,
                         borderRadius: radii.sm,
                       }}
@@ -516,7 +516,7 @@ export default function PlanPreviewScreen() {
                   ))}
                 </View>
 
-                <Text style={{ fontSize: 14, color: colors.text.secondary, marginTop: spacing.md, lineHeight: 21 }}>
+                <Text style={{ fontSize: 14, color: colors.text.secondary, marginTop: spacing.lg, lineHeight: 21 }}>
                   These run alongside your main plan. Switch between courses anytime from the Train tab.
                 </Text>
               </Animated.View>
@@ -527,7 +527,7 @@ export default function PlanPreviewScreen() {
               <Animated.View
                 entering={FadeInDown.delay(540).duration(380)}
                 style={{
-                  borderRadius: radii.lg,
+                  borderRadius: radii.md,
                   overflow: 'hidden',
                   borderWidth: 1,
                   borderColor: colors.border.soft,
@@ -535,7 +535,7 @@ export default function PlanPreviewScreen() {
                 }}
               >
                 {/* Blurred preview */}
-                <View style={{ padding: spacing.lg, backgroundColor: colors.bg.surfaceAlt, gap: spacing.xs }}>
+                <View style={{ padding: spacing.xl, backgroundColor: colors.bg.surfaceAlt, gap: spacing.xs }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text.secondary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: spacing.xs }}>
                     Full plan preview
                   </Text>
@@ -545,7 +545,7 @@ export default function PlanPreviewScreen() {
                 </View>
 
                 {/* Unlock section */}
-                <View style={{ padding: spacing.lg, alignItems: 'center', backgroundColor: colors.bg.surface, borderTopWidth: 1, borderTopColor: colors.border.soft }}>
+                <View style={{ padding: spacing.xl, alignItems: 'center', backgroundColor: colors.bg.surface, borderTopWidth: 1, borderTopColor: colors.border.soft }}>
                   <AppIcon name="lock-closed" size={24} color={colors.brand.primary} />
                   <Text style={{ fontSize: 19, fontWeight: '800', color: colors.text.primary, marginTop: spacing.sm, marginBottom: spacing.xs, textAlign: 'center', letterSpacing: -0.3 }}>
                     Unlock your full plan
@@ -564,9 +564,9 @@ export default function PlanPreviewScreen() {
         <View style={{
           position: 'absolute',
           bottom: 0, left: 0, right: 0,
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
+          paddingBottom: spacing.xl,
           backgroundColor: colors.bg.elevated,
           borderTopWidth: 1,
           borderTopColor: colors.border.soft,

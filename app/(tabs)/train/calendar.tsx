@@ -66,8 +66,8 @@ export default function CalendarScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
           gap: spacing.sm,
         }}
@@ -92,7 +92,7 @@ export default function CalendarScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl }}
       >
         {isLoading && !hasPlans ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 }}>
@@ -101,7 +101,7 @@ export default function CalendarScreen() {
         ) : !hasPlans ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 }}>
             <Ionicons name="calendar-outline" size={64} color={colors.border.default} />
-            <Text variant="h3" style={{ marginTop: spacing.md }}>No Active Plan</Text>
+            <Text variant="h3" style={{ marginTop: spacing.lg }}>No Active Plan</Text>
             <Text color={colors.text.secondary} style={{ textAlign: 'center', marginTop: spacing.xs }}>
               Start a training plan to see your sessions on the calendar.
             </Text>

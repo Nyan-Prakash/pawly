@@ -76,10 +76,10 @@ export default function KnowScreen() {
         }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.xxl * 2,
-          gap: spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
+          paddingBottom: spacing.xxxl * 2,
+          gap: spacing.xl,
         }}
       >
         <View style={{ gap: 4 }}>
@@ -91,11 +91,11 @@ export default function KnowScreen() {
 
         <View
           style={{
-            borderRadius: radii.lg,
+            borderRadius: radii.md,
             borderWidth: 1,
             borderColor: colors.border.default,
             backgroundColor: colors.bg.surface,
-            paddingHorizontal: spacing.md,
+            paddingHorizontal: spacing.lg,
             flexDirection: 'row',
             alignItems: 'center',
             gap: spacing.sm,
@@ -126,7 +126,7 @@ export default function KnowScreen() {
                 style={{
                   paddingHorizontal: 14,
                   paddingVertical: 8,
-                  borderRadius: radii.pill,
+                  borderRadius: radii.full,
                   backgroundColor: isSelected ? colors.brand.primary : colors.bg.surface,
                   borderWidth: 1,
                   borderColor: isSelected ? colors.brand.primary : colors.border.default,
@@ -147,7 +147,7 @@ export default function KnowScreen() {
         </ScrollView>
 
         {isLoading ? (
-          <View style={{ paddingTop: spacing.xxl, alignItems: 'center' }}>
+          <View style={{ paddingTop: spacing.xxxl, alignItems: 'center' }}>
             <ActivityIndicator size="large" color={colors.brand.primary} />
           </View>
         ) : error ? (
@@ -158,7 +158,7 @@ export default function KnowScreen() {
             action={{ label: 'Try again', onPress: load }}
           />
         ) : (
-          <View style={{ gap: spacing.lg }}>
+          <View style={{ gap: spacing.xl }}>
             {featuredArticle ? (
               <View style={{ gap: spacing.sm }}>
                 <Text variant="bodyStrong">Featured</Text>
@@ -186,7 +186,7 @@ export default function KnowScreen() {
                   You&apos;re viewing the only matching article above.
                 </Text>
               ) : (
-                <View style={{ gap: spacing.md }}>
+                <View style={{ gap: spacing.lg }}>
                   {listArticles.map((article) => (
                     <ArticleCard
                       key={article.id}

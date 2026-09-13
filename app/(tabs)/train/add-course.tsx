@@ -195,8 +195,8 @@ function GoalSelectionStep({
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
           gap: spacing.sm,
         }}
@@ -214,8 +214,8 @@ function GoalSelectionStep({
 
       <ScrollView
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xxl,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: spacing.xxxl,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -224,10 +224,10 @@ function GoalSelectionStep({
             style={{
               backgroundColor: colors.status.warningBg,
               borderRadius: radii.md,
-              padding: spacing.lg,
+              padding: spacing.xl,
               borderWidth: 1,
               borderColor: colors.status.warningBorder ?? colors.warning,
-              marginBottom: spacing.lg,
+              marginBottom: spacing.xl,
               flexDirection: 'row',
               gap: spacing.sm,
               alignItems: 'flex-start',
@@ -247,7 +247,7 @@ function GoalSelectionStep({
           <Text
             variant="body"
             color={colors.text.secondary}
-            style={{ marginBottom: spacing.lg, lineHeight: 22 }}
+            style={{ marginBottom: spacing.xl, lineHeight: 22 }}
           >
             Choose a new behavior to work on. Goals you're already training are shown below and cannot be duplicated.
           </Text>
@@ -266,12 +266,12 @@ function GoalSelectionStep({
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: spacing.md,
+                  gap: spacing.lg,
                   backgroundColor: isActive
                     ? colors.bg.surfaceAlt
                     : colors.bg.surface,
                   borderRadius: radii.md,
-                  padding: spacing.md,
+                  padding: spacing.lg,
                   borderWidth: 1,
                   borderColor: isActive
                     ? colors.border.soft
@@ -321,7 +321,7 @@ function GoalSelectionStep({
                       backgroundColor: colors.border.default,
                       paddingHorizontal: 8,
                       paddingVertical: 3,
-                      borderRadius: radii.pill,
+                      borderRadius: radii.full,
                     }}
                   >
                     <Text style={{ fontSize: 10, color: colors.text.secondary, fontWeight: '700' }}>
@@ -382,11 +382,11 @@ function GeneratingView() {
   }, [opacity]);
 
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl }}>
       <Animated.View style={{ transform: [{ scale: logoScale }] }}>
         <AppIcon name="paw" size={72} color={colors.brand.primary} />
       </Animated.View>
-      <Animated.View style={{ opacity, marginTop: spacing.xl }}>
+      <Animated.View style={{ opacity, marginTop: spacing.xxl }}>
         <Text
           variant="body"
           style={{ color: colors.text.secondary, textAlign: 'center', fontSize: 16 }}
@@ -429,8 +429,8 @@ function PlanPreviewStep({
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
           gap: spacing.sm,
         }}
@@ -448,7 +448,7 @@ function PlanPreviewStep({
 
       <ScrollView
         contentContainerStyle={{
-          paddingHorizontal: spacing.md,
+          paddingHorizontal: spacing.lg,
           paddingBottom: insets.bottom + 120,
         }}
         showsVerticalScrollIndicator={false}
@@ -457,11 +457,11 @@ function PlanPreviewStep({
         <View
           style={{
             backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.lg,
+            borderRadius: radii.md,
+            padding: spacing.xl,
             borderWidth: 1,
             borderColor: colors.border.default,
-            marginBottom: spacing.md,
+            marginBottom: spacing.lg,
             alignItems: 'center',
             ...shadows.card,
           }}
@@ -474,7 +474,7 @@ function PlanPreviewStep({
               backgroundColor: colors.brand.primary + '18',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: spacing.md,
+              marginBottom: spacing.lg,
             }}
           >
             <AppIcon name="paw" size={36} color={colors.brand.primary} />
@@ -485,9 +485,9 @@ function PlanPreviewStep({
           <View
             style={{
               backgroundColor: colors.brand.primary + '18',
-              paddingHorizontal: spacing.md,
+              paddingHorizontal: spacing.lg,
               paddingVertical: 4,
-              borderRadius: radii.pill,
+              borderRadius: radii.full,
             }}
           >
             <Text style={{ color: colors.brand.primary, fontSize: 12, fontWeight: '700' }}>
@@ -501,9 +501,9 @@ function PlanPreviewStep({
           <View
             style={{
               backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
-              padding: spacing.lg,
-              marginBottom: spacing.md,
+              borderRadius: radii.md,
+              padding: spacing.xl,
+              marginBottom: spacing.lg,
               borderWidth: 1,
               borderColor: colors.border.default,
               ...shadows.card,
@@ -540,8 +540,8 @@ function PlanPreviewStep({
             style={{
               backgroundColor: colors.bg.surfaceAlt,
               borderRadius: radii.md,
-              padding: spacing.md,
-              marginBottom: spacing.md,
+              padding: spacing.lg,
+              marginBottom: spacing.lg,
             }}
           >
             <Text variant="micro" color={colors.text.secondary}>
@@ -567,13 +567,13 @@ function PlanPreviewStep({
           style={{
             backgroundColor: colors.bg.surface,
             borderRadius: radii.md,
-            padding: spacing.md,
-            marginBottom: spacing.lg,
+            padding: spacing.lg,
+            marginBottom: spacing.xl,
             borderWidth: 1,
             borderColor: colors.border.default,
             flexDirection: 'row',
             alignItems: 'center',
-            gap: spacing.md,
+            gap: spacing.lg,
             ...shadows.card,
           }}
         >
@@ -599,8 +599,8 @@ function PlanPreviewStep({
           bottom: 0,
           left: 0,
           right: 0,
-          padding: spacing.md,
-          paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.sm : spacing.md,
+          padding: spacing.lg,
+          paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.sm : spacing.lg,
           backgroundColor: colors.background,
           borderTopWidth: 1,
           borderTopColor: colors.border.default,
@@ -722,8 +722,8 @@ export default function AddCourseScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
             paddingBottom: spacing.sm,
           }}
         >
@@ -735,7 +735,7 @@ export default function AddCourseScreen() {
           </TouchableOpacity>
         </View>
         <View
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}
+          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl }}
         >
           <AppIcon name="help-circle" size={48} color={colors.text.secondary} />
           <Text
@@ -743,7 +743,7 @@ export default function AddCourseScreen() {
             style={{
               textAlign: 'center',
               color: colors.text.secondary,
-              marginTop: spacing.md,
+              marginTop: spacing.lg,
               lineHeight: 24,
             }}
           >
@@ -754,7 +754,7 @@ export default function AddCourseScreen() {
             variant="secondary"
             size="md"
             onPress={handleBackToSelect}
-            style={{ marginTop: spacing.lg }}
+            style={{ marginTop: spacing.xl }}
           />
         </View>
       </SafeScreen>

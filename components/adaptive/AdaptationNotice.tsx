@@ -85,10 +85,10 @@ export function AdaptationNotice({ dogName, adaptation, onSeeWhy }: AdaptationNo
     <View
       style={{
         backgroundColor: colors.status.infoBg,
-        borderRadius: radii.lg,
+        borderRadius: radii.md,
         borderWidth: 1,
         borderColor: colors.status.infoBorder,
-        padding: spacing.md,
+        padding: spacing.lg,
         gap: spacing.xs,
       }}
     >
@@ -112,9 +112,9 @@ export function AdaptationNotice({ dogName, adaptation, onSeeWhy }: AdaptationNo
         style={({ pressed }) => ({
           alignSelf: 'flex-start',
           marginTop: spacing.xs,
-          paddingHorizontal: spacing.md,
+          paddingHorizontal: spacing.lg,
           paddingVertical: 7,
-          borderRadius: radii.pill,
+          borderRadius: radii.full,
           backgroundColor: pressed ? `${colors.brand.coach}22` : `${colors.brand.coach}14`,
           borderWidth: 1,
           borderColor: `${colors.brand.coach}30`,

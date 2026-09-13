@@ -165,7 +165,7 @@ export default function SignUpScreen() {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <ScrollView
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: spacing.xl }}
+            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing.xxl, paddingTop: spacing.xxxl, paddingBottom: spacing.xxl }}
             keyboardShouldPersistTaps="handled"
           >
             {pendingConfirmationEmail ? (
@@ -181,7 +181,7 @@ export default function SignUpScreen() {
                     borderColor: colors.status.successBorder,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: spacing.lg
+                    marginBottom: spacing.xl
                   }}
                 >
                   <AppIcon name="mail-open-outline" size={38} color={colors.success} />
@@ -190,7 +190,7 @@ export default function SignUpScreen() {
                 <Text variant="title" style={{ marginBottom: spacing.sm, textAlign: 'center' }}>
                   Confirm your email
                 </Text>
-                <Text variant="caption" style={{ marginBottom: spacing.xl, color: colors.textSecondary, textAlign: 'center' }}>
+                <Text variant="caption" style={{ marginBottom: spacing.xxl, color: colors.textSecondary, textAlign: 'center' }}>
                   We sent a confirmation link to {pendingConfirmationEmail}. Open that email and accept it before logging in.
                 </Text>
 
@@ -200,8 +200,8 @@ export default function SignUpScreen() {
                     borderColor: colors.status.successBorder,
                     borderWidth: 1,
                     borderRadius: 20,
-                    padding: spacing.lg,
-                    marginBottom: spacing.xl
+                    padding: spacing.xl,
+                    marginBottom: spacing.xxl
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
@@ -217,7 +217,7 @@ export default function SignUpScreen() {
 
                 <Pressable
                   onPress={() => router.replace('/(auth)/login')}
-                  style={[primaryButtonStyle, { marginBottom: spacing.md }]}
+                  style={[primaryButtonStyle, { marginBottom: spacing.lg }]}
                 >
                   <Text style={{ color: colors.surface, fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>
                     Go to log in
@@ -249,7 +249,7 @@ export default function SignUpScreen() {
                 </Text>
                 <Text
                   variant="body"
-                  style={{ marginBottom: spacing.xxl, color: colors.textSecondary }}
+                  style={{ marginBottom: spacing.xxxl, color: colors.textSecondary }}
                 >
                   Start training smarter today.
                 </Text>
@@ -285,7 +285,7 @@ export default function SignUpScreen() {
                 {/* Password */}
                 <Text
                   style={{
-                    marginTop: spacing.md,
+                    marginTop: spacing.lg,
                     marginBottom: spacing.xs,
                     fontWeight: '600',
                     fontSize: typography.sizes.sm,
@@ -319,7 +319,7 @@ export default function SignUpScreen() {
                 <Pressable
                   onPress={handleSignUp}
                   disabled={isLoading}
-                  style={[primaryButtonStyle, { marginTop: spacing.xl, opacity: isLoading ? 0.7 : 1 }]}
+                  style={[primaryButtonStyle, { marginTop: spacing.xxl, opacity: isLoading ? 0.7 : 1 }]}
                 >
                   {isLoading
                     ? <ActivityIndicator color={colors.surface} />
@@ -330,15 +330,15 @@ export default function SignUpScreen() {
                 {/* Apple Sign In — iOS only */}
                 {Platform.OS === 'ios' && (
                   <>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xxl }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
-                    <Text variant="caption" style={{ marginHorizontal: spacing.md, color: colors.textSecondary }}>OR</Text>
+                    <Text variant="caption" style={{ marginHorizontal: spacing.lg, color: colors.textSecondary }}>OR</Text>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
                   </View>
                   <Pressable
                     onPress={handleAppleSignIn}
                     disabled={isLoading}
-                    style={[appleButtonStyle, { marginBottom: spacing.md, opacity: isLoading ? 0.7 : 1 }]}
+                    style={[appleButtonStyle, { marginBottom: spacing.lg, opacity: isLoading ? 0.7 : 1 }]}
                   >
                     <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: typography.sizes.md }}>
                       Continue with Apple
@@ -367,8 +367,8 @@ const inputStyle = (hasError: boolean) => ({
   borderWidth: 1.5,
   borderColor: hasError ? colors.error : colors.border.soft,
   borderRadius: 16,
-  paddingVertical: spacing.lg,
-  paddingHorizontal: spacing.lg,
+  paddingVertical: spacing.xl,
+  paddingHorizontal: spacing.xl,
   fontSize: typography.sizes.md,
   color: colors.textPrimary,
   backgroundColor: colors.surface,
@@ -378,7 +378,7 @@ const inputStyle = (hasError: boolean) => ({
 const primaryButtonStyle = {
   backgroundColor: colors.primary,
   borderRadius: 16,
-  paddingVertical: spacing.lg,
+  paddingVertical: spacing.xl,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
   minHeight: 58,
@@ -389,7 +389,7 @@ const secondaryButtonStyle = {
   borderRadius: 16,
   borderWidth: 1.5,
   borderColor: colors.border.default,
-  paddingVertical: spacing.lg,
+  paddingVertical: spacing.xl,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
   minHeight: 58,
@@ -398,7 +398,7 @@ const secondaryButtonStyle = {
 const appleButtonStyle = {
   backgroundColor: '#000000',
   borderRadius: 16,
-  paddingVertical: spacing.lg,
+  paddingVertical: spacing.xl,
   alignItems: 'center' as const,
   justifyContent: 'center' as const,
   minHeight: 58,

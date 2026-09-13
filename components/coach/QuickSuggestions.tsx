@@ -46,8 +46,8 @@ function createStyles(isDark: boolean) {
       height: 108,
     },
     container: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.xl,
       gap: 12,
     },
     chipOuter: {
@@ -73,7 +73,7 @@ function createStyles(isDark: boolean) {
       borderColor: isDark ? '#243042' : '#E5E7EB',
       paddingTop: spacing.sm + 4,
       paddingBottom: spacing.sm + 4,
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
     },
     iconBadge: {
       width: 22,

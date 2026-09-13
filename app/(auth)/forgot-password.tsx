@@ -56,16 +56,16 @@ export default function ForgotPasswordScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={{ flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl }}>
+          <View style={{ flex: 1, paddingHorizontal: spacing.xxl, paddingTop: spacing.xxxl }}>
             {/* Back link */}
-            <Pressable onPress={() => router.back()} style={{ marginBottom: spacing.xl }}>
+            <Pressable onPress={() => router.back()} style={{ marginBottom: spacing.xxl }}>
               <Text variant="caption" style={{ color: colors.primary, fontWeight: typography.weights.medium }}>
                 ← Back
               </Text>
             </Pressable>
 
             <Text variant="title" style={{ marginBottom: spacing.sm }}>Reset password</Text>
-            <Text variant="caption" style={{ marginBottom: spacing.xl, color: colors.textSecondary }}>
+            <Text variant="caption" style={{ marginBottom: spacing.xxl, color: colors.textSecondary }}>
               Enter your email and we'll send you a reset link.
             </Text>
 
@@ -74,7 +74,7 @@ export default function ForgotPasswordScreen() {
                 style={{
                   backgroundColor: '#EDF7F5',
                   borderRadius: 12,
-                  padding: spacing.lg,
+                  padding: spacing.xl,
                   borderWidth: 1,
                   borderColor: colors.primary
                 }}
@@ -101,8 +101,8 @@ export default function ForgotPasswordScreen() {
                     borderWidth: 1,
                     borderColor: emailError ? colors.error : colors.border.default,
                     borderRadius: 12,
-                    paddingVertical: spacing.lg,
-                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.xl,
+                    paddingHorizontal: spacing.xl,
                     fontSize: typography.sizes.md,
                     color: colors.textPrimary,
                     backgroundColor: colors.surface
@@ -120,11 +120,11 @@ export default function ForgotPasswordScreen() {
                   style={{
                     backgroundColor: colors.primary,
                     borderRadius: 12,
-                    paddingVertical: spacing.lg,
+                    paddingVertical: spacing.xl,
                     alignItems: 'center',
                     justifyContent: 'center',
                     minHeight: 52,
-                    marginTop: spacing.xl,
+                    marginTop: spacing.xxl,
                     opacity: isLoading ? 0.7 : 1
                   }}
                 >

@@ -56,18 +56,18 @@ export function VideoUploadProgress({ visible, percent }: Props) {
           backgroundColor: 'rgba(0,0,0,0.75)',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: spacing.xl,
+          padding: spacing.xxl,
         }}
       >
         <View
           style={{
             backgroundColor: colors.surface,
             borderRadius: 24,
-            padding: spacing.xl,
+            padding: spacing.xxl,
             width: '100%',
             maxWidth: 320,
             alignItems: 'center',
-            gap: spacing.lg,
+            gap: spacing.xl,
           }}
         >
           {/* Animated upload icon */}
@@ -126,7 +126,7 @@ export function VideoUploadProgress({ visible, percent }: Props) {
             style={{
               backgroundColor: `${colors.warning}15`,
               borderRadius: 12,
-              padding: spacing.md,
+              padding: spacing.lg,
               flexDirection: 'row',
               alignItems: 'flex-start',
               gap: spacing.sm,

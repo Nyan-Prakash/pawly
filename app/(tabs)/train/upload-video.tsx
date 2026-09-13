@@ -177,7 +177,7 @@ export default function UploadVideoScreen() {
       <Text variant="title" style={{ marginBottom: spacing.xs, color: colors.textPrimary }}>
         Upload a training clip
       </Text>
-      <Text variant="body" style={{ marginBottom: spacing.xl, color: colors.textSecondary }}>
+      <Text variant="body" style={{ marginBottom: spacing.xxl, color: colors.textSecondary }}>
         Short clips help trainers give you specific, actionable feedback.
       </Text>
 
@@ -192,8 +192,8 @@ export default function UploadVideoScreen() {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: colors.secondary,
-          marginBottom: spacing.lg,
-          gap: spacing.md,
+          marginBottom: spacing.xl,
+          gap: spacing.lg,
         }}
       >
         <AppIcon name="videocam" size={44} color={colors.textSecondary} />
@@ -202,12 +202,12 @@ export default function UploadVideoScreen() {
         </Text>
       </View>
 
-      <View style={{ gap: 12, marginBottom: spacing.xl }}>
+      <View style={{ gap: 12, marginBottom: spacing.xxl }}>
         <Button label="Record new video" leftIcon="camera" onPress={() => pickVideo(true)} />
         <Pressable
           onPress={() => pickVideo(false)}
           style={({ pressed }) => ({
-            padding: spacing.md,
+            padding: spacing.lg,
             borderRadius: 14,
             borderWidth: 1.5,
             borderColor: colors.primary,
@@ -261,7 +261,7 @@ export default function UploadVideoScreen() {
   // ─── Step 2 — Add context ─────────────────────────────────────────────────
 
   const renderStep2 = () => (
-    <Animated.View entering={FadeInRight.duration(280)} style={{ gap: spacing.lg }}>
+    <Animated.View entering={FadeInRight.duration(280)} style={{ gap: spacing.xl }}>
       <View>
         <Text variant="title" style={{ color: colors.textPrimary, marginBottom: spacing.xs }}>
           Add context
@@ -316,8 +316,8 @@ export default function UploadVideoScreen() {
         <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.sm }}>
           What behavior are you showing? *
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.xl }}>
-          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: spacing.xl }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.xxl }}>
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: spacing.xxl }}>
             {BEHAVIOR_CATEGORIES.map((cat) => (
               <Pressable
                 key={cat.id}
@@ -364,8 +364,8 @@ export default function UploadVideoScreen() {
             borderWidth: 1.5,
             borderColor: beforeContext ? colors.primary : colors.border.default,
             borderRadius: 12,
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.xl,
+            paddingVertical: spacing.lg,
             fontSize: 15,
             color: colors.textPrimary,
             minHeight: 72,
@@ -391,8 +391,8 @@ export default function UploadVideoScreen() {
             borderWidth: 1.5,
             borderColor: goalContext ? colors.primary : colors.border.default,
             borderRadius: 12,
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.xl,
+            paddingVertical: spacing.lg,
             fontSize: 15,
             color: colors.textPrimary,
             minHeight: 72,
@@ -402,7 +402,7 @@ export default function UploadVideoScreen() {
       </View>
 
       {/* Session / problem toggle */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
         <Text variant="body" style={{ color: colors.textPrimary, flex: 1 }}>
           This is a training session clip
         </Text>
@@ -441,7 +441,7 @@ export default function UploadVideoScreen() {
   // ─── Step 3 — Success ─────────────────────────────────────────────────────
 
   const renderStep3 = () => (
-    <Animated.View entering={FadeIn.duration(400)} style={{ alignItems: 'center', gap: spacing.lg, paddingTop: spacing.xl }}>
+    <Animated.View entering={FadeIn.duration(400)} style={{ alignItems: 'center', gap: spacing.xl, paddingTop: spacing.xxl }}>
       <AppIcon name="checkmark-circle" size={64} color={colors.success} />
       <Text variant="title" style={{ color: colors.textPrimary, textAlign: 'center' }}>
         Video uploaded!
@@ -450,7 +450,7 @@ export default function UploadVideoScreen() {
         Your clip has been saved to Pawly.
       </Text>
 
-      <View style={{ width: '100%', gap: spacing.sm, marginTop: spacing.md }}>
+      <View style={{ width: '100%', gap: spacing.sm, marginTop: spacing.lg }}>
         {uploadedVideoId && (
           <Button
             label="Request expert review"
@@ -461,7 +461,7 @@ export default function UploadVideoScreen() {
         <Pressable
           onPress={() => router.replace('/(tabs)/train')}
           style={({ pressed }) => ({
-            padding: spacing.md,
+            padding: spacing.lg,
             borderRadius: 14,
             borderWidth: 1.5,
             borderColor: colors.primary,
@@ -492,7 +492,7 @@ export default function UploadVideoScreen() {
           style={{
             backgroundColor: `${colors.success}15`,
             borderRadius: 14,
-            padding: spacing.md,
+            padding: spacing.lg,
             width: '100%',
             flexDirection: 'row',
             gap: spacing.sm,
@@ -529,13 +529,13 @@ export default function UploadVideoScreen() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: spacing.xl,
-            paddingVertical: spacing.md,
+            paddingHorizontal: spacing.xxl,
+            paddingVertical: spacing.lg,
             borderBottomWidth: 1,
             borderBottomColor: colors.border.default,
           }}
         >
-          <Pressable onPress={() => router.back()} style={{ marginRight: spacing.md }}>
+          <Pressable onPress={() => router.back()} style={{ marginRight: spacing.lg }}>
             <Text style={{ color: colors.primary, fontSize: 28, lineHeight: 32 }}>‹</Text>
           </Pressable>
           <Text variant="title" style={{ color: colors.textPrimary, fontSize: 18 }}>
@@ -548,8 +548,8 @@ export default function UploadVideoScreen() {
           <View
             style={{
               flexDirection: 'row',
-              paddingHorizontal: spacing.xl,
-              paddingTop: spacing.md,
+              paddingHorizontal: spacing.xxl,
+              paddingTop: spacing.lg,
               gap: 6,
             }}
           >
@@ -568,7 +568,7 @@ export default function UploadVideoScreen() {
         )}
 
         <ScrollView
-          contentContainerStyle={{ padding: spacing.xl, paddingBottom: step === 2 ? 140 : 40 }}
+          contentContainerStyle={{ padding: spacing.xxl, paddingBottom: step === 2 ? 140 : 40 }}
           keyboardShouldPersistTaps="handled"
         >
           {step === 1 && renderStep1()}
@@ -584,7 +584,7 @@ export default function UploadVideoScreen() {
               bottom: 0,
               left: 0,
               right: 0,
-              padding: spacing.xl,
+              padding: spacing.xxl,
               backgroundColor: colors.background,
               borderTopWidth: 1,
               borderTopColor: colors.border.default,

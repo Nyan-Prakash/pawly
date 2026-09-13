@@ -202,11 +202,11 @@ export default function DogPhotoScreen() {
     // after signup. Storing the URI avoids putting a large base64 string in
     // AsyncStorage which can silently fail due to size limits.
     setAvatarFileUri(avatarUri);
-    router.push('/(onboarding)/dog-problem');
+    router.push('/(onboarding)/dog-basics?step=5');
   };
 
   const handleSkip = () => {
-    router.push('/(onboarding)/dog-problem');
+    router.push('/(onboarding)/dog-basics?step=5');
   };
 
   const renderContent = () => {
@@ -478,8 +478,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.lg,
-    paddingHorizontal: spacing.md,
+    gap: spacing.xl,
+    paddingHorizontal: spacing.lg,
     alignSelf: 'stretch',
   },
 
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     borderColor: `${colors.brand.primary}25`,
     borderRadius: 16,
     paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     alignSelf: 'stretch',
   },
   infoIconCircle: {
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
   },
   photoButtonRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.lg,
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.border.default,
     paddingVertical: 24,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
   compareRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   compareItem: {
     alignItems: 'center',
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
     borderColor: colors.status.successBorder,
     borderRadius: 20,
     paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   successBadgeText: {
     color: colors.brand.primary,
@@ -758,12 +758,12 @@ const styles = StyleSheet.create({
   errorCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.md,
+    gap: spacing.lg,
     backgroundColor: colors.status.dangerBg,
     borderWidth: 1,
     borderColor: colors.status.dangerBorder,
     borderRadius: 14,
-    padding: spacing.md,
+    padding: spacing.lg,
     alignSelf: 'stretch',
   },
   errorCardTitle: {
@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
     borderColor: colors.status.dangerBorder,
     borderRadius: 10,
     paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     alignSelf: 'stretch',
   },
   errorBannerText: {
@@ -794,7 +794,7 @@ const styles = StyleSheet.create({
   // Shared
   actionsStack: {
     alignSelf: 'stretch',
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   textLink: {
     alignItems: 'center',

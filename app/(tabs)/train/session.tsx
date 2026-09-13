@@ -883,12 +883,12 @@ function LoadingView({
         justifyContent: 'center',
         backgroundColor: colors.background,
         paddingTop: insets.top,
-        gap: spacing.md,
+        gap: spacing.lg,
       }}
     >
       <AppIcon name="paw" size={48} color={accentColor} />
       {!error && <ActivityIndicator size="large" color={accentColor} />}
-      <Text style={{ marginTop: spacing.sm, color: colors.textSecondary, fontSize: 16, textAlign: 'center', paddingHorizontal: spacing.xl }}>
+      <Text style={{ marginTop: spacing.sm, color: colors.textSecondary, fontSize: 16, textAlign: 'center', paddingHorizontal: spacing.xxl }}>
         {error ?? 'Getting your session ready...'}
       </Text>
       {error && onBack ? (
@@ -927,10 +927,10 @@ function IntroView({ protocol, dogName, theme, insets, onBack, onStart }: IntroV
     <View style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + spacing.md,
-          paddingHorizontal: spacing.lg,
+          paddingTop: insets.top + spacing.lg,
+          paddingHorizontal: spacing.xl,
           paddingBottom: insets.bottom + 140,
-          gap: spacing.xl,
+          gap: spacing.xxl,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -953,7 +953,7 @@ function IntroView({ protocol, dogName, theme, insets, onBack, onStart }: IntroV
           style={{
             backgroundColor: colors.surface,
             borderRadius: 16,
-            padding: spacing.lg,
+            padding: spacing.xl,
             borderWidth: 1,
             borderColor: colors.border.default,
             gap: spacing.xs,
@@ -995,7 +995,7 @@ function IntroView({ protocol, dogName, theme, insets, onBack, onStart }: IntroV
             style={{
               backgroundColor: theme.tint,
               borderRadius: 14,
-              padding: spacing.lg,
+              padding: spacing.xl,
               borderLeftWidth: 4,
               borderLeftColor: theme.solid,
               gap: spacing.xs,
@@ -1015,9 +1015,9 @@ function IntroView({ protocol, dogName, theme, insets, onBack, onStart }: IntroV
           bottom: 0,
           left: 0,
           right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.xl,
+          paddingBottom: insets.bottom + spacing.lg,
+          paddingTop: spacing.lg,
           backgroundColor: colors.background,
         }}
       >
@@ -1093,10 +1093,10 @@ function StepActiveView({
 
       <ScrollView
         contentContainerStyle={{
-          paddingTop: spacing.md,
-          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
+          paddingHorizontal: spacing.xl,
           paddingBottom: insets.bottom + 160,
-          gap: spacing.xl,
+          gap: spacing.xxl,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -1106,7 +1106,7 @@ function StepActiveView({
           <View
             style={{
               backgroundColor: hexToRgba(theme.solid, 0.12),
-              paddingHorizontal: spacing.md,
+              paddingHorizontal: spacing.lg,
               paddingVertical: spacing.xs,
               borderRadius: 99,
             }}
@@ -1128,7 +1128,7 @@ function StepActiveView({
               borderColor: colors.status.infoBorder,
               borderWidth: 1,
               borderRadius: 12,
-              paddingHorizontal: spacing.md,
+              paddingHorizontal: spacing.lg,
               paddingVertical: spacing.sm,
               flexDirection: 'row',
               alignItems: 'center',
@@ -1149,10 +1149,10 @@ function StepActiveView({
               borderRadius: 20,
               borderWidth: 1,
               borderColor: hexToRgba(theme.solid, 0.12),
-              paddingVertical: spacing.xl,
-              paddingHorizontal: spacing.lg,
+              paddingVertical: spacing.xxl,
+              paddingHorizontal: spacing.xl,
               alignItems: 'center',
-              gap: spacing.lg,
+              gap: spacing.xl,
             }}
           >
             <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.sm }}>
@@ -1244,9 +1244,9 @@ function StepActiveView({
           bottom: 0,
           left: 0,
           right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + spacing.lg,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.xl,
+          paddingBottom: insets.bottom + spacing.xl,
+          paddingTop: spacing.lg,
           backgroundColor: colors.background,
           borderTopWidth: 1,
           borderTopColor: colors.border.default,
@@ -1300,7 +1300,7 @@ function PrimaryCta({
         borderWidth: 1,
         borderColor: pressed ? theme.solid : theme.selectedBorder,
         borderRadius: 14,
-        paddingVertical: spacing.lg,
+        paddingVertical: spacing.xl,
         alignItems: 'center',
         flexDirection: 'row',
         justifyContent: 'center',
@@ -1395,10 +1395,10 @@ function StepCompleteView({ stepNumber, totalSteps, outcome, nextStep, theme, on
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: spacing.xxl,
         paddingTop: insets.top,
         paddingBottom: insets.bottom,
-        gap: spacing.xl,
+        gap: spacing.xxl,
         backgroundColor: colors.background,
       }}
     >
@@ -1423,7 +1423,7 @@ function StepCompleteView({ stepNumber, totalSteps, outcome, nextStep, theme, on
       {isLast ? (
         <PrimaryCta label="Wrap up" icon="arrow-forward" theme={theme} onPress={onNext} />
       ) : (
-        <View style={{ alignItems: 'center', gap: spacing.md, width: '100%' }}>
+        <View style={{ alignItems: 'center', gap: spacing.lg, width: '100%' }}>
           <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>Next: {nextStepLabel}</Text>
           <PrimaryCta label="Next step" icon="arrow-forward" theme={theme} onPress={onNext} />
           <View style={{ width: '60%', height: 3, borderRadius: 99, backgroundColor: colors.border.soft, overflow: 'hidden' }}>
@@ -1448,7 +1448,7 @@ function StepCompleteView({ stepNumber, totalSteps, outcome, nextStep, theme, on
           alignItems: 'center',
           gap: spacing.xs,
           minHeight: 44,
-          paddingHorizontal: spacing.md,
+          paddingHorizontal: spacing.lg,
           opacity: pressed ? 0.5 : 1,
         })}
       >
@@ -1504,14 +1504,14 @@ function CompleteView({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'flex-start',
-        paddingHorizontal: spacing.xl,
-        paddingTop: insets.top + spacing.xl * 2,
-        paddingBottom: insets.bottom + spacing.xl,
-        gap: spacing.xl,
+        paddingHorizontal: spacing.xxl,
+        paddingTop: insets.top + spacing.xxl * 2,
+        paddingBottom: insets.bottom + spacing.xxl,
+        gap: spacing.xxl,
         backgroundColor: theme.tint,
       }}
     >
-      <View style={{ alignItems: 'center', gap: spacing.md }}>
+      <View style={{ alignItems: 'center', gap: spacing.lg }}>
         <AppIcon name={outcome === 'not_met' ? 'bookmark' : 'ribbon'} size={72} color={theme.solid} />
         <Text style={{ fontSize: 30, fontWeight: '800', color: theme.text, textAlign: 'center', lineHeight: 40 }}>
           {headline}
@@ -1523,8 +1523,8 @@ function CompleteView({
         style={{
           backgroundColor: colors.surface,
           borderRadius: 20,
-          padding: spacing.xl,
-          gap: spacing.lg,
+          padding: spacing.xxl,
+          gap: spacing.xl,
           width: '100%',
           borderWidth: 1,
           borderColor: colors.border.default,
@@ -1546,8 +1546,8 @@ function CompleteView({
         style={({ pressed }) => ({
           backgroundColor: pressed ? theme.selectedBorder : theme.solid,
           borderRadius: 14,
-          paddingVertical: spacing.lg,
-          paddingHorizontal: spacing.xxl,
+          paddingVertical: spacing.xl,
+          paddingHorizontal: spacing.xxxl,
           alignItems: 'center',
           minHeight: 54,
           width: '100%',
@@ -1561,7 +1561,7 @@ function CompleteView({
 
 function StatRow({ emoji, label, value, color }: { emoji: AppIconName; label: string; value: string; color: string }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
       <AppIcon name={emoji} size={20} color={color} />
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 13, color: colors.textSecondary }}>{label}</Text>
@@ -1608,8 +1608,8 @@ function AbandonSheet({
             borderTopLeftRadius: 32,
             borderTopRightRadius: 32,
             paddingTop: spacing.sm,
-            paddingHorizontal: spacing.xl,
-            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg,
+            paddingHorizontal: spacing.xxl,
+            paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.xl,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -8 },
             shadowOpacity: 0.22,
@@ -1618,9 +1618,9 @@ function AbandonSheet({
             overflow: 'hidden',
           }}
         >
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 999, backgroundColor: colors.borderColor, marginBottom: spacing.lg }} />
+          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 999, backgroundColor: colors.borderColor, marginBottom: spacing.xl }} />
 
-          <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+          <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
             <View
               style={{
                 width: 72,
@@ -1635,7 +1635,7 @@ function AbandonSheet({
             </View>
           </View>
 
-          <View style={{ alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xl }}>
+          <View style={{ alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xxl }}>
             <Text style={{ fontSize: 22, fontWeight: '800', lineHeight: 30, color: colors.textPrimary, textAlign: 'center', letterSpacing: -0.3 }}>
               {title}
             </Text>
@@ -1720,7 +1720,7 @@ function Chip({ label, icon, color, textColor }: { label: string; icon?: AppIcon
     <View
       style={{
         backgroundColor: hexToRgba(chipColor, 0.12),
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.lg,
         paddingVertical: spacing.xs + 2,
         borderRadius: 99,
         flexDirection: 'row',

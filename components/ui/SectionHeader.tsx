@@ -2,13 +2,16 @@ import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { spacing } from '@/constants/spacing';
 
 type SectionHeaderProps = {
   title: string;
+  /** Optional text action on the right, e.g. { label: 'See all', onPress }. */
   action?: { label: string; onPress: () => void };
   style?: StyleProp<ViewStyle>;
 };
 
+/** Sentence-case h2 above a ListGroup. Never uppercase, never tracked. */
 export function SectionHeader({ title, action, style }: SectionHeaderProps) {
   return (
     <View
@@ -17,27 +20,25 @@ export function SectionHeader({ title, action, style }: SectionHeaderProps) {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
+          minHeight: 44,
+          marginBottom: spacing.sm,
         },
         style,
       ]}
     >
-      <Text
-        style={{
-          fontSize: 20,
-          fontWeight: '800',
-          color: colors.text.primary,
-          letterSpacing: -0.3,
-        }}
-      >
-        {title}
-      </Text>
-      {action && (
-        <Pressable onPress={action.onPress} hitSlop={8}>
-          <Text variant="caption" color={colors.brand.primary} style={{ fontWeight: '700' }}>
+      <Text variant="h2">{title}</Text>
+      {action ? (
+        <Pressable
+          onPress={action.onPress}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={({ pressed }) => ({ minHeight: 44, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
+        >
+          <Text variant="bodyStrong" color={colors.accent}>
             {action.label}
           </Text>
         </Pressable>
-      )}
+      ) : null}
     </View>
   );
 }

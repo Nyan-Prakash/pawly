@@ -119,8 +119,8 @@ export default function MilestonesScreen() {
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: spacing.sm,
           gap: spacing.sm,
         }}
@@ -150,7 +150,7 @@ export default function MilestonesScreen() {
       </View>
 
       {/* Progress bar */}
-      <View style={{ paddingHorizontal: spacing.md, marginBottom: spacing.md }}>
+      <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
         <View style={{ height: 6, backgroundColor: colors.border.default, borderRadius: 99 }}>
           <View
             style={{
@@ -167,7 +167,7 @@ export default function MilestonesScreen() {
         data={paddedItems}
         keyExtractor={(_, i) => String(i)}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.xl * 2 }}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl * 2 }}
         showsVerticalScrollIndicator={false}
         getItemLayout={(_, index) => ({ length: 150, offset: 150 * index, index })}
       />

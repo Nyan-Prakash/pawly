@@ -26,16 +26,16 @@ export function StepCard({
 }: StepCardProps) {
 
   return (
-    <View style={{ gap: spacing.md }}>
+    <View style={{ gap: spacing.lg }}>
       {/* Instruction card */}
       <View
         style={{
           backgroundColor: colors.bg.surface,
-          borderRadius: radii.lg,
-          padding: spacing.lg,
+          borderRadius: radii.md,
+          padding: spacing.xl,
           borderWidth: 1,
           borderColor: colors.border.soft,
-          gap: spacing.md,
+          gap: spacing.lg,
           ...shadows.card,
         }}
       >
@@ -75,7 +75,7 @@ export function StepCard({
             style={{
               backgroundColor: '#FFFBEB',
               borderRadius: radii.sm,
-              paddingHorizontal: spacing.md,
+              paddingHorizontal: spacing.lg,
               paddingVertical: spacing.sm + 2,
               borderLeftWidth: 3,
               borderLeftColor: '#F59E0B',

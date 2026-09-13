@@ -23,11 +23,11 @@ export function WalkGoalRow({ goalText, logged, onLog }: WalkGoalRowProps) {
     <View
       style={{
         backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: spacing.md,
+        borderRadius: radii.md,
+        padding: spacing.lg,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.md,
+        gap: spacing.lg,
         ...softShadows.card,
       }}
     >
@@ -60,8 +60,8 @@ export function WalkGoalRow({ goalText, logged, onLog }: WalkGoalRowProps) {
         hitSlop={8}
         style={{
           minHeight: 40,
-          paddingHorizontal: spacing.md,
-          borderRadius: radii.pill,
+          paddingHorizontal: spacing.lg,
+          borderRadius: radii.full,
           flexDirection: 'row',
           alignItems: 'center',
           gap: spacing.xs,

@@ -1,78 +1,29 @@
 import type { PropsWithChildren } from 'react';
-import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native';
+import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 
 import { colors } from '@/constants/colors';
-import { typography } from '@/constants/typography';
-
-type TextVariant =
-  | 'display'
-  | 'h1'
-  | 'h2'
-  | 'h3'
-  | 'body'
-  | 'bodyStrong'
-  | 'caption'
-  | 'micro'
-  | 'title'; // backward-compat alias → h2
+import { typography, type TypographyVariant } from '@/constants/typography';
 
 type TextProps = PropsWithChildren<
   RNTextProps & {
-    variant?: TextVariant;
+    variant?: TypographyVariant;
+    /** Defaults to text.primary for headings/body and text.secondary for caption/label. */
     color?: string;
   }
 >;
 
-// Maps fontWeight → correct Nunito fontFamily.
-// On iOS, using fontWeight without fontFamily reverts to SF Pro.
-// This ensures every Text renders in Nunito at the right weight.
-const WEIGHT_TO_FAMILY: Record<string, string> = {
-  '400': 'Nunito_400Regular',
-  '500': 'Nunito_500Medium',
-  '600': 'Nunito_600SemiBold',
-  '700': 'Nunito_700Bold',
-  '800': 'Nunito_800ExtraBold',
-  normal: 'Nunito_400Regular',
-  bold:   'Nunito_700Bold',
-};
+const SECONDARY_VARIANTS: ReadonlySet<TypographyVariant> = new Set(['caption', 'label']);
 
-function resolveFont(style: TextStyle | undefined): string {
-  if (!style) return 'Nunito_400Regular';
-  // If fontFamily already explicitly set, respect it
-  if (style.fontFamily) return style.fontFamily;
-  const weight = String(style.fontWeight ?? '400');
-  return WEIGHT_TO_FAMILY[weight] ?? 'Nunito_400Regular';
-}
-
-function flattenStyleWeight(style: RNTextProps['style']): TextStyle {
-  if (!style) return {};
-  if (Array.isArray(style)) {
-    return style.reduce<TextStyle>((acc, s) => ({ ...acc, ...(s as TextStyle) }), {});
-  }
-  return style as TextStyle;
-}
-
+/**
+ * The only way to render text. Picks a variant from the type scale; never
+ * accepts fontSize / fontWeight / lineHeight overrides (see DESIGN.md).
+ */
 export function Text({ variant = 'body', color, style, children, ...props }: TextProps) {
-  const variantStyles: Record<TextVariant, RNTextProps['style']> = {
-    display:    { ...typography.display,    color: colors.text.primary,   lineHeight: 40 },
-    h1:         { ...typography.h1,         color: colors.text.primary,   lineHeight: 36 },
-    h2:         { ...typography.h2,         color: colors.text.primary,   lineHeight: 30 },
-    h3:         { ...typography.h3,         color: colors.text.primary,   lineHeight: 26 },
-    body:       { ...typography.body,       color: colors.text.primary,   lineHeight: 24 },
-    bodyStrong: { ...typography.bodyStrong, color: colors.text.primary,   lineHeight: 24 },
-    caption:    { ...typography.caption,    color: colors.text.secondary, lineHeight: 20 },
-    micro:      { ...typography.micro,      color: colors.text.secondary, lineHeight: 18 },
-    title:      { ...typography.h2,         color: colors.text.primary,   lineHeight: 30 },
-  };
-
-  // Flatten all styles to resolve the effective fontWeight
-  const variantStyle = flattenStyleWeight(variantStyles[variant]);
-  const overrideStyle = flattenStyleWeight(style);
-  const merged = { ...variantStyle, ...(color ? { color } : {}), ...overrideStyle };
-  const fontFamily = resolveFont(merged);
+  const resolvedColor = color ?? (SECONDARY_VARIANTS.has(variant) ? colors.text.secondary : colors.text.primary);
 
   return (
     <RNText
-      style={[variantStyles[variant], color ? { color } : undefined, style, { fontFamily }]}
+      style={[typography[variant], { color: resolvedColor, letterSpacing: 0 }, style]}
       {...props}
     >
       {children}

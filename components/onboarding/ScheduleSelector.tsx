@@ -45,7 +45,7 @@ export function ScheduleSelector({
   onSelectTimeWindow,
 }: ScheduleSelectorProps) {
   return (
-    <View style={{ gap: spacing.xl }}>
+    <View style={{ gap: spacing.xxl }}>
       {/* Day grid */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 4 }}>
         {DAYS.map((day) => {
@@ -98,7 +98,7 @@ export function ScheduleSelector({
                   backgroundColor: isSelected
                     ? `${colors.brand.primary}12`
                     : colors.bg.surface,
-                  padding: spacing.md,
+                  padding: spacing.lg,
                   gap: 6,
                   alignItems: 'flex-start',
                 }}

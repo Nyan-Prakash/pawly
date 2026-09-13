@@ -44,9 +44,9 @@ export function SessionModePicker({
       style={{
         flex: 1,
         backgroundColor: colors.background,
-        paddingTop: insets.top + spacing.md,
-        paddingHorizontal: spacing.lg,
-        paddingBottom: insets.bottom + spacing.lg,
+        paddingTop: insets.top + spacing.lg,
+        paddingHorizontal: spacing.xl,
+        paddingBottom: insets.bottom + spacing.xl,
       }}
     >
       {/* Back button */}
@@ -60,14 +60,14 @@ export function SessionModePicker({
           opacity: pressed ? 0.6 : 1,
           minHeight: 44,
           justifyContent: 'center',
-          marginBottom: spacing.md,
+          marginBottom: spacing.lg,
         })}
       >
         <Text style={{ fontSize: 16, color: colors.textSecondary }}>← Back</Text>
       </Pressable>
 
       {/* Header */}
-      <View style={{ alignItems: 'center', gap: spacing.md, marginBottom: spacing.xl * 1.5 }}>
+      <View style={{ alignItems: 'center', gap: spacing.lg, marginBottom: spacing.xxl * 1.5 }}>
         <View
           style={{
             width: 72,
@@ -106,14 +106,14 @@ export function SessionModePicker({
       </View>
 
       {/* Options */}
-      <View style={{ gap: spacing.md}}>
+      <View style={{ gap: spacing.lg}}>
         {/* Camera mode — primary/featured option */}
         <Pressable
           onPress={onCamera}
           style={({ pressed }) => ({
             backgroundColor: pressed ? accentTint : colors.surface,
             borderRadius: 20,
-            padding: spacing.lg,
+            padding: spacing.xl,
             shadowColor: colors.shadow.success,
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.14,
@@ -122,7 +122,7 @@ export function SessionModePicker({
             opacity: pressed ? 0.9 : 1,
           })}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
             <View
               style={{
                 width: 56,
@@ -183,13 +183,13 @@ export function SessionModePicker({
           style={({ pressed }) => ({
             backgroundColor: pressed ? colors.bg.surfaceAlt : colors.surface,
             borderRadius: 20,
-            padding: spacing.lg,
+            padding: spacing.xl,
             borderWidth: 1.5,
             borderColor: colors.border.strong,
             opacity: pressed ? 0.85 : 1,
           })}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
             <View
               style={{
                 width: 56,
@@ -219,7 +219,7 @@ export function SessionModePicker({
       </View>
 
       {/* Bottom note */}
-      <View style={{ marginTop: spacing.xl, alignItems: 'center' }}>
+      <View style={{ marginTop: spacing.xxl, alignItems: 'center' }}>
         <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center' }}>
           You can switch modes anytime from a session
         </Text>

@@ -94,7 +94,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
     <BottomSheet visible={visible} onClose={handleClose} avoidKeyboard>
 
               {isSuccess ? (
-                <View style={{ alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.md }}>
+                <View style={{ alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.lg }}>
                   <View
                     style={{
                       width: 64,
@@ -120,12 +120,12 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
                   <Text variant="h2" style={{ marginBottom: spacing.xs }}>
                     Send Feedback
                   </Text>
-                  <Text variant="body" color={colors.text.secondary} style={{ marginBottom: spacing.lg }}>
+                  <Text variant="body" color={colors.text.secondary} style={{ marginBottom: spacing.xl }}>
                     Tell us what's working, what's broken, or what you'd like to see.
                   </Text>
 
                   {/* Type options */}
-                  <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
+                  <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
                     <Text variant="micro" color={colors.text.secondary} style={{ fontWeight: '600' }}>
                       FEEDBACK TYPE
                     </Text>
@@ -141,10 +141,10 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
                             borderWidth: 1.5,
                             borderColor: selected ? colors.brand.primary : colors.border.default,
                             borderRadius: radii.md,
-                            padding: spacing.md,
+                            padding: spacing.lg,
                             flexDirection: 'row',
                             alignItems: 'center',
-                            gap: spacing.md,
+                            gap: spacing.lg,
                           }}
                         >
                           <AppIcon
@@ -177,12 +177,12 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
                     multiline
                     numberOfLines={4}
                     maxLength={1000}
-                    style={{ marginBottom: spacing.lg }}
+                    style={{ marginBottom: spacing.xl }}
                   />
 
                   {/* Error */}
                   {error && (
-                    <Text color={colors.error} variant="caption" style={{ marginBottom: spacing.md }}>
+                    <Text color={colors.error} variant="caption" style={{ marginBottom: spacing.lg }}>
                       {error}
                     </Text>
                   )}
