@@ -41,7 +41,7 @@ export function BottomSheet({ visible, onClose, title, padded = true, children }
             justifyContent: 'space-between',
             paddingLeft: spacing.xl,
             paddingRight: spacing.md,
-            paddingTop: Platform.OS === 'android' ? spacing.xl : spacing.sm,
+            paddingTop: Platform.OS === 'android' ? spacing.xl : spacing.lg,
             minHeight: 52,
           }}
         >

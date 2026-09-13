@@ -183,11 +183,13 @@ function SessionDetailSheet({
           showsVerticalScrollIndicator={false}
         >
           <View style={{ gap: spacing.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              {session.isCompleted ? <Tag label="Completed" tone="accent" /> : null}
-              {session.isMissed && !session.isCompleted ? <Tag label="Missed" tone="warning" /> : null}
-              {isAdapted ? <Tag label={KIND_LABELS[kind]} tone="neutral" /> : null}
-            </View>
+            {session.isCompleted || session.isMissed || isAdapted ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                {session.isCompleted ? <Tag label="Completed" tone="accent" /> : null}
+                {session.isMissed && !session.isCompleted ? <Tag label="Missed" tone="warning" /> : null}
+                {isAdapted ? <Tag label={KIND_LABELS[kind]} tone="neutral" /> : null}
+              </View>
+            ) : null}
             <View style={{ gap: spacing.xs }}>
               <Fact icon="calendar-outline">{sessionSubtitle(session).replace(/, \d+ min$/, '')}</Fact>
               <Fact icon="time-outline">{`${session.durationMinutes} min`}</Fact>
