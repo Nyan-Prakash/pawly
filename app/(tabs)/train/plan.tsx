@@ -3,15 +3,19 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { WhyThisChangedSheet } from '@/components/adaptive/WhyThisChangedSheet';
+import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { Tag } from '@/components/ui/PillTag';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { EXERCISE_TO_PROTOCOL, PROTOCOLS_BY_ID, type Protocol, type ProtocolStep } from '@/constants/protocols';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { MAX_ACTIVE_COURSES } from '@/lib/addCourse';
@@ -103,6 +107,29 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
 // Session detail sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
+function resolveProtocol(session: PlanSession): Protocol | null {
+  const byExercise = EXERCISE_TO_PROTOCOL[session.exerciseId];
+  return PROTOCOLS_BY_ID[byExercise ?? session.exerciseId] ?? null;
+}
+
+function stepMeta(step: ProtocolStep): string | null {
+  if (step.reps) return `${step.reps} reps`;
+  if (step.durationSeconds) {
+    const m = Math.round(step.durationSeconds / 60);
+    return m >= 1 ? `${m} min` : `${step.durationSeconds} sec`;
+  }
+  return null;
+}
+
+function Fact({ icon, children }: { icon: AppIconName; children: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+      <AppIcon name={icon} size={16} color={colors.text.secondary} />
+      <Text variant="caption">{children}</Text>
+    </View>
+  );
+}
+
 function SessionDetailSheet({
   session,
   visible,
@@ -122,6 +149,8 @@ function SessionDetailSheet({
 
   if (!session) return null;
 
+  const protocol = resolveProtocol(session);
+
   // Find the adaptation that changed this session (if any)
   const relatedAdaptation = session.adaptationSource === 'adaptation_engine'
     ? recentAdaptations.find((a) =>
@@ -132,16 +161,18 @@ function SessionDetailSheet({
   const isAdapted = session.adaptationSource === 'adaptation_engine';
   const kind: SessionKind = session.sessionKind ?? 'core';
 
-  function skillPathLabel(): string {
+  function skillPathLabel(): string | null {
     switch (kind) {
       case 'regress':  return 'Stepped back from the previous skill to rebuild confidence.';
       case 'advance':  return 'Moving to a harder version. Recent sessions have been strong.';
       case 'detour':   return 'Taking a different angle on the same skill to reduce frustration.';
       case 'repeat':   return 'Repeating this skill to deepen the habit before moving on.';
       case 'proofing': return 'Testing this skill in a more challenging setting.';
-      default:         return 'Following the core progression for this course.';
+      default:         return null;
     }
   }
+  const whyLine = skillPathLabel();
+  const environmentLabel = session.environment ? String(session.environment).replace(/_/g, ' ') : null;
 
   return (
     <>
@@ -151,40 +182,86 @@ function SessionDetailSheet({
           contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
           showsVerticalScrollIndicator={false}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text variant="caption" style={{ flex: 1 }}>
-              {sessionSubtitle(session)}
-            </Text>
-            {isAdapted ? <Tag label={KIND_LABELS[kind]} tone="accent" /> : null}
+          <View style={{ gap: spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              {session.isCompleted ? <Tag label="Completed" tone="accent" /> : null}
+              {session.isMissed && !session.isCompleted ? <Tag label="Missed" tone="warning" /> : null}
+              {isAdapted ? <Tag label={KIND_LABELS[kind]} tone="neutral" /> : null}
+            </View>
+            <View style={{ gap: spacing.xs }}>
+              <Fact icon="calendar-outline">{sessionSubtitle(session).replace(/, \d+ min$/, '')}</Fact>
+              <Fact icon="time-outline">{`${session.durationMinutes} min`}</Fact>
+              {environmentLabel ? <Fact icon="location-outline">{environmentLabel}</Fact> : null}
+            </View>
+            {protocol?.objective ? <Text variant="body">{protocol.objective}</Text> : null}
           </View>
 
-          <View style={{ gap: spacing.xs }}>
-            <Text variant="body">{skillPathLabel()}</Text>
-            {session.reasoningLabel ? <Text variant="caption">{session.reasoningLabel}</Text> : null}
-          </View>
-
-          {isAdapted && relatedAdaptation ? (
-            <View style={{ gap: spacing.sm, alignItems: 'flex-start' }}>
-              <Text variant="captionStrong">Why this changed</Text>
-              <Text variant="body">
-                {relatedAdaptation.reasonSummary || 'The coach adjusted this session after recent results.'}
-              </Text>
-              <Button label="Full explanation" variant="ghost" size="md" onPress={() => setShowWhySheet(true)} />
+          {protocol?.steps.length ? (
+            <View>
+              <SectionHeader title={`What you'll do`} />
+              <ListGroup>
+                {protocol.steps.map((step, index) => (
+                  <View
+                    key={step.order}
+                    style={{ flexDirection: 'row', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}
+                  >
+                    <Text variant="captionStrong" color={colors.accent} style={{ width: spacing.xl }}>
+                      {index + 1}
+                    </Text>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text variant="body">{step.instruction}</Text>
+                      {stepMeta(step) ? <Text variant="caption">{stepMeta(step)}</Text> : null}
+                    </View>
+                  </View>
+                ))}
+              </ListGroup>
             </View>
           ) : null}
 
-          {isAdapted && !relatedAdaptation ? (
-            <Text variant="caption">The coach adjusted this session after recent results.</Text>
+          {protocol?.equipmentNeeded.length ? (
+            <View>
+              <SectionHeader title="You'll need" />
+              <ListGroup>
+                {protocol.equipmentNeeded.map((item) => (
+                  <ListRow key={item} icon="checkmark-circle-outline" iconTone="secondary" title={item} />
+                ))}
+              </ListGroup>
+            </View>
+          ) : null}
+
+          {whyLine || session.reasoningLabel || isAdapted ? (
+            <View>
+              <SectionHeader title="Why this session" />
+              <Card style={{ gap: spacing.sm }}>
+                {whyLine ? <Text variant="body">{whyLine}</Text> : null}
+                {session.reasoningLabel ? <Text variant="caption">{session.reasoningLabel}</Text> : null}
+                {isAdapted ? (
+                  <Text variant="body">
+                    {relatedAdaptation?.reasonSummary || 'The coach adjusted this session after recent results.'}
+                  </Text>
+                ) : null}
+                {relatedAdaptation ? (
+                  <View style={{ alignItems: 'flex-start' }}>
+                    <Button label="Full explanation" variant="ghost" size="md" onPress={() => setShowWhySheet(true)} style={{ paddingHorizontal: 0 }} />
+                  </View>
+                ) : null}
+              </Card>
+            </View>
+          ) : null}
+
+          {protocol?.trainerNote ? (
+            <Card style={{ gap: spacing.xs }}>
+              <Text variant="captionStrong">From the coach</Text>
+              <Text variant="body">{protocol.trainerNote}</Text>
+            </Card>
           ) : null}
         </ScrollView>
 
-        <View style={{ padding: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
-          {session.isCompleted ? (
-            <Button label="Close" variant="secondary" onPress={onStart} />
-          ) : (
+        {!session.isCompleted ? (
+          <View style={{ padding: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
             <Button label="Start session" onPress={onStart} />
-          )}
-        </View>
+          </View>
+        ) : null}
       </BottomSheet>
 
       {relatedAdaptation ? (
