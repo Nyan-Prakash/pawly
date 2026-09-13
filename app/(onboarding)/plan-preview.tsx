@@ -12,13 +12,14 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { PlanReasonCard } from '@/components/adaptive/PlanReasonCard';
+import { StagePath, buildStageGroups } from '@/components/train/CoursePath';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
-import { useOnboardingStore } from '@/stores/onboardingStore';
+import { buildDogFromState, useOnboardingStore } from '@/stores/onboardingStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
-import { getPlanBullets } from '@/lib/planGenerator';
+import { generatePlan, getPlanBullets } from '@/lib/planGenerator';
 import { formatDisplayTime, getBehaviorLabel } from '@/lib/scheduleEngine';
 import { mapDogRowToDog, mapPlanRowToPlan } from '@/lib/modelMappers';
 import { supabase } from '@/lib/supabase';
@@ -161,10 +162,26 @@ export default function PlanPreviewScreen() {
   const goalLabel = getBehaviorLabel(primaryGoal);
   const sessionsPerWeek = createdPlan?.sessionsPerWeek ?? availableDaysPerWeek;
 
+  // Before the account exists the plan is generated locally from the answers,
+  // so the preview shows the real path, counts and first session. After
+  // submission the created plan takes over.
+  const onboardingState = useOnboardingStore();
+  const previewPlan = useMemo(() => {
+    if (createdPlan) return createdPlan;
+    if (!onboardingState.primaryGoal) return null;
+    try {
+      return generatePlan(buildDogFromState(onboardingState, 'preview', 'preview', 'unknown'));
+    } catch {
+      return null;
+    }
+  }, [createdPlan, onboardingState]);
   const firstScheduledSession = useMemo(
-    () => createdPlan?.sessions.find((s) => !s.isCompleted) ?? null,
-    [createdPlan],
+    () => previewPlan?.sessions.find((s) => !s.isCompleted) ?? null,
+    [previewPlan],
   );
+  const stages = useMemo(() => (previewPlan ? buildStageGroups(previewPlan.sessions) : []), [previewPlan]);
+  const totalSessions = previewPlan?.sessions.length ?? 0;
+  const totalWeeks = Math.max(1, Math.ceil(totalSessions / Math.max(1, sessionsPerWeek)));
   const explanationBullets = createdPlan?.metadata?.explanation ?? [];
   const adaptiveMetadata = createdPlan?.metadata as AdaptivePlanMetadata | undefined;
   const isAdaptivePlan = adaptiveMetadata?.plannerMode === 'adaptive_ai';
@@ -219,16 +236,32 @@ export default function PlanPreviewScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.xl, gap: spacing.xl }}
       >
-        <View style={{ gap: spacing.xs }}>
-          <Text variant="h1">{dogName}'s plan</Text>
-          <Text variant="caption">
-            {goalLabel}. {sessionsPerWeek} {sessionsPerWeek === 1 ? 'session' : 'sessions'} a week,{' '}
-            {availableMinutesPerDay} min each.
-          </Text>
+        <View style={{ gap: spacing.lg }}>
+          <View style={{ gap: spacing.xs }}>
+            <Text variant="display">{dogName}'s plan</Text>
+            <Text variant="caption">
+              {goalLabel}. {totalSessions} sessions over {totalWeeks} {totalWeeks === 1 ? 'week' : 'weeks'},{' '}
+              {availableMinutesPerDay} min each.
+            </Text>
+          </View>
+          <MascotCallout
+            state="celebrating"
+            size={72}
+            calloutPlacement="right"
+            callout={`Built this one for ${dogName}. Stage by stage, nothing skipped.`}
+          />
         </View>
 
+        {stages.length > 0 ? (
+          <View style={{ gap: spacing.xl }}>
+            {stages.map((group) => (
+              <StagePath key={group.stage} group={group} onSelectSession={() => {}} />
+            ))}
+          </View>
+        ) : null}
+
         <View>
-          <SectionHeader title="What you'll work on" />
+          <SectionHeader title={`By the end, ${dogName} will`} />
           <ListGroup>
             {bullets.map((b) => (
               <ListRow key={b} icon="checkmark-circle-outline" title={b} />
