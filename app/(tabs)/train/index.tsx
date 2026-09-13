@@ -16,6 +16,7 @@ import { Text } from '@/components/ui/Text';
 import { WalkLogModal } from '@/components/shared/WalkLogModal';
 import { ActiveCourseCard } from '@/components/train/ActiveCourseCard';
 import { HeroSessionCard } from '@/components/train/HeroSessionCard';
+import { QuickRepsRow, pickQuickRep } from '@/components/train/QuickRepsRow';
 import { QuickWinCard } from '@/components/train/QuickWinCard';
 import { WalkGoalRow } from '@/components/train/WalkGoalRow';
 import { WeekStrip, type WeekDay, type WeekDayState } from '@/components/train/WeekStrip';
@@ -328,6 +329,7 @@ export default function TrainScreen() {
 
   const week = useMemo(() => buildWeek(activePlans, todayKey), [activePlans, todayKey]);
   const quickWins = useMemo(() => pickQuickWins(todayKey), [todayKey]);
+  const quickRep = useMemo(() => pickQuickRep(activePlans), [activePlans]);
 
   const flexibility = primaryPlanFull?.metadata?.flexibility;
   const canReschedule = flexibility !== 'skip';
@@ -352,6 +354,7 @@ export default function TrainScreen() {
     if (heroVariant === 'overdue') return `We missed one. No big deal, let's pick it back up.`;
     if (firstMissed) return `One session slipped. Move it and the week is back on track.`;
     if (!hasPlans) return `Let's set up a plan for ${name}.`;
+    if (quickRep) return `Nothing due today. A minute of quick reps with ${name} keeps it fresh.`;
     return `Nothing due today. A short walk still counts.`;
   })();
 
@@ -481,10 +484,11 @@ export default function TrainScreen() {
         ) : null}
 
         {/* ── Also today ── */}
-        {heroInAlsoToday.length > 0 || walkGoalText || quickWins.length > 0 ? (
+        {heroInAlsoToday.length > 0 || quickRep || walkGoalText || quickWins.length > 0 ? (
           <View>
             <SectionHeader title="Also today" />
             <ListGroup>
+              {quickRep ? <QuickRepsRow quickRep={quickRep} /> : null}
               {heroInAlsoToday.map((session) => (
                 <ListRow
                   key={`${session.planId}_${session.id}`}
