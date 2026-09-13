@@ -48,7 +48,7 @@ interface GoalOption {
   icon: AppIconName;
 }
 
-export const GOAL_OPTIONS: GoalOption[] = [
+const GOAL_OPTIONS: GoalOption[] = [
   {
     key: 'leash_pulling',
     label: 'Leash pulling',
