@@ -1,5 +1,4 @@
 import { ListRow } from '@/components/ui/ListRow';
-import { Tag } from '@/components/ui/PillTag';
 import type { Article } from '@/types';
 
 interface ArticleCardProps {
@@ -13,7 +12,7 @@ export function ArticleCard({ article, onPress }: ArticleCardProps) {
     <ListRow
       title={article.title}
       subtitle={`${article.category}, ${article.readTimeMinutes} min read`}
-      trailing={article.isFeatured ? <Tag label="Featured" tone="accent" /> : 'chevron'}
+      trailing="chevron"
       onPress={onPress}
       accessibilityHint="Opens the guide"
     />

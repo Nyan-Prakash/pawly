@@ -1783,3 +1783,8 @@ Scope: 17 `components/ui/*`, 5 `components/adaptive/*`, 2 `components/video/*`, 
 - Mascot and behaviour illustrations are parameterised SVG using `colors.mascot.*` (not baked PNGs), and `MascotCallout` has no idle wag/bounce loop — only a mount spring.
 - Copy in `WhyThisChangedSheet.whyChangedDetail` and `AdaptationNotice.adaptationBody` is specific, trainer-voiced, and avoids exclamation marks (grep found none in the audited files).
 - Tab screens do compensate for the floating bar with bottom padding, even if inconsistently.
+---
+
+## Phase 2 result
+
+Remediation landed on `feat/session-flow-overhaul` in 23 commits. The checklist re-run, verification, before/after screenshots and the list of deliberate functionality changes are in `DESIGN-REVIEW.md`; the system itself is in `DESIGN.md`. Headline counts after remediation over `app/` + `components/`: 0 hex/rgba literals, 0 font-size literals, 0 letter-spacing, 0 uppercase transforms, 0 gradients, 0 glass, 0 shadow keys in screens, 0 entrance animations, 0 emoji or glyph icons, 0 legacy tokens, 0 "Something went wrong"; 2 spacing literals (both `2`, inside `ListRow`).

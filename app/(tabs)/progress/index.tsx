@@ -113,7 +113,7 @@ function BarChart({ bars, max, showEveryLabel }: { bars: Bar[]; max: number; sho
               accessibilityLabel={bar.description}
               accessibilityState={{ selected: isSelected }}
               onPress={() => setSelectedKey(isSelected ? null : bar.key)}
-              style={{ flex: 1, height: CHART_HEIGHT, justifyContent: 'flex-end', minWidth: spacing.sm }}
+              style={{ flex: 1, maxWidth: spacing.xxxl, height: CHART_HEIGHT, justifyContent: 'flex-end', minWidth: spacing.sm }}
             >
               <View
                 style={{
@@ -142,7 +142,7 @@ function BarChart({ bars, max, showEveryLabel }: { bars: Bar[]; max: number; sho
         </View>
       )}
       <Text variant="caption" accessibilityLiveRegion="polite">
-        {selected ? selected.description : 'Tap a bar for details'}
+        {selected ? selected.description : bars[bars.length - 1]?.description ?? ''}
       </Text>
     </View>
   );
@@ -298,7 +298,19 @@ export default function ProgressScreen() {
     .slice(0, 3);
   const upcoming: MilestoneDefinition[] = MILESTONE_DEFINITIONS.filter((def) => !reachedIds.includes(def.id)).slice(0, 3);
 
-  const sessionBars: Bar[] = sessionsByWeek.map((week) => ({
+  // Always show the last eight weeks so one session is a bar, not a block.
+  const WEEKS_SHOWN = 8;
+  const weekBuckets = (() => {
+    const byStart = new Map(sessionsByWeek.map((w) => [w.weekStart, w.sessionsCompleted]));
+    const latest = sessionsByWeek.length ? new Date(sessionsByWeek[sessionsByWeek.length - 1].weekStart) : new Date();
+    return Array.from({ length: WEEKS_SHOWN }, (_, i) => {
+      const d = new Date(latest);
+      d.setDate(d.getDate() - (WEEKS_SHOWN - 1 - i) * 7);
+      const key = d.toISOString().slice(0, 10);
+      return { weekStart: key, sessionsCompleted: byStart.get(key) ?? 0 };
+    });
+  })();
+  const sessionBars: Bar[] = weekBuckets.map((week) => ({
     key: week.weekStart,
     label: formatShortDate(week.weekStart),
     value: week.sessionsCompleted,
@@ -351,10 +363,10 @@ export default function ProgressScreen() {
             </View>
 
             <View>
-              <SectionHeader title="Sessions this month" />
+              <SectionHeader title="Sessions by week" />
               <Card>
                 {sessionBars.length > 0 ? (
-                  <BarChart bars={sessionBars} max={sessionMax} showEveryLabel={sessionBars.length <= 6} />
+                  <BarChart bars={sessionBars} max={sessionMax} showEveryLabel={false} />
                 ) : (
                   <EmptyState
                     icon="stats-chart-outline"
