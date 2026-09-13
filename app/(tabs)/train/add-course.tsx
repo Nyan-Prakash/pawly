@@ -1,69 +1,63 @@
 /**
  * app/(tabs)/train/add-course.tsx
  *
- * "Add another course" flow for an existing dog.
- * Two-step UI:
- *   Step 1 — goal selection (choose a new behavior/issue)
- *   Step 2 — generating… → plan preview with primary toggle + confirm
+ * "Add a course" flow for an existing dog. Native modal, title set in the
+ * stack layout.
+ *   Step 1: pick a goal
+ *   Step 2: building, then a preview with the primary toggle and confirm
  *
  * Does NOT touch onboarding or dog profile.
  * Relies on lib/addCourse.ts for all business logic.
  */
 
-import { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  ScrollView,
-  Switch,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, ScrollView, Switch, View } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppIcon } from '@/components/ui/AppIcon';
+import type { AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
-import { SafeScreen } from '@/components/ui/SafeScreen';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { Tag } from '@/components/ui/PillTag';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
-import { shadows } from '@/constants/shadows';
-import { useDogStore } from '@/stores/dogStore';
-import { usePlanStore } from '@/stores/planStore';
-import { useNotificationStore } from '@/stores/notificationStore';
-import { getBehaviorLabel } from '@/lib/scheduleEngine';
+import { haptics } from '@/lib/haptics';
+import { formatDisplayTime } from '@/lib/scheduleEngine';
 import { getPlanBullets } from '@/lib/planGenerator';
 import {
   addCourse,
   buildCourseTitle,
   normalizeGoalKey,
+  setPrimaryPlanInDB,
   MAX_ACTIVE_COURSES,
 } from '@/lib/addCourse';
+import { useDogStore } from '@/stores/dogStore';
+import { useNotificationStore } from '@/stores/notificationStore';
+import { usePlanStore } from '@/stores/planStore';
 import type { Plan } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Goal options — same 8 goals as onboarding
+// Goal options — the same goals as onboarding
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface GoalOption {
   key: string;
   label: string;
   description: string;
-  icon: string;
+  icon: AppIconName;
 }
 
 const GOAL_OPTIONS: GoalOption[] = [
   {
     key: 'leash_pulling',
-    label: 'Leash Pulling',
+    label: 'Leash pulling',
     description: 'Build a reliable loose leash habit on walks',
     icon: 'walk',
   },
   {
     key: 'jumping_up',
-    label: 'Jumping Up',
+    label: 'Jumping up',
     description: 'Teach four-on-floor as the default greeting',
     icon: 'arrow-up-circle',
   },
@@ -75,25 +69,25 @@ const GOAL_OPTIONS: GoalOption[] = [
   },
   {
     key: 'recall',
-    label: "Won't Come (Recall)",
+    label: 'Recall',
     description: 'Reliable recall at distance and with distractions',
     icon: 'return-down-back',
   },
   {
     key: 'potty_training',
-    label: 'Potty Training',
+    label: 'Potty training',
     description: 'Establish a consistent schedule and reward zone',
     icon: 'sunny',
   },
   {
     key: 'crate_anxiety',
-    label: 'Crate Anxiety',
+    label: 'Crate anxiety',
     description: 'Build calm confidence in the crate step by step',
     icon: 'home',
   },
   {
     key: 'puppy_biting',
-    label: 'Puppy Biting',
+    label: 'Puppy biting',
     description: 'Teach bite inhibition and redirect mouthing',
     icon: 'happy',
   },
@@ -105,49 +99,49 @@ const GOAL_OPTIONS: GoalOption[] = [
   },
   {
     key: 'leave_it',
-    label: 'Leave It',
+    label: 'Leave it',
     description: 'Rock-solid leave it and drop it in any situation',
     icon: 'hand-left',
   },
   {
     key: 'basic_obedience',
-    label: 'Basic Obedience',
+    label: 'Basic obedience',
     description: 'Sit, down, and stay as reliable cued behaviors',
     icon: 'school',
   },
   {
     key: 'separation_anxiety',
-    label: 'Separation Anxiety',
+    label: 'Separation anxiety',
     description: 'Build calm independence from seconds to hours',
     icon: 'sad',
   },
   {
     key: 'door_manners',
-    label: 'Door Manners',
+    label: 'Door manners',
     description: 'Sit and wait at every threshold, no bolting',
     icon: 'exit',
   },
   {
     key: 'impulse_control',
-    label: 'Impulse Control',
+    label: 'Impulse control',
     description: 'Calm self-control around food, toys, and arousal',
     icon: 'pause-circle',
   },
   {
     key: 'cooperative_care',
-    label: 'Cooperative Care',
+    label: 'Cooperative care',
     description: 'Calm acceptance of handling, grooming, and vet visits',
     icon: 'medkit',
   },
   {
     key: 'wait_and_stay',
-    label: 'Wait & Stay',
-    description: 'Reliable wait at doors, kerbs, and before meals',
+    label: 'Wait and stay',
+    description: 'Reliable wait at doors, curbs, and before meals',
     icon: 'time',
   },
   {
     key: 'leash_reactivity',
-    label: 'Leash Reactivity',
+    label: 'Leash reactivity',
     description: 'Stay calm when passing dogs and other triggers',
     icon: 'alert-circle',
   },
@@ -172,228 +166,73 @@ const GOAL_OPTIONS: GoalOption[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 1 — Goal Selection
+// Step 1 — pick a goal
 // ─────────────────────────────────────────────────────────────────────────────
 
 function GoalSelectionStep({
-  activeGoalKeys: activeGoalKeys,
+  activeGoalKeys,
   activePlanCount,
   onSelect,
-  onCancel,
 }: {
   activeGoalKeys: string[];
   activePlanCount: number;
   onSelect: (goalKey: string) => void;
-  onCancel: () => void;
 }) {
   const atLimit = activePlanCount >= MAX_ACTIVE_COURSES;
 
   return (
-    <SafeScreen>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.sm,
-          gap: spacing.sm,
-        }}
-      >
-        <TouchableOpacity
-          onPress={onCancel}
-          style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}
-        >
-          <Ionicons name="close" size={24} color={colors.text.primary} />
-        </TouchableOpacity>
-        <Text variant="h2" style={{ flex: 1 }}>
-          Add Another Goal
-        </Text>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xxl,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {atLimit ? (
-          <View
-            style={{
-              backgroundColor: colors.status.warningBg,
-              borderRadius: radii.md,
-              padding: spacing.lg,
-              borderWidth: 1,
-              borderColor: colors.status.warningBorder ?? colors.warning,
-              marginBottom: spacing.lg,
-              flexDirection: 'row',
-              gap: spacing.sm,
-              alignItems: 'flex-start',
-            }}
-          >
-            <AppIcon name="warning" size={20} color={colors.warning} />
-            <View style={{ flex: 1 }}>
-              <Text variant="bodyStrong" style={{ color: colors.warning }}>
-                Course limit reached
-              </Text>
-              <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 4 }}>
-                You can have at most {MAX_ACTIVE_COURSES} active courses at once. Complete or finish one before adding another.
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <Text
-            variant="body"
-            color={colors.text.secondary}
-            style={{ marginBottom: spacing.lg, lineHeight: 22 }}
-          >
-            Choose a new behavior to work on. Goals you're already training are shown below and cannot be duplicated.
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+    >
+      {atLimit ? (
+        <View style={{ gap: spacing.xs }}>
+          <Text variant="bodyStrong" color={colors.status.warning}>
+            Course limit reached
           </Text>
-        )}
-
-        <View style={{ gap: spacing.sm }}>
-          {GOAL_OPTIONS.map((option) => {
-            const isActive = activeGoalKeys.includes(option.key);
-            const isDisabled = isActive || atLimit;
-            return (
-              <TouchableOpacity
-                key={option.key}
-                activeOpacity={isDisabled ? 1 : 0.75}
-                disabled={isDisabled}
-                onPress={() => onSelect(option.key)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.md,
-                  backgroundColor: isActive
-                    ? colors.bg.surfaceAlt
-                    : colors.bg.surface,
-                  borderRadius: radii.md,
-                  padding: spacing.md,
-                  borderWidth: 1,
-                  borderColor: isActive
-                    ? colors.border.soft
-                    : colors.border.default,
-                  opacity: isDisabled && !isActive ? 0.45 : 1,
-                  ...shadows.card,
-                }}
-              >
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    backgroundColor: isActive
-                      ? colors.border.default
-                      : colors.brand.primary + '18',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <AppIcon
-                    name={option.icon as any}
-                    size={22}
-                    color={isActive ? colors.text.secondary : colors.brand.primary}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    variant="bodyStrong"
-                    style={{
-                      color: isActive ? colors.text.secondary : colors.text.primary,
-                    }}
-                  >
-                    {option.label}
-                  </Text>
-                  <Text
-                    variant="caption"
-                    style={{ marginTop: 2, color: colors.text.secondary }}
-                    numberOfLines={2}
-                  >
-                    {option.description}
-                  </Text>
-                </View>
-                {isActive ? (
-                  <View
-                    style={{
-                      backgroundColor: colors.border.default,
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      borderRadius: radii.pill,
-                    }}
-                  >
-                    <Text style={{ fontSize: 10, color: colors.text.secondary, fontWeight: '700' }}>
-                      Active
-                    </Text>
-                  </View>
-                ) : (
-                  !atLimit && (
-                    <Ionicons
-                      name="chevron-forward"
-                      size={16}
-                      color={colors.text.secondary}
-                    />
-                  )
-                )}
-              </TouchableOpacity>
-            );
-          })}
+          <Text variant="body">
+            You can have {MAX_ACTIVE_COURSES} active courses at once. Finish or pause one before adding another.
+          </Text>
         </View>
-      </ScrollView>
-    </SafeScreen>
+      ) : (
+        <Text variant="body" color={colors.text.secondary}>
+          Choose what to work on next. Courses you are already training are marked active.
+        </Text>
+      )}
+
+      <ListGroup>
+        {GOAL_OPTIONS.map((option) => {
+          const isActive = activeGoalKeys.includes(option.key);
+          const isDisabled = isActive || atLimit;
+          return (
+            <ListRow
+              key={option.key}
+              icon={option.icon}
+              iconTone={isActive ? 'secondary' : 'accent'}
+              title={option.label}
+              subtitle={option.description}
+              trailing={isActive ? <Tag label="Active" /> : atLimit ? undefined : 'chevron'}
+              disabled={isDisabled}
+              onPress={() => onSelect(option.key)}
+              accessibilityHint={isActive ? 'Already an active course' : 'Builds a course for this goal'}
+            />
+          );
+        })}
+      </ListGroup>
+    </ScrollView>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Step 2 — Generating / Preview
+// Step 2 — building, then preview
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GENERATING_MESSAGES = [
-  'Building your new course…',
-  'Selecting the right exercises…',
-  'Scheduling your sessions…',
-];
-
 function GeneratingView() {
-  const [msgIndex, setMsgIndex] = useState(0);
-  const opacity = useRef(new Animated.Value(1)).current;
-  const logoScale = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(logoScale, { toValue: 1.06, duration: 800, useNativeDriver: true }),
-        Animated.timing(logoScale, { toValue: 1, duration: 800, useNativeDriver: true }),
-      ])
-    ).start();
-  }, [logoScale]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-      ]).start();
-      setMsgIndex((i) => (i + 1) % GENERATING_MESSAGES.length);
-    }, 1800);
-    return () => clearInterval(interval);
-  }, [opacity]);
-
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
-      <Animated.View style={{ transform: [{ scale: logoScale }] }}>
-        <AppIcon name="paw" size={72} color={colors.brand.primary} />
-      </Animated.View>
-      <Animated.View style={{ opacity, marginTop: spacing.xl }}>
-        <Text
-          variant="body"
-          style={{ color: colors.text.secondary, textAlign: 'center', fontSize: 16 }}
-        >
-          {GENERATING_MESSAGES[msgIndex]}
-        </Text>
-      </Animated.View>
+    <View style={{ padding: spacing.lg, gap: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
+      <ActivityIndicator color={colors.text.secondary} />
+      <Text variant="caption">Building the course</Text>
     </View>
   );
 }
@@ -404,7 +243,7 @@ interface PlanPreviewStepProps {
   makePrimary: boolean;
   onTogglePrimary: (val: boolean) => void;
   onConfirm: () => void;
-  onCancel: () => void;
+  onChooseAnother: () => void;
   confirming: boolean;
 }
 
@@ -414,210 +253,97 @@ function PlanPreviewStep({
   makePrimary,
   onTogglePrimary,
   onConfirm,
-  onCancel,
+  onChooseAnother,
   confirming,
 }: PlanPreviewStepProps) {
-  const insets = useSafeAreaInsets();
   const courseTitle = plan.courseTitle ?? buildCourseTitle(goalKey);
   const bullets = getPlanBullets(goalKey);
   const firstSession = plan.sessions.find((s) => !s.isCompleted) ?? null;
+  const sessionsPerWeek =
+    plan.sessionsPerWeek === 1 ? '1 session a week' : `${plan.sessionsPerWeek} sessions a week`;
+
+  const firstSessionSubtitle = firstSession
+    ? [
+        firstSession.scheduledDay ?? `Week ${firstSession.weekNumber}`,
+        firstSession.scheduledTime ? formatDisplayTime(firstSession.scheduledTime) : null,
+        `${firstSession.durationMinutes} min`,
+      ]
+        .filter(Boolean)
+        .join(', ')
+    : null;
 
   return (
-    <SafeScreen>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.sm,
-          gap: spacing.sm,
-        }}
-      >
-        <TouchableOpacity
-          onPress={onCancel}
-          style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}
-        >
-          <Ionicons name="arrow-back" size={22} color={colors.text.primary} />
-        </TouchableOpacity>
-        <Text variant="h2" style={{ flex: 1 }}>
-          New Course Preview
-        </Text>
-      </View>
-
+    <View style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: insets.bottom + 120,
-        }}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
       >
-        {/* Course header card */}
-        <View
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.lg,
-            padding: spacing.lg,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            marginBottom: spacing.md,
-            alignItems: 'center',
-            ...shadows.card,
-          }}
-        >
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              backgroundColor: colors.brand.primary + '18',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: spacing.md,
-            }}
-          >
-            <AppIcon name="paw" size={36} color={colors.brand.primary} />
-          </View>
-          <Text variant="h2" style={{ textAlign: 'center', marginBottom: spacing.xs }}>
-            {courseTitle}
+        <View style={{ gap: spacing.xs }}>
+          <Text variant="h2">{courseTitle}</Text>
+          <Text variant="caption">
+            {plan.durationWeeks} weeks, {sessionsPerWeek}
           </Text>
-          <View
-            style={{
-              backgroundColor: colors.brand.primary + '18',
-              paddingHorizontal: spacing.md,
-              paddingVertical: 4,
-              borderRadius: radii.pill,
-            }}
-          >
-            <Text style={{ color: colors.brand.primary, fontSize: 12, fontWeight: '700' }}>
-              {plan.durationWeeks} weeks · {plan.sessionsPerWeek}×/week
-            </Text>
-          </View>
         </View>
 
-        {/* What you'll work on */}
-        {bullets && bullets.length > 0 && (
-          <View
-            style={{
-              backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
-              padding: spacing.lg,
-              marginBottom: spacing.md,
-              borderWidth: 1,
-              borderColor: colors.border.default,
-              ...shadows.card,
-            }}
-          >
-            <Text variant="bodyStrong" style={{ marginBottom: spacing.sm }}>
-              What you'll work on
-            </Text>
-            {bullets.map((b, i) => (
-              <View
-                key={i}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'flex-start',
-                  gap: spacing.xs,
-                  marginBottom: spacing.sm,
-                }}
-              >
-                <AppIcon name="checkmark-circle" size={16} color={colors.brand.primary} />
-                <Text
-                  variant="body"
-                  style={{ flex: 1, color: colors.text.secondary, lineHeight: 22 }}
-                >
-                  {b}
-                </Text>
-              </View>
-            ))}
+        {bullets && bullets.length > 0 ? (
+          <View>
+            <SectionHeader title="What the course covers" />
+            <ListGroup>
+              {bullets.map((bullet, i) => (
+                <ListRow key={i} icon="checkmark-circle-outline" title={bullet} />
+              ))}
+            </ListGroup>
           </View>
-        )}
+        ) : null}
 
-        {/* First session peek */}
-        {firstSession && (
-          <View
-            style={{
-              backgroundColor: colors.bg.surfaceAlt,
-              borderRadius: radii.md,
-              padding: spacing.md,
-              marginBottom: spacing.md,
-            }}
-          >
-            <Text variant="micro" color={colors.text.secondary}>
-              First session
-            </Text>
-            <Text variant="bodyStrong" style={{ marginTop: 2 }}>
-              {firstSession.title}
-            </Text>
-            <Text variant="caption">
-              {firstSession.scheduledDay
-                ? `${firstSession.scheduledDay.slice(0, 3)}`
-                : `Week ${firstSession.weekNumber}`}
-              {firstSession.scheduledTime
-                ? ` · ${firstSession.scheduledTime}`
-                : ''}
-              {` · ${firstSession.durationMinutes} min`}
-            </Text>
+        {firstSession ? (
+          <View>
+            <SectionHeader title="First session" />
+            <ListGroup>
+              <ListRow
+                icon="play-circle-outline"
+                iconTone="secondary"
+                title={firstSession.title}
+                subtitle={firstSessionSubtitle ?? undefined}
+              />
+            </ListGroup>
           </View>
-        )}
+        ) : null}
 
-        {/* Primary toggle */}
-        <View
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.md,
-            padding: spacing.md,
-            marginBottom: spacing.lg,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.md,
-            ...shadows.card,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <Text variant="bodyStrong">Make this my primary course</Text>
-            <Text variant="caption" style={{ color: colors.text.secondary, marginTop: 2 }}>
-              The primary course gets top priority in Today and Calendar views.
-            </Text>
-          </View>
-          <Switch
-            value={makePrimary}
-            onValueChange={onTogglePrimary}
-            trackColor={{ false: colors.border.default, true: colors.brand.primary + '80' }}
-            thumbColor={makePrimary ? colors.brand.primary : colors.text.secondary}
+        <ListGroup>
+          <ListRow
+            title="Make this the primary course"
+            subtitle="The primary course comes first on Train and Calendar."
+            trailing={
+              <Switch
+                value={makePrimary}
+                onValueChange={onTogglePrimary}
+                trackColor={{ false: colors.bg.fill, true: colors.accent }}
+                accessibilityLabel="Make this the primary course"
+              />
+            }
           />
-        </View>
+        </ListGroup>
+
+        <Button
+          label="Choose a different course"
+          variant="ghost"
+          size="md"
+          onPress={onChooseAnother}
+          style={{ alignSelf: 'flex-start', paddingHorizontal: 0 }}
+        />
       </ScrollView>
 
-      {/* Footer CTA */}
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: spacing.md,
-          paddingBottom: insets.bottom > 0 ? insets.bottom + spacing.sm : spacing.md,
-          backgroundColor: colors.background,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.default,
-        }}
-      >
-        <Button
-          label="Add This Course"
-          onPress={onConfirm}
-          loading={confirming}
-        />
+      <View style={{ padding: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
+        <Button label="Add course" onPress={onConfirm} loading={confirming} />
       </View>
-    </SafeScreen>
+    </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Screen
+// Main screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 type ScreenStep = 'select' | 'generating' | 'preview' | 'error';
@@ -640,6 +366,7 @@ export default function AddCourseScreen() {
   async function handleGoalSelect(goalKey: string) {
     if (!dog) return;
 
+    haptics.selection();
     setSelectedGoal(goalKey);
     setStep('generating');
 
@@ -652,7 +379,15 @@ export default function AddCourseScreen() {
     });
 
     if (!result.ok) {
-      setErrorMessage(result.message);
+      // Raw store/network text stays in the console; the screen says what to do.
+      console.warn('[add-course] addCourse failed:', result.reason, result.message);
+      setErrorMessage(
+        result.reason === 'duplicate_goal'
+          ? `${dog.name} already has an active course for this goal. Pick a different one.`
+          : result.reason === 'limit_reached'
+            ? `${dog.name} already has ${MAX_ACTIVE_COURSES} active courses. Finish or pause one before adding another.`
+            : 'Check your connection and try again.',
+      );
       setStep('error');
       return;
     }
@@ -669,11 +404,10 @@ export default function AddCourseScreen() {
     setConfirming(true);
     try {
       if (makePrimary && !generatedPlan.isPrimary) {
-        // Import lazily to avoid circular dep
-        const { setPrimaryPlanInDB } = await import('@/lib/addCourse');
         const err = await setPrimaryPlanInDB(dog.id, generatedPlan.id);
         if (err) {
-          setErrorMessage(`Couldn't set primary course: ${err}`);
+          setErrorMessage("Couldn't make this the primary course. The course was still added; try again from Plan.");
+          setStep('error');
           setConfirming(false);
           return;
         }
@@ -702,10 +436,6 @@ export default function AddCourseScreen() {
     }
   }
 
-  function handleCancel() {
-    router.back();
-  }
-
   function handleBackToSelect() {
     setStep('select');
     setSelectedGoal(null);
@@ -714,63 +444,27 @@ export default function AddCourseScreen() {
     setErrorMessage(null);
   }
 
-  // ── Error state ─────────────────────────────────────────────────────────
   if (step === 'error') {
     return (
-      <SafeScreen>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-            paddingBottom: spacing.sm,
-          }}
-        >
-          <TouchableOpacity
-            onPress={handleBackToSelect}
-            style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}
-          >
-            <Ionicons name="arrow-back" size={22} color={colors.text.primary} />
-          </TouchableOpacity>
-        </View>
-        <View
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}
-        >
-          <AppIcon name="help-circle" size={48} color={colors.text.secondary} />
-          <Text
-            variant="body"
-            style={{
-              textAlign: 'center',
-              color: colors.text.secondary,
-              marginTop: spacing.md,
-              lineHeight: 24,
-            }}
-          >
-            {errorMessage ?? 'Something went wrong. Please try again.'}
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+      >
+        <View style={{ gap: spacing.xs }}>
+          <Text variant="h2">Couldn't build the course</Text>
+          <Text variant="body">
+            {errorMessage ?? 'Check your connection and try again.'}
           </Text>
-          <Button
-            label="Go Back"
-            variant="secondary"
-            size="md"
-            onPress={handleBackToSelect}
-            style={{ marginTop: spacing.lg }}
-          />
         </View>
-      </SafeScreen>
+        <Button label="Try again" onPress={handleBackToSelect} />
+      </ScrollView>
     );
   }
 
-  // ── Generating state ─────────────────────────────────────────────────────
   if (step === 'generating') {
-    return (
-      <SafeScreen>
-        <GeneratingView />
-      </SafeScreen>
-    );
+    return <GeneratingView />;
   }
 
-  // ── Preview state ────────────────────────────────────────────────────────
   if (step === 'preview' && generatedPlan && selectedGoal) {
     return (
       <PlanPreviewStep
@@ -779,19 +473,17 @@ export default function AddCourseScreen() {
         makePrimary={makePrimary}
         onTogglePrimary={setMakePrimary}
         onConfirm={handleConfirm}
-        onCancel={handleBackToSelect}
+        onChooseAnother={handleBackToSelect}
         confirming={confirming}
       />
     );
   }
 
-  // ── Select state (default) ───────────────────────────────────────────────
   return (
     <GoalSelectionStep
       activeGoalKeys={activeGoalKeys}
       activePlanCount={activePlans.length}
       onSelect={handleGoalSelect}
-      onCancel={handleCancel}
     />
   );
 }

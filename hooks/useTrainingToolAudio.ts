@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Audio } from 'expo-av';
-import { Vibration } from 'react-native';
+
+import { haptics } from '@/lib/haptics';
 
 const CLICKER_SOUND = require('@/assets/audio/clicker.mp3');
 const WHISTLE_SOUND = require('@/assets/audio/whistle.mp3');
@@ -42,7 +43,7 @@ export function useTrainingToolAudio() {
     try {
       await clickerSoundRef.current.stopAsync();
       await clickerSoundRef.current.playAsync();
-      Vibration.vibrate(30);
+      haptics.impact();
     } catch (err) {
       console.error('Error playing clicker:', err);
     }
@@ -52,13 +53,8 @@ export function useTrainingToolAudio() {
     if (!whistleSoundRef.current) return;
     try {
       await whistleSoundRef.current.stopAsync();
-      if (isLong) {
-        await whistleSoundRef.current.setIsLoopingAsync(true);
-        Vibration.vibrate([0, 100, 100], true); // Pattern for continuous vibration
-      } else {
-        await whistleSoundRef.current.setIsLoopingAsync(false);
-        Vibration.vibrate(50);
-      }
+      await whistleSoundRef.current.setIsLoopingAsync(isLong);
+      haptics.impact();
       await whistleSoundRef.current.playAsync();
     } catch (err) {
       console.error('Error playing whistle:', err);
@@ -70,7 +66,6 @@ export function useTrainingToolAudio() {
     try {
       await whistleSoundRef.current.stopAsync();
       await whistleSoundRef.current.setIsLoopingAsync(false);
-      Vibration.cancel();
     } catch (err) {
       console.error('Error stopping whistle:', err);
     }

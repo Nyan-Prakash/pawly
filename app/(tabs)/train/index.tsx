@@ -1,49 +1,44 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Image,
-  Modal,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { router } from 'expo-router';
+import { RefreshControl, ScrollView, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
 
-import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { MascotCallout, type MascotState } from '@/components/ui/MascotCallout';
-import { SafeScreen } from '@/components/ui/SafeScreen';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { MascotCallout } from '@/components/ui/MascotCallout';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
+import { StreakBadge } from '@/components/ui/StreakBadge';
 import { Text } from '@/components/ui/Text';
 import { WalkLogModal } from '@/components/shared/WalkLogModal';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { ActiveCourseCard } from '@/components/train/ActiveCourseCard';
-import { HeroSessionCard, type HeroVariant } from '@/components/train/HeroSessionCard';
+import { HeroSessionCard } from '@/components/train/HeroSessionCard';
+import { QuickRepsRow, pickQuickRep } from '@/components/train/QuickRepsRow';
 import { QuickWinCard } from '@/components/train/QuickWinCard';
 import { WalkGoalRow } from '@/components/train/WalkGoalRow';
-import { StatRow, WeekStrip, type WeekDay, type WeekDayState } from '@/components/train/WeekStrip';
+import { WeekStrip, type WeekDay, type WeekDayState } from '@/components/train/WeekStrip';
 import { colors } from '@/constants/colors';
-import { getCourseUiColors } from '@/constants/courseColors';
-import { QUICK_WINS, QUICK_WIN_CATEGORIES, mixHex, type QuickWin } from '@/constants/quickWins';
+import { QUICK_WINS, QUICK_WIN_CATEGORIES, type QuickWin } from '@/constants/quickWins';
 import { radii } from '@/constants/radii';
-import { softShadows, tintedShadow } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
+import { MAX_ACTIVE_COURSES } from '@/lib/addCourse';
+import {
+  clearSessionSnapshot,
+  isSnapshotResumable,
+  loadSessionSnapshot,
+  type SessionSnapshot,
+} from '@/lib/sessionPersistence';
+import { formatScheduleLabel, getBehaviorLabel, getWalkGoal } from '@/lib/scheduleEngine';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
 import { useProgressStore } from '@/stores/progressStore';
-import {
-  formatScheduleLabel,
-  getBehaviorLabel,
-  getPlanCompletion,
-  getWalkGoal,
-  isRoundStreakNumber,
-} from '@/lib/scheduleEngine';
-import type { EnrichedPlanSession, Milestone, Plan, PlanSession } from '@/types';
+import type { Milestone, Plan, PlanSession } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Date helpers (local time — session.scheduledDate is a local YYYY-MM-DD)
@@ -54,13 +49,6 @@ function toDateKey(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
-}
-
-function getTimeGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
 }
 
 const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -111,33 +99,52 @@ function buildWeek(plans: Plan[], todayKey: string): { days: WeekDay[]; done: nu
   return { days, done, planned };
 }
 
+/**
+ * Three quick wins for the day. The pick rotates with the calendar date so it
+ * is stable across every visit today and different tomorrow.
+ */
+function pickQuickWins(todayKey: string, count = 3): QuickWin[] {
+  const sorted = [...QUICK_WINS].sort((a, b) => a.title.localeCompare(b.title));
+  if (sorted.length <= count) return sorted;
+  const dayNumber = Number(todayKey.replace(/-/g, ''));
+  const offset = dayNumber % sorted.length;
+  return Array.from({ length: count }, (_, i) => sorted[(offset + i) % sorted.length]);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading skeleton — mirrors the real layout so the swap doesn't jump
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LoadingSkeleton() {
   return (
-    <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.lg }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ gap: spacing.sm }}>
-          <SkeletonBlock height={14} width={120} />
-          <SkeletonBlock height={28} width={180} />
+    <View style={{ gap: spacing.xl }}>
+      <SkeletonBlock height={296} borderRadius={radii.md} />
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={26} width={120} />
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          {WEEKDAY_LETTERS.map((_, i) => (
+            <SkeletonBlock key={i} height={40} width={40} borderRadius={radii.full} />
+          ))}
         </View>
-        <SkeletonBlock height={44} width={44} style={{ borderRadius: 22 }} />
       </View>
-      <SkeletonBlock height={248} style={{ borderRadius: radii.lg }} />
-      <SkeletonBlock height={164} style={{ borderRadius: radii.lg }} />
-      <SkeletonBlock height={76} style={{ borderRadius: radii.lg }} />
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={26} width={120} />
+        <SkeletonBlock height={156} borderRadius={radii.md} />
+      </View>
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={26} width={120} />
+        <SkeletonBlock height={104} borderRadius={radii.md} />
+      </View>
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Quick Win sheet
+// Quick win sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
 function QuickWinSheet({ win, onClose }: { win: QuickWin | null; onClose: () => void }) {
-  // Keep the last drill rendered during the close animation so the panel
+  // Keep the last quick win rendered during the close animation so the sheet
   // doesn't blank out while it slides away.
   const [shown, setShown] = useState<QuickWin | null>(win);
   useEffect(() => {
@@ -147,151 +154,46 @@ function QuickWinSheet({ win, onClose }: { win: QuickWin | null; onClose: () => 
   const cat = shown ? QUICK_WIN_CATEGORIES[shown.category] : null;
 
   return (
-    <BottomSheet visible={!!win} onClose={onClose}>
+    <BottomSheet visible={!!win} onClose={onClose} title={shown?.title}>
       {shown && cat ? (
-        <>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: mixHex(colors.bg.surface, cat.color, 0.16),
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <AppIcon name={shown.icon} size={26} color={cat.color} />
-            </View>
-            <View style={{ flex: 1, gap: spacing.xs }}>
-              <Text variant="h2" style={{ letterSpacing: -0.4 }}>{shown.title}</Text>
-              <Text variant="caption" style={{ fontWeight: '700', color: cat.color }}>
-                {cat.label} · {shown.duration}
-              </Text>
-            </View>
-          </View>
-          <Text
-            variant="body"
-            style={{ color: colors.text.secondary, lineHeight: 26, marginTop: spacing.lg }}
-          >
-            {shown.instructions}
+        <ScrollView contentContainerStyle={{ gap: spacing.xl, paddingBottom: spacing.xl }}>
+          <Text variant="caption">
+            {cat.label}, {shown.duration}
           </Text>
-          <Button label="Got it" size="lg" onPress={onClose} style={{ marginTop: spacing.lg }} />
-        </>
+          <Text variant="body">{shown.instructions}</Text>
+          <Button label="Close" onPress={onClose} />
+        </ScrollView>
       ) : null}
     </BottomSheet>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Small pieces
+// Milestone sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SectionTitle({
-  title,
-  meta,
-  action,
-}: {
-  title: string;
-  meta?: string;
-  action?: { label: string; onPress: () => void };
-}) {
+function MilestoneSheet({ milestone, onClose }: { milestone: Milestone | null; onClose: () => void }) {
+  const [shown, setShown] = useState<Milestone | null>(milestone);
+  useEffect(() => {
+    if (milestone) {
+      setShown(milestone);
+      haptics.success();
+    }
+  }, [milestone]);
+
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        marginBottom: spacing.md,
-      }}
-    >
-      <Text variant="h2" style={{ letterSpacing: -0.4 }}>{title}</Text>
-      {action ? (
-        <Pressable onPress={action.onPress} hitSlop={12}>
-          <Text variant="caption" style={{ fontWeight: '700', color: colors.brand.primary }}>
-            {action.label}
-          </Text>
-        </Pressable>
-      ) : meta ? (
-        <Text variant="caption" style={{ color: colors.text.secondary }}>{meta}</Text>
+    <BottomSheet visible={!!milestone} onClose={onClose} title="Milestone reached">
+      {shown ? (
+        <View style={{ gap: spacing.xl }}>
+          <MascotCallout state="celebrating" size={96} style={{ alignSelf: 'flex-start' }} />
+          <View style={{ gap: spacing.xs }}>
+            <Text variant="h2">{shown.title}</Text>
+            <Text variant="body">{shown.description}</Text>
+          </View>
+          <Button label="Close" onPress={onClose} />
+        </View>
       ) : null}
-    </View>
-  );
-}
-
-function Card({ children, padded = true }: { children: React.ReactNode; padded?: boolean }) {
-  return (
-    <View
-      style={{
-        backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: padded ? spacing.lg : 0,
-        ...softShadows.card,
-      }}
-    >
-      {children}
-    </View>
-  );
-}
-
-/** Quiet, borderless surface for notes that shouldn't compete with cards. */
-function SoftNote({ children }: { children: React.ReactNode }) {
-  return (
-    <View style={{ backgroundColor: colors.bg.sand, borderRadius: radii.lg, padding: spacing.lg }}>
-      {children}
-    </View>
-  );
-}
-
-function SecondaryRow({
-  session,
-  onPress,
-}: {
-  session: EnrichedPlanSession;
-  onPress: () => void;
-}) {
-  const theme = getCourseUiColors({
-    id: session.planId,
-    goal: session.planGoal,
-    courseTitle: session.planCourseTitle,
-  });
-  const courseLabel = session.planCourseTitle ?? getBehaviorLabel(session.planGoal);
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      style={{
-        backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: spacing.md,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.md,
-        ...softShadows.card,
-      }}
-    >
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: theme.tint,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <AppIcon name="play" size={18} color={theme.solid} />
-      </View>
-      <View style={{ flex: 1, gap: spacing.xs }}>
-        <Text variant="bodyStrong" numberOfLines={1} style={{ fontWeight: '700' }}>
-          {session.title}
-        </Text>
-        <Text variant="caption" style={{ color: colors.text.secondary }}>
-          {courseLabel} · {session.durationMinutes} min
-        </Text>
-      </View>
-      <AppIcon name="chevron-forward" size={18} color={colors.text.secondary} />
-    </TouchableOpacity>
+    </BottomSheet>
   );
 }
 
@@ -320,18 +222,30 @@ export default function TrainScreen() {
   } = planStoreState;
   const planSummaries = selectPlanSummaries(planStoreState);
 
-  const { sessionStreak, totalSessionsCompleted, walkLoggedToday, logWalk, fetchProgressData } =
-    useProgressStore();
+  const { sessionStreak, walkLoggedToday, logWalk, fetchProgressData } = useProgressStore();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchInbox = useNotificationStore((s) => s.fetchInbox);
   const hydrateRealtime = useNotificationStore((s) => s.hydrateRealtime);
-
-  const shuffledWins = useMemo(() => [...QUICK_WINS].sort(() => Math.random() - 0.5), []);
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedWin, setSelectedWin] = useState<QuickWin | null>(null);
   const [showWalkModal, setShowWalkModal] = useState(false);
   const [newMilestone, setNewMilestone] = useState<Milestone | null>(null);
+  const [resumable, setResumable] = useState<SessionSnapshot | null>(null);
+
+  // An interrupted session (app killed mid-training) can be picked back up.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      loadSessionSnapshot().then((snap) => {
+        if (cancelled) return;
+        setResumable(snap && isSnapshotResumable(snap) ? snap : null);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   useEffect(() => {
     if (dog?.id) fetchActivePlans(dog.id);
@@ -361,19 +275,12 @@ export default function TrainScreen() {
   // ── Derived state ──────────────────────────────────────────────────────────
 
   const todayKey = toDateKey(new Date());
-  const dateLabel = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
 
   const hasPlans = activePlanIds.length > 0;
   const needsDogProfile = !hasDogProfile || !dog?.id;
-  const multiplePlans = activePlanIds.length > 1;
   const activePlans = activePlanIds.map((id) => plansById[id]).filter((p): p is Plan => p != null);
 
-  const primaryPlan =
-    planSummaries.find((s) => s.isPrimary) ?? planSummaries[0] ?? null;
+  const primaryPlan = planSummaries.find((s) => s.isPrimary) ?? planSummaries[0] ?? null;
   const primaryPlanFull = primaryPlan ? plansById[primaryPlan.id] ?? null : null;
 
   const stageNumber = primaryPlanFull
@@ -386,13 +293,15 @@ export default function TrainScreen() {
       )
     : null;
 
-  const streak = sessionStreak;
-  const isCelebration = isRoundStreakNumber(streak);
-  const mascotState: MascotState = isCelebration
-    ? 'celebrating'
-    : streak >= 3
-      ? 'encouraging'
-      : 'happy';
+  // Only offer resume when the snapshot still points at a live, unfinished session.
+  const resumeTarget = useMemo(() => {
+    if (!resumable) return null;
+    for (const plan of activePlans) {
+      const session = plan.sessions.find((s) => s.id === resumable.sessionId);
+      if (session && !session.isCompleted) return { plan, session };
+    }
+    return null;
+  }, [resumable, activePlans]);
 
   const heroSession = recommendedTodaySession;
   const heroPlan = heroSession ? plansById[heroSession.planId] ?? null : null;
@@ -401,195 +310,156 @@ export default function TrainScreen() {
     !!heroSession && !heroIsToday && !heroSession.isCompleted && !!heroSession.scheduledDate
       ? heroSession.scheduledDate < todayKey
       : false;
-  const heroVariant: HeroVariant = heroIsToday ? 'today' : heroIsOverdue ? 'overdue' : 'upcoming';
-  const heroCompletion = heroPlan ? getPlanCompletion(heroPlan) : 0;
+  const heroVariant = heroIsToday ? 'today' : heroIsOverdue ? 'overdue' : 'upcoming';
+  const showHero = !!heroSession && !!heroPlan && heroPlan.status === 'active';
 
-  const otherTodaySessions = todaySessions.filter((s) => s.id !== heroSession?.id);
+  // The resumable session takes the card; the recommended session, if it is a
+  // different one, drops into "Also today" so it stays one tap away.
+  const cardSessionId = resumeTarget?.session.id ?? (showHero ? heroSession?.id : undefined);
+  const otherTodaySessions = todaySessions.filter((s) => s.id !== cardSessionId);
+  const heroInAlsoToday =
+    showHero && heroSession && resumeTarget && heroSession.id !== resumeTarget.session.id
+      ? [heroSession, ...otherTodaySessions.filter((s) => s.id !== heroSession.id)]
+      : otherTodaySessions;
+
   const missedSessions = getMissedSessionsAcrossPlans();
   const firstMissed = missedSessions[0] ?? null;
   const nextUpcoming =
     getUpcomingSessionsAcrossPlans(3).find((s) => s.id !== heroSession?.id) ?? null;
 
   const week = useMemo(() => buildWeek(activePlans, todayKey), [activePlans, todayKey]);
+  const quickWins = useMemo(() => pickQuickWins(todayKey), [todayKey]);
+  const quickRep = useMemo(() => pickQuickRep(activePlans), [activePlans]);
 
   const flexibility = primaryPlanFull?.metadata?.flexibility;
   const canReschedule = flexibility !== 'skip';
   const rescheduleLabel = flexibility === 'move_tomorrow' ? 'Move to tomorrow' : 'Move to next slot';
 
+  const resumeLabel = resumable
+    ? resumable.state === 'SESSION_REVIEW'
+      ? 'All steps done, just needs a quick review'
+      : `Step ${Math.min(resumable.currentStepIndex + 1, resumable.totalSteps)} of ${resumable.totalSteps}`
+    : undefined;
+
+  const openPlan = (planId: string) => {
+    setSelectedPlan(planId);
+    router.push('/(tabs)/train/plan');
+  };
+
+  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const greeting = (() => {
+    const name = dog?.name ?? 'your dog';
+    if (resumeTarget) return `We left a session half done. Shall we finish it?`;
+    if (heroVariant === 'today' && heroSession) return `${heroSession.durationMinutes} minutes with ${name} today. Ready when you are.`;
+    if (heroVariant === 'overdue') return `We missed one. No big deal, let's pick it back up.`;
+    if (firstMissed) return `One session slipped. Move it and the week is back on track.`;
+    if (!hasPlans) return `Let's set up a plan for ${name}.`;
+    if (quickRep) return `Nothing due today. A minute of quick reps with ${name} keeps it fresh.`;
+    return `Nothing due today. A short walk still counts.`;
+  })();
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (isLoading && !hasPlans) {
     return (
-      <SafeScreen>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+      >
+        <PageHeader eyebrow={dateLabel} title={dog?.name ? `${dog.name}'s day` : 'Today'} line="One sec, fetching the plan." mascotState="thinking" />
         <LoadingSkeleton />
-      </SafeScreen>
+      </ScrollView>
     );
   }
 
   return (
-    <SafeScreen>
+    <>
       <ScrollView
-        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text.secondary} />
         }
-        contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.xxl * 2 + spacing.lg, // clears the floating tab bar
-          gap: spacing.lg,
-        }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
       >
-        {/* ── Header ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1, gap: spacing.xs }}>
-            <Text variant="caption" style={{ color: colors.text.secondary, fontWeight: '600' }}>
-              {dateLabel}
-            </Text>
-            <Text variant="h1" style={{ letterSpacing: -0.6, lineHeight: 34 }} numberOfLines={1}>
-              {getTimeGreeting()}
-            </Text>
-          </View>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <NotificationBell
-              size={44}
-              unreadCount={unreadCount}
-              onPress={() => router.push('/(tabs)/train/notifications')}
-            />
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/profile')}
-              hitSlop={4}
-              activeOpacity={0.8}
-            >
-              {dog?.avatarUrl ? (
-                <Image
-                  source={{ uri: dog.avatarUrl }}
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    borderWidth: 2,
-                    borderColor: colors.bg.surface,
-                    ...softShadows.card,
-                  }}
-                />
-              ) : (
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    backgroundColor: colors.bg.sand,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <MascotCallout state="happy" size={40} />
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
+        <PageHeader
+          eyebrow={dateLabel}
+          title={dog?.name ? `${dog.name}'s day` : 'Today'}
+          line={greeting}
+          mascotState={resumeTarget || heroVariant === 'overdue' || firstMissed ? 'encouraging' : 'happy'}
+        />
 
         {/* ── No plan ── */}
         {!hasPlans ? (
-          <Card>
-            <EmptyState
-              mascotState="waiting"
-              title={needsDogProfile ? 'Your plan is waiting' : 'No active plan right now'}
-              subtitle={
+          <EmptyState
+            mascotState="waiting"
+            title={needsDogProfile ? 'Your plan is waiting' : 'No active plan right now'}
+            subtitle={
+              needsDogProfile
+                ? "Finish your dog's profile and we'll build a training plan around them."
+                : "Your dog's profile is set up, but there isn't an active plan yet."
+            }
+            action={{
+              label: needsDogProfile ? "Set up my dog's profile" : 'View profile',
+              onPress: () =>
                 needsDogProfile
-                  ? "Finish your dog's profile and we'll build a training plan around them."
-                  : "Your dog's profile is set up, but there isn't an active plan yet."
-              }
-              action={{
-                label: needsDogProfile ? "Set up my dog's profile" : 'View profile',
-                onPress: () =>
-                  needsDogProfile
-                    ? router.push('/(onboarding)/dog-basics')
-                    : router.push('/(tabs)/profile'),
-              }}
-            />
-          </Card>
+                  ? router.push('/(onboarding)/dog-basics')
+                  : router.push('/(tabs)/profile'),
+            }}
+          />
         ) : null}
 
-        {/* ── Hero ── */}
-        {heroSession && heroPlan && heroPlan.status === 'active' ? (
+        {/* ── Today's session (one card) ── */}
+        {resumeTarget ? (
+          <HeroSessionCard
+            session={resumeTarget.session}
+            plan={resumeTarget.plan}
+            variant="resume"
+            resumeLabel={resumeLabel}
+            onStart={() =>
+              router.push(`/(tabs)/train/session?id=${resumeTarget.session.id}&planId=${resumeTarget.plan.id}`)
+            }
+            onViewPlan={() => openPlan(resumeTarget.plan.id)}
+            onDiscard={() => {
+              clearSessionSnapshot().catch(() => {});
+              setResumable(null);
+            }}
+          />
+        ) : showHero && heroSession && heroPlan ? (
           <HeroSessionCard
             session={heroSession}
             plan={heroPlan}
             variant={heroVariant}
-            completion={heroCompletion}
-            mascotState={mascotState}
             canReschedule={canReschedule}
+            rescheduleLabel={rescheduleLabel}
             onStart={() =>
               router.push(`/(tabs)/train/session?id=${heroSession.id}&planId=${heroSession.planId}`)
             }
-            onViewPlan={() => {
-              setSelectedPlan(heroSession.planId);
-              router.push('/(tabs)/train/plan');
-            }}
+            onViewPlan={() => openPlan(heroSession.planId)}
             onReschedule={() => rescheduleMissedSession(heroSession.planId, heroSession.id)}
           />
-        ) : null}
-
-        {/* ── All done / nothing due ── */}
-        {hasPlans && !heroSession ? (
+        ) : hasPlans ? (
           <Card>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-              <View style={{ flex: 1, gap: spacing.xs }}>
-                <Text variant="h2" style={{ letterSpacing: -0.4 }}>
-                  {firstMissed ? 'One to catch up on' : "You're all caught up"}
-                </Text>
-                <Text variant="body" style={{ color: colors.text.secondary, lineHeight: 22 }}>
-                  {firstMissed
-                    ? `${firstMissed.title} slipped past its slot — move it and keep the streak alive.`
-                    : 'Nothing due today. Rest is part of the plan.'}
-                </Text>
-              </View>
-              <MascotCallout state={firstMissed ? 'thinking' : 'celebrating'} size={72} />
+            <View style={{ gap: spacing.xs }}>
+              <Text variant="h2">{firstMissed ? 'One to catch up on' : "You're all caught up"}</Text>
+              <Text variant="body" color={colors.text.secondary}>
+                {firstMissed
+                  ? `${firstMissed.title} was scheduled for ${formatScheduleLabel(firstMissed)}. Move it to keep the week on track.`
+                  : 'Nothing due today. Rest is part of the plan.'}
+              </Text>
             </View>
-
-            {firstMissed ? (
-              <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-                <View style={{ backgroundColor: colors.bg.sand, borderRadius: radii.md, padding: spacing.md }}>
-                  <Text variant="micro" style={{ color: colors.text.secondary, fontWeight: '600' }}>
-                    Missed
-                  </Text>
-                  <Text variant="bodyStrong" style={{ marginTop: spacing.xs, fontWeight: '700' }}>
-                    {firstMissed.title}
-                  </Text>
-                  <Text variant="caption" style={{ color: colors.text.secondary }}>
-                    {formatScheduleLabel(firstMissed)}
-                  </Text>
-                </View>
-                {canReschedule ? (
-                  <Button
-                    label={rescheduleLabel}
-                    size="lg"
-                    onPress={() => rescheduleMissedSession(firstMissed.planId, firstMissed.id)}
-                  />
-                ) : null}
-              </View>
-            ) : nextUpcoming ? (
-              <View
-                style={{
-                  marginTop: spacing.lg,
-                  backgroundColor: colors.bg.sand,
-                  borderRadius: radii.md,
-                  padding: spacing.md,
-                }}
-              >
-                <Text variant="micro" style={{ color: colors.text.secondary, fontWeight: '600' }}>
-                  Next up
-                </Text>
-                <Text variant="bodyStrong" style={{ marginTop: spacing.xs, fontWeight: '700' }}>
-                  {nextUpcoming.title}
-                </Text>
-                <Text variant="caption" style={{ color: colors.text.secondary }}>
-                  {formatScheduleLabel(nextUpcoming)} · {nextUpcoming.durationMinutes} min
+            {firstMissed && canReschedule ? (
+              <Button
+                label={rescheduleLabel}
+                onPress={() => rescheduleMissedSession(firstMissed.planId, firstMissed.id)}
+                style={{ marginTop: spacing.xl }}
+              />
+            ) : null}
+            {!firstMissed && nextUpcoming ? (
+              <View style={{ gap: spacing.xs, marginTop: spacing.lg }}>
+                <Text variant="captionStrong">Next session</Text>
+                <Text variant="body">{nextUpcoming.title}</Text>
+                <Text variant="caption">
+                  {formatScheduleLabel(nextUpcoming)}, {nextUpcoming.durationMinutes} min
                 </Text>
               </View>
             ) : null}
@@ -599,111 +469,112 @@ export default function TrainScreen() {
         {/* ── This week ── */}
         {hasPlans ? (
           <View>
-            <SectionTitle
-              title="This week"
-              action={{ label: 'Calendar', onPress: () => router.push('/(tabs)/train/calendar') }}
-            />
-            <Card>
+            <SectionHeader title="This week" />
+            <View style={{ gap: spacing.md }}>
               <WeekStrip days={week.days} />
-              <StatRow
-                streak={streak}
-                thisWeekDone={week.done}
-                thisWeekPlanned={week.planned}
-                total={totalSessionsCompleted}
-              />
-            </Card>
+              {sessionStreak > 0 ? (
+                <StreakBadge count={sessionStreak} />
+              ) : (
+                <Text variant="caption">
+                  {week.planned > 0 ? `${week.done} of ${week.planned} sessions done this week` : 'No sessions planned this week'}
+                </Text>
+              )}
+            </View>
           </View>
         ) : null}
 
         {/* ── Also today ── */}
-        {otherTodaySessions.length > 0 ? (
+        {heroInAlsoToday.length > 0 || quickRep || walkGoalText || quickWins.length > 0 ? (
           <View>
-            <SectionTitle title="Also today" />
-            <View style={{ gap: spacing.sm }}>
-              {otherTodaySessions.map((session) => (
-                <SecondaryRow
+            <SectionHeader title="Also today" />
+            <ListGroup>
+              {quickRep ? <QuickRepsRow quickRep={quickRep} /> : null}
+              {heroInAlsoToday.map((session) => (
+                <ListRow
                   key={`${session.planId}_${session.id}`}
-                  session={session}
+                  icon="play-circle-outline"
+                  title={session.title}
+                  subtitle={`${session.planCourseTitle ?? getBehaviorLabel(session.planGoal)}, ${session.durationMinutes} min`}
+                  trailing="chevron"
                   onPress={() =>
                     router.push(`/(tabs)/train/session?id=${session.id}&planId=${session.planId}`)
                   }
                 />
               ))}
-            </View>
+              {walkGoalText ? (
+                <WalkGoalRow goalText={walkGoalText} logged={walkLoggedToday} onLog={() => setShowWalkModal(true)} />
+              ) : null}
+              {quickWins.map((win) => (
+                <QuickWinCard key={win.id} win={win} onPress={() => setSelectedWin(win)} />
+              ))}
+            </ListGroup>
           </View>
         ) : null}
 
-        {/* ── Walk ── */}
-        {walkGoalText ? (
-          <WalkGoalRow goalText={walkGoalText} logged={walkLoggedToday} onLog={() => setShowWalkModal(true)} />
-        ) : null}
-
-        {/* ── Quick wins ── */}
-        <View>
-          <SectionTitle
-            title="Quick wins"
-            action={{ label: 'All tools', onPress: () => router.push('/(tabs)/train/tools') }}
-          />
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.md, paddingVertical: spacing.xs }}
-            style={{ marginHorizontal: -spacing.md, paddingLeft: spacing.md }}
-          >
-            {shuffledWins.map((win) => (
-              <QuickWinCard key={win.id} win={win} onPress={() => setSelectedWin(win)} />
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* ── Courses (multi-plan) ── */}
-        {multiplePlans ? (
+        {/* ── Your courses ── */}
+        {hasPlans ? (
           <View>
-            <SectionTitle
+            <SectionHeader
               title="Your courses"
               action={
-                activePlanIds.length < 2
-                  ? { label: 'Add goal', onPress: () => router.push('/(tabs)/train/add-course' as never) }
+                activePlanIds.length < MAX_ACTIVE_COURSES
+                  ? { label: 'Add course', onPress: () => router.push('/(tabs)/train/add-course' as never) }
                   : undefined
               }
             />
-            <View style={{ gap: spacing.sm }}>
+            <ListGroup>
               {planSummaries.map((summary) => (
-                <ActiveCourseCard
-                  key={summary.id}
-                  plan={summary}
-                  onPress={() => {
-                    setSelectedPlan(summary.id);
-                    router.push('/(tabs)/train/plan');
-                  }}
-                />
+                <ActiveCourseCard key={summary.id} plan={summary} onPress={() => openPlan(summary.id)} />
               ))}
-            </View>
+            </ListGroup>
           </View>
         ) : null}
 
         {/* ── Why this schedule (single plan) ── */}
-        {!multiplePlans && primaryPlanFull?.metadata?.explanation?.length ? (
-          <SoftNote>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-              <AppIcon name="sparkles" size={16} color={colors.brand.primary} />
-              <Text variant="bodyStrong" style={{ fontWeight: '700' }}>Why this schedule</Text>
-            </View>
+        {activePlanIds.length === 1 && primaryPlanFull?.metadata?.explanation?.length ? (
+          <View>
+            <SectionHeader title="Why this schedule" />
             <View style={{ gap: spacing.sm }}>
               {primaryPlanFull.metadata.explanation.map((bullet, index) => (
-                <View key={index} style={{ flexDirection: 'row', gap: spacing.sm }}>
-                  <Text variant="caption" style={{ color: colors.text.secondary, lineHeight: 22 }}>·</Text>
-                  <Text variant="caption" style={{ flex: 1, color: colors.text.secondary, lineHeight: 22 }}>
-                    {bullet}
-                  </Text>
-                </View>
+                <Text key={index} variant="body" color={colors.text.secondary}>
+                  {bullet}
+                </Text>
               ))}
             </View>
-          </SoftNote>
+          </View>
         ) : null}
+
+        {/* ── Tools ── */}
+        <View>
+          <SectionHeader title="Tools" />
+          <ListGroup>
+            <ListRow
+              icon="calendar-outline"
+              iconTone="secondary"
+              title="Calendar"
+              trailing="chevron"
+              onPress={() => router.push('/(tabs)/train/calendar')}
+            />
+            <ListRow
+              icon="radio-button-on-outline"
+              iconTone="secondary"
+              title="Training tools"
+              subtitle="Clicker and whistle"
+              trailing="chevron"
+              onPress={() => router.push('/(tabs)/train/tools')}
+            />
+            <ListRow
+              icon="notifications-outline"
+              iconTone="secondary"
+              title="Notifications"
+              trailing={unreadCount > 0 ? `${unreadCount} unread` : 'chevron'}
+              onPress={() => router.push('/(tabs)/train/notifications')}
+            />
+          </ListGroup>
+        </View>
       </ScrollView>
 
-      {/* ── Sheets & modals ── */}
+      {/* ── Sheets ── */}
       <QuickWinSheet win={selectedWin} onClose={() => setSelectedWin(null)} />
 
       {dog && walkGoalText ? (
@@ -717,52 +588,7 @@ export default function TrainScreen() {
         />
       ) : null}
 
-      {newMilestone ? (
-        <Modal transparent animationType="fade" onRequestClose={() => setNewMilestone(null)}>
-          <Pressable
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(15,23,42,0.55)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: spacing.lg,
-            }}
-            onPress={() => setNewMilestone(null)}
-          >
-            <Pressable onPress={() => {}} style={{ width: '100%' }}>
-              <View
-                style={{
-                  backgroundColor: colors.bg.surface,
-                  borderRadius: radii.lg,
-                  padding: spacing.xl,
-                  alignItems: 'center',
-                  gap: spacing.md,
-                  ...tintedShadow('#0F172A', 'lifted'),
-                }}
-              >
-                <MascotCallout state="celebrating" size={96} />
-                <AppIcon name={newMilestone.emoji as AppIconName} size={32} color={colors.brand.secondary} />
-                <Text variant="h2" style={{ textAlign: 'center', letterSpacing: -0.4 }}>
-                  {newMilestone.title}
-                </Text>
-                <Text
-                  variant="body"
-                  style={{ textAlign: 'center', lineHeight: 24, color: colors.text.secondary }}
-                >
-                  {newMilestone.description}
-                </Text>
-                <Button
-                  label="Amazing"
-                  size="lg"
-                  leftIcon="ribbon"
-                  onPress={() => setNewMilestone(null)}
-                  style={{ width: '100%', marginTop: spacing.sm }}
-                />
-              </View>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      ) : null}
-    </SafeScreen>
+      <MilestoneSheet milestone={newMilestone} onClose={() => setNewMilestone(null)} />
+    </>
   );
 }

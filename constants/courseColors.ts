@@ -1,50 +1,37 @@
 /**
- * Stable, app-layer-only course theming.
+ * Course theming.
  *
- * We intentionally do not persist these colors. Instead we deterministically
- * assign a course color from a fixed palette using existing stable identifiers
- * such as plan.id. This keeps course theming consistent across reloads without
- * any schema changes or migrations.
+ * Pawly has one accent (see DESIGN.md). Courses are told apart by name and
+ * icon, not by hue, so every course resolves to the accent. This module keeps
+ * its previous API so stores, mappers and tests keep working; the values it
+ * returns are now all derived from the current theme.
  */
 
-export const COURSE_COLOR_PALETTE = [
-  '#2563EB', // Blue
-  '#0F766E', // Teal
-  '#7C3AED', // Violet
-  '#DC2626', // Red
-  '#CA8A04', // Amber
-  '#0891B2', // Cyan
-  '#C2410C', // Orange
-  '#BE185D', // Rose
-  '#4F46E5', // Indigo
-  '#15803D', // Green
+import { colors, getThemeColors } from './colors.ts';
+
+export const GOAL_KEYS = [
+  'leash_pulling',
+  'jumping_up',
+  'barking',
+  'recall',
+  'potty_training',
+  'crate_anxiety',
+  'puppy_biting',
+  'settling',
+  'leave_it',
+  'basic_obedience',
+  'separation_anxiety',
+  'door_manners',
+  'impulse_control',
+  'cooperative_care',
+  'wait_and_stay',
+  'leash_reactivity',
+  'sit',
+  'down',
+  'heel',
 ] as const;
 
-export const GOAL_COLORS = {
-  leash_pulling: '#4F46E5',
-  jumping_up: '#06B6D4',
-  barking: '#DB2777',
-  recall: '#15803D',
-  potty_training: '#EAB308',
-  crate_anxiety: '#7C3AED',
-  puppy_biting: '#EA580C',
-  settling: '#0D9488',
-  leave_it: '#DC2626',
-  basic_obedience: '#2563EB',
-  separation_anxiety: '#9333EA',
-  door_manners: '#0891B2',
-  impulse_control: '#D97706',
-  cooperative_care: '#059669',
-  wait_and_stay: '#7C3AED',
-  leash_reactivity: '#B45309',
-  sit: '#0369A1',
-  down: '#166534',
-  heel: '#BE185D',
-  fallback: '#9CA3AF',
-} as const;
-
-export type GoalColorKey = keyof typeof GOAL_COLORS;
-export type CourseColorValue = (typeof COURSE_COLOR_PALETTE)[number];
+export type GoalColorKey = (typeof GOAL_KEYS)[number] | 'fallback';
 
 export interface CourseColorSource {
   id?: string | null;
@@ -60,36 +47,22 @@ export interface CourseThemePlanLike extends CourseColorSource {
   isPrimary?: boolean;
 }
 
-/**
- * Normalizes goal strings to a stable key.
- * Mirrors GOAL_MAP in planGenerator.ts but kept independent.
- */
 export function normalizeGoalKey(goal: string): GoalColorKey {
   const normalized = goal.toLowerCase().replace(/ /g, '_').replace("won't_come", 'recall');
-  if (normalized in GOAL_COLORS) {
-    return normalized as GoalColorKey;
-  }
-  return 'fallback';
+  return (GOAL_KEYS as readonly string[]).includes(normalized) ? (normalized as GoalColorKey) : 'fallback';
 }
 
-/**
- * Returns the primary solid color for a given goal.
- */
-export function getGoalColor(goal: string): string {
-  const key = normalizeGoalKey(goal);
-  return GOAL_COLORS[key];
+/** Every goal shares the accent. Kept for persisted-model compatibility. */
+export function getGoalColor(_goal: string): string {
+  return getThemeColors().accent;
 }
 
 export function isValidHexColor(value: string | null | undefined): value is `#${string}` {
   return typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value);
 }
 
-/**
- * Simple hex to RGBA helper to create soft tints.
- * Avoids heavy color libraries.
- */
 export function hexToRgba(hex: string, alpha: number): string {
-  const safeHex = isValidHexColor(hex) ? hex : GOAL_COLORS.fallback;
+  const safeHex = isValidHexColor(hex) ? hex : getThemeColors().accent;
   const clampedAlpha = Math.max(0, Math.min(1, alpha));
   const r = parseInt(safeHex.slice(1, 3), 16);
   const g = parseInt(safeHex.slice(3, 5), 16);
@@ -98,12 +71,16 @@ export function hexToRgba(hex: string, alpha: number): string {
 }
 
 export interface CourseUiColors {
+  /** The accent. */
   solid: string;
+  /** Soft accent fill for selected surfaces. */
   tint: string;
   soft: string;
   border: string;
+  /** Accent used as text. */
   text: string;
-  contrastText: '#FFFFFF' | '#0F172A';
+  /** Text colour to place on `solid`. */
+  contrastText: string;
   selectedSurface: string;
   selectedBorder: string;
   mutedDot: string;
@@ -116,19 +93,8 @@ export interface CoursePillColors {
   dotColor: string;
 }
 
-function hashString(value: string): number {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-  return hash;
-}
-
 export function getCourseColorSeed(source: CourseColorSource | string): string {
-  if (typeof source === 'string') {
-    return normalizeGoalKey(source);
-  }
-
+  if (typeof source === 'string') return normalizeGoalKey(source);
   return (
     source.id ??
     source.planId ??
@@ -140,58 +106,31 @@ export function getCourseColorSeed(source: CourseColorSource | string): string {
   );
 }
 
-export function getCourseColor(source: CourseColorSource | string): string {
-  const seed = getCourseColorSeed(source);
-  const color = COURSE_COLOR_PALETTE[hashString(seed) % COURSE_COLOR_PALETTE.length];
-  return isValidHexColor(color) ? color : GOAL_COLORS.fallback;
+export function getCourseColor(_source: CourseColorSource | string): string {
+  return getThemeColors().accent;
 }
 
-export function getContrastTextColor(hex: string): '#FFFFFF' | '#0F172A' {
-  const safeHex = isValidHexColor(hex) ? hex : GOAL_COLORS.fallback;
-
-  function toLinear(channel: number): number {
-    const value = channel / 255;
-    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  }
-
-  function getRelativeLuminance(color: string): number {
-    const r = toLinear(parseInt(color.slice(1, 3), 16));
-    const g = toLinear(parseInt(color.slice(3, 5), 16));
-    const b = toLinear(parseInt(color.slice(5, 7), 16));
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  }
-
-  const luminance = getRelativeLuminance(safeHex);
-  const whiteContrast = (1.05) / (luminance + 0.05);
-  const darkContrast = (luminance + 0.05) / 0.05;
-
-  return '#FFFFFF';
+export function getContrastTextColor(_hex: string): string {
+  return getThemeColors().text.onAccent;
 }
 
-/**
- * Derived color set for UI components (cards, pills, etc).
- */
-export function getCourseUiColors(source: CourseColorSource | string): CourseUiColors {
-  const solid = getCourseColor(source);
+export function getCourseUiColors(_source: CourseColorSource | string): CourseUiColors {
+  const theme = getThemeColors();
   return {
-    solid,
-    tint: hexToRgba(solid, 0.08),
-    soft: hexToRgba(solid, 0.14),
-    border: hexToRgba(solid, 0.2),
-    text: solid,
-    contrastText: getContrastTextColor(solid),
-    selectedSurface: hexToRgba(solid, 0.16),
-    selectedBorder: hexToRgba(solid, 0.34),
-    mutedDot: hexToRgba(solid, 0.9),
+    solid: theme.accent,
+    tint: theme.accentSoft,
+    soft: theme.accentSoft,
+    border: theme.border.hairline,
+    text: theme.accent,
+    contrastText: theme.text.onAccent,
+    selectedSurface: theme.accentSoft,
+    selectedBorder: theme.accent,
+    mutedDot: theme.text.secondary,
   };
 }
 
-export function getCoursePillColors(
-  source: CourseColorSource | string,
-  isSelected: boolean
-): CoursePillColors {
+export function getCoursePillColors(source: CourseColorSource | string, isSelected: boolean): CoursePillColors {
   const theme = getCourseUiColors(source);
-
   if (isSelected) {
     return {
       backgroundColor: theme.solid,
@@ -200,11 +139,10 @@ export function getCoursePillColors(
       dotColor: theme.contrastText,
     };
   }
-
   return {
-    backgroundColor: '#F5F7F9',
-    borderColor: theme.border,
-    textColor: '#111827',
+    backgroundColor: colors.bg.fill,
+    borderColor: colors.bg.fill,
+    textColor: colors.text.primary,
     dotColor: theme.mutedDot,
   };
 }
@@ -212,13 +150,12 @@ export function getCoursePillColors(
 export function resolveSelectedCourseTheme<TPlan extends CourseThemePlanLike>(
   plansById: Record<string, TPlan>,
   activePlanIds: string[],
-  selectedPlanId: string | null
+  selectedPlanId: string | null,
 ): CourseUiColors | null {
   const resolvedId =
     selectedPlanId ??
     activePlanIds.find((id) => plansById[id]?.isPrimary) ??
     activePlanIds[0] ??
     null;
-
   return resolvedId ? getCourseUiColors(plansById[resolvedId] ?? { id: resolvedId }) : null;
 }

@@ -1,61 +1,89 @@
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, Switch, View } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 
-import { SafeScreen } from '@/components/ui/SafeScreen';
+import { AppIcon } from '@/components/ui/AppIcon';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Button } from '@/components/ui/Button';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
 import { formatDisplayTime } from '@/lib/scheduleEngine';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { usePlanStore } from '@/stores/planStore';
+import type { NotificationPrefs } from '@/types';
 
-function ToggleRow({
-  label,
-  description,
-  value,
-  onPress,
-}: {
-  label: string;
-  description: string;
-  value: boolean;
-  onPress: () => void;
-}) {
+type BooleanPrefKey = {
+  [K in keyof NotificationPrefs]: NotificationPrefs[K] extends boolean ? K : never;
+}[keyof NotificationPrefs];
+
+const LEAD_OPTIONS = [5, 15, 30] as const;
+
+const PERMISSION_LABELS: Record<string, string> = {
+  granted: 'Allowed',
+  denied: 'Not allowed',
+  undetermined: 'Not asked yet',
+};
+
+const TOGGLES: { key: BooleanPrefKey; title: string; subtitle: string }[] = [
+  { key: 'walkReminders', title: 'Walk reminders', subtitle: 'Around your usual walk times' },
+  { key: 'postWalkCheckIn', title: 'Post-walk check-in', subtitle: 'Ask how the walk went while it is fresh' },
+  { key: 'streakAlerts', title: 'Streak alerts', subtitle: 'When your streak is about to slip' },
+  { key: 'milestoneAlerts', title: 'Milestone alerts', subtitle: 'When a milestone is reached or the plan moves on' },
+  { key: 'insights', title: 'Weekly insights', subtitle: 'A weekly note on progress' },
+  { key: 'lifecycle', title: 'Age and routine reminders', subtitle: 'Tips as your dog grows and routines change' },
+  { key: 'expertReview', title: 'Expert review', subtitle: 'When review feedback is ready' },
+];
+
+function timeFromPref(value: string): Date {
+  const [hour, minute] = value.split(':').map(Number);
+  const date = new Date();
+  date.setHours(Number.isFinite(hour) ? hour : 19, Number.isFinite(minute) ? minute : 0, 0, 0);
+  return date;
+}
+
+function prefFromTime(date: Date): string {
+  return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+}
+
+function SettingsSkeleton() {
   return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        backgroundColor: colors.bg.surface,
-        borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: colors.border.default,
-        padding: spacing.md,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}
-    >
-      <View style={{ flex: 1, paddingRight: spacing.md }}>
-        <Text variant="bodyStrong">{label}</Text>
-        <Text variant="caption">{description}</Text>
-      </View>
-      <View
-        style={{
-          width: 52,
-          padding: 4,
-          borderRadius: 999,
-          backgroundColor: value ? colors.brand.primary : colors.border.default,
-          alignItems: value ? 'flex-end' : 'flex-start',
-        }}
-      >
-        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' }} />
-      </View>
-    </Pressable>
+    <>
+      {[2, 3, 7].map((rows, group) => (
+        <View key={group}>
+          <SkeletonBlock height={26} width="40%" style={{ marginBottom: spacing.sm }} />
+          <View style={{ backgroundColor: colors.bg.surface, borderRadius: radii.md, overflow: 'hidden' }}>
+            {Array.from({ length: rows }).map((_, i) => (
+              <View
+                key={i}
+                style={{
+                  minHeight: 60,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: spacing.lg,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: colors.border.hairline,
+                }}
+              >
+                <View style={{ gap: spacing.xs }}>
+                  <SkeletonBlock height={16} width={160} />
+                  <SkeletonBlock height={14} width={220} />
+                </View>
+                <SkeletonBlock height={31} width={51} borderRadius={radii.full} />
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </>
   );
 }
 
@@ -63,183 +91,182 @@ export default function NotificationSettingsScreen() {
   const { user } = useAuthStore();
   const { dog } = useDogStore();
   const { activePlan } = usePlanStore();
-  const { prefs, permissionStatus, loadPrefs, updatePrefs, refreshSchedules } = useNotificationStore();
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const { prefs, permissionStatus, isLoading, loadPrefs, updatePrefs, refreshSchedules } = useNotificationStore();
+
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [optimistic, setOptimistic] = useState<Partial<NotificationPrefs>>({});
+  const [errorMsg, setErrorMsg] = useState('');
+  const [showLeadSheet, setShowLeadSheet] = useState(false);
+  const [showTimeSheet, setShowTimeSheet] = useState(false);
+  const [pendingTime, setPendingTime] = useState<Date>(() => timeFromPref(prefs.dailyReminderTime));
+  const [savingTime, setSavingTime] = useState(false);
 
   useEffect(() => {
-    if (user?.id) {
-      loadPrefs(user.id);
-    }
+    if (!user?.id) return;
+    loadPrefs(user.id).finally(() => setHasLoaded(true));
   }, [loadPrefs, user?.id]);
 
-  const handleTimeChange = async (event: DateTimePickerEvent, date?: Date) => {
-    if (event.type === 'dismissed' || !date || !user?.id) {
-      setShowTimePicker(false);
-      return;
-    }
+  const shown: NotificationPrefs = { ...prefs, ...optimistic };
 
-    const time = `${date.getHours().toString().padStart(2, '0')}:${date
-      .getMinutes()
-      .toString()
-      .padStart(2, '0')}`;
-    await updatePrefs(user.id, { dailyReminderTime: time });
-    if (dog && activePlan) {
-      await refreshSchedules(dog, activePlan);
-    }
-    if (Platform.OS !== 'ios') {
-      setShowTimePicker(false);
-    }
-  };
-
-  async function toggle<K extends keyof typeof prefs>(key: K) {
+  async function save(updates: Partial<NotificationPrefs>, failureMessage: string) {
     if (!user?.id) return;
-    await updatePrefs(user.id, { [key]: !prefs[key] } as Partial<typeof prefs>);
-    if (dog && activePlan) {
-      await refreshSchedules(dog, activePlan);
+    setErrorMsg('');
+    setOptimistic((current) => ({ ...current, ...updates }));
+    try {
+      await updatePrefs(user.id, updates);
+      if (dog && activePlan) {
+        await refreshSchedules(dog, activePlan);
+      }
+    } catch {
+      setErrorMsg(failureMessage);
+    } finally {
+      setOptimistic((current) => {
+        const next = { ...current };
+        for (const key of Object.keys(updates) as (keyof NotificationPrefs)[]) delete next[key];
+        return next;
+      });
     }
   }
 
+  function toggle(key: BooleanPrefKey, value: boolean) {
+    save({ [key]: value } as Partial<NotificationPrefs>, "Couldn't save that setting. Check your connection and try again.");
+  }
+
+  function chooseLead(minutes: (typeof LEAD_OPTIONS)[number]) {
+    haptics.selection();
+    setShowLeadSheet(false);
+    save({ reminderLeadMinutes: minutes }, "Couldn't save the lead time. Check your connection and try again.");
+  }
+
+  function openTimeSheet() {
+    setPendingTime(timeFromPref(shown.dailyReminderTime));
+    setShowTimeSheet(true);
+  }
+
+  function handleTimeChange(event: DateTimePickerEvent, date?: Date) {
+    if (Platform.OS === 'android') {
+      setShowTimeSheet(false);
+      if (event.type === 'dismissed' || !date) return;
+      commitTime(date);
+      return;
+    }
+    if (date) setPendingTime(date);
+  }
+
+  async function commitTime(date: Date) {
+    setSavingTime(true);
+    await save({ dailyReminderTime: prefFromTime(date) }, "Couldn't save the reminder time. Check your connection and try again.");
+    setSavingTime(false);
+    setShowTimeSheet(false);
+  }
+
+  const showSkeleton = !hasLoaded && isLoading;
+
   return (
-    <SafeScreen>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.sm,
-        }}
-      >
-        <Pressable onPress={() => router.back()} style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}>
-          <Ionicons name="arrow-back" size={22} color={colors.text.primary} />
-        </Pressable>
-        <Text variant="title">Notifications</Text>
-      </View>
+    <>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}>
+        {showSkeleton ? (
+          <SettingsSkeleton />
+        ) : (
+          <>
+            {errorMsg ? (
+              <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+                {errorMsg}
+              </Text>
+            ) : null}
 
-      <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, paddingBottom: spacing.xl * 2 }}>
-        <View
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.md,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            padding: spacing.md,
-          }}
-        >
-          <Text variant="micro" color={colors.text.secondary}>
-            Permission status
-          </Text>
-          <Text variant="bodyStrong" style={{ marginTop: 4, textTransform: 'capitalize' }}>
-            {permissionStatus}
-          </Text>
-        </View>
+            <View>
+              <SectionHeader title="Device" />
+              <ListGroup>
+                <ListRow
+                  icon="notifications-outline"
+                  iconTone="secondary"
+                  title="Permission"
+                  trailing={PERMISSION_LABELS[permissionStatus] ?? permissionStatus}
+                />
+              </ListGroup>
+            </View>
 
-        <ToggleRow
-          label="Training reminders"
-          description="Remind me when a scheduled session is coming up."
-          value={prefs.scheduledSessionReminders}
-          onPress={() => toggle('scheduledSessionReminders')}
-        />
+            <View>
+              <SectionHeader title="Sessions" />
+              <ListGroup>
+                <ListRow
+                  title="Session reminders"
+                  subtitle="Before a scheduled session"
+                  trailing={
+                    <Switch
+                      value={shown.scheduledSessionReminders}
+                      onValueChange={(value) => toggle('scheduledSessionReminders', value)}
+                      trackColor={{ true: colors.accent }}
+                      accessibilityLabel="Session reminders"
+                    />
+                  }
+                />
+                <ListRow
+                  title="Remind me"
+                  subtitle="How long before the session"
+                  trailing={`${shown.reminderLeadMinutes} minutes`}
+                  onPress={() => setShowLeadSheet(true)}
+                  accessibilityHint="Opens the lead time picker"
+                />
+                <ListRow
+                  title="Reminder time"
+                  subtitle="Used when a plan day has no set time"
+                  trailing={formatDisplayTime(shown.dailyReminderTime)}
+                  onPress={openTimeSheet}
+                  accessibilityHint="Opens the time picker"
+                />
+              </ListGroup>
+            </View>
 
-        <Pressable
-          onPress={() => setShowTimePicker(true)}
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.md,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            padding: spacing.md,
-          }}
-        >
-          <Text variant="bodyStrong">Fallback reminder time</Text>
-          <Text variant="caption">Used when a plan day has no exact scheduled time.</Text>
-          <Text variant="bodyStrong" style={{ marginTop: spacing.sm, color: colors.brand.primary }}>
-            {formatDisplayTime(prefs.dailyReminderTime)}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={async () => {
-            if (!user?.id) return;
-            const nextLead = prefs.reminderLeadMinutes === 15 ? 30 : prefs.reminderLeadMinutes === 30 ? 5 : 15;
-            await updatePrefs(user.id, { reminderLeadMinutes: nextLead });
-            if (dog && activePlan) {
-              await refreshSchedules(dog, activePlan);
-            }
-          }}
-          style={{
-            backgroundColor: colors.bg.surface,
-            borderRadius: radii.md,
-            borderWidth: 1,
-            borderColor: colors.border.default,
-            padding: spacing.md,
-          }}
-        >
-          <Text variant="bodyStrong">Reminder lead time</Text>
-          <Text variant="caption">Cycles through 5, 15, and 30 minutes.</Text>
-          <Text variant="bodyStrong" style={{ marginTop: spacing.sm, color: colors.brand.primary }}>
-            {prefs.reminderLeadMinutes} minutes
-          </Text>
-        </Pressable>
-
-        <ToggleRow
-          label="Walk reminders"
-          description="Remind me around my usual walk times."
-          value={prefs.walkReminders}
-          onPress={() => toggle('walkReminders')}
-        />
-        <ToggleRow
-          label="Post-walk check-in"
-          description="Ask how the walk went while it’s still fresh."
-          value={prefs.postWalkCheckIn}
-          onPress={() => toggle('postWalkCheckIn')}
-        />
-        <ToggleRow
-          label="Streak alerts"
-          description="Warn me when my streak is about to slip."
-          value={prefs.streakAlerts}
-          onPress={() => toggle('streakAlerts')}
-        />
-        <ToggleRow
-          label="Milestone alerts"
-          description="Celebrate milestones and plan progress."
-          value={prefs.milestoneAlerts}
-          onPress={() => toggle('milestoneAlerts')}
-        />
-        <ToggleRow
-          label="Insights"
-          description="Receive weekly insight and progress nudges."
-          value={prefs.insights}
-          onPress={() => toggle('insights')}
-        />
-        <ToggleRow
-          label="Lifecycle"
-          description="Get age and routine-based reminders."
-          value={prefs.lifecycle}
-          onPress={() => toggle('lifecycle')}
-        />
-        <ToggleRow
-          label="Expert review"
-          description="Notify me when review feedback is ready."
-          value={prefs.expertReview}
-          onPress={() => toggle('expertReview')}
-        />
+            <View>
+              <SectionHeader title="Updates" />
+              <ListGroup>
+                {TOGGLES.map((item) => (
+                  <ListRow
+                    key={item.key}
+                    title={item.title}
+                    subtitle={item.subtitle}
+                    trailing={
+                      <Switch
+                        value={shown[item.key]}
+                        onValueChange={(value) => toggle(item.key, value)}
+                        trackColor={{ true: colors.accent }}
+                        accessibilityLabel={item.title}
+                      />
+                    }
+                  />
+                ))}
+              </ListGroup>
+            </View>
+          </>
+        )}
       </ScrollView>
 
-      {showTimePicker ? (
-        <DateTimePicker
-          value={(() => {
-            const [hour, minute] = prefs.dailyReminderTime.split(':').map(Number);
-            const date = new Date();
-            date.setHours(hour ?? 19, minute ?? 0, 0, 0);
-            return date;
-          })()}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleTimeChange}
-        />
+      <BottomSheet visible={showLeadSheet} onClose={() => setShowLeadSheet(false)} title="Remind me">
+        <ListGroup>
+          {LEAD_OPTIONS.map((minutes) => (
+            <ListRow
+              key={minutes}
+              title={`${minutes} minutes before`}
+              selected={shown.reminderLeadMinutes === minutes}
+              trailing={shown.reminderLeadMinutes === minutes ? <AppIcon name="checkmark" color={colors.accent} /> : undefined}
+              onPress={() => chooseLead(minutes)}
+            />
+          ))}
+        </ListGroup>
+      </BottomSheet>
+
+      {Platform.OS === 'ios' ? (
+        <BottomSheet visible={showTimeSheet} onClose={() => setShowTimeSheet(false)} title="Reminder time">
+          <View style={{ flex: 1, justifyContent: 'space-between' }}>
+            <DateTimePicker value={pendingTime} mode="time" display="spinner" onChange={handleTimeChange} />
+            <Button label="Set time" loading={savingTime} onPress={() => commitTime(pendingTime)} />
+          </View>
+        </BottomSheet>
+      ) : showTimeSheet ? (
+        <DateTimePicker value={pendingTime} mode="time" display="default" onChange={handleTimeChange} />
       ) : null}
-    </SafeScreen>
+    </>
   );
 }

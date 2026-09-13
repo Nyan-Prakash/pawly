@@ -67,6 +67,7 @@ export type LiveAiTrainerStatus =
   | 'sampling'
   | 'thinking'
   | 'speaking'
+  | 'paused'
   | 'fallback';
 
 /**
@@ -80,6 +81,8 @@ export interface LiveAiTrainerSummary {
   averageConfidence: 'high' | 'medium' | 'low';
   framingIssueCount: number;
   audioInteractionOccurred: boolean;
+  /** Reps the AI counted automatically (high-confidence mark_success). */
+  autoRepCount: number;
   finalCoachMessage?: string;
 }
 
@@ -96,4 +99,11 @@ export const LIVE_AI_TRAINER_CONFIG = {
   TIMEOUT_MS: 8000,
   FALLBACK_CONSECUTIVE_LOW_CONFIDENCE: 3,
   FALLBACK_CONSECUTIVE_POOR_FRAMING: 3,
-};
+  FALLBACK_CONSECUTIVE_ERRORS: 3,
+  /** Number of prior AI turns sent as context. */
+  HISTORY_WINDOW: 5,
+  /** Minimum gap between automatic rep marks, so one hold isn't counted twice. */
+  AUTO_REP_COOLDOWN_MS: 4000,
+  /** Hard cap on payload size the Edge Function will accept per frame (base64 chars). */
+  MAX_FRAME_BASE64_CHARS: 400_000,
+} as const;
