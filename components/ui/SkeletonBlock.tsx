@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Animated, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
+import { useReducedMotion } from '@/lib/motion';
 
 type SkeletonBlockProps = {
   height: number;
@@ -10,32 +12,29 @@ type SkeletonBlockProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function SkeletonBlock({ height, width, borderRadius = 12, style }: SkeletonBlockProps) {
-  const opacity = useRef(new Animated.Value(0.4)).current;
+/** Loading placeholder that matches the shape of the content it stands in for. */
+export function SkeletonBlock({ height, width, borderRadius = radii.sm, style }: SkeletonBlockProps) {
+  const opacity = useRef(new Animated.Value(0.6)).current;
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) {
+      opacity.setValue(0.8);
+      return;
+    }
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 1,   duration: 700, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
-      ])
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.6, duration: 700, useNativeDriver: true }),
+      ]),
     );
     anim.start();
     return () => anim.stop();
-  }, [opacity]);
+  }, [opacity, reducedMotion]);
 
   return (
     <Animated.View
-      style={[
-        {
-          height,
-          width,
-          borderRadius,
-          backgroundColor: colors.border.default,
-          opacity,
-        },
-        style,
-      ]}
+      style={[{ height, width, borderRadius, backgroundColor: colors.bg.fill, opacity }, style]}
     />
   );
 }

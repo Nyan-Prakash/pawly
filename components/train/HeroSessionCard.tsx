@@ -1,186 +1,138 @@
-import { useEffect, useRef } from 'react';
-import { Animated, TouchableOpacity, View } from 'react-native';
+import { View } from 'react-native';
 
-import { AppIcon } from '@/components/ui/AppIcon';
+import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
-import { MascotCallout, type MascotState } from '@/components/ui/MascotCallout';
+import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { getCourseUiColors } from '@/constants/courseColors';
-import { radii } from '@/constants/radii';
-import { softShadows, tintedShadow } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
 import { formatDisplayTime, formatScheduleLabel, getBehaviorLabel } from '@/lib/scheduleEngine';
-import type { EnrichedPlanSession, Plan } from '@/types';
+import type { Plan, PlanSession } from '@/types';
 
-export type HeroVariant = 'today' | 'overdue' | 'upcoming';
+export type HeroVariant = 'today' | 'overdue' | 'upcoming' | 'resume';
 
 type HeroSessionCardProps = {
-  session: EnrichedPlanSession;
+  session: PlanSession;
   plan: Plan;
   variant: HeroVariant;
-  completion: number; // 0–100
-  mascotState: MascotState;
+  /** For `resume`: "Step 3 of 6" or a review note. */
+  resumeLabel?: string;
   canReschedule?: boolean;
+  rescheduleLabel?: string;
   onStart: () => void;
   onViewPlan: () => void;
   onReschedule?: () => void;
+  onDiscard?: () => void;
 };
 
+function Fact({ icon, children, tone = 'secondary' }: { icon: AppIconName; children: string; tone?: 'secondary' | 'warning' }) {
+  const color = tone === 'warning' ? colors.status.warning : colors.text.secondary;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+      <AppIcon name={icon} size={16} color={color} />
+      <Text variant="caption" color={color}>
+        {children}
+      </Text>
+    </View>
+  );
+}
+
 /**
- * The one focal surface on the Today screen.
- *
- * Deliberately a plain white card, not a gradient: the brand green is spent on
- * a single CTA, the course color appears only as a small chip, and the mascot
- * supplies warmth instead of decorative shapes.
+ * The one card on the Today screen. Reads top to bottom in the order the
+ * owner needs it: what state we are in, what the session is, when and how
+ * long, how far the course has come, and the single action that matters.
  */
 export function HeroSessionCard({
   session,
   plan,
   variant,
-  completion,
-  mascotState,
+  resumeLabel,
   canReschedule = false,
+  rescheduleLabel = 'Move to next slot',
   onStart,
   onViewPlan,
   onReschedule,
+  onDiscard,
 }: HeroSessionCardProps) {
-  const theme = getCourseUiColors(plan);
-  const courseLabel = session.planCourseTitle ?? getBehaviorLabel(plan.goal);
-  const stage = parseInt(plan.currentStage?.match(/\d/)?.[0] ?? '1', 10);
+  const courseLabel = plan.courseTitle ?? getBehaviorLabel(plan.goal);
+  const completed = plan.sessions.filter((s) => s.isCompleted).length;
+  const total = plan.sessions.length;
 
-  // Single soft entrance — no looping motion on a screen people open daily.
-  const enter = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.spring(enter, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 6 }).start();
-  }, [enter]);
+  const stateLabel = {
+    today: "Today's session",
+    overdue: 'Missed session',
+    upcoming: 'Next session',
+    resume: 'In progress',
+  }[variant];
 
-  const eyebrow = (() => {
-    if (variant === 'overdue') {
-      return { text: `Missed · ${formatScheduleLabel(session)}`, color: colors.brand.secondary };
+  const whenText = (() => {
+    if (variant === 'resume') return resumeLabel ?? 'Picked up where you left off';
+    if (variant === 'today') {
+      return session.scheduledTime ? `Today at ${formatDisplayTime(session.scheduledTime)}` : 'Today';
     }
-    if (variant === 'upcoming') {
-      return { text: `Next · ${formatScheduleLabel(session)}`, color: colors.text.secondary };
-    }
-    return {
-      text: session.scheduledTime ? `Today · ${formatDisplayTime(session.scheduledTime)}` : 'Today',
-      color: colors.text.secondary,
-    };
+    return formatScheduleLabel(session);
   })();
 
+  const primaryLabel =
+    variant === 'resume' ? 'Resume session' : variant === 'upcoming' ? 'View plan' : 'Start session';
+  const primaryAction = variant === 'upcoming' ? onViewPlan : onStart;
+
+  const secondary = [
+    variant !== 'upcoming' ? { label: 'View plan', onPress: onViewPlan } : null,
+    variant === 'overdue' && canReschedule && onReschedule ? { label: rescheduleLabel, onPress: onReschedule } : null,
+    variant === 'resume' && onDiscard
+      ? { label: 'Discard', onPress: onDiscard, accessibilityLabel: 'Discard unfinished session' }
+      : null,
+  ].filter((item): item is NonNullable<typeof item> => item !== null);
+
   return (
-    <Animated.View
-      style={{
-        backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        padding: spacing.lg,
-        ...softShadows.float,
-        opacity: enter,
-        transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
-      }}
-    >
-      {/* Row 1 — course chip · when */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.sm,
-            backgroundColor: theme.tint,
-            paddingHorizontal: 12,
-            paddingVertical: spacing.xs + 2,
-            borderRadius: radii.pill,
-          }}
-        >
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.solid }} />
-          <Text variant="caption" numberOfLines={1} style={{ fontWeight: '700', color: theme.text }}>
-            {courseLabel}
+    <Card accessibilityRole="summary" style={{ gap: spacing.xl }}>
+      <View style={{ gap: spacing.md }}>
+        <View style={{ gap: spacing.xs }}>
+          <Text variant="captionStrong" color={variant === 'overdue' ? colors.status.warning : colors.accent}>
+            {stateLabel}
           </Text>
+          <Text variant="h1">{session.title}</Text>
         </View>
-        <Text variant="caption" style={{ fontWeight: '600', color: eyebrow.color }}>
-          {eyebrow.text}
-        </Text>
+        <View style={{ gap: spacing.xs }}>
+          <Fact icon={variant === 'resume' ? 'play-outline' : 'calendar-outline'} tone={variant === 'overdue' ? 'warning' : 'secondary'}>
+            {whenText}
+          </Fact>
+          <Fact icon="time-outline">{`${session.durationMinutes} min`}</Fact>
+        </View>
       </View>
 
-      {/* Row 2 — title + meta, mascot on the right */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md }}>
-        <View style={{ flex: 1 }}>
-          <Text variant="h2" style={{ letterSpacing: -0.4, lineHeight: 28 }}>
-            {session.title}
-          </Text>
-          <Text variant="caption" style={{ color: colors.text.secondary, marginTop: spacing.xs }}>
-            {session.durationMinutes} min · Week {session.weekNumber} · Stage {stage}
+      <View style={{ gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <Text variant="caption">{courseLabel}</Text>
+          <Text variant="caption">
+            {completed} of {total} sessions
           </Text>
         </View>
-        <MascotCallout state={mascotState} size={80} />
-      </View>
-
-      {/* Row 3 — course progress */}
-      <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
         <ProgressBar
-          progress={completion / 100}
-          height={6}
-          color={theme.solid}
-          trackColor={theme.tint}
+          progress={total > 0 ? completed / total : 0}
+          accessibilityLabel={`${courseLabel}: ${completed} of ${total} sessions complete`}
         />
-        <Text variant="micro" style={{ color: colors.text.secondary, fontWeight: '600' }}>
-          {completion}% of course complete
-        </Text>
       </View>
 
-      {/* Row 4 — CTA */}
-      <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-        {variant === 'upcoming' ? (
-          <Button
-            label="View plan"
-            variant="secondary"
-            size="lg"
-            rightIcon="chevron-forward"
-            onPress={onViewPlan}
-          />
-        ) : (
-          <View style={{ borderRadius: radii.pill, ...tintedShadow(colors.brand.primary, 'float') }}>
-            <Button
-              label={variant === 'overdue' ? 'Start now' : 'Start session'}
-              size="lg"
-              leftIcon="play"
-              onPress={onStart}
-            />
-          </View>
-        )}
-
-        {variant !== 'upcoming' ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
-            <TextLink label="View plan" onPress={onViewPlan} />
-            {variant === 'overdue' && canReschedule && onReschedule ? (
-              <TextLink label="Move to next slot" onPress={onReschedule} />
-            ) : null}
+      <View style={{ gap: spacing.xs }}>
+        <Button label={primaryLabel} onPress={primaryAction} />
+        {secondary.length ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {secondary.map((item) => (
+              <Button
+                key={item.label}
+                label={item.label}
+                variant="ghost"
+                size="md"
+                onPress={item.onPress}
+                accessibilityLabel={item.accessibilityLabel}
+              />
+            ))}
           </View>
         ) : null}
       </View>
-    </Animated.View>
-  );
-}
-
-function TextLink({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.6}
-      hitSlop={8}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.xs,
-        minHeight: 44,
-        paddingHorizontal: spacing.sm,
-      }}
-    >
-      <Text variant="caption" style={{ fontWeight: '700', color: colors.text.secondary }}>
-        {label}
-      </Text>
-      <AppIcon name="chevron-forward" size={14} color={colors.text.secondary} />
-    </TouchableOpacity>
+    </Card>
   );
 }

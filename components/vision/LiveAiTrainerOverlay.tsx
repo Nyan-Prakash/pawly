@@ -3,7 +3,7 @@
 //
 // Full-screen camera view with the coaching HUD layered on top.
 // Owns: camera permission flow, no-device handling, error banner, speech
-// toggle, fallback sheet.  All orchestration lives in useLiveAiTrainerSession.
+// toggle, fallback panel.  All orchestration lives in useLiveAiTrainerSession.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -18,18 +18,28 @@ import {
   View,
 } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '@/components/ui/AppIcon';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { colors } from '@/constants/colors';
+import { getThemeColors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
+import { durations, useReducedMotion } from '@/lib/motion';
 import type { LiveAiTrainerStatus, LiveAiTrainerResponse } from '@/lib/liveCoach/liveAiTrainerTypes';
 import type { FallbackReason } from '@/lib/liveCoach/liveAiTrainerLogic';
 import type { LiveAiTrainerError } from '@/hooks/useLiveAiTrainerSession';
+
+/**
+ * The overlay sits on a live camera feed, which is dark and busy regardless
+ * of the user's colour scheme. It therefore always uses the DARK palette:
+ * dark scrim panels with light text stay readable over any footage, and the
+ * screen does not flip when the system theme changes mid-session.
+ */
+const dark = getThemeColors('dark');
 
 interface StepInfo {
   instruction: string;
@@ -56,7 +66,7 @@ interface LiveAiTrainerOverlayProps {
   cameraRef: React.RefObject<Camera>;
   step: StepInfo;
   repCount: number;
-  /** Increments whenever the AI auto-counts a rep; drives the "AI counted" pulse. */
+  /** Increments whenever the coach auto-counts a rep; drives the "coach counted" notice. */
   autoRepPulse: number;
   timerSeconds: number;
   isTimerRunning: boolean;
@@ -64,7 +74,6 @@ interface LiveAiTrainerOverlayProps {
   onIncrementRep: () => void;
 }
 
-const GREEN = '#4ADE80';
 const BUSY_STATES: LiveAiTrainerStatus[] = ['sampling', 'thinking', 'listening'];
 
 export function LiveAiTrainerOverlay({
@@ -95,6 +104,7 @@ export function LiveAiTrainerOverlay({
   const [permissionAsked, setPermissionAsked] = useState(false);
   const [question, setQuestion] = useState('');
   const [showInput, setShowInput] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   // Ask for camera permission once on mount.
   useEffect(() => {
@@ -103,17 +113,24 @@ export function LiveAiTrainerOverlay({
     void requestPermission();
   }, [hasPermission, permissionAsked, requestPermission]);
 
-  // "AI counted a rep" pulse
+  // "Coach counted a rep" notice: state-driven by autoRepPulse.
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (autoRepPulse === 0) return;
+    if (reducedMotion) {
+      pulse.setValue(1);
+      const t = setTimeout(() => pulse.setValue(0), 1500);
+      return () => clearTimeout(t);
+    }
     pulse.setValue(0);
-    Animated.sequence([
-      Animated.timing(pulse, { toValue: 1, duration: 180, useNativeDriver: true }),
+    const anim = Animated.sequence([
+      Animated.timing(pulse, { toValue: 1, duration: durations.fast, useNativeDriver: true }),
       Animated.delay(1200),
-      Animated.timing(pulse, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start();
-  }, [autoRepPulse, pulse]);
+      Animated.timing(pulse, { toValue: 0, duration: durations.base, useNativeDriver: true }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [autoRepPulse, pulse, reducedMotion]);
 
   // ── Permission / device gates ─────────────────────────────────────────────
 
@@ -139,8 +156,8 @@ export function LiveAiTrainerOverlay({
         insets={insets}
         icon="videocam-off-outline"
         title="No camera available"
-        body="We couldn't find a back camera on this device. You can still run the session manually."
-        primaryLabel="Train manually"
+        body="Couldn't find a back camera on this device. You can still run the session manually."
+        primaryLabel="Train manually instead"
         onPrimary={onManualSwitch}
         onExit={onExit}
       />
@@ -171,6 +188,11 @@ export function LiveAiTrainerOverlay({
     setShowInput(false);
   };
 
+  const countRep = () => {
+    haptics.selection();
+    onIncrementRep();
+  };
+
   return (
     <View style={styles.container}>
       <Camera
@@ -182,21 +204,15 @@ export function LiveAiTrainerOverlay({
         enableZoomGesture={true}
       />
 
-      {/* Top Bar */}
+      {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}>
-        <Pressable
-          onPress={onExit}
-          style={styles.iconButton}
-          accessibilityRole="button"
-          accessibilityLabel="Exit live trainer"
-          hitSlop={8}
-        >
-          <AppIcon name="close" size={24} color="#fff" />
-        </Pressable>
+        <OverlayIconButton icon="close" label="Leave session" onPress={onExit} />
 
-        <View style={styles.statusPill} accessibilityLiveRegion="polite">
+        <View style={styles.statusPanel} accessibilityLiveRegion="polite">
           <View style={[styles.statusDot, { backgroundColor: getStatusColor(status) }]} />
-          <Text style={styles.statusText}>{getStatusLabel(status)}</Text>
+          <Text variant="label" color={dark.text.primary}>
+            {getStatusLabel(status)}
+          </Text>
         </View>
 
         <View style={styles.topRight}>
@@ -206,61 +222,65 @@ export function LiveAiTrainerOverlay({
             accessibilityRole="switch"
             accessibilityState={{ checked: speechEnabled }}
             accessibilityLabel={speechEnabled ? 'Mute coach voice' : 'Unmute coach voice'}
-            hitSlop={8}
+            hitSlop={4}
           >
-            <AppIcon name={speechEnabled ? 'volume-high' : 'volume-mute'} size={20} color="#fff" />
+            <AppIcon name={speechEnabled ? 'volume-high' : 'volume-mute'} size={22} color={dark.text.primary} />
           </Pressable>
           <Pressable
             onPress={onManualSwitch}
             style={styles.manualButton}
             accessibilityRole="button"
-            accessibilityLabel="Switch to manual mode"
+            accessibilityLabel="Train manually instead"
           >
-            <Text style={styles.manualButtonText}>Manual</Text>
+            <Text variant="captionStrong" color={dark.text.primary}>
+              Manual
+            </Text>
           </Pressable>
         </View>
       </View>
 
-      {/* Step Instruction Card */}
-      <View style={styles.stepCardContainer}>
-        <BlurView intensity={70} tint="dark" style={styles.stepCardBlur}>
-          <View style={styles.stepCounterRow}>
-            <View style={styles.stepBadge}>
-              <Text style={styles.stepBadgeText}>
-                Step {step.stepNumber} of {step.totalSteps}
-              </Text>
-            </View>
+      {/* Step instruction */}
+      <View style={styles.stepPanel}>
+        <Text variant="caption" color={dark.text.secondary}>
+          Step {step.stepNumber} of {step.totalSteps}
+        </Text>
+        <Text variant="bodyStrong" color={dark.text.primary}>
+          {step.instruction}
+        </Text>
+        {!!step.successLook && (
+          <View style={styles.successRow}>
+            <AppIcon name="checkmark-circle-outline" size={16} color={dark.accent} />
+            <Text variant="caption" color={dark.text.secondary} style={{ flex: 1 }}>
+              {step.successLook}
+            </Text>
           </View>
-          <Text style={styles.instructionText}>{step.instruction}</Text>
-          {!!step.successLook && (
-            <View style={styles.successRow}>
-              <AppIcon name="checkmark-circle" size={14} color={GREEN} />
-              <Text style={styles.successText}>{step.successLook}</Text>
-            </View>
-          )}
-        </BlurView>
+        )}
       </View>
 
-      {/* Rep Counter or Timer */}
+      {/* Rep counter or timer */}
       {(hasReps || hasTimer) && (
         <View style={styles.trackingContainer}>
-          <BlurView intensity={65} tint="dark" style={styles.trackingBlur}>
+          <View style={styles.trackingPanel}>
             {hasReps && (
               <Pressable
-                style={styles.repRow}
-                onPress={onIncrementRep}
+                style={styles.trackingRow}
+                onPress={countRep}
                 disabled={repsHit}
                 accessibilityRole="button"
                 accessibilityLabel={`${repCount} of ${step.reps} reps. Tap to count a rep.`}
               >
-                <View style={styles.repCountBlock}>
-                  <Text style={[styles.repCount, repsHit && styles.repCountDone]}>{repCount}</Text>
-                  <Text style={styles.repTarget}>/ {step.reps} reps</Text>
+                <View style={styles.valueBlock}>
+                  <Text variant="display" color={repsHit ? dark.accent : dark.text.primary}>
+                    {repCount}
+                  </Text>
+                  <Text variant="caption" color={dark.text.secondary}>
+                    of {step.reps} reps
+                  </Text>
                 </View>
-                <View style={[styles.repTapHint, repsHit && styles.repTapHintDone]}>
-                  <AppIcon name={repsHit ? 'checkmark' : 'add'} size={18} color={repsHit ? GREEN : '#fff'} />
-                  <Text style={[styles.repTapText, repsHit && styles.repTapTextDone]}>
-                    {repsHit ? 'Done!' : 'Tap to count'}
+                <View style={[styles.hintChip, repsHit && styles.hintChipDone]}>
+                  <AppIcon name={repsHit ? 'checkmark' : 'add'} size={20} color={repsHit ? dark.accent : dark.text.primary} />
+                  <Text variant="captionStrong" color={repsHit ? dark.accent : dark.text.primary}>
+                    {repsHit ? 'Done' : 'Tap to count'}
                   </Text>
                 </View>
               </Pressable>
@@ -268,38 +288,37 @@ export function LiveAiTrainerOverlay({
 
             {hasTimer && (
               <Pressable
-                style={styles.timerRow}
+                style={styles.trackingRow}
                 onPress={onToggleTimer}
                 accessibilityRole="button"
                 accessibilityLabel={`Timer ${formatTimer(timerSeconds)}. ${isTimerRunning ? 'Pause' : 'Start'}.`}
               >
-                <Text style={[styles.timerText, timerDone && styles.timerTextDone]}>
+                <Text variant="display" color={timerDone ? dark.accent : dark.text.primary}>
                   {formatTimer(timerSeconds)}
                 </Text>
-                <View style={styles.timerControls}>
+                <View style={[styles.hintChip, timerDone && styles.hintChipDone]}>
                   <AppIcon
                     name={isTimerRunning ? 'pause' : timerDone ? 'checkmark-circle' : 'play'}
-                    size={22}
-                    color={timerDone ? GREEN : '#fff'}
+                    size={20}
+                    color={timerDone ? dark.accent : dark.text.primary}
                   />
-                  <Text style={[styles.timerLabel, timerDone && styles.timerLabelDone]}>
-                    {isTimerRunning ? 'Running' : timerDone ? 'Done!' : 'Tap to start'}
+                  <Text variant="captionStrong" color={timerDone ? dark.accent : dark.text.primary}>
+                    {isTimerRunning ? 'Running' : timerDone ? 'Done' : 'Tap to start'}
                   </Text>
                 </View>
               </Pressable>
             )}
-          </BlurView>
+          </View>
 
-          {/* AI auto-count pulse */}
+          {/* Coach auto-count notice */}
           <Animated.View
             pointerEvents="none"
-            style={[
-              styles.autoRepBadge,
-              { opacity: pulse, transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }] },
-            ]}
+            style={[styles.autoRepNotice, { opacity: pulse }]}
           >
-            <AppIcon name="sparkles" size={14} color="#000" />
-            <Text style={styles.autoRepText}>Coach counted that rep</Text>
+            <AppIcon name="checkmark" size={16} color={dark.text.onAccent} />
+            <Text variant="label" color={dark.text.onAccent}>
+              The coach counted that rep
+            </Text>
           </Animated.View>
         </View>
       )}
@@ -307,72 +326,72 @@ export function LiveAiTrainerOverlay({
       {/* Reframe hint */}
       {showReframeHint && (
         <View style={styles.reframeHint} pointerEvents="none">
-          <AppIcon name="scan-outline" size={16} color="#FBBF24" />
-          <Text style={styles.reframeText}>Move so {step.reps ? 'the whole dog' : 'your dog'} is in frame</Text>
+          <AppIcon name="scan-outline" size={16} color={dark.status.warning} />
+          <Text variant="captionStrong" color={dark.status.warning}>
+            Move so {step.reps ? 'the whole dog' : 'your dog'} is in frame
+          </Text>
         </View>
       )}
 
-      {/* Coach Message */}
+      {/* Coach message */}
       {lastResponse?.coachMessage && status !== 'fallback' && (
-        <View style={[styles.messageContainer, { bottom: insets.bottom + 120 }]} accessibilityLiveRegion="polite">
-          <BlurView intensity={80} tint="dark" style={styles.messageBlur}>
-            <AppIcon
-              name={status === 'speaking' ? 'volume-high' : 'chatbubble'}
-              size={14}
-              color={status === 'speaking' ? colors.brand.primary : 'rgba(255,255,255,0.5)'}
-            />
-            <Text style={styles.messageText}>{lastResponse.coachMessage}</Text>
-          </BlurView>
+        <View style={[styles.messagePanel, { bottom: insets.bottom + spacing.xxxl + spacing.xxxl + spacing.xl }]} accessibilityLiveRegion="polite">
+          <AppIcon
+            name={status === 'speaking' ? 'volume-high' : 'chatbubble-outline'}
+            size={16}
+            color={status === 'speaking' ? dark.accent : dark.text.secondary}
+          />
+          <Text variant="body" color={dark.text.primary} style={{ flex: 1 }}>
+            {lastResponse.coachMessage}
+          </Text>
         </View>
       )}
 
       {/* Error banner */}
       {error && status !== 'fallback' && (
-        <View style={[styles.errorBanner, { top: insets.top + 64 }]} accessibilityLiveRegion="assertive">
-          <AppIcon name="alert-circle" size={14} color="#FCA5A5" />
-          <Text style={styles.errorText}>{error.message}</Text>
+        <View style={[styles.errorBanner, { top: insets.top + spacing.xxxl + spacing.lg }]} accessibilityLiveRegion="assertive">
+          <AppIcon name="alert-circle" size={16} color={dark.status.danger} />
+          <Text variant="captionStrong" color={dark.status.danger} style={{ flex: 1 }}>
+            {error.message}
+          </Text>
         </View>
       )}
 
-      {/* Bottom Controls */}
+      {/* Bottom controls */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[styles.bottomControls, { bottom: insets.bottom + spacing.md }]}
+        style={[styles.bottomControls, { bottom: insets.bottom + spacing.lg }]}
       >
         {showInput ? (
           <View style={styles.inputRow}>
             <Input
               value={question}
               onChangeText={setQuestion}
-              placeholder="Ask the coach…"
+              placeholder="Ask the coach"
               style={{ flex: 1 }}
-              inputStyle={styles.input}
-              placeholderTextColor="rgba(255,255,255,0.5)"
               autoFocus
               returnKeyType="send"
               onSubmitEditing={submitQuestion}
               maxLength={200}
+              accessibilityLabel="Question for the coach"
             />
-            <Button label="Send" onPress={submitQuestion} size="sm" disabled={!question.trim()} />
-            <Pressable
+            <Button label="Send" size="md" onPress={submitQuestion} disabled={!question.trim()} />
+            <OverlayIconButton
+              icon="close"
+              label="Cancel question"
               onPress={() => {
                 setShowInput(false);
                 setQuestion('');
               }}
-              style={styles.iconButtonSmall}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel question"
-            >
-              <AppIcon name="close" size={18} color="#fff" />
-            </Pressable>
+            />
           </View>
         ) : (
           <View style={styles.buttonRow}>
-            <ActionButton icon="chatbubble" label="Ask Coach" onPress={() => setShowInput(true)} disabled={isBusy} />
-            <ActionButton icon="scan" label={isBusy ? 'Analyzing…' : 'Analyze'} onPress={onAnalyzeFrame} disabled={isBusy} busy={isBusy} />
+            <ActionButton icon="chatbubble-outline" label="Ask the coach" onPress={() => setShowInput(true)} disabled={isBusy} />
+            <ActionButton icon="scan-outline" label={isBusy ? 'Analyzing' : 'Analyze'} onPress={onAnalyzeFrame} disabled={isBusy} busy={isBusy} />
             <ActionButton
-              icon={isLastStep ? 'ribbon' : 'checkmark'}
-              label={isLastStep ? 'Finish' : 'Step done'}
+              icon="checkmark"
+              label={isLastStep ? 'Finish session' : 'Step done'}
               onPress={onStepDone}
               emphasized
             />
@@ -380,13 +399,17 @@ export function LiveAiTrainerOverlay({
         )}
       </KeyboardAvoidingView>
 
-      {/* Fallback sheet */}
+      {/* Fallback panel */}
       {status === 'fallback' && (
         <View style={styles.fallbackOverlay}>
-          <AppIcon name="eye-off-outline" size={40} color="#fff" />
-          <Text style={styles.fallbackTitle}>I'm having trouble seeing clearly</Text>
-          <Text style={styles.fallbackBody}>{fallbackCopy(fallbackReason)}</Text>
-          <Button label="Switch to Manual" onPress={onManualSwitch} style={{ marginTop: spacing.lg, alignSelf: 'stretch' }} />
+          <AppIcon name="eye-off-outline" size={40} color={dark.text.primary} />
+          <Text variant="h1" color={dark.text.primary}>
+            The coach can't see clearly
+          </Text>
+          <Text variant="body" color={dark.text.secondary}>
+            {fallbackCopy(fallbackReason)}
+          </Text>
+          <Button label="Train manually instead" onPress={onManualSwitch} style={{ marginTop: spacing.xl, alignSelf: 'stretch' }} />
           <Button label="Keep trying" variant="ghost" onPress={onKeepTrying} style={{ marginTop: spacing.sm, alignSelf: 'stretch' }} />
         </View>
       )}
@@ -395,6 +418,28 @@ export function LiveAiTrainerOverlay({
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
+
+function OverlayIconButton({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ComponentProps<typeof AppIcon>['name'];
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={4}
+    >
+      <AppIcon name={icon} size={22} color={dark.text.primary} />
+    </Pressable>
+  );
+}
 
 function ActionButton({
   icon,
@@ -411,12 +456,14 @@ function ActionButton({
   busy?: boolean;
   emphasized?: boolean;
 }) {
+  const color = emphasized ? dark.text.onAccent : dark.text.primary;
   return (
     <Pressable
       style={({ pressed }) => [
         styles.actionButton,
-        emphasized && styles.stepDoneButton,
-        (disabled || pressed) && { opacity: disabled ? 0.5 : 0.8 },
+        emphasized && styles.actionButtonEmphasized,
+        disabled && styles.disabled,
+        pressed && !disabled && styles.pressed,
       ]}
       onPress={onPress}
       disabled={disabled}
@@ -424,8 +471,10 @@ function ActionButton({
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled, busy: !!busy }}
     >
-      {busy ? <ActivityIndicator color="#fff" /> : <AppIcon name={icon} size={22} color="#fff" />}
-      <Text style={styles.actionButtonText}>{label}</Text>
+      {busy ? <ActivityIndicator color={color} /> : <AppIcon name={icon} size={22} color={color} />}
+      <Text variant="label" color={color}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -452,15 +501,17 @@ function GateScreen({
   onExit: () => void;
 }) {
   return (
-    <View style={[styles.container, styles.gate, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}>
-      <Pressable onPress={onExit} style={[styles.iconButton, { alignSelf: 'flex-start' }]} accessibilityRole="button" accessibilityLabel="Exit">
-        <AppIcon name="close" size={24} color="#fff" />
-      </Pressable>
+    <View style={[styles.container, styles.gate, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.lg }]}>
+      <OverlayIconButton icon="close" label="Leave session" onPress={onExit} />
       <View style={styles.gateBody}>
-        <AppIcon name={icon} size={48} color="#fff" />
-        <Text style={styles.fallbackTitle}>{title}</Text>
-        <Text style={styles.fallbackBody}>{body}</Text>
-        <Button label={primaryLabel} onPress={onPrimary} style={{ marginTop: spacing.lg, alignSelf: 'stretch' }} />
+        <AppIcon name={icon} size={40} color={dark.text.primary} />
+        <Text variant="h1" color={dark.text.primary}>
+          {title}
+        </Text>
+        <Text variant="body" color={dark.text.secondary}>
+          {body}
+        </Text>
+        <Button label={primaryLabel} onPress={onPrimary} style={{ marginTop: spacing.xl, alignSelf: 'stretch' }} />
         {secondaryLabel && onSecondary && (
           <Button label={secondaryLabel} variant="ghost" onPress={onSecondary} style={{ marginTop: spacing.sm, alignSelf: 'stretch' }} />
         )}
@@ -476,9 +527,9 @@ function fallbackCopy(reason: FallbackReason | null): string {
     case 'poor_framing':
       return 'Your dog keeps slipping out of frame. Try more light, or prop the phone so the whole dog is visible.';
     case 'low_confidence':
-      return "I can't read what's happening confidently. A steadier angle usually fixes this.";
+      return "The coach can't read what's happening confidently. A steadier angle usually fixes this.";
     case 'errors':
-      return 'The connection keeps dropping. You can keep going manually and I’ll still save your session.';
+      return 'The connection keeps dropping. You can keep going manually and the session is still saved.';
     case 'model_requested':
     default:
       return 'Manual mode keeps everything else the same: steps, reps, timer, and your session record.';
@@ -487,14 +538,19 @@ function fallbackCopy(reason: FallbackReason | null): string {
 
 function getStatusColor(status: LiveAiTrainerStatus) {
   switch (status) {
-    case 'idle': return colors.status.successBorder;
+    case 'idle':
+    case 'speaking':
+      return dark.accent;
     case 'sampling':
-    case 'thinking': return colors.status.warningBorder;
-    case 'speaking': return colors.brand.primary;
-    case 'listening': return colors.status.infoBorder;
-    case 'paused': return '#9CA3AF';
-    case 'fallback': return colors.status.dangerBorder;
-    default: return '#ccc';
+    case 'thinking':
+      return dark.status.warning;
+    case 'listening':
+      return dark.text.primary;
+    case 'fallback':
+      return dark.status.danger;
+    case 'paused':
+    default:
+      return dark.text.secondary;
   }
 }
 
@@ -511,137 +567,117 @@ function getStatusLabel(status: LiveAiTrainerStatus) {
   }
 }
 
-// ── Styles ───────────────────────────────────────────────────────────────────
+// ── Styles (dark palette only; see note at the top of the file) ──────────────
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: dark.bg.app },
   gate: { paddingHorizontal: spacing.lg },
-  gateBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingHorizontal: spacing.lg },
+  gateBody: { flex: 1, justifyContent: 'center', gap: spacing.lg },
+  pressed: { opacity: 0.6 },
+  disabled: { opacity: 0.4 },
 
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
   },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   iconButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: radii.full,
+    backgroundColor: dark.scrim,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconButtonSmall: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusPill: {
+  statusPanel: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 8,
+    backgroundColor: dark.scrim,
+    paddingHorizontal: spacing.md,
+    minHeight: 44,
+    borderRadius: radii.full,
+    gap: spacing.sm,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  statusDot: { width: 8, height: 8, borderRadius: radii.full },
   manualButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    minHeight: 32,
+    backgroundColor: dark.scrim,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    minHeight: 44,
+    minWidth: 44,
     justifyContent: 'center',
   },
-  manualButtonText: { color: '#fff', fontSize: 13, fontWeight: '600' },
 
-  stepCardContainer: { marginTop: spacing.md, marginHorizontal: spacing.lg, borderRadius: 20, overflow: 'hidden' },
-  stepCardBlur: { padding: spacing.lg, gap: spacing.sm },
-  stepCounterRow: { flexDirection: 'row', alignItems: 'center' },
-  stepBadge: { backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 99 },
-  stepBadgeText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
-  instructionText: { color: '#fff', fontSize: 16, fontWeight: '600', lineHeight: 23 },
-  successRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 2 },
-  successText: { color: GREEN, fontSize: 13, lineHeight: 19, flex: 1, fontWeight: '500' },
+  stepPanel: {
+    marginTop: spacing.lg,
+    marginHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    backgroundColor: dark.scrim,
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  successRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs, marginTop: spacing.xs },
 
-  trackingContainer: { marginTop: spacing.sm, marginHorizontal: spacing.lg, borderRadius: 16, overflow: 'visible' },
-  trackingBlur: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: 16, overflow: 'hidden' },
-  repRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  repCountBlock: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  repCount: { color: '#fff', fontSize: 32, fontWeight: '800', lineHeight: 38 },
-  repCountDone: { color: GREEN },
-  repTarget: { color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '500' },
-  repTapHint: {
+  trackingContainer: { marginTop: spacing.sm, marginHorizontal: spacing.lg },
+  trackingPanel: {
+    backgroundColor: dark.scrim,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  trackingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  valueBlock: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs },
+  hintChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    gap: spacing.xs,
+    backgroundColor: dark.bg.fill,
+    paddingHorizontal: spacing.md,
+    minHeight: 44,
+    borderRadius: radii.sm,
   },
-  repTapHintDone: { backgroundColor: 'rgba(74,222,128,0.2)' },
-  repTapText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  repTapTextDone: { color: GREEN },
-  timerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  timerText: { color: '#fff', fontSize: 32, fontWeight: '800', lineHeight: 38 },
-  timerTextDone: { color: GREEN },
-  timerControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  timerLabel: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  timerLabelDone: { color: GREEN },
-  autoRepBadge: {
+  hintChipDone: { backgroundColor: dark.accentSoft },
+  autoRepNotice: {
     position: 'absolute',
-    right: spacing.md,
-    top: -14,
+    right: spacing.lg,
+    top: -spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: GREEN,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 99,
+    gap: spacing.xs,
+    backgroundColor: dark.accent,
+    paddingHorizontal: spacing.sm,
+    height: 24,
+    borderRadius: radii.sm,
   },
-  autoRepText: { color: '#000', fontSize: 12, fontWeight: '700' },
 
   reframeHint: {
     marginTop: spacing.sm,
     marginHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    gap: spacing.sm,
+    backgroundColor: dark.scrim,
+    paddingHorizontal: spacing.md,
+    minHeight: 44,
+    borderRadius: radii.sm,
     alignSelf: 'flex-start',
   },
-  reframeText: { color: '#FBBF24', fontSize: 13, fontWeight: '600' },
 
-  messageContainer: { position: 'absolute', left: spacing.lg, right: spacing.lg },
-  messageBlur: {
-    padding: spacing.md,
-    borderRadius: 16,
-    overflow: 'hidden',
+  messagePanel: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    backgroundColor: dark.scrim,
+    padding: spacing.lg,
+    borderRadius: radii.md,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
   },
-  messageText: { color: '#fff', fontSize: 15, fontWeight: '500', lineHeight: 22, flex: 1 },
 
   errorBanner: {
     position: 'absolute',
@@ -649,51 +685,41 @@ const styles = StyleSheet.create({
     right: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(127,29,29,0.85)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    gap: spacing.sm,
+    backgroundColor: dark.scrim,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
   },
-  errorText: { color: '#FECACA', fontSize: 13, fontWeight: '600', flex: 1 },
 
   bottomControls: { position: 'absolute', left: 0, right: 0, paddingHorizontal: spacing.lg },
-  buttonRow: { flexDirection: 'row', justifyContent: 'space-around', gap: spacing.sm },
+  buttonRow: { flexDirection: 'row', gap: spacing.sm },
   actionButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    gap: spacing.xs,
+    backgroundColor: dark.scrim,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
-    borderRadius: 16,
+    borderRadius: radii.md,
     flex: 1,
     minHeight: 64,
   },
-  stepDoneButton: {
-    backgroundColor: 'rgba(34,197,94,0.35)',
-    borderWidth: 1,
-    borderColor: 'rgba(74,222,128,0.5)',
-  },
-  actionButtonText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  actionButtonEmphasized: { backgroundColor: dark.accent },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: dark.scrim,
     padding: spacing.sm,
-    borderRadius: 20,
+    borderRadius: radii.md,
   },
-  input: { flex: 1, color: '#fff', backgroundColor: 'transparent', borderWidth: 0 },
 
   fallbackOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    alignItems: 'center',
+    backgroundColor: dark.bg.app,
     justifyContent: 'center',
-    padding: spacing.xxl,
+    padding: spacing.xl,
     gap: spacing.sm,
   },
-  fallbackTitle: { color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center' },
-  fallbackBody: { color: 'rgba(255,255,255,0.75)', fontSize: 15, lineHeight: 22, textAlign: 'center' },
 });

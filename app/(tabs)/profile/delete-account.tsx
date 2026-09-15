@@ -1,69 +1,64 @@
 import { useState } from 'react';
-import { Alert, ScrollView, TouchableOpacity, View } from 'react-native';
-import { router } from 'expo-router';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 
-import { AppIcon } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { SafeScreen } from '@/components/ui/SafeScreen';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { hexToRgba } from '@/constants/courseColors';
-import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
-import { shadows } from '@/constants/shadows';
+import { haptics } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
-// ─── What gets deleted list ───────────────────────────────────────────────────
 const DELETION_LIST = [
-  'Your account and login credentials',
-  'Your dog profile, photos, and avatar',
-  'All training plans and session history',
-  'Walk logs and milestone achievements',
-  'AI Coach conversation history',
+  'Your account and login details',
+  'Your dog profile, photos and avatar',
+  'All plans and session history',
+  'Walk logs and milestones',
+  'Conversations with the coach',
   'Uploaded training videos',
-  'All notifications and preferences',
+  'Notifications and settings',
 ];
 
-const CONFIRM_PHRASE = 'delete my account';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
+const CONFIRM_PHRASE = 'delete';
 
 export default function DeleteAccountScreen() {
   const { user } = useAuthStore();
+  const headerHeight = useHeaderHeight();
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const confirmed = confirmText.trim().toLowerCase() === CONFIRM_PHRASE;
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!confirmed || isDeleting) return;
 
-    Alert.alert(
-      'Delete Account',
-      'This is permanent and cannot be undone. Are you absolutely sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Forever',
-          style: 'destructive',
-          onPress: performDeletion,
+    Alert.alert('Delete account?', 'This is permanent. Your data is removed within 30 days and cannot be recovered.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete account',
+        style: 'destructive',
+        onPress: () => {
+          haptics.error();
+          performDeletion();
         },
-      ],
-    );
+      },
+    ]);
   }
 
   async function performDeletion() {
     setIsDeleting(true);
+    setErrorMsg('');
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
 
       if (!token) {
-        throw new Error('No active session.');
+        throw new Error('no-session');
       }
 
       const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -76,179 +71,84 @@ export default function DeleteAccountScreen() {
       });
 
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body?.error ?? 'Deletion failed. Please try again.');
+        throw new Error('request-failed');
       }
 
-      // Sign out locally after successful server-side deletion
+      // Log out locally after the server-side deletion. The root layout's
+      // auth listener navigates to the auth stack.
       await supabase.auth.signOut();
-      // Router will navigate to auth via the root layout's auth listener
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.';
-      Alert.alert('Error', message);
+      const reason = err instanceof Error ? err.message : '';
+      setErrorMsg(
+        reason === 'no-session'
+          ? 'Your session has expired. Log in again, then try deleting your account.'
+          : "Couldn't delete the account. Check your connection and try again.",
+      );
     } finally {
       setIsDeleting(false);
     }
   }
 
   return (
-    <SafeScreen>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.sm,
-          gap: spacing.sm,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: colors.bg.surface,
-            borderWidth: 1.5,
-            borderColor: colors.border.soft,
-            alignItems: 'center',
-            justifyContent: 'center',
-            ...shadows.card,
-          }}
-        >
-          <AppIcon name="chevron-back" size={18} color={colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text.primary, letterSpacing: -0.3 }}>
-          Delete Account
-        </Text>
-      </View>
-
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={headerHeight}
+    >
       <ScrollView
-        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xxl * 2,
-          gap: spacing.lg,
-        }}
       >
-        {/* Warning banner */}
-        <View
-          style={{
-            backgroundColor: hexToRgba(colors.error, 0.08),
-            borderWidth: 1.5,
-            borderColor: hexToRgba(colors.error, 0.25),
-            borderRadius: radii.lg,
-            padding: spacing.md,
-            flexDirection: 'row',
-            gap: spacing.sm,
-            alignItems: 'flex-start',
-          }}
-        >
-          <AppIcon name="warning" size={20} color={colors.error} style={{ marginTop: 1 }} />
-          <View style={{ flex: 1, gap: spacing.xs }}>
-            <Text
-              style={{ fontSize: 14, fontWeight: '700', color: colors.error, letterSpacing: -0.1 }}
-            >
-              This action is permanent
-            </Text>
-            <Text style={{ fontSize: 13, lineHeight: 19, color: colors.error, opacity: 0.85 }}>
-              Deleting your account cannot be undone. All your data will be permanently removed
-              from our servers within 30 days.
-            </Text>
-          </View>
-        </View>
+        <Text variant="body">
+          Deleting your account is permanent. Everything below is removed within 30 days and cannot be recovered.
+        </Text>
 
-        {/* What will be deleted */}
-        <View style={{ gap: spacing.sm }}>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text.primary, letterSpacing: -0.2 }}>
-            What will be deleted
-          </Text>
-          <View
-            style={{
-              backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
-              borderWidth: 1.5,
-              borderColor: colors.border.soft,
-              padding: spacing.md,
-              gap: spacing.sm,
-              ...shadows.card,
-            }}
-          >
+        <View>
+          <SectionHeader title="What will be deleted" />
+          <ListGroup>
             {DELETION_LIST.map((item) => (
-              <View key={item} style={{ flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' }}>
-                <AppIcon name="close-circle" size={16} color={colors.error} style={{ marginTop: 2 }} />
-                <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: colors.text.secondary }}>
-                  {item}
-                </Text>
-              </View>
+              <ListRow key={item} icon="trash-outline" iconTone="secondary" title={item} />
             ))}
-          </View>
+          </ListGroup>
         </View>
 
-        {/* Account being deleted */}
-        {user?.email && (
-          <View
-            style={{
-              backgroundColor: colors.bg.surface,
-              borderRadius: radii.lg,
-              borderWidth: 1.5,
-              borderColor: colors.border.soft,
-              paddingVertical: spacing.sm + 2,
-              paddingHorizontal: spacing.md,
-              ...shadows.card,
-            }}
-          >
-            <Text variant="micro" color={colors.text.secondary}>
-              Account to be deleted
-            </Text>
-            <Text variant="bodyStrong" style={{ marginTop: 2 }}>
-              {user.email}
-            </Text>
+        {user?.email ? (
+          <View>
+            <SectionHeader title="Account" />
+            <ListGroup>
+              <ListRow icon="mail-outline" iconTone="secondary" title="Email" trailing={user.email} />
+            </ListGroup>
           </View>
-        )}
+        ) : null}
 
-        {/* Confirmation input */}
-        <View style={{ gap: spacing.xs }}>
-          <Input
-            label={`TYPE "${CONFIRM_PHRASE.toUpperCase()}" TO CONFIRM`}
-            placeholder={CONFIRM_PHRASE}
-            value={confirmText}
-            onChangeText={setConfirmText}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {confirmText.length > 0 && !confirmed && (
-            <Text variant="micro" color={colors.error} style={{ marginTop: 2 }}>
-              Text does not match. Type exactly: {CONFIRM_PHRASE}
-            </Text>
-          )}
-        </View>
+        <Input
+          label={`Type ${CONFIRM_PHRASE} to confirm`}
+          placeholder={CONFIRM_PHRASE}
+          value={confirmText}
+          onChangeText={setConfirmText}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="off"
+          textContentType="none"
+          returnKeyType="done"
+          onSubmitEditing={handleDelete}
+        />
 
-        {/* Delete button */}
+        {errorMsg ? (
+          <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+            {errorMsg}
+          </Text>
+        ) : null}
+
         <Button
-          label={isDeleting ? 'Deleting account...' : 'Delete My Account'}
-          variant="primary"
+          label="Delete account"
+          variant="destructive"
           loading={isDeleting}
           disabled={!confirmed || isDeleting}
           onPress={handleDelete}
-          style={{
-            backgroundColor: confirmed ? colors.error : hexToRgba(colors.error, 0.4),
-            borderColor: confirmed ? colors.error : 'transparent',
-          }}
-        />
-
-        <Button
-          label="Cancel"
-          variant="ghost"
-          onPress={() => router.back()}
-          disabled={isDeleting}
         />
       </ScrollView>
-    </SafeScreen>
+    </KeyboardAvoidingView>
   );
 }

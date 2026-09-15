@@ -1,16 +1,14 @@
 import { Stack } from 'expo-router';
 
+import { stackScreenOptions } from '@/lib/navigationTheme';
+import { useTheme } from '@/lib/theme';
+
 export default function ProgressLayout() {
+  const { colorScheme } = useTheme();
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen
-        name="milestones"
-        options={{
-          presentation: 'card',
-          animation: 'slide_from_right',
-        }}
-      />
+    <Stack screenOptions={stackScreenOptions(colorScheme)}>
+      <Stack.Screen name="index" options={{ title: 'Progress', headerShown: false }} />
+      <Stack.Screen name="milestones" options={{ title: 'Milestones' }} />
     </Stack>
   );
 }

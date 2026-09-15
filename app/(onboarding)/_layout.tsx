@@ -1,21 +1,18 @@
 import { Stack } from 'expo-router';
-import { colors } from '@/constants/colors';
 
+import { stackScreenOptions } from '@/lib/navigationTheme';
+import { useTheme } from '@/lib/theme';
+
+/**
+ * Onboarding draws its own progress header (a stepper is not a stack), so the
+ * native header is hidden, but the native transition and back-swipe stay on.
+ */
 export default function OnboardingLayout() {
+  const { colorScheme } = useTheme();
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        gestureEnabled: false,
-        contentStyle: { backgroundColor: colors.bg.app },
-        animation: 'none',
-      }}
-    >
+    <Stack screenOptions={{ ...stackScreenOptions(colorScheme), headerShown: false }}>
       <Stack.Screen name="dog-basics" />
       <Stack.Screen name="dog-photo" />
-      <Stack.Screen name="dog-problem" />
-      <Stack.Screen name="dog-environment" />
-      <Stack.Screen name="video-upload" />
       <Stack.Screen name="plan-preview" options={{ gestureEnabled: false }} />
     </Stack>
   );

@@ -1,53 +1,65 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 
+import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
 
 interface FormattedCoachMessageProps {
   message: string;
   textColor?: string;
 }
 
-type BlockType = 'header' | 'paragraph' | 'bullet-list' | 'numbered-list' | 'callout';
+type CalloutKind = 'tip' | 'caution' | 'check' | 'dog';
 
-interface Block {
-  type: BlockType;
-  content: string;
-  items?: string[];
-}
+type Block =
+  | { type: 'header'; content: string }
+  | { type: 'paragraph'; content: string }
+  | { type: 'bullet-list'; items: string[] }
+  | { type: 'numbered-list'; items: string[] }
+  | { type: 'callout'; kind: CalloutKind; content: string };
 
 /**
- * FormattedCoachMessage renders assistant messages with rich formatting.
- * Supported:
- * - **Header** (Single line wrapped in bold)
- * - Bullet lists (- or •)
- * - Numbered lists (1.)
- * - Callouts (starting with 💡, ⚠️, ✅, 🐶)
- * - Inline bold (**text**)
- * - Paragraphs (split by double newline)
+ * The model still marks callouts with a leading emoji. The marker is used to
+ * pick an icon and a title, then stripped: no emoji reaches the screen.
+ */
+const CALLOUT_MARKERS: { marker: string; kind: CalloutKind }[] = [
+  { marker: '\u{1F4A1}', kind: 'tip' }, // light bulb
+  { marker: '\u26A0\uFE0F', kind: 'caution' }, // warning sign
+  { marker: '\u26A0', kind: 'caution' },
+  { marker: '\u2705', kind: 'check' }, // check mark
+  { marker: '\u{1F436}', kind: 'dog' }, // dog face
+];
+
+const CALLOUT_META: Record<CalloutKind, { icon: AppIconName; title: string }> = {
+  tip: { icon: 'bulb-outline', title: 'Tip' },
+  caution: { icon: 'warning-outline', title: 'Watch out' },
+  check: { icon: 'checkmark-circle-outline', title: 'Good sign' },
+  dog: { icon: 'paw-outline', title: 'About your dog' },
+};
+
+/**
+ * Renders a coach message: a bold single line is a heading, "- " lines are
+ * bullets, "1. " lines are a numbered list, an emoji-led block is a callout,
+ * everything else is a paragraph. Inline **bold** is supported.
  */
 export function FormattedCoachMessage({ message, textColor }: FormattedCoachMessageProps) {
   if (!message) return null;
 
   const blocks = parseMessage(message);
-  const styles = createStyles();
 
   return (
-    <View style={styles.container}>
+    <View style={{ width: '100%', gap: spacing.sm }}>
       {blocks.map((block, index) => (
-        <View key={index} style={styles.blockContainer}>
-          {renderBlock(block, styles, textColor)}
-        </View>
+        <MessageBlock key={index} block={block} textColor={textColor} />
       ))}
     </View>
   );
 }
 
 function parseMessage(text: string): Block[] {
-  // Split into blocks by one or more empty lines
   const rawBlocks = text.split(/\n\s*\n/);
   const blocks: Block[] = [];
 
@@ -55,100 +67,85 @@ function parseMessage(text: string): Block[] {
     const trimmedBlock = rawBlock.trim();
     if (!trimmedBlock) continue;
 
-    // 1. Header: **Text** on a single line
-    if (
-      trimmedBlock.startsWith('**') &&
-      trimmedBlock.endsWith('**') &&
-      !trimmedBlock.includes('\n')
-    ) {
-      blocks.push({
-        type: 'header',
-        content: trimmedBlock.slice(2, -2),
-      });
+    if (trimmedBlock.startsWith('**') && trimmedBlock.endsWith('**') && !trimmedBlock.includes('\n')) {
+      blocks.push({ type: 'header', content: trimmedBlock.slice(2, -2) });
       continue;
     }
 
-    // 2. Callout: starts with specific emojis
-    const calloutEmojis = ['💡', '⚠️', '✅', '🐶'];
-    if (calloutEmojis.some((emoji) => trimmedBlock.startsWith(emoji))) {
+    const callout = CALLOUT_MARKERS.find(({ marker }) => trimmedBlock.startsWith(marker));
+    if (callout) {
       blocks.push({
         type: 'callout',
-        content: trimmedBlock,
+        kind: callout.kind,
+        content: trimmedBlock.slice(callout.marker.length).trim(),
       });
       continue;
     }
 
-    // 3. Lists
     const lines = trimmedBlock.split('\n');
 
-    // Bullet list: all lines start with - or •
-    if (lines.every((line) => {
-      const t = line.trim();
-      return t.startsWith('- ') || t.startsWith('• ');
-    })) {
+    if (lines.every((line) => /^[-\u2022]\s/.test(line.trim()))) {
       blocks.push({
         type: 'bullet-list',
-        content: trimmedBlock,
-        items: lines.map((line) => line.trim().replace(/^[-•]\s*/, '')),
+        items: lines.map((line) => line.trim().replace(/^[-\u2022]\s*/, '')),
       });
       continue;
     }
 
-    // Numbered list: all lines start with "1. ", "2. ", etc.
     if (lines.every((line) => /^\d+\.\s/.test(line.trim()))) {
       blocks.push({
         type: 'numbered-list',
-        content: trimmedBlock,
         items: lines.map((line) => line.trim().replace(/^\d+\.\s*/, '')),
       });
       continue;
     }
 
-    // 4. Default: Paragraph
-    blocks.push({
-      type: 'paragraph',
-      content: trimmedBlock,
-    });
+    blocks.push({ type: 'paragraph', content: trimmedBlock });
   }
 
   return blocks;
 }
 
-function renderBlock(
-  block: Block,
-  styles: ReturnType<typeof createStyles>,
-  textColor?: string,
-) {
-  const commonTextStyle = textColor ? { color: textColor } : {};
-
+function MessageBlock({ block, textColor }: { block: Block; textColor?: string }) {
   switch (block.type) {
     case 'header':
-      return <Text style={[styles.header, commonTextStyle]}>{block.content}</Text>;
+      return (
+        <Text variant="bodyStrong" color={textColor}>
+          {block.content}
+        </Text>
+      );
 
     case 'callout': {
-      // Determine callout border color based on emoji
-      let borderColor = colors.brand.primary;
-      if (block.content.startsWith('⚠️')) borderColor = colors.status.warningBorder;
-      if (block.content.startsWith('✅')) borderColor = colors.status.successBorder;
-      if (block.content.startsWith('💡')) borderColor = colors.brand.secondary;
-
+      const meta = CALLOUT_META[block.kind];
       return (
-        <View style={[styles.calloutContainer, { borderLeftColor: borderColor }]}>
-          <Text style={[styles.calloutText, commonTextStyle]}>
-            {renderInlineBold(block.content, styles, textColor)}
+        <Card style={{ backgroundColor: colors.bg.fill, gap: spacing.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <AppIcon name={meta.icon} size={20} color={colors.accent} />
+            <Text variant="captionStrong">{meta.title}</Text>
+          </View>
+          <Text variant="body" color={textColor}>
+            <InlineBold text={block.content} textColor={textColor} />
           </Text>
-        </View>
+        </Card>
       );
     }
 
     case 'bullet-list':
       return (
-        <View style={styles.listContainer}>
-          {block.items?.map((item, i) => (
-            <View key={i} style={styles.listItem}>
-              <Text style={[styles.listBullet, commonTextStyle]}>•</Text>
-              <Text style={[styles.listText, commonTextStyle]}>
-                {renderInlineBold(item, styles, textColor)}
+        <View style={{ gap: spacing.xs }}>
+          {block.items.map((item, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+              <View
+                style={{
+                  width: spacing.xs,
+                  height: spacing.xs,
+                  borderRadius: radii.full,
+                  backgroundColor: colors.accent,
+                  marginTop: spacing.sm,
+                }}
+              />
+              <Text variant="body" color={textColor} style={{ flex: 1 }}>
+                <InlineBold text={item} textColor={textColor} />
               </Text>
             </View>
           ))}
@@ -157,12 +154,14 @@ function renderBlock(
 
     case 'numbered-list':
       return (
-        <View style={styles.listContainer}>
-          {block.items?.map((item, i) => (
-            <View key={i} style={styles.listItem}>
-              <Text style={[styles.listBullet, commonTextStyle]}>{i + 1}.</Text>
-              <Text style={[styles.listText, commonTextStyle]}>
-                {renderInlineBold(item, styles, textColor)}
+        <View style={{ gap: spacing.xs }}>
+          {block.items.map((item, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+              <Text variant="bodyStrong" color={textColor} style={{ minWidth: spacing.xl }}>
+                {i + 1}.
+              </Text>
+              <Text variant="body" color={textColor} style={{ flex: 1 }}>
+                <InlineBold text={item} textColor={textColor} />
               </Text>
             </View>
           ))}
@@ -170,98 +169,30 @@ function renderBlock(
       );
 
     case 'paragraph':
+    default:
       return (
-        <Text style={[styles.paragraph, commonTextStyle]}>
-          {renderInlineBold(block.content, styles, textColor)}
+        <Text variant="body" color={textColor}>
+          <InlineBold text={block.content} textColor={textColor} />
         </Text>
       );
-
-    default:
-      return <Text style={[styles.paragraph, commonTextStyle]}>{block.content}</Text>;
   }
 }
 
-/**
- * Splits text by **bold** markers and returns an array of Text components/strings.
- */
-function renderInlineBold(
-  text: string,
-  styles: ReturnType<typeof createStyles>,
-  textColor?: string,
-) {
-  // Regex that captures the **...** including the markers
+/** Splits on **bold** markers; bold runs render as nested bodyStrong text. */
+function InlineBold({ text, textColor }: { text: string; textColor?: string }) {
   const parts = text.split(/(\*\*.*?\*\*)/g);
-
-  return parts.map((part, index) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      const content = part.slice(2, -2);
-      return (
-        <Text key={index} style={[styles.boldText, textColor ? { color: textColor } : {}]}>
-          {content}
-        </Text>
-      );
-    }
-    return part;
-  });
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    container: {
-      width: '100%',
-    },
-    blockContainer: {
-      marginBottom: spacing.xs,
-    },
-    header: {
-      ...typography.h3,
-      color: colors.text.primary,
-      marginTop: spacing.sm,
-      marginBottom: spacing.xs,
-    },
-    paragraph: {
-      fontSize: 15,
-      lineHeight: 22,
-      color: colors.text.primary,
-    },
-    boldText: {
-      fontWeight: '700',
-      color: colors.text.primary,
-    },
-    calloutContainer: {
-      backgroundColor: colors.bg.surfaceAlt,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: 12,
-      borderLeftWidth: 4,
-      marginVertical: spacing.xs,
-    },
-    calloutText: {
-      fontSize: 14,
-      lineHeight: 20,
-      color: colors.text.primary,
-    },
-    listContainer: {
-      paddingLeft: spacing.xs,
-      marginVertical: 2,
-    },
-    listItem: {
-      flexDirection: 'row',
-      marginBottom: 6,
-      alignItems: 'flex-start',
-    },
-    listBullet: {
-      width: 22,
-      fontSize: 15,
-      lineHeight: 22,
-      color: colors.text.primary,
-      fontWeight: '600',
-    },
-    listText: {
-      flex: 1,
-      fontSize: 15,
-      lineHeight: 22,
-      color: colors.text.primary,
-    },
-  });
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return (
+            <Text key={index} variant="bodyStrong" color={textColor}>
+              {part.slice(2, -2)}
+            </Text>
+          );
+        }
+        return part;
+      })}
+    </>
+  );
 }

@@ -1,145 +1,68 @@
 import { useEffect, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  ScrollView,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { AppIcon } from '@/components/ui/AppIcon';
-import { BottomSheet } from '@/components/ui/BottomSheet';
-import { Button } from '@/components/ui/Button';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { SafeScreen } from '@/components/ui/SafeScreen';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { Text } from '@/components/ui/Text';
-import { SessionChangeBadge } from '@/components/adaptive/SessionChangeBadge';
 import { WhyThisChangedSheet } from '@/components/adaptive/WhyThisChangedSheet';
+import { buildStageGroups, resolveProtocol, StagePath } from '@/components/train/CoursePath';
+import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { Tag } from '@/components/ui/PillTag';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
+import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { getCoursePillColors, getCourseUiColors, hexToRgba } from '@/constants/courseColors';
+import type { ProtocolStep } from '@/constants/protocols';
 import { radii } from '@/constants/radii';
-import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
+import { MAX_ACTIVE_COURSES } from '@/lib/addCourse';
+import { formatDisplayTime, formatScheduleLabel, getBehaviorLabel, getPlanCompletion } from '@/lib/scheduleEngine';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
-import { formatScheduleLabel, getPlanCompletion, getBehaviorLabel } from '@/lib/scheduleEngine';
-import type { Plan, PlanAdaptation, PlanSession } from '@/types';
+import type { PlanAdaptation, PlanSession } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Plan Summary Hero Card
+// Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PlanHeroCard({
-  courseTitle,
-  completionPct,
-  durationWeeks,
-  stageNumber,
-  completedCount,
-  totalCount,
-  planColor,
-  adaptedCount,
-}: {
-  courseTitle: string;
-  completionPct: number;
-  durationWeeks: number;
-  stageNumber: number;
-  completedCount: number;
-  totalCount: number;
-  planColor: string;
-  adaptedCount: number;
-}) {
-  return (
-    <LinearGradient
-      colors={[planColor, hexToRgba(planColor, 0.78)]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{
-        borderRadius: radii.lg,
-        overflow: 'hidden',
-        marginBottom: spacing.md,
-        ...shadows.card,
-      }}
-    >
-      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
-        {/* Title */}
-        <Text
-          style={{
-            color: '#fff',
-            fontSize: 26,
-            fontWeight: '800',
-            lineHeight: 32,
-            letterSpacing: -0.5,
-          }}
-          numberOfLines={2}
-        >
-          {courseTitle}
-        </Text>
+type SessionKind = NonNullable<PlanSession['sessionKind']>;
 
-        <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: '500' }}>
-          Stage {stageNumber} · {durationWeeks} weeks · {completedCount}/{totalCount} done
-        </Text>
+const KIND_LABELS: Record<SessionKind, string> = {
+  core: 'Core',
+  repeat: 'Repeat',
+  regress: 'Easier',
+  advance: 'Advance',
+  detour: 'Reset focus',
+  proofing: 'Proofing',
+};
 
-        {/* Progress bar + % */}
-        <View style={{ marginTop: spacing.xs, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <View style={{ flex: 1 }}>
-            <ProgressBar
-              progress={completionPct / 100}
-              height={10}
-              color="rgba(255,255,255,0.95)"
-              trackColor="rgba(255,255,255,0.28)"
-            />
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-            <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 }}>
-              {completionPct}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '700' }}>
-              %
-            </Text>
-          </View>
-        </View>
+function parseLocalDate(key: string): Date | null {
+  const [y, m, d] = key.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
 
-      </View>
-
-      {/* Adaptation strip inside card */}
-      {adaptedCount > 0 && (
-        <View
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.12)',
-            borderTopWidth: 1,
-            borderTopColor: 'rgba(255,255,255,0.15)',
-            paddingHorizontal: spacing.lg,
-            paddingVertical: 10,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <AppIcon name="sparkles" size={13} color="rgba(255,255,255,0.85)" />
-          <Text
-            style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '500' }}
-            numberOfLines={1}
-          >
-            <Text style={{ fontWeight: '700', color: '#fff' }}>{adaptedCount}</Text>
-            {' '}session{adaptedCount !== 1 ? 's' : ''} adjusted by Pawly
-          </Text>
-        </View>
-      )}
-    </LinearGradient>
-  );
+/** "Monday at 9:00 AM, 15 min" */
+function sessionSubtitle(session: PlanSession): string {
+  const date = session.scheduledDate ? parseLocalDate(session.scheduledDate) : null;
+  const day = date
+    ? date.toLocaleDateString('en-US', { weekday: 'long' })
+    : session.scheduledDay ?? null;
+  const time = session.scheduledTime ? ` at ${formatDisplayTime(session.scheduledTime)}` : '';
+  const when = day ? `${day}${time}` : formatScheduleLabel(session);
+  return `${when}, ${session.durationMinutes} min`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Course Switcher — pill tabs for switching between active plans
+// Course switcher — a row of 44pt chips
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CourseSwitcherProps {
-  plans: Array<{ id: string; label: string; isPrimary: boolean; goal: string; createdAt?: string }>;
+  plans: Array<{ id: string; label: string }>;
   selectedId: string;
   onSelect: (id: string) => void;
 }
@@ -151,57 +74,30 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{
-        paddingHorizontal: spacing.md,
-        paddingBottom: spacing.sm+10,
-        gap: spacing.xs,
-      }}
+      style={{ marginHorizontal: -spacing.lg }}
+      contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
     >
       {plans.map((plan) => {
         const isSelected = plan.id === selectedId;
-        const theme = getCourseUiColors({
-          id: plan.id,
-          goal: plan.goal,
-          courseTitle: plan.label,
-          createdAt: plan.createdAt,
-        });
-        const pillColors = getCoursePillColors(
-          {
-            id: plan.id,
-            goal: plan.goal,
-            courseTitle: plan.label,
-            createdAt: plan.createdAt,
-          },
-          isSelected
-        );
         return (
-          <TouchableOpacity
+          <Pressable
             key={plan.id}
-            activeOpacity={0.75}
             onPress={() => onSelect(plan.id)}
-            style={{
-              paddingHorizontal: spacing.md,
-              borderRadius: radii.pill,
-              backgroundColor: pillColors.backgroundColor,
-              borderWidth: 1,
-              borderColor: pillColors.borderColor,
-              alignItems: 'center',
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isSelected }}
+            style={({ pressed }) => ({
+              minHeight: 44,
+              paddingHorizontal: spacing.lg,
+              borderRadius: radii.sm,
+              backgroundColor: isSelected ? colors.accentSoft : colors.bg.fill,
               justifyContent: 'center',
-              flexDirection: 'row',
-              gap: 6,
-              minHeight: 36,
-            }}
+              opacity: pressed ? 0.6 : 1,
+            })}
           >
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: '600',
-                color: pillColors.textColor,
-              }}
-            >
+            <Text variant="bodyStrong" color={isSelected ? colors.accent : colors.text.primary}>
               {plan.label}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </ScrollView>
@@ -209,30 +105,54 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Session Detail Sheet
+// Session detail sheet
 // ─────────────────────────────────────────────────────────────────────────────
+
+function stepMeta(step: ProtocolStep): string | null {
+  if (step.reps) return `${step.reps} reps`;
+  if (step.durationSeconds) {
+    const m = Math.round(step.durationSeconds / 60);
+    return m >= 1 ? `${m} min` : `${step.durationSeconds} sec`;
+  }
+  return null;
+}
+
+function Fact({ icon, children }: { icon: AppIconName; children: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+      <View style={{ paddingTop: 2 }}>
+        <AppIcon name={icon} size={16} color={colors.text.secondary} />
+      </View>
+      <Text variant="caption" style={{ flex: 1 }}>
+        {children}
+      </Text>
+    </View>
+  );
+}
 
 function SessionDetailSheet({
   session,
   visible,
   onClose,
   onStart,
+  canStart,
   dogName,
   recentAdaptations,
-  accentColor,
 }: {
   session: PlanSession | null;
   visible: boolean;
   onClose: () => void;
   onStart: () => void;
+  /** Only the course's next session can be started; locked ones explain why. */
+  canStart: boolean;
   dogName: string;
   recentAdaptations: PlanAdaptation[];
-  accentColor: string;
 }) {
   const [showWhySheet, setShowWhySheet] = useState(false);
-  const insets = useSafeAreaInsets();
 
   if (!session) return null;
+
+  const protocol = resolveProtocol(session);
 
   // Find the adaptation that changed this session (if any)
   const relatedAdaptation = session.adaptationSource === 'adaptation_engine'
@@ -242,328 +162,161 @@ function SessionDetailSheet({
     : null;
 
   const isAdapted = session.adaptationSource === 'adaptation_engine';
-  const kind = session.sessionKind ?? 'core';
+  const kind: SessionKind = session.sessionKind ?? 'core';
 
-  function skillPathLabel(): string {
+  function skillPathLabel(): string | null {
     switch (kind) {
       case 'regress':  return 'Stepped back from the previous skill to rebuild confidence.';
-      case 'advance':  return 'Moving to a harder version — recent sessions have been strong.';
+      case 'advance':  return 'Moving to a harder version. Recent sessions have been strong.';
       case 'detour':   return 'Taking a different angle on the same skill to reduce frustration.';
       case 'repeat':   return 'Repeating this skill to deepen the habit before moving on.';
       case 'proofing': return 'Testing this skill in a more challenging setting.';
-      default:         return 'Following the core progression for this training goal.';
+      default:         return null;
     }
   }
+  const whyLine = skillPathLabel();
+  const environmentLabel = session.environment ? String(session.environment).replace(/_/g, ' ') : null;
 
   return (
     <>
-      <BottomSheet visible={visible} onClose={onClose} padded={false}>
-              <ScrollView
-                style={{ flexGrow: 0, paddingHorizontal: spacing.lg }}
-                contentContainerStyle={{ paddingBottom: spacing.xl}}
-                showsVerticalScrollIndicator={false}
-              >
-                {/* Title + badge row */}
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.md }}>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    {isAdapted && <SessionChangeBadge kind={kind} />}
-                    <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text.primary, lineHeight: 32, letterSpacing: -0.3 }}>
-                      {session.title}
-                    </Text>
-                    <Text style={{ fontSize: 15, color: colors.text.secondary }}>
-                      {formatScheduleLabel(session)} · {session.durationMinutes} min
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Skill path context */}
-                <View
-                  style={{
-                    backgroundColor: colors.bg.surfaceAlt,
-                    borderRadius: radii.md,
-                    padding: spacing.md,
-                    marginBottom: spacing.md,
-                  }}
-                >
-                  <Text style={{ fontSize: 15, lineHeight: 22, color: colors.text.primary }}>
-                    {skillPathLabel()}
-                  </Text>
-                  {session.reasoningLabel ? (
-                    <Text style={{ fontSize: 14, color: colors.text.secondary, lineHeight: 20, marginTop: 6 }}>
-                      {session.reasoningLabel}
-                    </Text>
-                  ) : null}
-                </View>
-
-                {/* Adaptation explanation (if adapted) */}
-                {isAdapted && relatedAdaptation && (
-                  <View
-                    style={{
-                      backgroundColor: colors.status.infoBg,
-                      borderRadius: radii.md,
-                      padding: spacing.md,
-                      marginBottom: spacing.md,
-                      borderWidth: 1,
-                      borderColor: colors.status.infoBorder,
-                      gap: spacing.sm,
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                      <AppIcon name="sparkles" size={15} color={colors.brand.coach} />
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand.coach }}>
-                        Why this changed
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 15, lineHeight: 22, color: colors.text.primary }}>
-                      {relatedAdaptation.reasonSummary || 'Adjusted based on recent training patterns.'}
-                    </Text>
-                    <Pressable
-                      onPress={() => setShowWhySheet(true)}
-                      style={({ pressed }) => ({
-                        alignSelf: 'flex-start',
-                        paddingHorizontal: spacing.md,
-                        paddingVertical: 8,
-                        borderRadius: radii.pill,
-                        backgroundColor: pressed ? `${colors.brand.coach}22` : `${colors.brand.coach}14`,
-                      })}
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: colors.brand.coach }}>
-                        Full explanation →
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-
-                {/* Adapted but no matching adaptation record — generic note */}
-                {isAdapted && !relatedAdaptation && (
-                  <View
-                    style={{
-                      backgroundColor: colors.status.infoBg,
-                      borderRadius: radii.md,
-                      padding: spacing.md,
-                      marginBottom: spacing.md,
-                      borderWidth: 1,
-                      borderColor: colors.status.infoBorder,
-                    }}
-                  >
-                    <Text style={{ fontSize: 14, color: colors.text.secondary, lineHeight: 20 }}>
-                      This session was adjusted by Pawly based on recent training results.
-                    </Text>
-                  </View>
-                )}
-
-              </ScrollView>
-
-              {/* Fixed footer button */}
-              <View
-                style={{
-                  paddingHorizontal: spacing.lg,
-                  paddingTop: spacing.md,
-                  paddingBottom: insets.bottom > 0 ? insets.bottom + 4 : spacing.lg,
-                  borderTopWidth: 1,
-                  borderTopColor: colors.border.soft,
-                  backgroundColor: colors.bg.surface,
-                }}
-              >
-                <Button
-                  label={session.isCompleted ? 'Session completed' : 'Start this session'}
-                  onPress={onStart}
-                  style={{
-                    backgroundColor: accentColor,
-                    borderColor: accentColor,
-                  }}
-                />
+      <BottomSheet visible={visible} onClose={onClose} title={session.title} padded={false}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingVertical: spacing.lg, gap: spacing.xl }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={{ gap: spacing.md }}>
+            {session.isCompleted || session.isMissed || isAdapted ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                {session.isCompleted ? <Tag label="Completed" tone="accent" /> : null}
+                {session.isMissed && !session.isCompleted ? <Tag label="Missed" tone="warning" /> : null}
+                {isAdapted ? <Tag label={KIND_LABELS[kind]} tone="neutral" /> : null}
               </View>
+            ) : null}
+            <View style={{ gap: spacing.xs }}>
+              <Fact icon="calendar-outline">{sessionSubtitle(session).replace(/, \d+ min$/, '')}</Fact>
+              <Fact icon="time-outline">{`${session.durationMinutes} min`}</Fact>
+              {environmentLabel ? <Fact icon="location-outline">{environmentLabel}</Fact> : null}
+            </View>
+            {protocol?.objective ? <Text variant="body">{protocol.objective}</Text> : null}
+          </View>
+
+          {protocol?.steps.length ? (
+            <View>
+              <SectionHeader title={`What you'll do`} />
+              <ListGroup>
+                {protocol.steps.map((step, index) => (
+                  <View
+                    key={step.order}
+                    style={{ flexDirection: 'row', gap: spacing.md, paddingLeft: spacing.lg, paddingRight: spacing.xl, paddingVertical: spacing.lg }}
+                  >
+                    <Text variant="captionStrong" color={colors.accent} style={{ width: spacing.xl }}>
+                      {index + 1}
+                    </Text>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text variant="body">{step.instruction}</Text>
+                      {stepMeta(step) ? <Text variant="caption">{stepMeta(step)}</Text> : null}
+                    </View>
+                  </View>
+                ))}
+              </ListGroup>
+            </View>
+          ) : null}
+
+          {protocol && (protocol.setup?.length || protocol.equipmentNeeded.length) ? (
+            <View>
+              <SectionHeader title="You'll need" />
+              <ListGroup>
+                {[...(protocol.setup ?? []), ...protocol.equipmentNeeded].map((item) => (
+                  <ListRow key={item} icon="checkmark-circle-outline" iconTone="secondary" title={item} />
+                ))}
+              </ListGroup>
+            </View>
+          ) : null}
+
+          {whyLine || session.reasoningLabel || isAdapted ? (
+            <View>
+              <SectionHeader title="Why this session" />
+              <Card style={{ gap: spacing.sm }}>
+                {whyLine ? <Text variant="body">{whyLine}</Text> : null}
+                {session.reasoningLabel ? <Text variant="caption">{session.reasoningLabel}</Text> : null}
+                {isAdapted ? (
+                  <Text variant="body">
+                    {relatedAdaptation?.reasonSummary || 'The coach adjusted this session after recent results.'}
+                  </Text>
+                ) : null}
+                {relatedAdaptation ? (
+                  <View style={{ alignItems: 'flex-start' }}>
+                    <Button label="Full explanation" variant="ghost" size="md" onPress={() => setShowWhySheet(true)} style={{ paddingHorizontal: 0 }} />
+                  </View>
+                ) : null}
+              </Card>
+            </View>
+          ) : null}
+
+          {protocol?.guide ? (
+            <Card style={{ gap: spacing.xs }}>
+              <Text variant="captionStrong">Between sessions</Text>
+              <Text variant="body">{protocol.guide}</Text>
+            </Card>
+          ) : null}
+
+          {protocol?.trainerNote ? (
+            <Card style={{ gap: spacing.xs }}>
+              <Text variant="captionStrong">From the coach</Text>
+              <Text variant="body">{protocol.trainerNote}</Text>
+            </Card>
+          ) : null}
+        </ScrollView>
+
+        {!session.isCompleted ? (
+          <View style={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
+            {canStart ? (
+              <Button label="Start session" onPress={onStart} />
+            ) : (
+              <Text variant="caption">Unlocks after the sessions before it</Text>
+            )}
+          </View>
+        ) : null}
       </BottomSheet>
 
-      {/* Full why-this-changed sheet */}
-      {relatedAdaptation && (
+      {relatedAdaptation ? (
         <WhyThisChangedSheet
           visible={showWhySheet}
           onClose={() => setShowWhySheet(false)}
           dogName={dogName}
           adaptation={relatedAdaptation}
         />
-      )}
+      ) : null}
     </>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Session Row
+// Loading skeleton — mirrors progress bar + three stage cards
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SessionRow({
-  session,
-  isToday,
-  isFuture,
-  onPress,
-  planColor,
-}: {
-  session: PlanSession;
-  isToday: boolean;
-  isFuture: boolean;
-  onPress: () => void;
-  planColor: string;
-}) {
-  const iconBg = session.isCompleted ? hexToRgba(planColor, 0.12) : colors.bg.surfaceAlt;
-  const iconColor = session.isCompleted ? planColor : colors.text.secondary;
-  const titleColor = isFuture ? colors.text.secondary : colors.text.primary;
-  const barColor = session.isCompleted ? planColor : isFuture ? colors.border.strong : planColor;
-
+function LoadingSkeleton() {
   return (
-    <TouchableOpacity
-      activeOpacity={isFuture ? 0.6 : 0.8}
-      onPress={onPress}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        borderWidth: 1.5,
-        borderColor: isToday ? hexToRgba(planColor, 0.35) : colors.border.default,
-        overflow: 'hidden',
-        opacity: isFuture ? 0.7 : 1,
-        ...shadows.card,
-      }}
-    >
-      {/* Colored left bar */}
-      <View style={{ width: 4, alignSelf: 'stretch', backgroundColor: barColor }} />
-
-      {/* Status icon */}
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: iconBg,
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginLeft: spacing.md,
-          marginVertical: spacing.md,
-        }}
-      >
-        {session.isCompleted ? (
-          <AppIcon name="checkmark" size={18} color={iconColor} />
-        ) : isToday ? (
-          <AppIcon name="play" size={15} color={planColor} />
-        ) : (
-          <AppIcon name="calendar-outline" size={17} color={iconColor} />
-        )}
+    <View style={{ gap: spacing.xl }}>
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={spacing.sm} borderRadius={radii.full} />
+        <SkeletonBlock height={spacing.lg} width={140} />
       </View>
-
-      {/* Session info */}
-      <View style={{ flex: 1, paddingVertical: spacing.md, paddingLeft: spacing.sm, paddingRight: spacing.md, gap: 5 }}>
-        <Text
-          style={{ fontSize: 18, fontWeight: '700', color: titleColor, lineHeight: 24 }}
-          numberOfLines={2}
-        >
-          {session.title}
-        </Text>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <AppIcon name="time" size={14} color={colors.text.secondary} />
-          <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text.secondary }} numberOfLines={1}>
-            {formatScheduleLabel(session)} · {session.durationMinutes} min
-          </Text>
+      {[0, 1, 2].map((stage) => (
+        <View key={stage} style={{ gap: spacing.sm }}>
+          <SkeletonBlock height={spacing.xl} width={96} />
+          <SkeletonBlock height={spacing.lg} width={200} />
+          <SkeletonBlock height={spacing.xxxl + spacing.xxl + spacing.xxl} borderRadius={radii.md} />
         </View>
-
-      </View>
-
-      {/* Chevron */}
-      {!isFuture && (
-        <View style={{ paddingRight: spacing.md }}>
-          <AppIcon name="chevron-forward" size={16} color={colors.text.secondary} />
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Week Section Header
-// ─────────────────────────────────────────────────────────────────────────────
-
-function WeekHeader({
-  weekNumber,
-  isCurrentWeek,
-  color,
-}: {
-  weekNumber: number;
-  isCurrentWeek: boolean;
-  color: string;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        paddingBottom: spacing.sm,
-        paddingTop: weekNumber > 1 ? spacing.lg : spacing.xs,
-      }}
-    >
-      <Text
-        style={{
-          fontSize: 13,
-          fontWeight: '800',
-          color: isCurrentWeek ? color : colors.text.secondary,
-          textTransform: 'uppercase',
-          letterSpacing: 1.2,
-        }}
-      >
-        Week {weekNumber}
-      </Text>
-      {isCurrentWeek && (
-        <View
-          style={{
-            backgroundColor: hexToRgba(color, 0.14),
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-            borderRadius: radii.pill,
-            borderWidth: 1,
-            borderColor: hexToRgba(color, 0.25),
-          }}
-        >
-          <Text style={{ color, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>Current</Text>
-        </View>
-      )}
-      <View style={{ flex: 1, height: 1, backgroundColor: colors.border.soft }} />
+      ))}
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Plan Screen
+// Plan screen
 // ─────────────────────────────────────────────────────────────────────────────
-
-type ListItem =
-  | { type: 'header'; weekNumber: number; isCurrentWeek: boolean }
-  | { type: 'session'; session: PlanSession; isToday: boolean; isFuture: boolean };
-
-function buildListData(plan: Plan, todaySessionId: string | null): ListItem[] {
-  const items: ListItem[] = [];
-  let currentWeek = 0;
-
-  for (const session of plan.sessions) {
-    if (session.weekNumber !== currentWeek) {
-      currentWeek = session.weekNumber;
-      items.push({
-        type: 'header',
-        weekNumber: currentWeek,
-        isCurrentWeek: currentWeek === plan.currentWeek,
-      });
-    }
-
-    const isToday = session.id === todaySessionId;
-    const firstIncompleteIdx = plan.sessions.findIndex((s) => !s.isCompleted);
-    const sessionIdx = plan.sessions.indexOf(session);
-    const isFuture = !session.isCompleted && !isToday && sessionIdx > firstIncompleteIdx;
-
-    items.push({ type: 'session', session, isToday, isFuture });
-  }
-  return items;
-}
 
 export default function PlanScreen() {
   const { dog } = useDogStore();
@@ -572,7 +325,6 @@ export default function PlanScreen() {
     plansById,
     activePlanIds,
     selectedPlanId,
-    recommendedTodaySession,
     recentAdaptations,
     isLoading,
     fetchActivePlans,
@@ -588,7 +340,7 @@ export default function PlanScreen() {
     }
   }, [dog?.id, activePlanIds.length, fetchActivePlans]);
 
-  // Resolve which plan to display: selectedPlanId → primary → first
+  // Resolve which plan to display: selectedPlanId, then primary, then first
   const displayPlanId =
     selectedPlanId ??
     activePlanIds.find((id) => plansById[id]?.isPrimary) ??
@@ -609,205 +361,117 @@ export default function PlanScreen() {
   const switcherPlans = planSummaries.map((s) => ({
     id: s.id,
     label: s.courseTitle ?? getBehaviorLabel(s.goal),
-    isPrimary: s.isPrimary,
-    goal: s.goal,
-    createdAt: s.createdAt,
   }));
 
-  const todaySessionId = recommendedTodaySession?.planId === displayPlanId
-    ? recommendedTodaySession?.id ?? null
-    : null;
-
   const noPlans = !isLoading && activePlanIds.length === 0;
+  const goToAddCourse = () => router.push('/(tabs)/train/add-course' as never);
 
   if (noPlans || (!isLoading && !displayPlan)) {
     return (
-      <SafeScreen>
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-            paddingBottom: spacing.sm,
-            gap: spacing.sm,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: colors.bg.surface,
-              borderWidth: 1.5,
-              borderColor: colors.border.soft,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <AppIcon name="arrow-back" size={17} color={colors.text.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text.primary, letterSpacing: -0.4 }}>
-            My Plan
-          </Text>
-        </View>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
-          <Text variant="caption" style={{ textAlign: 'center' }}>
-            No active plan found. Complete onboarding to get your personalized plan.
-          </Text>
-        </View>
-      </SafeScreen>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, flexGrow: 1, justifyContent: 'center' }}
+      >
+        <EmptyState
+          mascotState="waiting"
+          title="No active plan"
+          subtitle="Add a course and the coach will build sessions around your dog."
+          action={{ label: 'Add a course', onPress: goToAddCourse }}
+        />
+      </ScrollView>
     );
   }
 
-  if (!displayPlan) return null;
+  if (!displayPlan) {
+    return (
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+      >
+        <LoadingSkeleton />
+      </ScrollView>
+    );
+  }
 
-  const uiColors = getCourseUiColors(displayPlan);
-  const planColor = uiColors.solid;
   const completionPct = getPlanCompletion(displayPlan);
-  const behaviorLabel = getBehaviorLabel(displayPlan.goal);
-  const courseTitle = displayPlan.courseTitle ?? behaviorLabel;
-  const stageNumber = parseInt(displayPlan.currentStage?.match(/\d/)?.[0] ?? '1', 10);
+  const completedCount = displayPlan.sessions.filter((s) => s.isCompleted).length;
+  const totalCount = displayPlan.sessions.length;
   const adaptedCount = displayPlan.sessions.filter((s) => s.adaptationSource === 'adaptation_engine').length;
-  const listData = buildListData(displayPlan, todaySessionId);
+  const stages = buildStageGroups(displayPlan.sessions);
+  const nextSessionId = stages.flatMap((g) => g.nodes).find((n) => n.state === 'next')?.session.id ?? null;
+  const courseTitle = displayPlan.courseTitle ?? getBehaviorLabel(displayPlan.goal);
+  const nextSession = displayPlan.sessions.find((session) => session.id === nextSessionId) ?? null;
+  const currentStage = (() => {
+    const group = nextSession ? stages.find((g) => g.nodes.some((n) => n.session.id === nextSession.id)) : null;
+    if (!group) return null;
+    return { stage: group.stage, protocol: resolveProtocol(nextSession!) };
+  })();
 
   return (
-    <SafeScreen>
-      {/* Warm gradient blush */}
-      <LinearGradient
-        colors={[hexToRgba(planColor, 0.07), 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 0.4 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 200 }}
-        pointerEvents="none"
-      />
-
-      {/* ── Nav Header ── */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: spacing.md,
-          paddingTop: spacing.md,
-          paddingBottom: spacing.sm,
-          gap: spacing.sm,
-        }}
-      >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: colors.bg.surface,
-            borderWidth: 1.5,
-            borderColor: colors.border.soft,
-            alignItems: 'center',
-            justifyContent: 'center',
-            ...shadows.card,
-          }}
-        >
-          <AppIcon name="arrow-back" size={17} color={colors.text.primary} />
-        </TouchableOpacity>
-        <Text
-          style={{
-            fontSize: 22,
-            fontWeight: '800',
-            color: colors.text.primary,
-            letterSpacing: -0.4,
-            flex: 1,
-          }}
-        >
-          {switcherPlans.length > 1 ? 'My Courses' : 'My Plan'}
-        </Text>
-        {switcherPlans.length < 2 && (
-          <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={() => router.push('/(tabs)/train/add-course' as never)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 8,
-              borderRadius: radii.pill,
-              backgroundColor: uiColors.tint,
-              borderWidth: 1,
-              borderColor: uiColors.selectedBorder,
-              minHeight: 36,
-            }}
-          >
-            <AppIcon name="add-circle" size={14} color={planColor} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: planColor }}>
-              Add goal
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* ── Course Switcher (only when multiple plans) ── */}
-      <CourseSwitcher
-        plans={switcherPlans}
-        selectedId={displayPlanId ?? ''}
-        onSelect={(id) => setSelectedPlan(id)}
-      />
-
-      <FlatList
-        data={listData}
-        keyExtractor={(item, idx) =>
-          item.type === 'header' ? `week-${item.weekNumber}` : `session-${item.session.id}-${idx}`
-        }
+    <>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xl * 2,
-        }}
-        ListHeaderComponent={() => (
-          <View>
-            <PlanHeroCard
-              courseTitle={courseTitle}
-              completionPct={completionPct}
-              durationWeeks={displayPlan.durationWeeks}
-              stageNumber={stageNumber}
-              completedCount={displayPlan.sessions.filter((s) => s.isCompleted).length}
-              totalCount={displayPlan.sessions.length}
-              planColor={planColor}
-              adaptedCount={adaptedCount}
-            />
-          </View>
-        )}
-        renderItem={({ item }) => {
-          if (item.type === 'header') {
-            return (
-              <WeekHeader
-                weekNumber={item.weekNumber}
-                isCurrentWeek={item.isCurrentWeek}
-                color={planColor}
-              />
-            );
-          }
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+      >
+        <View style={{ gap: spacing.lg }}>
+          <CourseSwitcher
+            plans={switcherPlans}
+            selectedId={displayPlanId ?? ''}
+            onSelect={(id) => setSelectedPlan(id)}
+          />
 
-          return (
-            <View style={{ marginBottom: spacing.xs }}>
-              <SessionRow
-                session={item.session}
-                isToday={item.isToday}
-                isFuture={item.isFuture}
-                planColor={planColor}
-
-                onPress={() => {
-                  if (!item.isFuture) {
-                    setSelectedSession(item.session);
-                  }
-                }}
-              />
+          <Card style={{ gap: spacing.lg }}>
+            <View style={{ gap: spacing.xs }}>
+              <Text variant="h1">{courseTitle}</Text>
+              <Text variant="caption">
+                {currentStage
+                  ? `Stage ${currentStage.stage} of ${stages.length}${currentStage.protocol ? `, ${currentStage.protocol.title}` : ''}`
+                  : 'All stages complete'}
+              </Text>
             </View>
-          );
-        }}
-      />
 
-      {/* Session detail sheet */}
+            <View style={{ gap: spacing.sm }}>
+              <ProgressBar
+                progress={completionPct / 100}
+                height={8}
+                accessibilityLabel={`${completedCount} of ${totalCount} sessions complete`}
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text variant="caption">
+                  {completedCount} of {totalCount} sessions
+                </Text>
+                <Text variant="caption">
+                  {`About ${Math.max(1, Math.ceil((totalCount - completedCount) / Math.max(1, displayPlan.sessionsPerWeek)))} weeks to go`}
+                </Text>
+              </View>
+            </View>
+
+            {nextSession ? (
+              <Button
+                label={`Start: ${nextSession.title}`}
+                onPress={() => router.push(`/(tabs)/train/session?id=${nextSession.id}&planId=${displayPlanId ?? ''}`)}
+              />
+            ) : null}
+          </Card>
+
+          {activePlanIds.length < MAX_ACTIVE_COURSES ? (
+            <Button
+              label="Add course"
+              variant="ghost"
+              size="md"
+              icon="add"
+              onPress={goToAddCourse}
+              style={{ alignSelf: 'flex-start', paddingHorizontal: 0 }}
+            />
+          ) : null}
+        </View>
+
+        {stages.map((group) => (
+          <StagePath key={group.stage} group={group} onSelectSession={setSelectedSession} />
+        ))}
+      </ScrollView>
+
       <SessionDetailSheet
         session={selectedSession}
         visible={!!selectedSession}
@@ -820,10 +484,10 @@ export default function PlanScreen() {
             setSelectedSession(null);
           }
         }}
+        canStart={!!selectedSession && selectedSession.id === nextSessionId}
         dogName={dog?.name ?? 'your dog'}
         recentAdaptations={recentAdaptations}
-        accentColor={planColor}
       />
-    </SafeScreen>
+    </>
   );
 }

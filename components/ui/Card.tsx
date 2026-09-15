@@ -2,31 +2,31 @@ import type { PropsWithChildren } from 'react';
 import { View, type ViewProps } from 'react-native';
 
 import { colors } from '@/constants/colors';
+import { elevation } from '@/constants/shadows';
 import { radii } from '@/constants/radii';
-import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
-
-type CardVariant = 'default' | 'elevated';
 
 type CardProps = PropsWithChildren<
   ViewProps & {
-    variant?: CardVariant;
+    /** `raised` only for things that float over the page. */
+    variant?: 'flat' | 'raised';
   }
 >;
 
-export function Card({ children, style, variant = 'default', ...props }: CardProps) {
-  const isElevated = variant === 'elevated';
-
+/**
+ * A surface used only when the grouping carries meaning (today's session,
+ * the dog's summary). Same treatment as a ListGroup; a card never contains
+ * another card. Prefer ListGroup + ListRow for lists.
+ */
+export function Card({ children, style, variant = 'flat', ...props }: CardProps) {
   return (
     <View
       style={[
         {
           backgroundColor: colors.bg.surface,
-          borderColor: isElevated ? 'transparent' : colors.border.default,
-          borderWidth: isElevated ? 0 : 1,
-          borderRadius: radii.lg,
+          borderRadius: radii.md,
           padding: spacing.lg,
-          ...(isElevated ? shadows.modal : shadows.card),
+          ...elevation[variant],
         },
         style,
       ]}

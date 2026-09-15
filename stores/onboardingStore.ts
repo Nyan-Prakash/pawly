@@ -130,7 +130,7 @@ function unique<T>(items: T[]): T[] {
   return Array.from(new Set(items));
 }
 
-function buildDogFromState(state: OnboardingData, userId: string, dogId: string, lifecycleStage: string, avatarUrl: string | null = null): Dog {
+export function buildDogFromState(state: OnboardingData, userId: string, dogId: string, lifecycleStage: string, avatarUrl: string | null = null): Dog {
   return {
     id: dogId,
     ownerId: userId,
