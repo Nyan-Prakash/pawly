@@ -61,6 +61,7 @@ ${skillList}
 - Total sessions across a week must equal sessionsPerWeek
 - Progress from lower difficulty to higher difficulty across weeks
 - Do not skip prerequisite skills for foundation/core skills
+- reasoningLabel is shown to the owner under the session. Write it in plain words, sentence case, at most 12 words, no em dashes, no jargon such as "proofing", "threshold", or "arousal". Example: "Builds on yesterday, now with a few more distractions."
 
 ## Output Schema (JSON only)
 {
@@ -78,7 +79,7 @@ ${skillList}
           "sessionCount": <1-4>,
           "environment": "<environment>",
           "sessionKind": "<core|repeat|proofing>",
-          "reasoningLabel": "<1-sentence reasoning>"
+          "reasoningLabel": "<plain sentence, at most 12 words>"
         }
       ]
     }

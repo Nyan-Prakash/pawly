@@ -749,38 +749,38 @@ export function isPlanComplete(plan: Plan, completedSessions: string[] = []): bo
 type WalkGoalKey = `${string}_${number}`;
 
 const WALK_GOALS: Record<string, string> = {
-  leash_pulling_1: 'Practice stopping when tension builds — aim for 3 clean stops today',
-  leash_pulling_2: 'Hold eye contact at 2 crossings before moving forward',
-  leash_pulling_3: 'Try 8 direction changes — make yourself more interesting than the environment',
-  recall_1: 'Call once, reward big — even at 5 feet counts as a win',
-  recall_2: 'Practice 3 name responses on the walk — stop, call, jackpot when they come',
-  recall_3: 'Work on one outdoor recall on the long line if you have it',
-  jumping_up_1: 'Ask every person you meet to follow the four-paws-on-floor rule',
-  jumping_up_2: 'Rehearse the auto-sit before entering and leaving the house',
-  jumping_up_3: 'Find one stranger to practice a polite greeting — brief them first',
-  potty_training_1: 'Take a trip to the designated spot immediately after this walk',
-  potty_training_2: 'Use the potty cue word every time they squat today',
-  potty_training_3: 'Track elimination times to spot your dog\'s natural schedule pattern',
-  crate_anxiety_1: 'On return, practice walking calmly past the crate with treats nearby',
-  crate_anxiety_2: 'End the walk with a short settle before the crate session',
-  crate_anxiety_3: 'Practice the departure routine: walk → settle → crate',
-  puppy_biting_1: 'Carry a tug toy on the walk — redirect any mouthing to the toy',
-  puppy_biting_2: 'Practice 3 "arousal down" moments: stop, ask for sit, reward calm',
-  puppy_biting_3: 'End the walk with a 2-minute calm-on-mat session',
-  settling_1: 'End the walk with 2 minutes of mat time to practice the settle cue',
-  settling_2: 'Find a bench or café and ask for a settle in a novel environment',
-  settling_3: 'Practice "place" in a new spot on this walk — bring a portable mat',
-  barking_1: 'Identify your dog\'s threshold distance to their trigger today',
-  barking_2: 'Practice 3 "look at that" moments near a mild trigger',
-  barking_3: 'Work one trigger exposure at threshold distance, 5 repetitions',
-  default_1: 'Keep the walk calm and consistent — reward check-ins at your side',
-  default_2: 'Practice 3 name responses and reward each with treats',
-  default_3: 'End the walk with a 1-minute calm down before going inside',
+  leash_pulling_1: 'Stop each time the leash goes tight. Aim for 3 clean stops.',
+  leash_pulling_2: 'At 2 crossings, wait for eye contact before you cross.',
+  leash_pulling_3: 'Change direction 8 times. Treat when they catch up.',
+  recall_1: 'Call once and reward big. Coming from 5 feet counts.',
+  recall_2: 'Stop and call them 3 times. Give a big reward each time.',
+  recall_3: 'Practice one recall outside on the long line, if you have one.',
+  jumping_up_1: 'Ask everyone you meet to greet only when all four paws are down.',
+  jumping_up_2: 'Ask for a sit before you go in or out the door.',
+  jumping_up_3: 'Set up one polite greeting with a stranger. Tell them the plan first.',
+  potty_training_1: 'Go straight to the potty spot after this walk.',
+  potty_training_2: 'Say the potty cue every time they squat today.',
+  potty_training_3: 'Write down when they pee and poop to learn their schedule.',
+  crate_anxiety_1: 'When you get home, walk past the crate and drop treats inside.',
+  crate_anxiety_2: 'End the walk with a short settle, then a crate session.',
+  crate_anxiety_3: 'Practice the leaving routine: walk, settle, then crate.',
+  puppy_biting_1: 'Bring a tug toy. If they mouth you, offer the toy.',
+  puppy_biting_2: 'Calm down 3 times: stop, ask for a sit, treat the calm.',
+  puppy_biting_3: 'End the walk with 2 minutes on the mat.',
+  settling_1: 'After the walk, spend 2 minutes on the mat practicing settle.',
+  settling_2: 'Find a bench or cafe and ask for a settle there.',
+  settling_3: 'Bring a travel mat and practice place somewhere new.',
+  barking_1: 'Notice how close a trigger can get before your dog barks.',
+  barking_2: 'Play look at that 3 times near an easy trigger.',
+  barking_3: 'At their comfortable distance from a trigger, do 5 look-and-treat reps.',
+  default_1: 'Keep it calm. Treat every time they check in at your side.',
+  default_2: 'Say their name 3 times and treat each response.',
+  default_3: 'End with 1 minute of calm before going inside.',
 };
 
 export function getWalkGoal(behavior: string, stage: number): string {
   const key = `${behavior}_${stage}` as WalkGoalKey;
-  return WALK_GOALS[key] ?? WALK_GOALS[`default_${Math.min(stage, 3)}`] ?? 'Have a great walk today!';
+  return WALK_GOALS[key] ?? WALK_GOALS[`default_${Math.min(stage, 3)}`] ?? 'Enjoy the walk.';
 }
 
 export function getPlanCompletion(plan: Plan): number {
@@ -793,11 +793,11 @@ const MILESTONES = [1, 5, 10, 15, 20, 25, 30] as const;
 
 export function getNextMilestone(completedCount: number): string {
   const next = MILESTONES.find((milestone) => milestone > completedCount);
-  if (!next) return 'You\'ve hit every milestone — you\'re a training champion!';
+  if (!next) return 'You\'ve reached every milestone.';
   const remaining = next - completedCount;
   return remaining === 1
-    ? '1 more session to reach your next milestone!'
-    : `${remaining} more sessions to reach your ${next}-session milestone!`;
+    ? '1 more session to your next milestone'
+    : `${remaining} more sessions to your ${next}-session milestone`;
 }
 
 export function getLastMilestone(completedCount: number): number | null {
@@ -818,28 +818,28 @@ export function getGreeting(): string {
 
 export function getBehaviorLabel(goal: string): string {
   const map: Record<string, string> = {
-    'leash_pulling': 'Leash Pulling',
-    'leash pulling': 'Leash Pulling',
-    'jumping_up': 'Jumping Up',
-    'jumping up': 'Jumping Up',
+    'leash_pulling': 'Leash pulling',
+    'leash pulling': 'Leash pulling',
+    'jumping_up': 'Jumping up',
+    'jumping up': 'Jumping up',
     'barking': 'Barking',
     "won't come": 'Recall',
     'recall': 'Recall',
-    'potty_training': 'Potty Training',
-    'potty training': 'Potty Training',
-    'crate_anxiety': 'Crate Anxiety',
-    'crate anxiety': 'Crate Anxiety',
-    'puppy_biting': 'Puppy Biting',
-    'puppy biting': 'Puppy Biting',
+    'potty_training': 'Potty training',
+    'potty training': 'Potty training',
+    'crate_anxiety': 'Crate anxiety',
+    'crate anxiety': 'Crate anxiety',
+    'puppy_biting': 'Puppy biting',
+    'puppy biting': 'Puppy biting',
     'settling': 'Settling',
-    'leave_it': 'Leave It',
-    'basic_obedience': 'Basic Obedience',
-    'separation_anxiety': 'Separation Anxiety',
-    'door_manners': 'Door Manners',
-    'impulse_control': 'Impulse Control',
-    'cooperative_care': 'Cooperative Care',
-    'wait_and_stay': 'Wait & Stay',
-    'leash_reactivity': 'Leash Reactivity',
+    'leave_it': 'Leave it',
+    'basic_obedience': 'Basic obedience',
+    'separation_anxiety': 'Separation anxiety',
+    'door_manners': 'Door manners',
+    'impulse_control': 'Impulse control',
+    'cooperative_care': 'Handling and vet care',
+    'wait_and_stay': 'Wait and stay',
+    'leash_reactivity': 'Leash reactivity',
     'sit': 'Sit',
     'down': 'Down',
     'heel': 'Heel',

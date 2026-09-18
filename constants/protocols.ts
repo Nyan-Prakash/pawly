@@ -44,62 +44,69 @@ const llw_stage1: Protocol = {
   id: 'llw_s1',
   behavior: 'leash_pulling',
   stage: 1,
-  title: 'Focus & Attention at Heel',
-  objective: 'Teach your dog to respond to their name and offer eye contact while standing still at your side.',
+  title: 'Check in at your side',
+  objective: 'Your dog looks up at you when you say their name, standing at your side.',
   durationMinutes: 8,
   repCount: 20,
   steps: [
     {
       order: 1,
-      instruction: 'Say the name once.',
+      instruction: 'Say their name once.',
       then: 'The instant they look at you, mark and treat at your hip.',
       durationSeconds: null,
       reps: 10,
-      tip: 'Say it once and wait up to 10 seconds; repeating teaches them to ignore it.',
+      tip: 'Say it once, then wait up to 10 seconds. Repeating it teaches them to tune out.',
       successLook: 'They turn toward you within 3 seconds.'
     },
     {
       order: 2,
-      instruction: 'Say the name, then wait for full eye contact.',
+      instruction: 'Say their name, then wait for eye contact.',
       then: 'When they look at your face, mark and treat at your hip.',
       durationSeconds: null,
       reps: 10,
-      tip: 'Treat at your hip, not in front of you; the reward zone is beside your leg.',
-      successLook: 'They look up at your face, not just toward you.'
+      tip: 'Treat at your hip, not in front. Beside your leg is where you want them.',
+      successLook: 'They look up at your face, not only toward you.'
     },
     {
       order: 3,
-      instruction: 'Take 3 steps, stop, and say the name once.',
+      instruction: 'Take 3 steps, stop, and say their name once.',
       then: 'When they make eye contact, mark and treat at your hip.',
       durationSeconds: null,
       reps: 5,
-      tip: 'If the leash tightens, stop and wait; you want them to choose to check in.',
+      tip: 'If the leash tightens, stop and wait. You want them to choose to check in.',
       successLook: 'They check in within 5 seconds of you stopping.'
     },
     {
       order: 4,
       instruction: 'Let them sniff freely for a minute.',
-      then: 'Say \'free\' and follow them; no cues, no treats.',
+      then: 'Say "free" and follow them. No cues, no treats.',
       durationSeconds: 60,
       reps: null,
-      tip: 'The sniff break is the reward; it makes the structured work easier to take.',
+      tip: 'The sniff break is the reward. It makes the focused part easier to take.',
       successLook: 'They wander and sniff, relaxed.'
     },
   ],
-  setup: ['Quiet room', 'Leash on, hanging loose', '20 tiny treats in hand'],
-  successCriteria: 'Dog responds to name with eye contact 8 out of 10 attempts in a low-distraction environment.',
-  commonMistakes: [
-    'Repeating the dog\'s name — say it once and wait',
-    'Giving the treat in front of your body instead of at your hip',
-    'Moving too fast before the name response is solid',
-    'Practicing when the dog is over-excited or under-stimulated'
+  setup: [
+    'Quiet room',
+    'Leash on, hanging loose',
+    '20 tiny treats in hand',
   ],
-  equipmentNeeded: ['4–6 foot flat leash', 'High-value treats (chicken, cheese, hot dog)'],
+  successCriteria: 'Move on when they look up at your face 8 times out of 10 in a quiet room.',
+  commonMistakes: [
+    'Saying their name twice. Say it once, then wait.',
+    'Treating in front of you. Treat at your hip, where you want them.',
+    'Adding steps too soon. Wait until they look up every time.',
+    'Training when they are wound up or sleepy. Pick a calm, alert moment.',
+  ],
+  equipmentNeeded: [
+    '4 to 6-foot flat leash',
+    'Soft treats they love (chicken, cheese)',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'llw_s2',
-  trainerNote: 'This looks boring. It is the whole foundation of leash manners; give it three sessions.',
+  trainerNote: 'This looks boring. Everything else on the leash builds on it, so give it 3 sessions.',
   supportsLiveAiTrainer: false,
 }
 
@@ -107,8 +114,8 @@ const llw_stage2: Protocol = {
   id: 'llw_s2',
   behavior: 'leash_pulling',
   stage: 2,
-  title: 'Stop-and-Wait: Tension Off, Forward On',
-  objective: 'Teach your dog that leash tension makes you stop and leash slack makes you move.',
+  title: 'Stop when it goes tight',
+  objective: 'Your dog learns a tight leash means you stop and a loose one means you go.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
@@ -118,17 +125,17 @@ const llw_stage2: Protocol = {
       then: 'Keep going as long as the leash stays slack.',
       durationSeconds: null,
       reps: null,
-      tip: 'You will stop and start a lot. That is the exercise.',
+      tip: 'You will stop and start a lot. That is the whole idea.',
       successLook: 'You are moving, dog at your side.'
     },
     {
       order: 2,
-      instruction: 'The instant the leash goes taut, freeze.',
+      instruction: 'The instant the leash goes tight, freeze.',
       then: 'Say nothing and wait.',
       durationSeconds: null,
       reps: null,
       tip: 'Stop the moment you feel tension, not a few steps later.',
-      successLook: 'Leash tight, you frozen, dog notices.'
+      successLook: 'Leash tight, you still, dog notices.'
     },
     {
       order: 3,
@@ -141,12 +148,12 @@ const llw_stage2: Protocol = {
     },
     {
       order: 4,
-      instruction: 'Repeat the walk, stop, slack, forward cycle.',
-      then: 'Each slack earns forward motion; treat every third or fourth.',
+      instruction: 'Repeat: walk, stop, slack, forward.',
+      then: 'Each slack earns forward motion. Treat every third or fourth.',
       durationSeconds: null,
       reps: 15,
-      tip: 'Silence when they pull. No name, no saying no.',
-      successLook: 'Dog self-corrects before you fully stop.'
+      tip: 'Stay quiet when they pull. No name, no "no".',
+      successLook: 'Dog eases off before you fully stop.'
     },
     {
       order: 5,
@@ -154,33 +161,42 @@ const llw_stage2: Protocol = {
       then: 'Drop them at your feet and let them collect.',
       durationSeconds: null,
       reps: null,
-      tip: 'Scatter at your feet, not ahead, so they come back to your zone.',
+      tip: 'Scatter at your feet, not ahead, so they come back to your side.',
       successLook: 'Leash hangs in a J shape beside you.'
     },
     {
       order: 6,
       instruction: 'Let them sniff freely on a loose leash.',
-      then: 'Just walk with them; no rules for this bit.',
+      then: 'Walk with them. No rules for this part.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Dog relaxed, nose down.'
     },
   ],
-  setup: ['Quiet street or parking lot', '4 to 6 foot leash', 'One hand near your hip', 'Treats in pocket'],
-  successCriteria: 'Dog self-corrects by releasing tension within 5 seconds of you stopping, 10 out of 15 repetitions.',
-  commonMistakes: [
-    'Stopping too late — the stop must happen the instant tension starts',
-    'Saying the dog\'s name or "no" when they pull — silence is correct',
-    'Walking forward with a tight leash — this rewards the pull',
-    'Practicing on a route too interesting for the dog\'s skill level'
+  setup: [
+    'Quiet street or parking lot',
+    '4 to 6-foot leash',
+    'One hand near your hip',
+    'Treats in pocket',
   ],
-  equipmentNeeded: ['4–6 foot flat leash', 'Front-clip harness or flat collar (no retractable)', 'High-value treats'],
+  successCriteria: 'Move on when they loosen the leash within 5 seconds of you stopping, 10 times out of 15.',
+  commonMistakes: [
+    'Stopping a few steps late. Stop the moment you feel tension.',
+    'Saying their name or "no" when they pull. Stay quiet and wait.',
+    'Walking on while the leash is tight. That pays them for pulling.',
+    'Picking a route with too much going on. Start somewhere dull.',
+  ],
+  equipmentNeeded: [
+    '4 to 6-foot flat leash',
+    'Front-clip harness or flat collar, no retractable leash',
+    'Soft treats they love',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'llw_s3',
-  trainerNote: 'Improvement comes in three to five sessions if everyone in the house follows the same rule on every walk.',
+  trainerNote: 'Expect a change in 3 to 5 sessions, if everyone stops for a tight leash on every walk.',
   supportsLiveAiTrainer: false,
 }
 
@@ -188,18 +204,18 @@ const llw_stage3: Protocol = {
   id: 'llw_s3',
   behavior: 'leash_pulling',
   stage: 3,
-  title: 'Direction Changes & Real-World Engagement',
-  objective: 'Proof loose leash walking with unexpected direction changes and mild outdoor distractions.',
+  title: 'Turn and go',
+  objective: 'Your dog keeps up with you when you turn, even with a few things to sniff.',
   durationMinutes: 12,
   repCount: 12,
   steps: [
     {
       order: 1,
-      instruction: 'The moment they drift ahead, U-turn and say "this way."',
-      then: 'Walk briskly the new way; they trot to catch up.',
+      instruction: 'The moment they drift ahead, U-turn and say "this way".',
+      then: 'Walk briskly the new way. They trot to catch up.',
       durationSeconds: null,
       reps: null,
-      tip: 'Turn with energy; a slow turn teaches nothing.',
+      tip: 'Turn with energy. A slow turn teaches nothing.',
       successLook: 'They catch up and check in at your side.'
     },
     {
@@ -208,51 +224,60 @@ const llw_stage3: Protocol = {
       then: 'That instant, mark and treat at your hip.',
       durationSeconds: null,
       reps: null,
-      tip: 'The catch-up moment is the golden rep; pay it, not before or after.',
+      tip: 'Pay the moment they catch up, not before or after.',
       successLook: 'Leash hangs in a J, dog at hip.'
     },
     {
       order: 3,
-      instruction: 'Change direction unpredictably: left, right, U-turn, slow, fast.',
-      then: 'Each time they catch up loose, mark and treat.',
+      instruction: 'Change direction without warning: left, right, U-turn.',
+      then: 'Each time they catch up on a loose leash, mark and treat.',
       durationSeconds: null,
       reps: 12,
-      tip: 'Unpredictable means they have to watch you, not the street.',
-      successLook: 'They glance at you, anticipating the next change.'
+      tip: 'If they cannot predict you, they have to watch you instead of the street.',
+      successLook: 'They glance at you, waiting for the next turn.'
     },
     {
       order: 4,
-      instruction: 'Approach one mild distraction at their threshold distance.',
-      then: 'Do direction changes near it, paying each catch-up.',
+      instruction: 'Walk toward one mild distraction, stopping while they can still eat.',
+      then: 'Turn and go near it, paying each catch-up.',
       durationSeconds: null,
       reps: 3,
-      tip: 'If they lunge or fixate, back up five steps; you are over threshold.',
+      tip: 'If they lunge or stare, back up 5 steps. You are too close.',
       successLook: 'They glance at it, then check back with you.'
     },
     {
       order: 5,
-      instruction: 'Drop all criteria and let them sniff.',
-      then: 'Follow along; no cues, no leash pressure.',
+      instruction: 'Drop all rules and let them sniff.',
+      then: 'Follow along. No cues, no leash pressure.',
       durationSeconds: 120,
       reps: null,
-      tip: 'The free sniff lowers frustration and keeps structured walking sustainable.',
+      tip: 'A free sniff takes the edge off and keeps walks something they enjoy.',
       successLook: 'Dog relaxed, nose down, sniffing freely.'
     },
   ],
-  setup: ['Quiet street', 'Front-clip harness, 6-foot leash', 'High-value treats in pouch'],
-  successCriteria: 'Dog responds to 10 of 12 direction changes by catching up and checking in. Can walk past one mild distraction with a loose leash.',
-  commonMistakes: [
-    'Turning too slowly — the change must be sudden and cheerful',
-    'Not rewarding the catch-up moment — that is the golden rep',
-    'Skipping the free sniff at the end',
-    'Advancing to busy environments too quickly'
+  setup: [
+    'Quiet street',
+    'Front-clip harness, 6-foot leash',
+    'Treat pouch, well stocked',
   ],
-  equipmentNeeded: ['4–6 foot flat leash', 'Front-clip harness', 'High-value treats', 'Treat pouch'],
+  successCriteria: 'Move on when they catch up on 10 of 12 turns and pass one mild distraction on a loose leash.',
+  commonMistakes: [
+    'Turning slowly. Turn fast and sound cheerful about it.',
+    'Forgetting to treat when they catch up. That moment is the one to pay.',
+    'Skipping the free sniff at the end. It keeps walks from feeling like work.',
+    'Moving to busy places too soon. Stay on quiet streets for now.',
+  ],
+  equipmentNeeded: [
+    '4 to 6-foot flat leash',
+    'Front-clip harness',
+    'Soft treats they love',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Quiet streets are the goal here; busy streets and other dogs are a separate module.',
+  trainerNote: 'Aim for quiet streets here. Busy streets and other dogs are a separate course.',
   supportsLiveAiTrainer: false,
 }
 
@@ -264,62 +289,69 @@ const recall_stage1: Protocol = {
   id: 'recall_s1',
   behavior: 'recall',
   stage: 1,
-  title: 'Name Response at Close Distance Indoors',
-  objective: 'Build a rock-solid, automatic response to the dog\'s name at close range in a distraction-free environment.',
+  title: 'Turn to their name',
+  objective: 'Your dog turns and comes toward you when you say their name in a quiet room.',
   durationMinutes: 8,
   repCount: 20,
   steps: [
     {
       order: 1,
-      instruction: 'Say the name once.',
+      instruction: 'Say their name once.',
       then: 'The instant they glance, mark and toss a treat toward you.',
       durationSeconds: null,
       reps: 10,
-      tip: 'Toss the treat toward yourself; the name starts to mean move toward the human.',
-      successLook: 'They orient to you and step your way.'
+      tip: 'Tossing it toward you teaches that their name means move toward you.',
+      successLook: 'They turn to you and step your way.'
     },
     {
       order: 2,
-      instruction: 'Say the name, then hold their gaze 2 seconds.',
-      then: 'After 2 seconds of eye contact, mark and treat.',
+      instruction: 'Say their name, then wait for 2 seconds of eye contact.',
+      then: 'After 2 seconds, mark and treat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Even one extra second of held eye contact is worth marking.',
+      tip: 'Even one extra second of eye contact is worth marking.',
       successLook: 'They hold eye contact for 2 seconds.'
     },
     {
       order: 3,
-      instruction: 'Stand up, cross the room, then call the name.',
-      then: 'Pat your legs as they come; jackpot 3 treats on arrival.',
+      instruction: 'Stand up, cross the room, then say their name.',
+      then: 'Pat your legs as they come. Give 3 treats on arrival.',
       durationSeconds: null,
       reps: 5,
-      tip: 'The jackpot teaches that coming all the way to you pays best.',
+      tip: 'The bigger payout teaches that coming all the way to you pays best.',
       successLook: 'They trot across the room to you.'
     },
     {
       order: 4,
       instruction: 'Play or let them sniff for a minute.',
-      then: 'No cues, no treats; just end on a good note.',
+      then: 'No cues, no treats. End on a good note.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'They are relaxed and happy.'
     },
   ],
-  setup: ['Quiet room', '20 tiny high-value treats', 'Sit on the floor'],
-  successCriteria: 'Dog looks at handler and begins moving toward them within 2 seconds of name, 9 out of 10 trials indoors.',
-  commonMistakes: [
-    'Calling the name too often — it becomes background noise',
-    'Calling the name before something the dog dislikes (bath, nail trim)',
-    'Rewarding a slow response the same as a fast one',
-    'Practicing when the dog is asleep or deeply distracted'
+  setup: [
+    'Quiet room',
+    '20 tiny treats they love',
+    'Sit on the floor',
   ],
-  equipmentNeeded: ['High-value treats (chicken, freeze-dried liver)', 'Quiet indoor space'],
+  successCriteria: 'Move on when they look and start toward you within 2 seconds, 9 times out of 10, indoors.',
+  commonMistakes: [
+    'Saying their name all day. It turns into background noise.',
+    'Calling them for a bath or nail trim. Go get them instead.',
+    'Paying a slow response like a fast one. Give fast ones more.',
+    'Calling when they are asleep or busy. Wait for an easy moment.',
+  ],
+  equipmentNeeded: [
+    'Soft treats they love (chicken, freeze-dried liver)',
+    'Quiet room indoors',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'recall_s2',
-  trainerNote: 'Never call the name for something they dislike; every poisoned rep costs five good ones.',
+  trainerNote: 'Never use their name before something they dislike. One bad name costs you 5 good ones.',
   supportsLiveAiTrainer: true,
 }
 
@@ -327,27 +359,27 @@ const recall_stage2: Protocol = {
   id: 'recall_s2',
   behavior: 'recall',
   stage: 2,
-  title: 'Recall with Light Distraction Indoors',
-  objective: 'Proof the recall cue with mild distractions and increase distance to 15–20 feet inside the home.',
+  title: 'Come from the next room',
+  objective: 'Your dog comes when called from another room, even with food on the floor.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
     {
       order: 1,
-      instruction: 'Say the name, then the cue, once.',
+      instruction: 'Say their name, then your recall cue, once.',
       then: 'When they arrive, mark and treat at your feet.',
       durationSeconds: null,
       reps: null,
-      tip: 'The name gets attention; the cue means run to me. Keep them paired.',
+      tip: 'The name gets their attention. The cue means run to me. Keep them paired.',
       successLook: 'Head lifts at the name before the cue.'
     },
     {
       order: 2,
       instruction: 'Call from a different room each time.',
-      then: 'When they arrive, jackpot 3 or 4 treats at your feet.',
+      then: 'When they arrive, give 3 or 4 treats at your feet.',
       durationSeconds: null,
       reps: 8,
-      tip: 'Changing rooms teaches that come works everywhere, not only face to face.',
+      tip: 'Changing rooms teaches that the cue works when they cannot see you.',
       successLook: 'Dog comes running within 5 seconds.'
     },
     {
@@ -356,7 +388,7 @@ const recall_stage2: Protocol = {
       then: 'No response in 5 seconds? Clap and run away.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Running away is one of the strongest recall tools; dogs chase movement.',
+      tip: 'Running away works because dogs chase movement.',
       successLook: 'Dog leaves the kibble and comes.'
     },
     {
@@ -365,33 +397,40 @@ const recall_stage2: Protocol = {
       then: 'On arrival, a full handful of treats and praise.',
       durationSeconds: null,
       reps: 2,
-      tip: 'The arrival party sets how fast they run next time.',
+      tip: 'How good the arrival is sets how fast they run next time.',
       successLook: 'Dog sprints and pushes into your hands.'
     },
     {
       order: 5,
       instruction: 'Play with them for a minute.',
-      then: 'No cues, just fun.',
+      then: 'No cues, only fun.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Dog is loose and happy.'
     },
   ],
-  setup: ['Treats in hand', 'Kibble ready to scatter', 'TV within reach'],
-  successCriteria: 'Dog recalls from another room and away from mild distraction (kibble on floor, TV on) 8 out of 10 times.',
-  commonMistakes: [
-    'Calling "come" when you cannot follow through — only call when you can guarantee success',
-    'Punishing a slow recall — always reward every recall, no matter how long it took',
-    'Too many reps in one session — quality over quantity',
-    'Not varying locations enough'
+  setup: [
+    'Treats in hand',
+    'Kibble ready to scatter',
+    'TV within reach',
   ],
-  equipmentNeeded: ['High-value treats', 'Indoor space with mild distractions'],
+  successCriteria: 'Move on when they come from another room or leave the kibble 8 times out of 10.',
+  commonMistakes: [
+    'Calling when they probably will not come. Call only when you expect a yes.',
+    'Scolding a slow recall. Pay every arrival, however long it took.',
+    'Doing too many in one session. Stop while they still run to you.',
+    'Always calling from the same spot. Change rooms often.',
+  ],
+  equipmentNeeded: [
+    'Soft treats they love',
+    'A few rooms with mild distractions',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'recall_s3',
-  trainerNote: 'Do at least ten indoor sessions before going outside; the cue needs to matter before the world competes.',
+  trainerNote: 'Do at least 10 indoor sessions before going outside. Home is easy, outside is not.',
   supportsLiveAiTrainer: true,
 }
 
@@ -399,19 +438,19 @@ const recall_stage3: Protocol = {
   id: 'recall_s3',
   behavior: 'recall',
   stage: 3,
-  title: 'Recall in Low-Distraction Outdoor Environments',
-  objective: 'Transfer the recall cue to a controlled outdoor environment on a long line.',
+  title: 'Come on a long line',
+  objective: 'Your dog comes when called outside, on a long line, in a quiet spot.',
   durationMinutes: 12,
   repCount: 10,
   steps: [
     {
       order: 1,
-      instruction: 'Let them sniff and decompress before any training.',
-      then: 'Hold the line loosely and follow; no cues.',
+      instruction: 'Let them sniff and settle before any training.',
+      then: 'Hold the line loosely and follow. No cues.',
       durationSeconds: 180,
       reps: null,
-      tip: 'The long line is a safety net; never reel them in.',
-      successLook: 'Relaxed, sniffing, not frantic or anxious.'
+      tip: 'The long line is a safety net. Never reel them in.',
+      successLook: 'Relaxed, sniffing, not frantic.'
     },
     {
       order: 2,
@@ -419,51 +458,60 @@ const recall_stage3: Protocol = {
       then: 'No response in 3 seconds? Clap, turn, and run away.',
       durationSeconds: null,
       reps: 5,
-      tip: 'If they are deeply fixated, move closer first instead of calling.',
-      successLook: 'They disengage and trot toward you.'
+      tip: 'If they are locked on to something, move closer before you call.',
+      successLook: 'They look away from it and trot toward you.'
     },
     {
       order: 3,
       instruction: 'When they arrive, feed 5 treats one at a time.',
-      then: 'Praise the whole time; keep them close for 10 seconds.',
+      then: 'Praise the whole time. Keep them close for 10 seconds.',
       durationSeconds: 10,
       reps: null,
-      tip: 'Outdoor arrivals need bigger parties; the competition is stronger out here.',
+      tip: 'Outside there is more competing for them, so arrivals need to pay more.',
       successLook: 'They press in, tail wagging, staying close.'
     },
     {
       order: 4,
       instruction: 'Say "go sniff" and let them wander off.',
-      then: 'Once they are away again, call and party again.',
+      then: 'Once they are away again, call and pay again.',
       durationSeconds: null,
       reps: 4,
-      tip: 'Recall then freedom teaches that coming never ends the fun.',
-      successLook: 'They come readily each time, no dodging.'
+      tip: 'Coming back, then going free, teaches that a recall does not end the fun.',
+      successLook: 'They come each time, no dodging.'
     },
     {
       order: 5,
       instruction: 'After the fastest recall, stop and let them sniff.',
-      then: 'Nothing more asked; let them explore.',
+      then: 'Nothing more asked. Let them explore.',
       durationSeconds: 60,
       reps: null,
-      tip: 'The last rep is the one they remember; make it a win.',
+      tip: 'The last rep is the one they remember. End on a good one.',
       successLook: 'Final recall was as fast as the first.'
     },
   ],
-  setup: ['Quiet outdoor space', 'Long line on back-clip harness', 'High-value treats in pouch'],
-  successCriteria: 'Dog recalls outdoors on a long line from 15 feet in a low-distraction environment, 8 out of 10 trials.',
-  commonMistakes: [
-    'Going off-leash before long-line recall is reliable at 20+ feet',
-    'Only recalling to end the walk or go home',
-    'Under-rewarding outdoor recalls',
-    'Using the long line to drag the dog toward you'
+  setup: [
+    'Quiet outdoor space',
+    'Long line on back-clip harness',
+    'Treat pouch, well stocked',
   ],
-  equipmentNeeded: ['15–20 foot long line', 'Back-clip harness', 'High-value treats', 'Treat pouch'],
+  successCriteria: 'Move on when they come from 15 feet on the long line, 8 times out of 10, somewhere quiet.',
+  commonMistakes: [
+    'Dropping the line too soon. Wait until they come from 20 feet every time.',
+    'Calling only to end the walk. Call, pay, and let them go again.',
+    'Paying outdoor recalls like indoor ones. Outside needs more treats.',
+    'Reeling them in on the line. It is there for safety only.',
+  ],
+  equipmentNeeded: [
+    '15 to 20-foot long line',
+    'Back-clip harness',
+    'Soft treats they love',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Off-leash recall in open spaces takes 6 to 12 months; only drop the line in fenced areas.',
+  trainerNote: 'Off-leash recall in open spaces takes 6 to 12 months. Until then, drop the line only in fenced areas.',
   supportsLiveAiTrainer: false,
 }
 
@@ -475,8 +523,8 @@ const jumping_stage1: Protocol = {
   id: 'jumping_s1',
   behavior: 'jumping_up',
   stage: 1,
-  title: 'Four Paws on Floor for Attention',
-  objective: 'Teach the dog that four paws on the floor earns attention, pets, and treats — jumping earns nothing.',
+  title: 'Four paws for a hello',
+  objective: 'Your dog learns that four paws on the floor gets attention and jumping gets none.',
   durationMinutes: 8,
   repCount: 20,
   steps: [
@@ -486,7 +534,7 @@ const jumping_stage1: Protocol = {
       then: 'Say nothing and fold your arms until four paws land.',
       durationSeconds: null,
       reps: null,
-      tip: 'Even \'no\' is attention; silence is the only response to a jump.',
+      tip: 'Even "no" is attention. Silence is the only response to a jump.',
       successLook: 'Four paws hit the floor after you turn.'
     },
     {
@@ -495,43 +543,49 @@ const jumping_stage1: Protocol = {
       then: 'Treat with calm praise, then stand and let them try again.',
       durationSeconds: null,
       reps: 20,
-      tip: 'Keep your energy at half; excitement starts another jump cycle.',
-      successLook: 'They approach and look up without leaving the floor.'
+      tip: 'Keep your energy at half. Getting excited starts another jump.',
+      successLook: 'They come up and look at you, paws down.'
     },
     {
       order: 3,
-      instruction: 'Wait 3 seconds of four paws before marking.',
-      then: 'Count silently to three, then mark and treat low.',
+      instruction: 'Wait for 3 seconds of four paws down.',
+      then: 'Count silently to 3, then mark and treat low.',
       durationSeconds: null,
       reps: 5,
-      tip: 'You are building duration now, not a quick touch-and-go.',
+      tip: 'Now you are asking them to hold it, not touch down and bounce.',
       successLook: 'They wait on all fours for 3 seconds.'
     },
     {
       order: 4,
       instruction: 'Let them sniff or play for a minute.',
-      then: 'Keep it calm; no rough play that invites jumping.',
+      then: 'Keep it calm. No rough play that invites jumping.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'They are calm and on the floor.'
     },
   ],
-  setup: ['Calm indoor room', 'Treats held at your chest', 'Whole household on the same rules'],
-  guide: 'Everyone in the house follows the same rules: jumping earns nothing, four paws earn attention. One person who allows jumping undoes weeks of work. Never push the dog off or knee them; pushing is attention and kneeing is fear, and neither teaches the alternative.',
-  successCriteria: 'Dog approaches handler with four paws on floor (no jumping) in 15 out of 20 reps in a calm indoor environment.',
-  commonMistakes: [
-    'Pushing the dog off — physical contact reinforces jumping for attention-seeking dogs',
-    'Kneeing the dog — creates anxiety without teaching the alternative',
-    'Inconsistency between family members',
-    'Allowing brief jumps ("just one is fine")'
+  setup: [
+    'Calm room indoors',
+    'Treats held at your chest',
+    'Whole household on the same rules',
   ],
-  equipmentNeeded: ['High-value treats'],
+  guide: 'Everyone in the house follows the same rules: jumping gets nothing, four paws get attention. One person who allows jumping undoes weeks of work. Never push them off or knee them. Pushing is still attention, kneeing scares them, and neither shows them what to do instead.',
+  successCriteria: 'Move on when they come to you without jumping in 15 of 20 tries, indoors and calm.',
+  commonMistakes: [
+    'Pushing them off. Touch is attention, so it pays the jump.',
+    'Kneeing them. It scares them and teaches nothing to do instead.',
+    'Different rules from different people. Everyone turns away, every time.',
+    'Allowing "just one" jump. One jump that pays keeps them trying.',
+  ],
+  equipmentNeeded: [
+    'Soft treats they love',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'jumping_s2',
-  trainerNote: 'This fails when one person in the house allows jumping. Get everyone on board before you start.',
+  trainerNote: 'This fails when one person in the house allows jumping. Get everyone to agree before you start.',
   supportsLiveAiTrainer: true,
 }
 
@@ -539,18 +593,18 @@ const jumping_stage2: Protocol = {
   id: 'jumping_s2',
   behavior: 'jumping_up',
   stage: 2,
-  title: 'Auto-Sit for Greeting',
-  objective: 'Teach the dog to automatically offer a sit whenever a person approaches.',
+  title: 'Sit when people come close',
+  objective: 'Your dog sits on their own when someone walks up to them.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
     {
       order: 1,
       instruction: 'Cue sit.',
-      then: 'Mark the instant they sit; treat between the front paws.',
+      then: 'Mark the instant they sit. Treat between the front paws.',
       durationSeconds: null,
       reps: 10,
-      tip: 'If the sit is shaky, fix it here before adding approaches.',
+      tip: 'If the sit is shaky, fix it here before adding people walking up.',
       successLook: 'Sits within 2 seconds, 9 of 10.'
     },
     {
@@ -559,25 +613,25 @@ const jumping_stage2: Protocol = {
       then: 'If they sit uncued, mark and drop a treat between their paws.',
       durationSeconds: null,
       reps: null,
-      tip: 'Treat between the paws; overhead delivery invites jumping.',
-      successLook: 'Dog holds sit as you approach.'
+      tip: 'Treat between the paws. Handing it down from above invites a jump.',
+      successLook: 'Dog holds the sit as you walk up.'
     },
     {
       order: 3,
       instruction: 'If they jump, turn your back.',
-      then: 'Wait for a sit, then approach again, slower.',
+      then: 'Wait for a sit, then walk up again, slower.',
       durationSeconds: null,
       reps: null,
-      tip: 'Try approaching from the side; your energy is triggering the jump.',
-      successLook: 'Dog holds sit during a slow approach.'
+      tip: 'Your energy set off the jump. Try walking up from the side.',
+      successLook: 'Dog holds the sit as you walk up slowly.'
     },
     {
       order: 4,
-      instruction: 'Approach with a little more energy each rep.',
-      then: 'Walk, then fast, then jog, then reach; treat each held sit.',
+      instruction: 'Walk up with a little more energy each rep.',
+      then: 'Walk, then fast, then jog, then reach. Treat each held sit.',
       durationSeconds: null,
       reps: 10,
-      tip: 'Each energy level is a new test; if they fail, drop back one.',
+      tip: 'Each energy level is a new test. If they jump, drop back one.',
       successLook: 'Sit holds while you jog and reach.'
     },
     {
@@ -586,33 +640,39 @@ const jumping_stage2: Protocol = {
       then: 'The helper drops a treat for the sitting dog.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Rehearse before real visitors; the habit must exist before the adrenaline.',
-      successLook: 'Dog holds sit as the door opens.'
+      tip: 'Practice before real visitors. The habit has to be there before the excitement.',
+      successLook: 'Dog holds the sit as the door opens.'
     },
     {
       order: 6,
-      instruction: 'Play or sniff break.',
-      then: 'Nothing to do; let them shake it off.',
+      instruction: 'Take a play or sniff break.',
+      then: 'Nothing to do. Let them shake it off.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, relaxed dog.'
     },
   ],
-  setup: ['Treats in hand', 'Helper for the doorbell drill'],
-  successCriteria: 'Dog auto-sits in 12 out of 15 greeting trials without verbal cue when a person calmly approaches.',
-  commonMistakes: [
-    'Only practicing with family — the dog needs rehearsal with helpers and strangers',
-    'Skipping treat-between-paws — overhead delivery breaks the sit',
-    'Over-exciting the dog during practice',
-    'Skipping doorbell drills before real visitors'
+  setup: [
+    'Treats in hand',
+    'Helper for the door practice',
   ],
-  equipmentNeeded: ['High-value treats', 'Optional: training partner'],
+  successCriteria: 'Move on when they sit without a cue in 12 of 15 calm approaches.',
+  commonMistakes: [
+    'Practicing only with family. Bring in friends and neighbors too.',
+    'Handing treats down from above. Drop them between their front paws.',
+    'Getting them wound up while practicing. Keep your voice and moves low-key.',
+    'Skipping the door practice. Do it before real visitors arrive.',
+  ],
+  equipmentNeeded: [
+    'Soft treats they love',
+    'A helper, if you have one',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'jumping_s3',
-  trainerNote: 'A dog that sits for greetings on their own needs no management; they manage themselves.',
+  trainerNote: 'Once they sit for greetings on their own, you stop having to manage every hello.',
   supportsLiveAiTrainer: true,
 }
 
@@ -620,63 +680,72 @@ const jumping_stage3: Protocol = {
   id: 'jumping_s3',
   behavior: 'jumping_up',
   stage: 3,
-  title: 'Calm Greeting with Strangers',
-  objective: 'Generalize four-paws-on-floor and auto-sit to greetings with unfamiliar people in real-world contexts.',
+  title: 'Greeting new people',
+  objective: 'Your dog keeps four paws down or sits when greeting people they do not know.',
   durationMinutes: 12,
   repCount: 10,
   steps: [
     {
       order: 1,
-      instruction: 'Helper approaches from 20 feet; cue sit at 10 feet.',
-      then: 'If they sit, helper drops a treat and pets calmly.',
+      instruction: 'Helper walks up from 20 feet. Cue sit at 10 feet.',
+      then: 'If they sit, the helper drops a treat and pets calmly.',
       durationSeconds: null,
       reps: 5,
-      tip: 'If they jump, the helper turns away. Keep the leash loose; it is backup only.',
+      tip: 'If they jump, the helper turns away. Keep the leash loose. It is only backup.',
       successLook: 'They hold the sit while the stranger pets them.'
     },
     {
       order: 2,
       instruction: 'Ask the helper to arrive excited, gushing and reaching.',
-      then: 'Same rule: sit earns the greeting, jumping earns a turn away.',
+      then: 'Same rule: sit gets the hello, jumping gets a turned back.',
       durationSeconds: null,
       reps: 3,
-      tip: 'This step often causes regression; drop back a step if needed.',
+      tip: 'Expect some slipping here. Drop back a step if you need to.',
       successLook: 'Four paws down or a sit despite the excitement.'
     },
     {
       order: 3,
       instruction: 'Repeat the greeting somewhere new: sidewalk, store, or park.',
-      then: 'Start easy again; pay the first calm sit generously.',
+      then: 'Start easy again. Pay the first calm sit well.',
       durationSeconds: null,
       reps: 2,
-      tip: 'A new place feels like starting over; it generalizes faster each time.',
+      tip: 'A new place can feel like starting over. It gets quicker each time.',
       successLook: 'Calm greeting holds in one new place.'
     },
     {
       order: 4,
-      instruction: 'Release with play or a sniff break.',
-      then: 'The helper can join if the dog stays calm.',
+      instruction: 'Release them to play or sniff.',
+      then: 'The helper can join if your dog stays calm.',
       durationSeconds: 60,
       reps: null,
       tip: null,
-      successLook: 'Dog relaxed, engaged with you or the ground.'
+      successLook: 'Dog relaxed, sniffing or checking in with you.'
     },
   ],
-  setup: ['Helper the dog barely knows', 'Short 3 to 4 foot leash', '5 treats for the helper', 'Helper briefed on the plan'],
-  guide: 'Before you start, brief your helper: ignore any jumping and turn away; the moment the dog sits, drop a treat and pet calmly. Give them five treats. An unprepared helper who greets a jumping dog is the most common reason this stage fails.',
-  successCriteria: 'Dog greets unfamiliar person with four paws on floor (or auto-sit) in 8 out of 10 real-world greeting trials.',
-  commonMistakes: [
-    'Skipping the helper briefing',
-    'Practicing at peak excitement (just woken up, first person through the door)',
-    'Too tight a leash during jumps',
-    'Expecting perfection — this takes weeks of real-world reps'
+  setup: [
+    'Helper your dog barely knows',
+    'Short 3 to 4-foot leash',
+    '5 treats for the helper',
+    'Helper knows the rules',
   ],
-  equipmentNeeded: ['Short leash (3–4 feet)', 'Treats for the helper', 'Willing helper'],
+  guide: 'Before you start, tell your helper the rules: if your dog jumps, turn away and say nothing. The moment they sit, drop a treat and pet calmly. Give the helper 5 treats. A helper who greets a jumping dog is the most common reason this stage fails.',
+  successCriteria: 'Move on when they greet a new person without jumping 8 times out of 10, out and about.',
+  commonMistakes: [
+    'Skipping the talk with your helper. Tell them the rules first.',
+    'Practicing at their most excited, like right after waking. Wait for a calmer time.',
+    'Holding the leash tight during jumps. Keep it loose. It is only backup.',
+    'Expecting it to be perfect soon. This takes weeks of greetings.',
+  ],
+  equipmentNeeded: [
+    '3 to 4-foot leash',
+    'Treats for the helper',
+    'A willing helper',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Carry treats on every walk for four weeks and recruit strangers; the reps compound quickly.',
+  trainerNote: 'Carry treats on every walk for 4 weeks and ask friendly strangers to help. It adds up fast.',
   supportsLiveAiTrainer: true,
 }
 
@@ -688,63 +757,71 @@ const potty_stage1: Protocol = {
   id: 'potty_s1',
   behavior: 'potty_training',
   stage: 1,
-  title: 'Timed Outdoor Trips & Reward System',
-  objective: 'Establish a consistent potty schedule and a powerful reward system so the dog learns outdoor elimination = jackpot.',
+  title: 'Trips out on a schedule',
+  objective: 'Your dog goes outside on a set schedule and gets paid well for going there.',
   durationMinutes: 5,
   repCount: 8,
   steps: [
     {
       order: 1,
       instruction: 'Leash up and walk to the potty spot.',
-      then: 'Stand still and silent for up to 5 minutes.',
+      then: 'Stand still and quiet for up to 5 minutes.',
       durationSeconds: 300,
       reps: null,
-      tip: 'This is not a walk; movement and excitement distract from the job.',
+      tip: 'This is not a walk. Moving around and chatting distract them from going.',
       successLook: 'They sniff, circle, or squat.'
     },
     {
       order: 2,
       instruction: 'While they are going, say your cue once, softly.',
-      then: 'Keep quiet and still until they finish.',
+      then: 'Stay quiet and still until they finish.',
       durationSeconds: null,
       reps: null,
-      tip: 'Say it during the act, not after; over weeks the word starts to trigger it.',
+      tip: 'Say it while they go, not after. Over weeks, the word starts to prompt it.',
       successLook: 'They keep going without stopping at your voice.'
     },
     {
       order: 3,
-      instruction: 'The instant they finish, throw a party.',
-      then: 'Excited voice, 3 to 5 treats one at a time.',
+      instruction: 'The instant they finish, praise and treat.',
+      then: 'Happy voice, 3 to 5 treats one at a time.',
       durationSeconds: null,
       reps: null,
-      tip: 'The jackpot must land within 2 seconds of the last squat.',
+      tip: 'Treats need to land within 2 seconds of them finishing.',
       successLook: 'Tail wagging, eating treats happily.'
     },
     {
       order: 4,
       instruction: 'Take a 5-minute bonus walk.',
-      then: 'Let them sniff and explore; this is the reward for going.',
+      then: 'Let them sniff and explore. This is the reward for going.',
       durationSeconds: 300,
       reps: null,
-      tip: 'Reward outside, right away; a treat back indoors teaches nothing.',
+      tip: 'Reward outside, right away. A treat back indoors teaches nothing.',
       successLook: 'They enjoy a relaxed walk.'
     },
   ],
-  setup: ['Short leash by the door', 'Treats by the door', 'Same spot, same route'],
-  guide: 'Post a potty schedule and set alarms. Puppies under 4 months: every 1 to 2 hours; 4 to 6 months: every 2 to 3 hours; adults: every 3 hours. Add a trip after waking, eating, and play. If nothing happens in 5 minutes, come inside, tether or crate them, and try again in 15 minutes.',
-  successCriteria: 'Dog eliminates outdoors on 6 of 8 scheduled trips over a 2-day period with no unsupervised indoor access.',
-  commonMistakes: [
-    'Rewarding after coming back inside — the jackpot must happen outside, immediately',
-    'Punishing accidents after the fact — the dog cannot make the connection',
-    'Giving too much indoor freedom too soon',
-    'Skipping trips when the dog "seems fine"'
+  setup: [
+    'Short leash by the door',
+    'Treats by the door',
+    'Same spot, same route',
   ],
-  equipmentNeeded: ['Short leash', 'High-value treats kept by the door', 'Crate or tether'],
+  guide: 'Write out a schedule and set alarms. Puppies under 4 months: every 1 to 2 hours. 4 to 6 months: every 2 to 3 hours. Adults: every 3 hours. Add a trip after waking, eating, and play. If nothing happens in 5 minutes, go back in, crate or tether them, and try again in 15 minutes.',
+  successCriteria: 'Move on when they go outside on 6 of 8 scheduled trips over 2 days, never loose indoors unwatched.',
+  commonMistakes: [
+    'Treating once you are back inside. Pay outside, the second they finish.',
+    'Scolding accidents after the fact. They cannot connect it to what they did.',
+    'Too much of the house too soon. Keep them where you can see them.',
+    'Skipping a trip because they seem fine. Stick to the schedule.',
+  ],
+  equipmentNeeded: [
+    'Short leash',
+    'Soft treats kept by the door',
+    'Crate or tether',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 36,
   difficulty: 1,
   nextProtocolId: 'potty_s2',
-  trainerNote: 'Potty training is 90 percent management; every unsupervised accident is a rep of the wrong thing.',
+  trainerNote: 'Most of this is management. Every accident you did not see is practice going indoors.',
   supportsLiveAiTrainer: false,
 }
 
@@ -752,18 +829,18 @@ const potty_stage2: Protocol = {
   id: 'potty_s2',
   behavior: 'potty_training',
   stage: 2,
-  title: 'Signal Training for Outside Request',
-  objective: 'Teach the dog to signal to you when they need to go out.',
+  title: 'Ring the bell to go out',
+  objective: 'Your dog rings a bell at the door when they need to go out.',
   durationMinutes: 8,
   repCount: 6,
   steps: [
     {
       order: 1,
       instruction: 'Before a potty trip, hold a treat by the bell.',
-      then: 'Nose rings it: mark and open the door right away.',
+      then: 'When their nose rings it, mark and open the door right away.',
       durationSeconds: null,
       reps: 6,
-      tip: 'Every trip, for a full week, no exceptions.',
+      tip: 'Do this on every trip for a full week.',
       successLook: 'Bell rings, door opens.'
     },
     {
@@ -772,17 +849,17 @@ const potty_stage2: Protocol = {
       then: 'When they ring on their own, open the door immediately.',
       durationSeconds: null,
       reps: null,
-      tip: 'Only after 5 to 7 days of pairing. Some dogs take weeks.',
-      successLook: 'Dog rings the bell unprompted.'
+      tip: 'Start after 5 to 7 days of ringing before every trip. Some dogs take weeks.',
+      successLook: 'Dog rings the bell without a prompt.'
     },
     {
       order: 3,
       instruction: 'Go to the spot and wait up to 2 minutes.',
-      then: 'Jackpot the instant they finish.',
+      then: 'Give several treats the instant they finish.',
       durationSeconds: 120,
       reps: null,
       tip: null,
-      successLook: 'Dog eliminates at the spot.'
+      successLook: 'Dog goes at the spot.'
     },
     {
       order: 4,
@@ -790,12 +867,12 @@ const potty_stage2: Protocol = {
       then: 'No play, no walk. Try again later.',
       durationSeconds: null,
       reps: null,
-      tip: 'Reward a fake ring once and the whole protocol slides back.',
+      tip: 'Pay a fake ring once and they will start ringing for fun.',
       successLook: 'Dog rings only when they need to go.'
     },
     {
       order: 5,
-      instruction: 'After a real potty, take a one-minute sniff walk.',
+      instruction: 'After a real potty, take a 1-minute sniff walk.',
       then: 'This is the reward for a real ring.',
       durationSeconds: 60,
       reps: null,
@@ -803,21 +880,29 @@ const potty_stage2: Protocol = {
       successLook: 'Dog sniffs happily, then back in.'
     },
   ],
-  setup: ['Bell hung at nose height', 'Treats in pocket', 'Potty spot picked'],
-  guide: 'Hang the bell at nose height on the potty door. For one week, every trip starts with the bell. After 5 to 7 days, stop starting trips yourself and wait for the ring. A ring with no elimination inside 2 minutes means straight back in; walks and play only follow a real potty.',
-  successCriteria: 'Dog signals at the door independently at least 4 out of 6 times across 3 days.',
-  commonMistakes: [
-    'Bell too high for the dog to reach comfortably',
-    'Delaying door opening after a bell ring — the response must be immediate',
-    'Allowing play after the bell without elimination — creates bell abuse',
-    'Removing the bell too early'
+  setup: [
+    'Bell hung at nose height',
+    'Treats in pocket',
+    'Potty spot picked',
   ],
-  equipmentNeeded: ['Dog training bell or jingle bell', 'High-value treats', 'Consistent potty spot'],
+  guide: 'Hang the bell at nose height on the door you use for potty trips. For one week, start every trip with the bell. After 5 to 7 days, stop starting trips yourself and wait for them to ring. If they ring and do not go within 2 minutes, go straight back in. Walks and play only come after a real potty.',
+  successCriteria: 'Move on when they ring the bell on their own at least 4 times out of 6 over 3 days.',
+  commonMistakes: [
+    'Hanging the bell too high. Put it at nose height.',
+    'Taking a while to open the door. Open it the moment it rings.',
+    'Playing outside after a ring with no potty. They will ring for fun.',
+    'Taking the bell down too soon. Leave it up for months.',
+  ],
+  equipmentNeeded: [
+    'Door bell for dogs, or any jingle bell',
+    'Soft treats they love',
+    'The same potty spot',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 36,
   difficulty: 2,
   nextProtocolId: 'potty_s3',
-  trainerNote: 'The bell is a tool, not a fixture; most dogs move to sitting at the door on their own.',
+  trainerNote: 'The bell is temporary. Many dogs switch to sitting by the door on their own.',
   supportsLiveAiTrainer: false,
 }
 
@@ -825,18 +910,18 @@ const potty_stage3: Protocol = {
   id: 'potty_s3',
   behavior: 'potty_training',
   stage: 3,
-  title: 'Independence & Accident-Free Living',
-  objective: 'Achieve consistent accident-free living through graduated indoor freedom.',
+  title: 'One more room at a time',
+  objective: 'Your dog stays accident-free as you slowly give them more of the house.',
   durationMinutes: 5,
   repCount: 4,
   steps: [
     {
       order: 1,
-      instruction: 'Let them roam their current room while you supervise.',
-      then: 'Any circling or corner sniffing? Redirect outside right away.',
+      instruction: 'Let them roam their current room while you watch.',
+      then: 'Any circling or corner sniffing? Take them outside right away.',
       durationSeconds: null,
       reps: null,
-      tip: 'Every accident sets you back two weeks; expand freedom slowly.',
+      tip: 'Each accident is practice going indoors, so add space slowly.',
       successLook: 'They roam without circling or sniffing corners.'
     },
     {
@@ -845,7 +930,7 @@ const potty_stage3: Protocol = {
       then: 'See one? Say "outside" cheerfully and go straight out.',
       durationSeconds: null,
       reps: null,
-      tip: 'Every dog has a tell; spotting yours beats cleaning up.',
+      tip: 'Every dog has a tell. Learning theirs beats cleaning up.',
       successLook: 'They get outside before anything happens.'
     },
     {
@@ -854,7 +939,7 @@ const potty_stage3: Protocol = {
       then: 'When they go, mark and treat right there.',
       durationSeconds: null,
       reps: 4,
-      tip: 'A potty cue pays off before car trips, bedtime, and travel.',
+      tip: 'A potty cue is handy before car trips, bedtime, and travel.',
       successLook: 'They go within 2 minutes of arriving.'
     },
     {
@@ -863,25 +948,33 @@ const potty_stage3: Protocol = {
       then: 'Going potty earns the fun part of being out.',
       durationSeconds: 60,
       reps: null,
-      tip: 'If you go in right after, they learn to hold it longer.',
+      tip: 'If you always go in right after, they learn to hold it longer.',
       successLook: 'Relaxed sniffing, no rushing back in.'
     },
   ],
-  setup: ['Baby gates set for one room', 'Treat pouch', 'Enzymatic cleaner on hand'],
-  guide: 'Expand indoor freedom one room at a time: one small supervised room, then add the next after two accident-free weeks. If an accident happens, no reaction and no scolding; clean with enzymatic cleaner and tighten management for 48 hours. Regular cleaners leave scent the dog can still find.',
-  successCriteria: 'Dog has zero accidents for 4 consecutive weeks with graduated indoor freedom and signals reliably to go out.',
-  commonMistakes: [
-    'Treating accidents as moral failures rather than management errors',
-    'Using non-enzymatic cleaners',
-    'Expanding indoor freedom too quickly after a clean streak',
-    'Stopping the reward system before the behavior is fully automatic'
+  setup: [
+    'Baby gates set for one room',
+    'Treat pouch',
+    'Enzyme cleaner on hand',
   ],
-  equipmentNeeded: ['Enzymatic cleaner', 'Treat pouch', 'Baby gates for room management'],
+  guide: 'Give them more of the house one room at a time. Start with one small room you can watch, and add the next after 2 accident-free weeks. If there is an accident, do not react or scold. Clean it with enzyme cleaner and go back to closer supervision for 48 hours. Regular cleaners leave scent your dog can still find.',
+  successCriteria: 'Move on when they have no accidents for 4 weeks in a row and ask to go out.',
+  commonMistakes: [
+    'Treating an accident as bad behavior. It means they had too much freedom.',
+    'Cleaning with regular cleaner. Use an enzyme cleaner so no scent is left.',
+    'Opening up the house after a few good days. Wait 2 accident-free weeks.',
+    'Stopping treats too soon. Keep paying until they go outside without thinking.',
+  ],
+  equipmentNeeded: [
+    'Enzyme cleaner',
+    'Treat pouch',
+    'Baby gates',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 36,
   difficulty: 2,
   nextProtocolId: null,
-  trainerNote: 'Full reliability takes months, not weeks; after any regression, return to Stage 1 for a week.',
+  trainerNote: 'Getting there takes months, not weeks. After a setback, go back to stage 1 for a week.',
   supportsLiveAiTrainer: false,
 }
 
@@ -893,28 +986,28 @@ const crate_stage1: Protocol = {
   id: 'crate_s1',
   behavior: 'crate_anxiety',
   stage: 1,
-  title: 'Crate Introduction & Positive Association',
-  objective: 'Build a strong positive association with the crate so the dog enters voluntarily and rests inside without anxiety.',
+  title: 'Treats in the crate',
+  objective: 'Your dog walks into the crate on their own and rests there calmly.',
   durationMinutes: 10,
   repCount: 10,
   steps: [
     {
       order: 1,
       instruction: 'Scatter a few kibble pieces inside the crate.',
-      then: 'Step back and let them investigate on their own.',
+      then: 'Step back and let them check it out on their own.',
       durationSeconds: null,
       reps: null,
-      tip: 'Pressure now creates avoidance that takes weeks to undo; never push or lure.',
+      tip: 'Never push or lure them in. Pressure now can take weeks to undo.',
       successLook: 'They sniff the entrance, maybe one paw in.'
     },
     {
       order: 2,
       instruction: 'Toss a treat just inside the door.',
-      then: 'When they take it and step out, toss the next slightly deeper.',
+      then: 'When they step back out, toss the next one a bit deeper.',
       durationSeconds: null,
       reps: 10,
-      tip: 'Work toward the back wall over several sessions; meet them where they stop.',
-      successLook: 'They walk in, collect the treat, walk out calmly.'
+      tip: 'Work toward the back wall over several sessions. Start from wherever they stop.',
+      successLook: 'They walk in, get the treat, walk out calmly.'
     },
     {
       order: 3,
@@ -922,43 +1015,53 @@ const crate_stage1: Protocol = {
       then: 'Bowl just inside for 3 days, then at the back.',
       durationSeconds: null,
       reps: null,
-      tip: 'Every meal inside is a free positive rep.',
-      successLook: 'They walk in for meals without hesitation.'
+      tip: 'Every meal in the crate is a free good experience.',
+      successLook: 'They walk in for meals without hesitating.'
     },
     {
       order: 4,
       instruction: 'Close the door for 10 seconds while they eat.',
-      then: 'Stay in the room; open it quietly and build to 60 seconds.',
+      then: 'Stay in the room. Open it quietly. Build to 60 seconds.',
       durationSeconds: 60,
       reps: null,
-      tip: 'Keep the door completely anticlimactic; no big production opening or closing.',
+      tip: 'Make the door boring. No fuss when it opens or closes.',
       successLook: 'They keep eating, no scratching or whining.'
     },
     {
       order: 5,
       instruction: 'Open the crate and let them wander out.',
-      then: 'No fuss; a short sniff or play break ends the session.',
+      then: 'No fuss. A short sniff or play break ends the session.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'They leave calmly and relax.'
     },
   ],
-  setup: ['Crate in the living room', 'Door off or propped open', 'Worn T-shirt inside', 'Handful of kibble'],
-  guide: 'Each step needs 2 to 3 days minimum; allow 1 to 2 weeks for this stage. Never use the crate as punishment, and never open the door for whining; wait for a quiet moment first.',
-  successCriteria: 'Dog enters crate voluntarily 8 out of 10 times when a treat is tossed inside. Eats a full meal with door closed for 2 minutes without stress signals.',
-  commonMistakes: [
-    'Moving too fast — each step needs 2–3 days minimum',
-    'Using the crate as punishment',
-    'Letting the dog out when they whine — teaches whining opens the door',
-    'Crating for long durations before the association is solid'
+  setup: [
+    'Crate in the living room',
+    'Door off or propped open',
+    'Worn T-shirt inside',
+    'Handful of kibble',
   ],
-  equipmentNeeded: ['Appropriately sized crate', 'High-value treats', 'Worn T-shirt or familiar scent item', 'Food bowl'],
+  guide: 'Give each step at least 2 to 3 days, and 1 to 2 weeks for this stage. Never use the crate as punishment. Do not open the door while they whine. Wait for a quiet moment, and treat any whining as a sign you went too fast: make the next rep shorter.',
+  successCriteria: 'Move on when they walk in for a tossed treat 8 of 10 times and eat calmly, door closed.',
+  commonMistakes: [
+    'Moving too fast. Each step needs 2 to 3 days at least.',
+    'Using the crate as a punishment. It should only mean good things.',
+    'Opening the door for whining. Wait for quiet, then make the next rep shorter.',
+    'Long crate stays too early. Keep it to minutes for now.',
+  ],
+  equipmentNeeded: [
+    'Crate they can stand and turn in',
+    'Soft treats they love',
+    'Worn T-shirt or something that smells of home',
+    'Food bowl',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'crate_s2',
-  trainerNote: 'The goal is a dog that puts themselves to bed. It cannot be rushed; give it two weeks.',
+  trainerNote: 'You want a dog who puts themselves to bed. It cannot be rushed. Give it 2 weeks.',
   supportsLiveAiTrainer: false,
 }
 
@@ -966,27 +1069,27 @@ const crate_stage2: Protocol = {
   id: 'crate_s2',
   behavior: 'crate_anxiety',
   stage: 2,
-  title: 'Building Duration with Door Closed',
-  objective: 'Extend crate time to 30–60 minutes with the handler present, then introduce brief departures from the room.',
+  title: 'Door closed, you nearby',
+  objective: 'Your dog stays settled in the closed crate while you sit nearby, then leave briefly.',
   durationMinutes: 12,
   repCount: 6,
   steps: [
     {
       order: 1,
-      instruction: 'Give the chew toy in the crate and close the door.',
+      instruction: 'Put the chew toy in the crate and close the door.',
       then: 'Sit in the room and ignore the crate completely.',
       durationSeconds: 600,
       reps: null,
-      tip: 'Frozen peanut butter does the work. Chew done? Wait 2 quiet minutes first.',
+      tip: 'Frozen peanut butter keeps them busy. Once the chew is done, wait for 2 quiet minutes.',
       successLook: 'Dog works the chew and settles.'
     },
     {
       order: 2,
       instruction: 'Stand, walk to the doorway, pause 10 seconds.',
-      then: 'Return to your seat. No eye contact with the crate.',
+      then: 'Return to your seat. Do not look at the crate.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Your movement should mean nothing; keep it boring.',
+      tip: 'Your moving around should mean nothing. Keep it boring.',
       successLook: 'Dog stays lying down as you move.'
     },
     {
@@ -995,16 +1098,16 @@ const crate_stage2: Protocol = {
       then: 'Come back before any fuss, sit down, ignore the crate.',
       durationSeconds: 30,
       reps: null,
-      tip: 'You are building a history of you always coming back.',
-      successLook: 'Head lifts at your return, then settles again.'
+      tip: 'Each short trip adds to their sense that you always come back.',
+      successLook: 'Head lifts when you return, then settles again.'
     },
     {
       order: 4,
       instruction: 'Leave again, a little longer each time.',
-      then: '30 seconds, 1, 2, then 5 minutes; always return before distress.',
+      then: '30 seconds, 1, 2, then 5 minutes. Return before they get upset.',
       durationSeconds: 300,
       reps: null,
-      tip: 'Return only during quiet moments, never while they whine.',
+      tip: 'Come back during a quiet moment, not while they whine.',
       successLook: 'No frantic greeting when you come back.'
     },
     {
@@ -1013,33 +1116,42 @@ const crate_stage2: Protocol = {
       then: 'Only then a low-key hello.',
       durationSeconds: null,
       reps: 3,
-      tip: 'A wild exit teaches high arousal around crate time.',
+      tip: 'A wild exit makes crate time something to get wound up about.',
       successLook: 'Dog steps out calmly.'
     },
     {
       order: 6,
       instruction: 'Let them sniff or stretch out for a minute.',
-      then: 'Stay low-key; the session is over.',
+      then: 'Stay low-key. The session is over.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Dog wanders calmly, no zoomies.'
     },
   ],
-  setup: ['Dog exercised first', 'Frozen stuffed chew toy', 'Crate door open', 'A seat in the same room'],
-  successCriteria: 'Dog settles in crate for 30 minutes with handler absent, no stress signals, 4 out of 6 sessions.',
-  commonMistakes: [
-    'Returning when the dog is whining — only return during quiet moments',
-    'Skipping the in-room phase and jumping straight to departures',
-    'Overly excited greetings on return',
-    'Crating before the dog has been exercised'
+  setup: [
+    'Walk or play first',
+    'Frozen stuffed chew toy',
+    'Crate door open',
+    'A seat in the same room',
   ],
-  equipmentNeeded: ['Crate', 'Chew Toy or bully stick', 'Timer'],
+  successCriteria: 'Move on when they settle 30 minutes with you there and stay calm through 5-minute absences, 4 of 6 sessions.',
+  commonMistakes: [
+    'Coming back while they whine. Wait for a quiet moment, then return.',
+    'Skipping the time with you in the room. Do that part first.',
+    'Big hellos when you return. Keep it quiet and dull.',
+    'Crating before a walk or play. Tire them out first.',
+  ],
+  equipmentNeeded: [
+    'Crate',
+    'Chew toy or bully stick',
+    'Timer',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'crate_s3',
-  trainerNote: 'Exercise the dog before every crate session; a tired dog crates easily and a bored one only stresses.',
+  trainerNote: 'Tire them out before every crate session. A tired dog settles. A bored one frets.',
   supportsLiveAiTrainer: false,
 }
 
@@ -1047,46 +1159,46 @@ const crate_stage3: Protocol = {
   id: 'crate_s3',
   behavior: 'crate_anxiety',
   stage: 3,
-  title: 'Extended Alone Time & Independence',
-  objective: 'Build tolerance for 3–4 hour crating with the handler fully absent, and establish the crate as the dog\'s preferred resting space.',
+  title: 'Longer stretches alone',
+  objective: 'Your dog rests calmly in the crate for up to 3 hours while you are out.',
   durationMinutes: 10,
   repCount: 5,
   steps: [
     {
       order: 1,
-      instruction: 'Run the ritual: exercise, cue word, chew toy in, dog enters.',
-      then: 'Same order every time, no variation.',
+      instruction: 'Do the routine: walk, cue word, chew toy in, dog enters.',
+      then: 'Same order every time.',
       durationSeconds: null,
       reps: null,
-      tip: 'Predictability is calming; a dog who knows what is coming worries less.',
+      tip: 'A dog who knows what is coming worries less.',
       successLook: 'They hear the cue and walk to the crate.'
     },
     {
       order: 2,
-      instruction: 'Leave for today\'s step on the schedule; no fuss.',
-      then: 'Check the camera when back; look for stress after 5 minutes.',
+      instruction: 'Leave for today\'s length of time, with no goodbye.',
+      then: 'Back home, check the camera for stress after the first 5 minutes.',
       durationSeconds: null,
       reps: null,
-      tip: 'Quiet at return does not mean calm throughout; the camera tells the truth.',
+      tip: 'Quiet when you return does not mean calm the whole time. Check the video.',
       successLook: 'Asleep or resting calmly on camera.'
     },
     {
       order: 3,
-      instruction: 'Leave the crate door open in the evening; do not prompt.',
+      instruction: 'Leave the crate door open in the evening. Do not prompt.',
       then: 'Wait for them to choose it on their own.',
       durationSeconds: null,
       reps: null,
-      tip: 'A dog who chooses the crate is comfortable, not just tolerating it.',
-      successLook: 'They walk in and rest, unprompted.'
+      tip: 'A dog who picks the crate is comfortable there, not putting up with it.',
+      successLook: 'They walk in and rest without a prompt.'
     },
     {
       order: 4,
-      instruction: 'Once a week, crate them mid-day with a chew toy.',
-      then: 'Go about your day; let them out calmly after.',
+      instruction: 'Once a week, crate them midday with a chew toy.',
+      then: 'Go about your day. Let them out calmly after.',
       durationSeconds: 1800,
       reps: null,
-      tip: 'Unmaintained skills fade; a weekly surprise keeps it intact.',
-      successLook: 'They enter on cue with no resistance.'
+      tip: 'Skip the crate for months and it feels strange again. Weekly use keeps it normal.',
+      successLook: 'They go in on cue with no fuss.'
     },
     {
       order: 5,
@@ -1094,25 +1206,35 @@ const crate_stage3: Protocol = {
       then: 'Straight outside for a short sniff, no big greeting.',
       durationSeconds: 60,
       reps: null,
-      tip: 'A low-key exit keeps the crate from predicting a party.',
+      tip: 'A quiet exit keeps the crate from meaning a party is coming.',
       successLook: 'Calm exit, loose body, sniffing.'
     },
   ],
-  setup: ['Crate with familiar bedding', 'Pet camera running', 'Chew toy ready', 'White noise on, optional'],
-  guide: 'Extend alone time in steps: 30 minutes, 1 hour, 90 minutes, 2 hours, 3 hours over 2 to 3 weeks, never more than one step a day. Review the camera after every session; panting, drooling, pawing, or vocalizing after the first 5 minutes means it was too long.',
-  successCriteria: 'Dog rests calmly in crate for 3 hours with handler absent, no distress on camera, 4 out of 5 sessions.',
-  commonMistakes: [
-    'Skipping camera review — you cannot know the dog is calm without watching',
-    'No exercise before long sessions',
-    'Crating for more than 4 hours for an adult dog',
-    'Abandoning crate practice entirely once the dog sleeps through the night'
+  setup: [
+    'Crate with familiar bedding',
+    'Pet camera running',
+    'Chew toy ready',
+    'White noise on, if you like',
   ],
-  equipmentNeeded: ['Crate with familiar bedding', 'Pet camera', 'Chew Toy', 'White noise machine (optional)'],
+  guide: 'Stretch alone time in steps: 30 minutes, 1 hour, 90 minutes, 2 hours, 3 hours, over 2 to 3 weeks. Never move up more than one step a day. Watch the camera after every session. Panting, drooling, pawing, or barking after the first 5 minutes means it was too long, so go back a step.',
+  successCriteria: 'Move on when the camera shows them resting calmly for 3 hours alone, 4 of 5 sessions.',
+  commonMistakes: [
+    'Skipping the camera. Quiet when you get home does not mean calm throughout.',
+    'No walk or play before long sessions. Tire them out first.',
+    'Crating an adult for more than 4 hours. Get help for longer days.',
+    'Dropping the crate once they sleep through the night. Keep using it weekly.',
+  ],
+  equipmentNeeded: [
+    'Crate with familiar bedding',
+    'Pet camera',
+    'Chew toy',
+    'White noise machine, if you like',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Four to five waking hours is the maximum for an adult; nine hours is management, not care.',
+  trainerNote: '4 hours is the most for an adult dog during the day. Past that, find a walker or sitter.',
   supportsLiveAiTrainer: false,
 }
 
@@ -1124,18 +1246,18 @@ const biting_stage1: Protocol = {
   id: 'biting_s1',
   behavior: 'puppy_biting',
   stage: 1,
-  title: 'Bite Inhibition: Pressure Sensitivity Training',
-  objective: 'Teach the puppy that even moderate pressure on human skin causes interaction to stop immediately.',
+  title: 'Soft mouth first',
+  objective: 'Your puppy keeps their mouth soft on skin during play.',
   durationMinutes: 8,
   repCount: 15,
   steps: [
     {
       order: 1,
       instruction: 'Play, and let gentle mouthing happen.',
-      then: 'When a bite hurts, say \'ouch\' sharply and freeze for 3 seconds.',
+      then: 'When a bite hurts, say \'ouch\' once and freeze for 3 seconds.',
       durationSeconds: null,
       reps: null,
-      tip: 'Think of a puppy\'s yelp: sharp and brief. Overreacting excites them more.',
+      tip: 'Keep it short and flat. If ouch winds them up, skip it and freeze.',
       successLook: 'They pause and pull back a little.'
     },
     {
@@ -1144,7 +1266,7 @@ const biting_stage1: Protocol = {
       then: 'After 3 hard bites, stand up and turn away for 30 seconds.',
       durationSeconds: 30,
       reps: null,
-      tip: 'The time-out is information, not punishment: hard biting ends play.',
+      tip: 'Hard biting ends the fun. Keep the time-out calm and short.',
       successLook: 'Bite pressure softens over the session.'
     },
     {
@@ -1153,7 +1275,7 @@ const biting_stage1: Protocol = {
       then: 'When they bite the toy instead, mark and play hard.',
       durationSeconds: null,
       reps: 10,
-      tip: 'The toy must beat skin: wiggle it, toss it, make it prey.',
+      tip: 'Make the toy more fun than your hand. Drag it along the floor.',
       successLook: 'They move from your hand to the toy.'
     },
     {
@@ -1162,33 +1284,40 @@ const biting_stage1: Protocol = {
       then: 'Any gentle sniff or lick earns a treat from your other hand.',
       durationSeconds: null,
       reps: 5,
-      tip: 'This turns \'hands are a target\' into \'still hands mean treats\'.',
+      tip: 'They learn that still hands mean treats, not play.',
       successLook: 'They sniff or lick your hand gently.'
     },
     {
       order: 5,
       instruction: 'End with a minute of calm toy play.',
-      then: 'Keep it low key; stop before they get wild again.',
+      then: 'Keep it calm; stop before they get wild again.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'They play with the toy, not you.'
     },
   ],
-  setup: ['Tug or rope toy within reach', 'Tiny treats in your pocket', 'Puppy rested, not overtired'],
-  successCriteria: 'Puppy reduces bite pressure to soft mouthing only in 12 out of 15 interactions.',
-  commonMistakes: [
-    'Yelling or pulling your hand away fast — both increase excitement',
-    'Inconsistency across family members',
-    'Waiting more than 2 seconds to redirect to a toy',
-    'Suppressing all mouthing — gentle mouthing during development is normal'
+  setup: [
+    'Tug toy within reach',
+    'Tiny treats in pocket',
+    'Puppy rested, not overtired',
   ],
-  equipmentNeeded: ['Tug toy or rope toy', 'High-value treats'],
+  successCriteria: 'Move on when bites stay soft in 12 of 15 play moments.',
+  commonMistakes: [
+    'Yanking your hand away. Freeze instead, since movement invites more biting.',
+    'Different rules from different people. Agree on one plan as a household.',
+    'Waiting too long to offer the toy. Have it out within 2 seconds.',
+    'Stopping all mouthing. Soft mouthing is normal at this age.',
+  ],
+  equipmentNeeded: [
+    'Tug or rope toy',
+    'Soft treats, pea-sized',
+  ],
   ageMinMonths: 2,
   ageMaxMonths: 18,
   difficulty: 1,
   nextProtocolId: 'biting_s2',
-  trainerNote: 'The goal is not zero mouthing; it is zero hard biting. A soft mouth is a safer dog.',
+  trainerNote: 'Aim for zero hard bites, not zero mouthing. A dog with a soft mouth is safer.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1196,8 +1325,8 @@ const biting_stage2: Protocol = {
   id: 'biting_s2',
   behavior: 'puppy_biting',
   stage: 2,
-  title: 'Zero Skin Contact Rule',
-  objective: 'Eliminate all mouthing on skin and transfer all bite energy to appropriate toys.',
+  title: 'Teeth on toys only',
+  objective: 'Your puppy keeps teeth off skin and puts them on toys instead.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
@@ -1207,7 +1336,7 @@ const biting_stage2: Protocol = {
       then: 'No ouch. Then resume play with a toy.',
       durationSeconds: 5,
       reps: null,
-      tip: 'The shift from no hard biting to no teeth at all is the key.',
+      tip: 'This stage raises the bar from no hard bites to no teeth.',
       successLook: 'Puppy pauses when you freeze.'
     },
     {
@@ -1230,11 +1359,11 @@ const biting_stage2: Protocol = {
     },
     {
       order: 4,
-      instruction: 'Gently hold the collar, touch a paw, look in an ear.',
+      instruction: 'Touch their collar, paws, and ears in turn.',
       then: 'Feed treats the whole time.',
       durationSeconds: null,
       reps: 5,
-      tip: 'A puppy that accepts handling becomes a dog who tolerates the vet.',
+      tip: 'This makes vet visits and nail trims easier later.',
       successLook: 'Puppy holds still while eating.'
     },
     {
@@ -1247,20 +1376,26 @@ const biting_stage2: Protocol = {
       successLook: 'Teeth on the toy only.'
     },
   ],
-  setup: ['Toys stationed around the room', 'Treat pouch on'],
-  successCriteria: 'Puppy initiates zero tooth-on-skin contact in 12 out of 15 play interactions.',
-  commonMistakes: [
-    'Inconsistent standard — some days allowing mouthing, other days not',
-    'Not having a toy ready when play starts',
-    'Any roughhousing with hands, even briefly',
-    'Not practicing calm handling separately from play'
+  setup: [
+    'Toys around the room',
+    'Treat pouch on',
   ],
-  equipmentNeeded: ['Multiple toys stationed around the home', 'Treat pouch'],
+  successCriteria: 'Move on when teeth stay off skin in 12 of 15 play bouts.',
+  commonMistakes: [
+    'Allowing mouthing some days. Keep the same rule every day.',
+    'Starting play without a toy. Have one in hand first.',
+    'Wrestling with bare hands, even briefly. Play through a toy.',
+    'Only handling them during play. Practice calm handling as its own session.',
+  ],
+  equipmentNeeded: [
+    'Several toys around the house',
+    'Treat pouch',
+  ],
   ageMinMonths: 3,
   ageMaxMonths: 18,
   difficulty: 2,
   nextProtocolId: 'biting_s3',
-  trainerNote: 'Teething puppies need more to chew, not less; add chew toys and bully sticks alongside this.',
+  trainerNote: 'Teething puppies need more to chew. Add chew toys and bully sticks alongside this.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1268,8 +1403,8 @@ const biting_stage3: Protocol = {
   id: 'biting_s3',
   behavior: 'puppy_biting',
   stage: 3,
-  title: 'Impulse Control Around Hands & Strangers',
-  objective: 'Generalize the no-bite rule to all humans including strangers and children, in all environments.',
+  title: 'Gentle with new people',
+  objective: 'Your puppy greets new people, kids included, without putting teeth on them.',
   durationMinutes: 10,
   repCount: 10,
   steps: [
@@ -1297,13 +1432,13 @@ const biting_stage3: Protocol = {
       then: 'Start calmer than at home; pay early wins.',
       durationSeconds: null,
       reps: 3,
-      tip: 'New places cause regression; start with lower-energy interactions.',
+      tip: 'Expect a slip somewhere new. Keep greetings short and calm.',
       successLook: 'Calm mouth holds in a new place.'
     },
     {
       order: 4,
       instruction: 'Teach kids "statue": stand still, closed fist out.',
-      then: 'If the puppy sniffs without mouthing, you treat calmly.',
+      then: 'If the puppy sniffs without mouthing, you give the treat.',
       durationSeconds: null,
       reps: 3,
       tip: 'Never leave a child and puppy unsupervised, no exceptions.',
@@ -1319,20 +1454,29 @@ const biting_stage3: Protocol = {
       successLook: 'Puppy bites the toy, not you.'
     },
   ],
-  setup: ['Helper the puppy barely knows', 'Leash on for greetings', 'Treats for you and helper', 'Toy for redirection'],
-  successCriteria: 'Puppy greets unfamiliar people with zero tooth contact in 8 out of 10 encounters in at least 2 different environments.',
-  commonMistakes: [
-    'Practicing only with the owner',
-    'Allowing children to interact without supervision',
-    'No management (leash) during greetings until the behavior is reliable',
-    'Assuming the behavior is complete before practicing in novel environments'
+  setup: [
+    'Helper puppy barely knows',
+    'Leash on for greetings',
+    'Treats for you and helper',
+    'Toy for redirecting',
   ],
-  equipmentNeeded: ['Treats for helpers', 'Leash for management during greetings', 'Toys for redirection'],
+  successCriteria: 'Move on when they greet strangers with no teeth 8 of 10 times, in 2 places.',
+  commonMistakes: [
+    'Practicing only with yourself. Ask friends and neighbors to help.',
+    'Letting kids play with the puppy alone. An adult is always there.',
+    'Greeting off leash too soon. Keep the leash on until greetings stay calm.',
+    'Stopping once home is going well. Practice in at least 2 new places.',
+  ],
+  equipmentNeeded: [
+    'Treats for helpers',
+    'Leash for greetings',
+    'Toys for redirecting',
+  ],
   ageMinMonths: 4,
   ageMaxMonths: 18,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'A puppy with solid bite inhibition by six months is set up for life; take this window seriously.',
+  trainerNote: 'Keep at it through teething. Most puppies mouth far less by 6 or 7 months.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1344,8 +1488,8 @@ const settle_stage1: Protocol = {
   id: 'settle_s1',
   behavior: 'settling',
   stage: 1,
-  title: 'Mat Introduction & Reward Zone',
-  objective: 'Build a strong positive association with a designated mat so the dog goes to it voluntarily and lies down.',
+  title: 'Mat means treats',
+  objective: 'Your dog walks to their mat on their own and lies down.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
@@ -1378,11 +1522,11 @@ const settle_stage1: Protocol = {
     },
     {
       order: 4,
-      instruction: 'Say \'settle\' once as they start toward the mat.',
+      instruction: 'Say \'place\' once as they start toward the mat.',
       then: 'When they lie down on it, mark and treat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Add the word only after the behavior exists; naming confusion teaches nothing.',
+      tip: 'Add the word only once they already do it without one.',
       successLook: 'They head to the mat on hearing the cue.'
     },
     {
@@ -1395,20 +1539,28 @@ const settle_stage1: Protocol = {
       successLook: 'They leave the mat and relax.'
     },
   ],
-  setup: ['Mat in the living room', 'Treat pouch on', 'Plenty of tiny treats'],
-  successCriteria: 'Dog goes to mat and lies down on verbal cue 12 out of 15 reps in a low-distraction room.',
-  commonMistakes: [
-    'Luring onto the mat repeatedly — prevents independent choice',
-    'Adding the cue before the behavior is fluent',
-    'Using a mat too small or uncomfortable to lie on',
-    'Practicing in too many locations before the behavior is solid in one'
+  setup: [
+    'Mat in the living room',
+    'Treat pouch on',
+    'Plenty of tiny treats',
   ],
-  equipmentNeeded: ['Dog mat or orthopedic bed', 'High-value treats', 'Treat pouch'],
+  successCriteria: 'Move on when they go to the mat and lie down on cue 12 of 15 times, in a quiet room.',
+  commonMistakes: [
+    'Luring onto the mat every time. Wait for them to choose it.',
+    'Adding the cue too early. Wait until they head there on their own.',
+    'A mat too small to lie on. Pick one they can stretch out on.',
+    'Moving the mat around too soon. Get it right in one room first.',
+  ],
+  equipmentNeeded: [
+    'Dog mat or flat bed',
+    'Soft treats, pea-sized',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'settle_s2',
-  trainerNote: 'The mat becomes a calming station, a mealtime boundary, and a reset button. Build it well.',
+  trainerNote: 'Some dogs get this in one session, others take a week. Wait them out.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1416,8 +1568,8 @@ const settle_stage2: Protocol = {
   id: 'settle_s2',
   behavior: 'settling',
   stage: 2,
-  title: 'Duration & Mild Distraction on Mat',
-  objective: 'Build the ability to remain on the mat for 5 minutes with mild household distractions present.',
+  title: 'Stay on the mat longer',
+  objective: 'Your dog stays on their mat for 5 minutes while the house carries on.',
   durationMinutes: 10,
   repCount: 8,
   steps: [
@@ -1445,7 +1597,7 @@ const settle_stage2: Protocol = {
       then: 'Still walk every treat to the mat.',
       durationSeconds: 180,
       reps: null,
-      tip: 'Fade gradually; jumping from 30 seconds to nothing makes them leave.',
+      tip: 'Stretch slowly; jumping from 30 seconds to nothing makes them leave.',
       successLook: 'Dog stays 5 minutes with the TV on.'
     },
     {
@@ -1454,12 +1606,12 @@ const settle_stage2: Protocol = {
       then: 'Each time they stay, toss a treat to the mat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Following you is the biggest settle challenge; this proofs it.',
+      tip: 'Following you is the hardest part of settling. Pay well here.',
       successLook: 'Dog stays as you pass, does not follow.'
     },
     {
       order: 5,
-      instruction: 'Have a helper walk in, move around, and sit.',
+      instruction: 'Have a helper walk in and sit down.',
       then: 'Walk a treat to the mat every 60 seconds.',
       durationSeconds: 300,
       reps: null,
@@ -1476,19 +1628,28 @@ const settle_stage2: Protocol = {
       successLook: 'Dog gets up only on the release.'
     },
   ],
-  setup: ['Mat down', 'Treat pouch on', 'TV within reach', 'A household helper nearby'],
-  successCriteria: 'Dog holds settle for 5 minutes with mild household distractions and treats every 60 seconds, 6 out of 8 sessions.',
-  commonMistakes: [
-    'Fading reinforcement too quickly',
-    'Calling the dog off the mat between trials — always release formally',
-    'Starting with distractions too strong before basics are solid'
+  setup: [
+    'Mat down',
+    'Treat pouch on',
+    'TV remote nearby',
+    'A helper at home',
   ],
-  equipmentNeeded: ['Mat', 'Treats', 'Treat pouch'],
+  successCriteria: 'Move on when they hold the mat 5 minutes with household noise, treats every 60 seconds, 6 of 8 sessions.',
+  commonMistakes: [
+    'Spacing out treats too fast. Stretch the gaps a little at a time.',
+    'Calling them off the mat. Walk over and release with free.',
+    'Adding a helper too soon. Get 5 quiet minutes with the TV first.',
+  ],
+  equipmentNeeded: [
+    'Mat',
+    'Soft treats',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'settle_s3',
-  trainerNote: 'Settle rewards itself once learned; a settled dog gets left alone, and treats can fade fast.',
+  trainerNote: 'Once settling clicks, you can cut back on treats fairly fast.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1496,8 +1657,8 @@ const settle_stage3: Protocol = {
   id: 'settle_s3',
   behavior: 'settling',
   stage: 3,
-  title: 'Go to Place from Any Room',
-  objective: 'The dog goes to their mat from any room on a single verbal cue and holds it for 10 minutes.',
+  title: 'Place from any room',
+  objective: 'Your dog goes to their mat from any room on one cue and stays 10 minutes.',
   durationMinutes: 12,
   repCount: 8,
   steps: [
@@ -1507,7 +1668,7 @@ const settle_stage3: Protocol = {
       then: 'Treat on arrival; add distance each rep, up to 30 feet.',
       durationSeconds: null,
       reps: 5,
-      tip: 'At distance they are problem-solving; celebrate every attempt.',
+      tip: 'Farther away is harder. Pay any honest try.',
       successLook: 'They cross the room and lie down on the mat.'
     },
     {
@@ -1521,7 +1682,7 @@ const settle_stage3: Protocol = {
     },
     {
       order: 3,
-      instruction: 'Cue place, hand over the chew toy, start the timer.',
+      instruction: 'Cue place, then hand over the chew and start timing.',
       then: 'Drop a treat on the mat every 2 minutes, no eye contact.',
       durationSeconds: 600,
       reps: null,
@@ -1552,23 +1713,33 @@ const settle_stage3: Protocol = {
       then: 'Play or sniff; no more cues.',
       durationSeconds: 60,
       reps: null,
-      tip: 'Always release formally; "free" is the only way a settle ends.',
+      tip: 'Always release out loud; "free" is the only way a settle ends.',
       successLook: 'They leave the mat relaxed.'
     },
   ],
-  setup: ['Portable mat', 'Chew toy', 'High-value treats', 'Timer'],
-  successCriteria: 'Dog goes to mat from another room on voice cue in 6 of 8 trials and holds for 10 minutes in a familiar environment.',
-  commonMistakes: [
-    'Not releasing formally — always "free!" to end the settle',
-    'Punishing the dog for getting up during long holds — reduce duration and rebuild',
-    'Skipping the novel environment step — a settle that only works at home is not fully trained'
+  setup: [
+    'Portable mat',
+    'Chew toy',
+    'Best treats',
+    'Timer',
   ],
-  equipmentNeeded: ['Mat (portable)', 'Chew Toy', 'High-value treats', 'Timer'],
+  successCriteria: 'Move on when they go to the mat from another room 6 of 8 times and hold 10 minutes.',
+  commonMistakes: [
+    'Letting the settle end on its own. Always finish with free.',
+    'Scolding them for getting up. Shorten the hold and build back up.',
+    'Skipping the new place. Practice away from home too.',
+  ],
+  equipmentNeeded: [
+    'Portable mat',
+    'Chew toy',
+    'Best treats',
+    'Timer',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Place from another room and a 10-minute hold makes guests, calls, and mealtimes manageable.',
+  trainerNote: 'This is the version you will use most, when guests arrive or dinner is on.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1580,8 +1751,8 @@ const leave_it_stage1: Protocol = {
   id: 'leave_it_s1',
   behavior: 'leave_it',
   stage: 1,
-  title: 'Hand Leave It',
-  objective: 'Teach the dog that ignoring food in your hand earns something better — the foundation of impulse control.',
+  title: 'Leave the fist',
+  objective: 'Your dog backs away from food in your hand and waits for a better treat.',
   durationMinutes: 8,
   repCount: 20,
   steps: [
@@ -1627,24 +1798,32 @@ const leave_it_stage1: Protocol = {
       then: 'Say \'free\' and follow them; no cues, no treats.',
       durationSeconds: 60,
       reps: null,
-      tip: 'The sniff break is the reward; it makes the structured work easier to take.',
+      tip: 'The sniff break is the reward. It helps them come down after focused work.',
       successLook: 'They wander and sniff, relaxed.'
     },
   ],
-  setup: ['Kibble in one closed fist', 'High-value treats in the other', 'Quiet room'],
-  successCriteria: 'Dog backs away from a treat on an open palm within 2 seconds of "leave it," 15 out of 20 reps.',
-  commonMistakes: [
-    'Moving the fist away when the dog touches it',
-    'Giving the treat from the fist as the reward — it must always come from the other hand',
-    'Adding the cue before backing-off is reliable',
-    'Using high-value food before the basic version is solid'
+  setup: [
+    'Kibble in one fist',
+    'Better treats in other hand',
+    'Quiet room',
   ],
-  equipmentNeeded: ['Low-value treats (kibble) for the bait fist', 'High-value treats for reward hand', 'Treat pouch'],
+  successCriteria: 'Move on when they back off an open-palm treat within 2 seconds of leave it, 15 of 20 reps.',
+  commonMistakes: [
+    'Pulling the fist away when they nose it. Keep it still.',
+    'Paying from the fist. The reward always comes from the other hand.',
+    'Adding the cue too early. Wait for 5 quick back-offs in a row.',
+    'Putting tasty food in the fist too soon. Start with kibble.',
+  ],
+  equipmentNeeded: [
+    'Kibble for the closed fist',
+    'Better treats for the other hand',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'leave_it_s2',
-  trainerNote: 'Leave it is a safety cue. Build it like their life depends on it; one day it will.',
+  trainerNote: 'This is the cue that keeps dropped pills and chicken bones out of their mouth.',
   supportsLiveAiTrainer: false,
 }
 
@@ -1652,15 +1831,15 @@ const leave_it_stage2: Protocol = {
   id: 'leave_it_s2',
   behavior: 'leave_it',
   stage: 2,
-  title: 'Floor Leave It & Drop It',
-  objective: 'Transfer leave it to items on the floor, and teach drop it for releasing objects already in the dog\'s mouth.',
+  title: 'Floor food and drop it',
+  objective: 'Your dog leaves food on the floor and lets go of things on cue.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
     {
       order: 1,
-      instruction: 'Put kibble on the floor under your foot, say leave it.',
-      then: 'When they back off, mark and treat from your hand.',
+      instruction: 'Cover kibble on the floor with your foot.',
+      then: 'Say leave it. When they back off, mark and treat.',
       durationSeconds: null,
       reps: 8,
       tip: 'Your foot is the barrier. Stand still and wait.',
@@ -1678,7 +1857,7 @@ const leave_it_stage2: Protocol = {
     {
       order: 3,
       instruction: 'Let them grab a toy, then hold a treat under their nose.',
-      then: 'Toy drops: say yes, drop it, treat, hand the toy back.',
+      then: 'As the toy falls, say drop it. Treat, then give it back.',
       durationSeconds: null,
       reps: 5,
       tip: 'A dog who learns drop it means losing the toy stops dropping.',
@@ -1690,7 +1869,7 @@ const leave_it_stage2: Protocol = {
       then: 'Treat under the nose, wait, trade, then give it back.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Never yank. Build a perfect trade history before any emergency grab.',
+      tip: 'Never yank it away. Many easy trades now make the emergency one work.',
       successLook: 'Dog releases the chew for the trade.'
     },
     {
@@ -1703,20 +1882,30 @@ const leave_it_stage2: Protocol = {
       successLook: 'Dog relaxed, toy in mouth.'
     },
   ],
-  setup: ['Kibble for the floor', 'High-value treats in pouch', 'A toy', 'A bully stick or chew'],
-  successCriteria: 'Dog leaves an uncovered floor treat for 5 seconds on cue, 10 out of 15 reps. Dog drops a toy on "drop it" cue, 8 out of 10 reps.',
-  commonMistakes: [
-    'Letting the dog win the floor treat even once',
-    'Taking items without offering a trade — teaches resource guarding',
-    'Only practicing with low-value items',
-    'Confusing drop it and leave it — keep them separate until both are solid'
+  setup: [
+    'Kibble for the floor',
+    'Better treats in pouch',
+    'A toy',
+    'A bully stick or chew',
   ],
-  equipmentNeeded: ['Kibble for floor leave it', 'High-value treats for rewards', 'Toy', 'Bully stick or Chew Toy'],
+  successCriteria: 'Move on when they leave an uncovered floor treat 5 seconds, 10 of 15, and drop a toy 8 of 10.',
+  commonMistakes: [
+    'Letting them win the floor treat, even once. Cover it faster.',
+    'Taking things without a trade. That can teach guarding, so always swap.',
+    'Only practicing with boring items. Work up to chews they love.',
+    'Mixing up leave it and drop it. Keep the two words separate.',
+  ],
+  equipmentNeeded: [
+    'Kibble',
+    'Better treats for rewards',
+    'Toy',
+    'Bully stick or chew',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'leave_it_s3',
-  trainerNote: 'Leave it means do not touch that; drop it means release what you have. Keep them separate for now.',
+  trainerNote: 'Leave it means don\'t touch. Drop it means let go of what you have.',
   supportsLiveAiTrainer: false,
 }
 
@@ -1724,8 +1913,8 @@ const leave_it_stage3: Protocol = {
   id: 'leave_it_s3',
   behavior: 'leave_it',
   stage: 3,
-  title: 'Real-World Leave It: Sidewalk, Food & Animals',
-  objective: 'Proof leave it outdoors with dropped food, ground temptations, and animal movement triggers.',
+  title: 'Leave it outside',
+  objective: 'Your dog leaves dropped food and passing animals alone outside when you say leave it.',
   durationMinutes: 12,
   repCount: 10,
   steps: [
@@ -1735,7 +1924,7 @@ const leave_it_stage3: Protocol = {
       then: 'Say "leave it" 2 steps before; mark and pay from pouch.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Cue before contact; cuing after is damage control, not training.',
+      tip: 'Cue before they reach it. Once it\'s in their mouth, you\'re too late.',
       successLook: 'They see the food, hear the cue, look to you.'
     },
     {
@@ -1744,7 +1933,7 @@ const leave_it_stage3: Protocol = {
       then: 'Jackpot if they ignore it; if not, "leave it" once, keep walking.',
       durationSeconds: null,
       reps: 5,
-      tip: 'The goal is silent leaving; the cue is only a backup.',
+      tip: 'The goal is leaving it without a word; the cue is a backup.',
       successLook: 'They pass ground food and check in with you.'
     },
     {
@@ -1758,37 +1947,45 @@ const leave_it_stage3: Protocol = {
     },
     {
       order: 4,
-      instruction: 'At threshold distance from an animal, say "leave it."',
-      then: 'Hold a treat at your face; mark when they look at you.',
+      instruction: 'Stand where they see an animal but can still eat.',
+      then: 'Say leave it, treat at your face. Mark when they look.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Threshold near a squirrel may be 30 feet; start where they can hear you.',
+      tip: 'For squirrels that might be 30 feet. Start where they can hear you.',
       successLook: 'They notice the animal, then orient to you.'
     },
     {
       order: 5,
       instruction: 'Pick up the planted food, then let them sniff.',
-      then: 'No cues; just a walk with a loose leash.',
+      then: 'No cues, a loose-leash walk.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Relaxed sniffing, nothing scavenged.'
     },
   ],
-  setup: ['Leash on, outdoors', 'Kibble and chicken to plant', 'Best treats in pouch'],
-  successCriteria: 'Dog leaves food on the ground on cue in 8 out of 10 outdoor trials. Redirects from a moving animal at distance in 6 out of 10 attempts.',
-  commonMistakes: [
-    'Only practicing leave it indoors — outdoor is a completely different difficulty level',
-    'Using an angry tone — "leave it" must stay neutral or cheerful',
-    'Under-rewarding relative to the distraction value',
-    'Jumping to squirrels before ground food is solid'
+  setup: [
+    'Leash on, outdoors',
+    'Kibble and chicken to drop',
+    'Best treats in pouch',
   ],
-  equipmentNeeded: ['Treat pouch with high-value rewards', '6-foot leash', 'Kibble or chicken for planting on ground'],
+  successCriteria: 'Move on when they leave ground food 8 of 10 times outside, and turn from animals 6 of 10.',
+  commonMistakes: [
+    'Only practicing indoors. Outside is much harder, so start easy.',
+    'Using a sharp tone. Keep leave it calm or cheerful.',
+    'Paying too little for a big temptation. Bring your best treats.',
+    'Trying squirrels before ground food is easy. Do food first.',
+  ],
+  equipmentNeeded: [
+    'Treat pouch, best treats',
+    '6-foot leash',
+    'Kibble or chicken to drop',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Leave it near squirrels is a 6 to 12 month project; every real-world failure costs five good reps.',
+  trainerNote: 'Leaving squirrels alone can take 6 to 12 months. Keep the leash on meanwhile.',
   supportsLiveAiTrainer: false,
 }
 
@@ -1800,8 +1997,8 @@ const obedience_stage1: Protocol = {
   id: 'obedience_s1',
   behavior: 'basic_obedience',
   stage: 1,
-  title: 'Sit & Down on Cue',
-  objective: 'Build reliable sit and down on verbal cue, responding within 2 seconds with no lure.',
+  title: 'Sit and down',
+  objective: 'Your dog sits and lies down on the word alone within 2 seconds.',
   durationMinutes: 8,
   repCount: 20,
   steps: [
@@ -1865,24 +2062,31 @@ const obedience_stage1: Protocol = {
       then: 'Say \'free\' and follow them; no cues, no treats.',
       durationSeconds: 60,
       reps: null,
-      tip: 'The sniff break is the reward; it makes the structured work easier to take.',
+      tip: 'The sniff break is the reward. It helps them come down after focused work.',
       successLook: 'They wander and sniff, relaxed.'
     },
   ],
-  setup: ['Low-distraction room', 'Tiny treats in a pouch'],
-  successCriteria: 'Dog sits on "sit" alone 9 out of 10 reps. Dog downs on "down" alone 8 out of 10 reps.',
-  commonMistakes: [
-    'Keeping food in the lure hand past rep 5',
-    'Repeating the cue multiple times',
-    'Accepting a partial sit or hover',
-    'Proofing before the cue response is reliable'
+  setup: [
+    'Quiet room',
+    'Tiny treats in a pouch',
   ],
-  equipmentNeeded: ['High-value small treats', 'Treat pouch', 'Low-distraction room'],
+  successCriteria: 'Move on when they sit on the word alone 9 of 10 times and down 8 of 10.',
+  commonMistakes: [
+    'Keeping food in the lure hand past rep 5. Empty it early.',
+    'Repeating the cue. Say it once, then wait.',
+    'Paying a half sit or hover. Wait for their rear on the floor.',
+    'Adding distractions too early. Get it right in a quiet room first.',
+  ],
+  equipmentNeeded: [
+    'Soft treats, pea-sized',
+    'Treat pouch',
+    'Quiet room',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'obedience_s2',
-  trainerNote: 'Sit and down underpin almost everything else here. A sit that sometimes works is not trained.',
+  trainerNote: 'Most other courses build on sit and down, so get them clean before moving on.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1890,8 +2094,8 @@ const obedience_stage2: Protocol = {
   id: 'obedience_s2',
   behavior: 'basic_obedience',
   stage: 2,
-  title: 'Stay: Duration & Distance',
-  objective: 'Teach stay — holding sit or down until released — building to 20 seconds at 5-foot distance.',
+  title: 'Stay put',
+  objective: 'Your dog holds a sit or down until you release them, with you 5 feet away.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
@@ -1950,20 +2154,27 @@ const obedience_stage2: Protocol = {
       successLook: 'Dog loose and happy.'
     },
   ],
-  setup: ['Quiet room', 'Treat pouch on', 'Room to step back'],
-  successCriteria: 'Dog holds sit-stay for 20 seconds at 5 feet, 10 out of 15 trials. Down-stay for 30 seconds at 5 feet, 10 out of 15 trials.',
-  commonMistakes: [
-    'Calling the dog to you to reward during stay',
-    'Building duration AND distance simultaneously',
-    'No formal release cue',
-    'Practicing in distracting environments before the stay is solid'
+  setup: [
+    'Quiet room',
+    'Treat pouch on',
+    'Room to step back',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch'],
+  successCriteria: 'Move on when sit-stay holds 20 seconds and down-stay 30 seconds, both at 5 feet, 10 of 15.',
+  commonMistakes: [
+    'Calling them to you for the treat. Walk back and pay in place.',
+    'Adding time and distance together. Change one at a time.',
+    'No clear release. End every stay with free.',
+    'Taking it somewhere busy too soon. Stay in a quiet room for now.',
+  ],
+  equipmentNeeded: [
+    'Soft treats',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'obedience_s3',
-  trainerNote: 'One D at a time: duration, then distance, then distraction. Stacking them is why stays fail.',
+  trainerNote: 'Add time, then distance, then distractions, one at a time. Stacking them is why stays break.',
   supportsLiveAiTrainer: true,
 }
 
@@ -1971,8 +2182,8 @@ const obedience_stage3: Protocol = {
   id: 'obedience_s3',
   behavior: 'basic_obedience',
   stage: 3,
-  title: 'Proofed Obedience with Distractions',
-  objective: 'Proof sit, down, and stay in moderate-distraction environments so the behavior holds in real-life situations.',
+  title: 'Outside with people passing',
+  objective: 'Your dog sits, lies down, and stays outside while people walk past.',
   durationMinutes: 12,
   repCount: 12,
   steps: [
@@ -1982,7 +2193,7 @@ const obedience_stage3: Protocol = {
       then: 'Pay each response; if it falls apart, lower the distraction.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Household activity is real distraction; do not skip straight to the park.',
+      tip: 'Household noise counts as a distraction; do not skip straight to the park.',
       successLook: 'All three hold with normal household noise.'
     },
     {
@@ -2000,7 +2211,7 @@ const obedience_stage3: Protocol = {
       then: 'Return and treat; release with "free."',
       durationSeconds: null,
       reps: 3,
-      tip: 'Expect regression outdoors; reward generously for any success.',
+      tip: 'Expect them to slip outside. Pay well for every hold.',
       successLook: 'They hold 5 seconds in the driveway.'
     },
     {
@@ -2009,7 +2220,7 @@ const obedience_stage3: Protocol = {
       then: 'Treat for holding; over the reps bring the helper to 5 feet.',
       durationSeconds: null,
       reps: 5,
-      tip: 'A passing person is the most common real-world challenge.',
+      tip: 'People walking by is what you will meet most often.',
       successLook: 'They hold while a person passes at 5 feet.'
     },
     {
@@ -2024,28 +2235,37 @@ const obedience_stage3: Protocol = {
     {
       order: 6,
       instruction: 'Release with "free" and a sniff break.',
-      then: 'Nothing more asked; let them decompress.',
+      then: 'Nothing more asked; let them unwind.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, nose down.'
     },
   ],
-  setup: ['Treat pouch, high-value treats', 'Leash', 'Helper for the passing steps'],
-  guide: 'Ask for sit before meals, down before going outside, stay before crossing a curb. Pay with real life: the meal, the door, the walk. Real-life rewards are always available and always meaningful, so they hold up long after the treat pouch goes away.',
-  successCriteria: 'Dog sits and downs on verbal cue outdoors in 10 out of 12 attempts. Holds a 15-second sit-stay with a person walking past at 5 feet, 8 out of 12 trials.',
-  commonMistakes: [
-    'Expecting indoor reliability outdoors immediately',
-    'Using lower-value treats outdoors than indoors',
-    'Skipping the driveway phase and going directly to a busy park',
-    'Only cueing obedience during formal training sessions'
+  setup: [
+    'Treat pouch, best treats',
+    'Leash',
+    'Helper for passing steps',
   ],
-  equipmentNeeded: ['Treat pouch', 'High-value treats', 'Leash', 'Helper for distraction work'],
+  guide: 'Use these cues through the day. Ask for a sit before meals, a down before the door opens, a stay at the curb. Then the meal, the door, or the walk is the reward. These rewards are always on hand, so the cues keep working after the treat pouch goes away.',
+  successCriteria: 'Move on when they sit and down outside 10 of 12 times, and hold 15 seconds as someone passes 5 feet away, 8 of 12.',
+  commonMistakes: [
+    'Expecting indoor results outside right away. Start easier outdoors.',
+    'Using worse treats outside. Bring better ones than you use indoors.',
+    'Going straight to a busy park. Start in the driveway.',
+    'Only asking during sessions. Use the cues through the day too.',
+  ],
+  equipmentNeeded: [
+    'Treat pouch',
+    'Best treats',
+    'Leash',
+    'A helper to walk past',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Proofed sit, down, and stay are the platform for everything else; the time here pays for life.',
+  trainerNote: 'Outside can look like starting over. It comes back faster than it did indoors.',
   supportsLiveAiTrainer: true,
 }
 
@@ -2057,14 +2277,14 @@ const barking_stage1: Protocol = {
   id: 'barking_s1',
   behavior: 'barking',
   stage: 1,
-  title: 'Teaching "Quiet" on Cue',
-  objective: 'Install a reliable "quiet" cue that interrupts barking within 3 seconds using controlled bark-and-quiet repetitions.',
+  title: 'Speak, then quiet',
+  objective: 'Your dog stops barking within 3 seconds when you say quiet.',
   durationMinutes: 8,
   repCount: 15,
   steps: [
     {
       order: 1,
-      instruction: 'Trigger a bark, then say \'speak\'.',
+      instruction: 'Say \'speak\', then knock to set off a bark.',
       then: 'The moment they bark, mark and treat.',
       durationSeconds: null,
       reps: 5,
@@ -2086,7 +2306,7 @@ const barking_stage1: Protocol = {
       then: 'Mark and treat after the silence; build to 5 seconds.',
       durationSeconds: null,
       reps: 8,
-      tip: 'You want quiet as a sustained behavior, not a brief pause.',
+      tip: 'You want a few seconds of quiet, not a gap between barks.',
       successLook: '5 seconds of silence after \'quiet\'.'
     },
     {
@@ -2101,27 +2321,35 @@ const barking_stage1: Protocol = {
     {
       order: 5,
       instruction: 'Let them sniff or chew for a minute.',
-      then: 'No triggers; let arousal come all the way down.',
+      then: 'No triggers; let them wind all the way down.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'They are calm and quiet.'
     },
   ],
-  setup: ['Bark trigger ready (doorbell, knock)', 'High-value treats in a pouch', 'Dog calm, not already worked up'],
-  successCriteria: 'Dog quiets within 3 seconds of "quiet" cue in a controlled session, 10 out of 15 reps.',
-  commonMistakes: [
-    'Repeating "quiet" loudly — escalating your volume increases arousal',
-    'Skipping the "speak" cue step',
-    'Rewarding a 1-second pause rather than holding for real duration',
-    'Practicing at peak arousal before the cue is installed'
+  setup: [
+    'Knock or doorbell ready',
+    'Best treats in a pouch',
+    'Dog calm, not worked up',
   ],
-  equipmentNeeded: ['High-value treats', 'Bark trigger (doorbell sound or knock)', 'Treat pouch'],
+  successCriteria: 'Move on when they go quiet within 3 seconds of the cue, 10 of 15 reps, at home.',
+  commonMistakes: [
+    'Saying quiet louder each time. Say it once, calmly.',
+    'Skipping speak. You need to start the bark before you can stop it.',
+    'Paying a 1-second pause. Wait for a few seconds of quiet.',
+    'Practicing when they\'re already wound up. Start while they\'re calm.',
+  ],
+  equipmentNeeded: [
+    'Best treats',
+    'Knock or doorbell sound',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'barking_s2',
-  trainerNote: 'Shouting \'quiet\' sounds like you barking along. One calm cue plus food beats a hundred shouts.',
+  trainerNote: 'Shouting quiet sounds like you are barking along. One calm cue and a treat works better.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2129,18 +2357,18 @@ const barking_stage2: Protocol = {
   id: 'barking_s2',
   behavior: 'barking',
   stage: 2,
-  title: 'Alert Barking Management: Door & Window',
-  objective: 'Reduce alert barking at the door and windows by teaching a behavioral replacement and limiting unsupervised rehearsal.',
+  title: 'Doorbell means mat',
+  objective: 'Your dog goes to their mat after a bark or two at the door.',
   durationMinutes: 10,
   repCount: 10,
   steps: [
     {
       order: 1,
-      instruction: 'Ring the bell, allow two barks, then say place.',
+      instruction: 'Ring the bell, allow 2 barks, then say place.',
       then: 'Lead them to the mat and cue down.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Bell, brief bark, mat, quiet, reward. The mat replaces sustained barking.',
+      tip: 'Bell, a bark, mat, quiet, treat. The mat replaces the long barking.',
       successLook: 'On the mat within 15 seconds.'
     },
     {
@@ -2158,7 +2386,7 @@ const barking_stage2: Protocol = {
       then: 'Reward on the mat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Self-directing takes 30 to 50 rehearsals; schedule them.',
+      tip: 'Going there on their own takes 30 to 50 reps. Plan them in.',
       successLook: 'Dog heads for the mat on the bell.'
     },
     {
@@ -2167,7 +2395,7 @@ const barking_stage2: Protocol = {
       then: 'The instant it stops, mark and give what they wanted.',
       durationSeconds: null,
       reps: null,
-      tip: 'It gets louder first. Hold on; answering louder barks teaches escalation.',
+      tip: 'It gets louder before it stops. Answering the loud barks teaches louder barking.',
       successLook: 'Dog offers quiet before getting attention.'
     },
     {
@@ -2180,21 +2408,31 @@ const barking_stage2: Protocol = {
       successLook: 'Dog relaxed, off the mat.'
     },
   ],
-  setup: ['Mat down', 'Treat pouch on', 'Helper at the door', 'Window blocked or covered'],
-  guide: 'Block the window when you are not watching: move furniture, add a baby gate, or frost the lower pane. Every unsupervised bark at the window is practice. Management is not cheating; it cuts daily rehearsal while you build the mat habit.',
-  successCriteria: 'Dog goes to mat within 15 seconds of doorbell trigger in 7 out of 10 rehearsed trials.',
-  commonMistakes: [
-    'Responding to demand barking in any way — even negative attention maintains it',
-    'Waiting for perfect silence before the mat redirect — use the mat after 1–2 barks',
-    'Skipping window management',
-    'Responding during an escalation of barking intensity'
+  setup: [
+    'Mat down',
+    'Treat pouch on',
+    'Helper at the door',
+    'Window blocked or covered',
   ],
-  equipmentNeeded: ['Baby gate or window barrier', 'Training mat', 'High-value treats', 'Helper for doorbell drills'],
+  guide: 'When you are not watching, block the window. Move the couch, add a baby gate, or put frosted film on the lower pane. Every bark at the window is practice at barking. Blocking the view is fair, and it cuts that practice while you build the mat habit.',
+  successCriteria: 'Move on when they reach the mat within 15 seconds of the bell, 7 of 10 practice runs.',
+  commonMistakes: [
+    'Answering demand barks at all. Even scolding counts as attention.',
+    'Waiting for silence before sending them to the mat. Send after 1 or 2 barks.',
+    'Leaving the window open to watch. Block it when you\'re not there.',
+    'Giving in when barking gets louder. Wait for a pause, then answer.',
+  ],
+  equipmentNeeded: [
+    'Baby gate or window film',
+    'Mat',
+    'Best treats',
+    'A helper to ring the bell',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'barking_s3',
-  trainerNote: 'The goal is not silence; it is a dog who barks twice, hears your cue, and settles.',
+  trainerNote: 'You are not aiming for silence. You want 2 barks, then the mat.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2202,8 +2440,8 @@ const barking_stage3: Protocol = {
   id: 'barking_s3',
   behavior: 'barking',
   stage: 3,
-  title: 'Threshold Management & Real-World Quiet',
-  objective: 'Maintain quiet in high-trigger situations through sub-threshold exposure and strong replacement behaviors.',
+  title: 'Quiet on walks and visits',
+  objective: 'Your dog stays quiet, or quiets fast, around their biggest triggers.',
   durationMinutes: 12,
   repCount: 8,
   steps: [
@@ -2213,7 +2451,7 @@ const barking_stage3: Protocol = {
       then: 'Feed continuously while it is in view; stop when it goes.',
       durationSeconds: null,
       reps: null,
-      tip: 'Closer only across sessions; a bark means you are over threshold.',
+      tip: 'Get closer only across sessions. A bark means you are too close.',
       successLook: 'They look at it, then look at you, no bark.'
     },
     {
@@ -2231,7 +2469,7 @@ const barking_stage3: Protocol = {
       then: 'Treat at your hip every 2 seconds while walking away.',
       durationSeconds: null,
       reps: 5,
-      tip: 'You are building trigger equals treats, not waiting for silence first.',
+      tip: 'Treat before they are fully quiet. Seeing the trigger should mean food.',
       successLook: 'They orient to you and eat while moving away.'
     },
     {
@@ -2240,7 +2478,7 @@ const barking_stage3: Protocol = {
       then: 'Jackpot the instant they look at you.',
       durationSeconds: null,
       reps: null,
-      tip: 'Redirected before the bark starts is the long-term goal.',
+      tip: 'Catching it before the bark is where you are headed.',
       successLook: 'They spot it, turn to you, no bark.'
     },
     {
@@ -2249,25 +2487,35 @@ const barking_stage3: Protocol = {
       then: 'No cues; loose leash, quiet spot.',
       durationSeconds: 60,
       reps: null,
-      tip: 'End every trigger session with decompression; sniffing lowers arousal.',
+      tip: 'End every trigger session with sniffing. It helps them calm down.',
       successLook: 'Loose body, nose down, quiet.'
     },
   ],
-  setup: ['Mat and chew toy', 'High-value treats, pouch', 'Helper for the guest drill'],
-  guide: 'Rank your dog\'s top three triggers by intensity and always work the mildest first, at a distance where they notice but do not bark. Text guests before they arrive: "Please wait outside until I text you." Most people cooperate. Expect results in weeks, not days; the emotion underneath changes slowly.',
-  successCriteria: 'Dog remains quiet or quiets within 5 seconds in 6 out of 8 real-world trigger exposures. Holds mat during guest arrival in 5 out of 8 rehearsed sessions.',
-  commonMistakes: [
-    'Working over threshold — this achieves nothing except rehearsing the bark',
-    'Matching the dog\'s arousal level when they bark',
-    'Managing barking without building the replacement behavior',
-    'Expecting results in under 4 weeks'
+  setup: [
+    'Mat and chew toy',
+    'Best treats, pouch',
+    'Helper to play guest',
   ],
-  equipmentNeeded: ['Chew Toy', 'Training mat', 'High-value treats', 'Helper for guest arrival drills', 'Treat pouch'],
+  guide: 'List your dog\'s top 3 triggers from mildest to worst. Always work the mildest first, far enough away that they notice it but do not bark. Text guests before they come: "Please wait outside until I text you." Most people are happy to. Expect progress in weeks, not days. How your dog feels about the trigger changes slowly.',
+  successCriteria: 'Move on when they quiet within 5 seconds 6 of 8 times, and hold the mat for guests 5 of 8.',
+  commonMistakes: [
+    'Working too close. If they bark, back up until they can eat.',
+    'Getting loud when they bark. Stay calm and move away.',
+    'Only blocking triggers. Also teach the mat and the name turn.',
+    'Expecting change in under 4 weeks. Give it a month or more.',
+  ],
+  equipmentNeeded: [
+    'Chew toy',
+    'Mat',
+    'Best treats',
+    'Helper to play a guest',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Barking is emotion; the protocol changes the behavior and the treats change the feeling. Do both.',
+  trainerNote: 'Barking comes from a feeling. The steps change what they do; the treats change how they feel.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2279,8 +2527,8 @@ const separation_stage1: Protocol = {
   id: 'separation_s1',
   behavior: 'separation_anxiety',
   stage: 1,
-  title: 'Pre-Departure Cue Desensitization',
-  objective: 'Neutralize the departure cues (keys, coat, shoes) that trigger anxiety before you even leave.',
+  title: 'Keys and shoes mean nothing',
+  objective: 'Your dog stays relaxed when you pick up your keys or put on your coat.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
@@ -2290,7 +2538,7 @@ const separation_stage1: Protocol = {
       then: 'Sit for 5 minutes, then put the keys back.',
       durationSeconds: 300,
       reps: null,
-      tip: 'Keys 15 times a day and one departure breaks the prediction.',
+      tip: 'Pick up keys 15 times a day without leaving, and they stop meaning much.',
       successLook: 'They watch, then relax within 30 seconds.'
     },
     {
@@ -2299,43 +2547,51 @@ const separation_stage1: Protocol = {
       then: 'Wear them for an hour of normal life, then take them off.',
       durationSeconds: null,
       reps: null,
-      tip: 'One cue at a time; shoes one week, coat another.',
+      tip: 'One cue at a time: shoes one week, coat the next.',
       successLook: 'They stay settled or show only mild interest.'
     },
     {
       order: 3,
-      instruction: 'Give the chew toy, then run the full routine without leaving.',
-      then: 'Shoes, keys, coat, open the door, stand 10 seconds, undo it all.',
+      instruction: 'Hand over the chew toy.',
+      then: 'Do shoes, keys, coat, door open 10 seconds, then undo it all.',
       durationSeconds: null,
       reps: 3,
-      tip: 'The chew toy makes the whole sequence a non-event.',
+      tip: 'With a chew toy going, the whole routine turns into background noise.',
       successLook: 'They lick the toy and stay calm throughout.'
     },
     {
       order: 4,
       instruction: 'Sit on the couch and hang out for a minute.',
-      then: 'Nothing happens; the routine ends with you at home.',
+      then: 'Nothing happens. The routine ends with you still home.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'They settle or keep chewing.'
     },
   ],
-  setup: ['Keys, shoes, coat within reach', 'Chew toy ready', 'Your top 3 departure cues listed'],
-  guide: 'List your departure routine in order: shoes, keys, coat. Each one predicts being alone, so desensitize them one at a time, never together. Keys: pick them up and sit down 5 times a day for 3 days. Shoes: put them on, work an hour at home, take them off, for 3 days. Then combine.',
-  successCriteria: 'Dog shows no panting, pacing, or whining during the full departure cue sequence in 10 out of 15 repetitions.',
-  commonMistakes: [
-    'Rushing through cue desensitization to get to real departures',
-    'Making departures emotionally dramatic at the door',
-    'Skipping the Chew Toy pairing',
-    'Desensitizing all cues simultaneously'
+  setup: [
+    'Keys, shoes, coat nearby',
+    'Chew toy ready',
+    'Your 3 leaving cues listed',
   ],
-  equipmentNeeded: ['Chew Toy', 'Your keys, shoes, coat', 'Pet camera (optional but recommended)'],
+  guide: 'Write down your leaving routine in order: shoes, keys, coat. Each one tells your dog they\'re about to be alone. Work on one at a time, never together. Keys: pick them up and sit down, 5 times a day for 3 days. Shoes: put them on, stay home an hour, take them off, for 3 days. Then combine.',
+  successCriteria: 'Move on when they show no panting, pacing, or whining through the full routine, 10 of 15 times.',
+  commonMistakes: [
+    'Rushing to real departures. Stay on the cues until they stop reacting.',
+    'Big emotional goodbyes at the door. Leave like it\'s nothing.',
+    'Skipping the chew toy. Hand it over before every routine.',
+    'Working on every cue at once. Do one cue at a time.',
+  ],
+  equipmentNeeded: [
+    'Chew toy',
+    'Your keys, shoes, coat',
+    'Pet camera, if you have one',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'separation_s2',
-  trainerNote: 'Separation anxiety is an anxiety disorder, not disobedience. Severe cases need a veterinary behaviorist too.',
+  trainerNote: 'This is anxiety, not bad behavior. If your dog panics hard, bring in a veterinary behaviorist.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2343,27 +2599,27 @@ const separation_stage2: Protocol = {
   id: 'separation_s2',
   behavior: 'separation_anxiety',
   stage: 2,
-  title: 'Short Absences: 30 Seconds to 10 Minutes',
-  objective: 'Build a history of successful calm short departures that teach the dog: being alone is temporary and always ends with your return.',
+  title: 'Short trips out the door',
+  objective: 'Your dog stays calm alone for up to 10 minutes and expects you back.',
   durationMinutes: 15,
   repCount: 8,
   steps: [
     {
       order: 1,
-      instruction: 'Give the chew, say your departure word, step outside.',
+      instruction: 'Hand over the chew, say your leaving word, step out.',
       then: 'Wait outside for today\'s time, then come back calmly.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Start at 30 seconds. No big hello; return before any stress shows.',
+      tip: 'Start at 30 seconds. Come back before any stress shows, with no big hello.',
       successLook: 'Dog stays calm on the chew while you are gone.'
     },
     {
       order: 2,
-      instruction: 'Watch the camera footage from all three absences.',
-      then: 'Calm the whole time? Next session goes one rung longer.',
+      instruction: 'Watch the camera footage from all 3 absences.',
+      then: 'Calm the whole time? Next session goes one step longer.',
       durationSeconds: null,
       reps: null,
-      tip: 'Silent at your return does not mean calm the whole time.',
+      tip: 'Quiet when you walk in does not mean calm the whole time.',
       successLook: 'No pacing, howling, or drooling on camera.'
     },
     {
@@ -2376,21 +2632,29 @@ const separation_stage2: Protocol = {
       successLook: 'Dog settled, chewing or resting.'
     },
   ],
-  setup: ['Camera on, covering the resting spot', 'Stuffed chew toy ready', 'Timer ready'],
-  guide: 'Build duration across separate sessions: 30 seconds, 1, 2, 3, 5, 8, then 10 minutes. Advance only when footage confirms calm at the previous rung. Any distress (howling, pacing, drooling, destruction) means the next session drops to half the last calm duration and rebuilds. If you must leave for work first, use a sitter or daycare.',
-  successCriteria: 'Dog remains calm on camera for 10 minutes, no distress signals, 6 out of 8 sessions.',
-  commonMistakes: [
-    'Advancing duration based on your schedule rather than footage',
-    'Emotional homecomings — return calmly, greet after the dog has settled',
-    'No Chew Toy during early departures',
-    'Long departures before short ones are consistently calm'
+  setup: [
+    'Camera aimed at their bed',
+    'Stuffed chew toy ready',
+    'Timer ready',
   ],
-  equipmentNeeded: ['Chew Toy', 'Pet camera', 'Timer'],
+  guide: 'Add time across sessions: 30 seconds, then 1, 2, 3, 5, 8, and 10 minutes. Move up only when the footage shows calm at the last step. Any howling, pacing, drooling, or chewing things up means next time you drop to half the last calm time. If work means leaving sooner, use a sitter or daycare.',
+  successCriteria: 'Move on when they stay calm on camera for 10 minutes, with no distress, 6 of 8 sessions.',
+  commonMistakes: [
+    'Adding time because your schedule needs it. Let the footage decide.',
+    'Big homecomings. Come in calm and greet once they settle.',
+    'Leaving without a chew toy early on. Give one every time.',
+    'Trying long absences too soon. Short ones must be calm first.',
+  ],
+  equipmentNeeded: [
+    'Chew toy',
+    'Pet camera',
+    'Timer',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: 'separation_s3',
-  trainerNote: 'Most plans fail because owners rush duration; the dog must be calm for the full time before you advance.',
+  trainerNote: 'Most people stall here by going longer too soon. Calm for the full time, then add more.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2398,72 +2662,80 @@ const separation_stage3: Protocol = {
   id: 'separation_s3',
   behavior: 'separation_anxiety',
   stage: 3,
-  title: 'Extended Alone Time & Full Independence',
-  objective: 'Build calm, independent alone time up to 3–4 hours through graduated departures and consistent pre-departure routines.',
+  title: 'Longer stretches alone',
+  objective: 'Your dog rests calmly alone for 3 to 4 hours while you\'re out.',
   durationMinutes: 15,
   repCount: 6,
   steps: [
     {
       order: 1,
-      instruction: 'Run the ritual: exercise, chew toy ready, cue word, leave.',
-      then: 'Same order every time; no drawn-out goodbye.',
+      instruction: 'Run the same routine: walk, chew toy, leaving word, go.',
+      then: 'Same order every time, no long goodbye.',
       durationSeconds: null,
       reps: null,
-      tip: 'Predictability is calming: I know this, it ends, I have done it.',
+      tip: 'The same routine every time tells them this ends, like it always does.',
       successLook: 'They take the chew and do not follow you.'
     },
     {
       order: 2,
-      instruction: 'Set out a fresh enrichment item before leaving.',
-      then: 'Rotate items so each absence starts with something novel.',
+      instruction: 'Set out a fresh chew or puzzle before leaving.',
+      then: 'Rotate so each absence starts with something new.',
       durationSeconds: null,
       reps: null,
-      tip: 'Most dogs settle after 20 minutes; enrichment just covers that window.',
-      successLook: 'They work on it 15+ minutes before lying down.'
+      tip: 'Most dogs settle within 20 minutes. The chew covers that stretch.',
+      successLook: 'They work on it 15 minutes, then lie down.'
     },
     {
       order: 3,
-      instruction: 'Leave for today\'s step on your schedule.',
+      instruction: 'Leave for today\'s planned time.',
       then: 'Watch the camera; come back early if stress shows.',
       durationSeconds: null,
       reps: null,
-      tip: 'Sixty minutes to three hours is six to eight small steps; plan for it.',
+      tip: 'Going from 60 minutes to 3 hours takes 6 to 8 steps. Plan for it.',
       successLook: 'Asleep or resting for most of the absence.'
     },
     {
       order: 4,
       instruction: 'On return, ignore them for 2 minutes.',
-      then: 'Then greet calmly with low-energy affection.',
+      then: 'Then greet them quietly.',
       durationSeconds: 120,
       reps: null,
-      tip: 'A calm return keeps reunion from becoming an event they stress toward.',
+      tip: 'A quiet return keeps coming home from turning into a big event.',
       successLook: 'They wait calmly, no spinning or jumping.'
     },
     {
       order: 5,
-      instruction: 'After the calm greeting, take a short sniff walk.',
-      then: 'Let them decompress; nothing asked.',
+      instruction: 'After the greeting, take a short sniff walk.',
+      then: 'Let them unwind. Nothing asked.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, normal sniffing.'
     },
   ],
-  setup: ['Pet camera running', 'Enrichment item prepared', 'Timer'],
-  guide: 'Extend absences from 10 minutes toward 30, 60, 90 and then 2 to 3 hours, each step confirmed on camera; past an hour add only 15 minutes at a time. Rotate enrichment (chew toy, snuffle mat, lick mat, frozen bone). Keep two practice absences a week once reliable, and return to Stage 1 after any big life change.',
-  successCriteria: 'Dog remains calm on camera for 3 hours, no stress signals, 5 out of 6 sessions.',
-  commonMistakes: [
-    'Declaring success before 3-hour sessions have been camera-verified',
-    'Abandoning the pre-departure routine once things seem reliable',
-    'Not accounting for life-change triggers',
-    'Any punishment for anxiety-related destruction — this worsens anxiety'
+  setup: [
+    'Camera running',
+    'Chew or puzzle ready',
+    'Timer',
   ],
-  equipmentNeeded: ['Pet camera', 'Enrichment variety (Chew Toy, Licki Mat, snuffle mat, marrow bone)', 'Timer'],
+  guide: 'Stretch absences from 10 minutes to 30, 60, 90, then 2 to 3 hours, checking each on camera. Past an hour, add only 15 minutes at a time. Rotate chews: stuffed toy, snuffle mat, lick mat, frozen bone. Once it holds, keep 2 practice absences a week. After a big life change, start again at stage 1.',
+  successCriteria: 'Move on when they stay calm on camera for 3 hours, with no stress signs, 5 of 6 sessions.',
+  commonMistakes: [
+    'Calling it done before 3 hours on camera. Check the footage first.',
+    'Dropping the leaving routine once things look good. Keep it the same.',
+    'Forgetting big life changes, like a move. Go back a stage afterward.',
+    'Punishing chewed-up things. That makes the anxiety worse.',
+  ],
+  equipmentNeeded: [
+    'Pet camera',
+    'A rotation of chews: lick mat, snuffle mat, bone',
+    'Timer',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 4,
   nextProtocolId: null,
-  trainerNote: 'No real improvement by now? See a veterinary behaviorist; medication can make the behavior work possible.',
+  trainerNote: 'No real change by now? See a veterinary behaviorist. Medication can make the training possible.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2475,8 +2747,8 @@ const door_manners_stage1: Protocol = {
   id: 'door_manners_s1',
   behavior: 'door_manners',
   stage: 1,
-  title: 'Wait at the Door — Sit and Hold',
-  objective: 'Teach the dog to sit and wait at any door until released, never bolting through.',
+  title: 'Wait at an inside door',
+  objective: 'Your dog holds still at a door until you say \'free\'.',
   durationMinutes: 8,
   repCount: 15,
   steps: [
@@ -2486,7 +2758,7 @@ const door_manners_stage1: Protocol = {
       then: 'When they back up or sit, mark and treat.',
       durationSeconds: null,
       reps: null,
-      tip: 'If they surge, take your hand off and wait; stillness opens doors.',
+      tip: 'If they surge, take your hand off and wait. Holding still is what opens doors.',
       successLook: 'They back up or stand still at the knob.'
     },
     {
@@ -2495,16 +2767,16 @@ const door_manners_stage1: Protocol = {
       then: 'Still means treat and open a little more; surge means close.',
       durationSeconds: null,
       reps: 10,
-      tip: 'The closing door is information, not punishment; keep it mechanical.',
+      tip: 'Closing the door isn\'t a punishment. Keep it matter-of-fact.',
       successLook: 'They hold still while the door opens 6 inches.'
     },
     {
       order: 3,
       instruction: 'Say \'wait\' as you reach for the knob.',
-      then: 'When they still, mark, treat, and open the door.',
+      then: 'When they hold still, mark, treat, and open the door.',
       durationSeconds: null,
       reps: 8,
-      tip: 'Wait means hold until released; use \'free\' every time.',
+      tip: '\'Wait\' means hold until released. End it with \'free\' every time.',
       successLook: 'They pause on \'wait\' and hold while it opens.'
     },
     {
@@ -2513,7 +2785,7 @@ const door_manners_stage1: Protocol = {
       then: 'Say \'free\' and let them through.',
       durationSeconds: null,
       reps: 5,
-      tip: 'A dog who knows the release is coming waits confidently, not anxiously.',
+      tip: 'When they know \'free\' is coming, they wait without fretting.',
       successLook: 'They hold at the open door, then go calmly.'
     },
     {
@@ -2526,20 +2798,27 @@ const door_manners_stage1: Protocol = {
       successLook: 'They move through calmly and relax.'
     },
   ],
-  setup: ['An interior door', 'Treat pouch on', 'Leash off or hanging loose'],
-  successCriteria: 'Dog holds wait at an open interior door for 5 seconds before release, 12 out of 15 reps.',
-  commonMistakes: [
-    'Opening the door too fast before the behavior is solid at each width',
-    'No verbal release — the dog should never self-release',
-    'Practicing only on the front door — interior doors first',
-    'Allowing even one bolt-through'
+  setup: [
+    'An inside door',
+    'Treat pouch on',
+    'Leash off or loose',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch'],
+  successCriteria: 'Move on when they hold at an open inside door for 5 seconds, 12 of 15 reps.',
+  commonMistakes: [
+    'Opening too fast. Only widen the gap while they hold still.',
+    'Letting them release themselves. Always end it with \'free\'.',
+    'Starting at the front door. Practice on inside doors first.',
+    'Letting even one bolt through happen. Close the door sooner.',
+  ],
+  equipmentNeeded: [
+    'High-value treats',
+    'Treat pouch',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'door_manners_s2',
-  trainerNote: 'Door bolting is a safety emergency in waiting. Interior doors must be 10 for 10 before the front door.',
+  trainerNote: 'A dog who bolts can end up in traffic. Get inside doors to 10 for 10 first.',
   supportsLiveAiTrainer: true,
 }
 
@@ -2547,8 +2826,8 @@ const door_manners_stage2: Protocol = {
   id: 'door_manners_s2',
   behavior: 'door_manners',
   stage: 2,
-  title: 'Front Door & Exterior Wait',
-  objective: 'Transfer the wait behavior to the front door and exterior entrances with distractions.',
+  title: 'Wait at the front door',
+  objective: 'Your dog waits at the front door, even with people outside.',
   durationMinutes: 10,
   repCount: 12,
   steps: [
@@ -2558,7 +2837,7 @@ const door_manners_stage2: Protocol = {
       then: 'Treat each hold, then 5 seconds fully open, then free.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Leash loose; it is a safety backup, not a restraint.',
+      tip: 'Keep the leash loose. It\'s a backup, not a brake.',
       successLook: 'Dog holds at the open front door.'
     },
     {
@@ -2567,7 +2846,7 @@ const door_manners_stage2: Protocol = {
       then: 'Treat every 2 seconds while the door is open.',
       durationSeconds: null,
       reps: 5,
-      tip: 'The hardest step; the whole world is visible. Pay fast.',
+      tip: 'Hardest step, with the whole street in view. Pay fast.',
       successLook: 'Dog holds with a person walking past.'
     },
     {
@@ -2576,7 +2855,7 @@ const door_manners_stage2: Protocol = {
       then: 'Open the door; the helper walks in, ignores them, sits.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Brief guests first; one who greets a jumping dog breaks it.',
+      tip: 'Brief guests first. One who greets a jumping dog undoes it.',
       successLook: 'Dog holds while the guest sits down.'
     },
     {
@@ -2594,7 +2873,7 @@ const door_manners_stage2: Protocol = {
       then: 'After 3 seconds, treat and release.',
       durationSeconds: null,
       reps: 4,
-      tip: 'Waiting both ways generalizes the behavior in both directions.',
+      tip: 'Practice going out and coming in, so it works both ways.',
       successLook: 'Dog pauses at the door before entering.'
     },
     {
@@ -2607,20 +2886,30 @@ const door_manners_stage2: Protocol = {
       successLook: 'Dog relaxed, nose down.'
     },
   ],
-  setup: ['Leash on, hanging loose', 'Treat pouch on', 'Helper outside', 'Mat by the door'],
-  successCriteria: 'Dog holds wait at open front door for 5 seconds with a person visible outside, 9 out of 12 reps.',
-  commonMistakes: [
-    'Advancing to the front door before interior wait is reliable',
-    'Using the leash to hold the dog rather than the cue',
-    'Guests who immediately greet the dog',
-    'Testing with real guests before distraction-proofing is complete'
+  setup: [
+    'Leash on, hanging loose',
+    'Treat pouch on',
+    'Helper outside',
+    'Mat by the door',
   ],
-  equipmentNeeded: ['Leash', 'High-value treats', 'Treat pouch', 'Helper'],
+  successCriteria: 'Move on when they hold at the open front door 5 seconds with someone outside, 9 of 12.',
+  commonMistakes: [
+    'Moving to the front door too soon. Inside doors should be easy first.',
+    'Holding them back with the leash. The cue does the work.',
+    'Guests who greet right away. Ask them to ignore your dog until released.',
+    'Trying real guests too early. Practice with a helper first.',
+  ],
+  equipmentNeeded: [
+    'Leash',
+    'High-value treats',
+    'Treat pouch',
+    'A helper',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'door_manners_s3',
-  trainerNote: 'Everyone in the house and every regular visitor must know the rule; one bolt undoes weeks.',
+  trainerNote: 'Everyone in the house and every regular visitor needs the rule. One bolt undoes weeks.',
   supportsLiveAiTrainer: true,
 }
 
@@ -2628,8 +2917,8 @@ const door_manners_stage3: Protocol = {
   id: 'door_manners_s3',
   behavior: 'door_manners',
   stage: 3,
-  title: 'Off-Leash Door Wait & Reliability Under Pressure',
-  objective: 'Proof the door wait off-leash and in high-excitement conditions.',
+  title: 'Wait with no leash',
+  objective: 'Your dog waits at the front door with no leash, even when wound up.',
   durationMinutes: 10,
   repCount: 10,
   steps: [
@@ -2639,7 +2928,7 @@ const door_manners_stage3: Protocol = {
       then: '5 seconds held? Mark, treat, release with "free."',
       durationSeconds: null,
       reps: 5,
-      tip: 'If they bolt, calmly bring them back, close the door, reset. No reaction.',
+      tip: 'If they bolt, bring them back calmly, close the door, and reset. No fuss.',
       successLook: 'They hold at the open door, no leash, 5 seconds.'
     },
     {
@@ -2648,7 +2937,7 @@ const door_manners_stage3: Protocol = {
       then: 'Same rule: hold earns the release, bolting earns a reset.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Most door accidents happen when excited; train where it matters.',
+      tip: 'Most door escapes happen when they\'re excited, so practice then.',
       successLook: 'Wait holds even when they are fizzing.'
     },
     {
@@ -2657,16 +2946,16 @@ const door_manners_stage3: Protocol = {
       then: 'Jackpot a fast turn back through the door.',
       durationSeconds: null,
       reps: 4,
-      tip: 'If they ever bolt, recall at the threshold is what saves them.',
-      successLook: 'They step out, hear the cue, turn and re-enter.'
+      tip: 'If they ever get out, calling them back through the door is your backup.',
+      successLook: 'They step out, hear the cue, and come back in.'
     },
     {
       order: 4,
       instruction: 'Repeat the wait at another entrance: gate, garage, car door.',
-      then: 'Same rule; expect it to transfer within a couple of reps.',
+      then: 'Same rule; expect it to carry over within a couple of reps.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Generalization is fast once the foundation is solid.',
+      tip: 'Once the front door is easy, other doors come fast.',
       successLook: 'Wait holds at gate, car, and garage.'
     },
     {
@@ -2679,20 +2968,27 @@ const door_manners_stage3: Protocol = {
       successLook: 'Relaxed sniffing outside.'
     },
   ],
-  setup: ['High-value treats', 'Long line as optional backup', 'Front door, ready to open'],
-  successCriteria: 'Dog holds off-leash wait at open front door for 5 seconds in 8 out of 10 trials, including 3 at elevated arousal.',
-  commonMistakes: [
-    'Only testing in calm conditions',
-    'Not proofing at other doorways',
-    'Dropping the practice once reliability seems good',
-    'Not building the recall-at-threshold as a safety behavior'
+  setup: [
+    'High-value treats',
+    'Long line for early reps',
+    'Front door, ready to open',
   ],
-  equipmentNeeded: ['High-value treats', 'Long line as optional safety backup for early off-leash trials'],
+  successCriteria: 'Move on when they hold 5 seconds off leash at the open front door, 8 of 10, 3 after play.',
+  commonMistakes: [
+    'Only practicing when your dog is calm. Practice right after play too.',
+    'Only using the front door. Try the gate, garage, and car.',
+    'Stopping practice once it looks good. Keep a few reps a week.',
+    'Skipping the call back through the door. It\'s your backup if they bolt.',
+  ],
+  equipmentNeeded: [
+    'High-value treats',
+    'Long line for the first off-leash reps',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'Reliable door manners could prevent a tragedy; fifteen sessions total is a bargain.',
+  trainerNote: 'Plan on about 15 sessions in total. After that, a few reps a week keeps it going.',
   supportsLiveAiTrainer: true,
 }
 
@@ -2704,8 +3000,8 @@ const impulse_control_stage1: Protocol = {
   id: 'impulse_s1',
   behavior: 'impulse_control',
   stage: 1,
-  title: 'Patience Games: It\'s Yer Choice',
-  objective: 'Build the core understanding that restraint earns access and grabbing earns nothing.',
+  title: 'The open hand game',
+  objective: 'Your dog learns that backing off gets the treat and grabbing gets nothing.',
   durationMinutes: 8,
   repCount: 20,
   steps: [
@@ -2715,7 +3011,7 @@ const impulse_control_stage1: Protocol = {
       then: 'Close your fist as they move in; open when they back off.',
       durationSeconds: null,
       reps: null,
-      tip: 'Silence. Let them work out what opens the fist: not pushing.',
+      tip: 'Say nothing. Let them work out that backing off opens your hand.',
       successLook: 'They back off and the fist opens.'
     },
     {
@@ -2724,7 +3020,7 @@ const impulse_control_stage1: Protocol = {
       then: 'If they hold back and look at you, mark; they take one.',
       durationSeconds: null,
       reps: 10,
-      tip: 'Close before nose contact; you must be faster than the dog.',
+      tip: 'Close before their nose gets there. You have to be faster.',
       successLook: 'They see the treats, glance at you, and wait.'
     },
     {
@@ -2733,7 +3029,7 @@ const impulse_control_stage1: Protocol = {
       then: 'When they back off and meet your eyes, mark; they take it.',
       durationSeconds: null,
       reps: 10,
-      tip: 'The eye contact is the behavior: I don\'t grab, I check in.',
+      tip: 'The look at you is the point: don\'t grab, check in.',
       successLook: 'They look at the treat, then at you.'
     },
     {
@@ -2742,33 +3038,40 @@ const impulse_control_stage1: Protocol = {
       then: 'Dive means lift it; a calm step back means down and \'free\'.',
       durationSeconds: null,
       reps: null,
-      tip: 'Every meal is free practice; never skip it.',
+      tip: 'Every meal is free practice. Don\'t skip it.',
       successLook: 'They wait for \'free\' before eating.'
     },
     {
       order: 5,
       instruction: 'Play or let them sniff for a minute.',
-      then: 'No cues, no treats; just end on a good note.',
+      then: 'No cues, no treats. End on a good note.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'They are relaxed and happy.'
     },
   ],
-  setup: ['Kibble in your hand', 'Food bowl for later', 'Quiet room, say nothing'],
-  successCriteria: 'Dog waits with treats on open palm for 3 seconds without grabbing, 15 out of 20 reps. Dog waits for bowl to be placed and "free!" before eating, 7 consecutive meals.',
-  commonMistakes: [
-    'Using verbal cues during the game — silence teaches self-regulation',
-    'Letting the dog succeed at grabbing even once',
-    'Skipping mealtime practice',
-    'Moving to distractions before the palm game is reliable'
+  setup: [
+    'Kibble in your hand',
+    'Food bowl for later',
+    'Quiet room, say nothing',
   ],
-  equipmentNeeded: ['Kibble or low-value treats', 'Dog\'s regular food bowl'],
+  successCriteria: 'Move on when they wait 3 seconds at your open palm, 15 of 20, and for \'free\' 7 meals running.',
+  commonMistakes: [
+    'Talking during the game. Stay quiet and let them figure it out.',
+    'Letting a grab pay off even once. Be quicker with your fist.',
+    'Skipping mealtimes. Every meal is a free practice round.',
+    'Adding distractions too soon. Get the palm game easy first.',
+  ],
+  equipmentNeeded: [
+    'Kibble or plain treats',
+    'Your dog\'s food bowl',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'impulse_s2',
-  trainerNote: 'Impulse control is the meta-skill; every other course gets easier for a dog who has it.',
+  trainerNote: 'Once your dog gets this, most other courses go faster. Expect a week of short sessions.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2776,8 +3079,8 @@ const impulse_control_stage2: Protocol = {
   id: 'impulse_s2',
   behavior: 'impulse_control',
   stage: 2,
-  title: 'Threshold Control: Food, Toys & Doors',
-  objective: 'Apply impulse control to the most common real-life trigger points: counters, exciting toys, car doors, and leash time.',
+  title: 'Calm first, then the fun',
+  objective: 'Your dog stays calm around food on tables, toys, car doors, and the leash.',
   durationMinutes: 10,
   repCount: 12,
   steps: [
@@ -2787,7 +3090,7 @@ const impulse_control_stage2: Protocol = {
       then: 'Cover it if they move in; mark eye contact, pay from pouch.',
       durationSeconds: null,
       reps: 5,
-      tip: 'The reward always comes from you; things on surfaces are not for dogs.',
+      tip: 'Rewards come from you. Food on surfaces is never for dogs.',
       successLook: 'Dog backs off the table and looks at you.'
     },
     {
@@ -2796,7 +3099,7 @@ const impulse_control_stage2: Protocol = {
       then: 'They lunge: freeze the toy. They sit or pause: mark, play.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Calm launches exciting things. This rule transfers everywhere.',
+      tip: 'Calm makes the fun start. That rule carries over everywhere.',
       successLook: 'Dog pauses or sits; you start the game.'
     },
     {
@@ -2827,20 +3130,30 @@ const impulse_control_stage2: Protocol = {
       successLook: 'Dog walks out on the release, not before.'
     },
   ],
-  setup: ['Treat pouch on', 'A boring treat for the table', 'An exciting toy', 'Leash and car nearby'],
-  successCriteria: 'Dog ignores table treat and looks to handler in 8 out of 12 reps. Dog waits at car door in 8 out of 10 trials.',
-  commonMistakes: [
-    'Rewarding from the surface — always from your hand or pouch',
-    'Starting play before the dog has fully paused',
-    'Practicing car door in a rush',
-    'Putting the leash away when the dog is still frantic'
+  setup: [
+    'Treat pouch on',
+    'Boring treat for the table',
+    'An exciting toy',
+    'Leash and car nearby',
   ],
-  equipmentNeeded: ['Treats in pouch', 'Exciting toy', 'Leash', 'Car access'],
+  successCriteria: 'Move on when they leave the table treat 8 of 12 times and wait at the car 8 of 10.',
+  commonMistakes: [
+    'Letting them have the table treat. Pay from your hand or pouch.',
+    'Starting play before they\'ve fully paused. Wait for the pause.',
+    'Practicing the car door when you\'re rushed. Do it on a slow day.',
+    'Quitting leash practice while they\'re still frantic. End on a calm moment.',
+  ],
+  equipmentNeeded: [
+    'Treat pouch with treats',
+    'Exciting toy',
+    'Leash',
+    'Access to a car',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'impulse_s3',
-  trainerNote: 'The rule is universal: calm first, then the exciting thing. Done consistently it becomes their default.',
+  trainerNote: 'Same rule everywhere: calm first, then the good thing. Keep it up and it becomes habit.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2848,8 +3161,8 @@ const impulse_control_stage3: Protocol = {
   id: 'impulse_s3',
   behavior: 'impulse_control',
   stage: 3,
-  title: 'Real-World Restraint: Strangers, Other Dogs & Distractions',
-  objective: 'Apply impulse control to outdoor and social contexts — greetings, other dogs, and exciting stimuli on walks.',
+  title: 'Calm with people and dogs',
+  objective: 'Your dog sits for greetings and stays calm when other dogs pass.',
   durationMinutes: 12,
   repCount: 10,
   steps: [
@@ -2859,7 +3172,7 @@ const impulse_control_stage3: Protocol = {
       then: 'Sit earns the approach; a lunge means the person turns away.',
       durationSeconds: null,
       reps: 4,
-      tip: 'Brief the greeter: "Could you wait until they sit?" Most people help.',
+      tip: 'Ask the person: "Could you wait until they sit?" Most people will.',
       successLook: 'They sit while the stranger approaches and pets.'
     },
     {
@@ -2868,8 +3181,8 @@ const impulse_control_stage3: Protocol = {
       then: 'Treat every 2 seconds while it passes; stop when it is gone.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Other dog visible means treats from my person; that is the association.',
-      successLook: 'They glance at the dog, then orient to you.'
+      tip: 'They learn that other dogs showing up means treats from you.',
+      successLook: 'They glance at the dog, then turn to you.'
     },
     {
       order: 3,
@@ -2877,7 +3190,7 @@ const impulse_control_stage3: Protocol = {
       then: 'Say "free" and walk together toward the exciting thing.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Calm earns access, frantic earns delay; that is self-regulation.',
+      tip: 'Calm gets them closer. Frantic makes them wait.',
       successLook: 'Sit holds 5 seconds with the ball in view.'
     },
     {
@@ -2886,7 +3199,7 @@ const impulse_control_stage3: Protocol = {
       then: 'Cue down; pay it when they settle, then play again.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Play to down in 10 seconds is real emotional self-regulation.',
+      tip: 'Going from play to down in 10 seconds takes real self-control.',
       successLook: 'Play to down within 10 seconds of "done."'
     },
     {
@@ -2899,20 +3212,29 @@ const impulse_control_stage3: Protocol = {
       successLook: 'Loose, happy play.'
     },
   ],
-  setup: ['Leash on, treat pouch', 'Tug toy', 'Willing greeter'],
-  successCriteria: 'Dog sits for stranger greeting in 7 out of 10 trials. Orients to handler when another dog passes in 6 out of 10 outdoor encounters.',
-  commonMistakes: [
-    'Allowing the greeting without the sit even once',
-    'Starting dog-passing work when the other dog is too close',
-    'Correction for lunging — the answer is more distance, not punishment',
-    'Not maintaining the off-switch game regularly'
+  setup: [
+    'Leash on, treat pouch',
+    'Tug toy',
+    'Willing greeter',
   ],
-  equipmentNeeded: ['Treat pouch', 'High-value treats', 'Leash', 'Tug toy'],
+  successCriteria: 'Move on when they sit for greetings 7 of 10 and look to you when dogs pass, 6 of 10.',
+  commonMistakes: [
+    'Allowing a greeting without the sit. Every greeting starts with a sit.',
+    'Working too close to other dogs. Back up until they can still eat.',
+    'Correcting a lunge. Add distance instead.',
+    'Dropping the tug and settle game. Play it every week.',
+  ],
+  equipmentNeeded: [
+    'Treat pouch',
+    'High-value treats',
+    'Leash',
+    'Tug toy',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'A dog with real-world impulse control is welcome everywhere; this pays every day for life.',
+  trainerNote: 'Most dogs get this at home in a week. Outside takes longer, and that is normal.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2924,18 +3246,18 @@ const coop_care_stage1: Protocol = {
   id: 'coop_care_s1',
   behavior: 'cooperative_care',
   stage: 1,
-  title: 'Touch Acceptance: Paws, Ears & Mouth',
-  objective: 'Build genuine comfort with handling of the paws, ears, and mouth for routine care.',
+  title: 'Paws, ears, and mouth',
+  objective: 'Your dog stays relaxed while you handle their paws, ears, and mouth.',
   durationMinutes: 8,
   repCount: 15,
   steps: [
     {
       order: 1,
       instruction: 'Touch the shoulder and treat, then elbow, lower leg, paw.',
-      then: 'A treat at every zone; pulling away means restart at the shoulder.',
+      then: 'A treat at every spot; pulling away means restart at the shoulder.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Work from least to most sensitive: body, legs, paws, toes.',
+      tip: 'Go from least to most sensitive: body, legs, paws, toes.',
       successLook: 'They hold still from shoulder to paw.'
     },
     {
@@ -2944,51 +3266,59 @@ const coop_care_stage1: Protocol = {
       then: 'Feed a treat every second during the hold; 5 holds per paw.',
       durationSeconds: null,
       reps: 20,
-      tip: 'Treating during the hold, not after, says the hold itself is safe.',
+      tip: 'Treating during the hold tells them the hold itself is safe.',
       successLook: 'The paw rests in your hand while they eat.'
     },
     {
       order: 3,
       instruction: 'Touch the ear base, slide to the flap, lift 3 seconds.',
-      then: 'Treat continuously; if they pull away or shake, go lighter.',
+      then: 'Treat the whole time; if they pull away or shake, go lighter.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Stop at stress signs like whale eye or shaking; reduce and rebuild.',
+      tip: 'Stop at stress signs like whale eye or shaking. Go lighter and rebuild.',
       successLook: 'Ear flap lifted and held without pulling.'
     },
     {
       order: 4,
       instruction: 'Touch the muzzle, lift the lip, then open the mouth briefly.',
-      then: 'Treat at each step; press gently on the lower jaw to open.',
+      then: 'Treat at each step; press lightly on the lower jaw to open.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Mouth comfort means dental care and oral meds later; a life-extending skill.',
+      tip: 'An easy mouth now means easier tooth brushing and pills later.',
       successLook: 'Lips lifted and mouth opened without pulling away.'
     },
     {
       order: 5,
       instruction: 'Stop handling and let them shake it off.',
-      then: 'A minute of sniffing or gentle play ends the session.',
+      then: 'A minute of sniffing or easy play ends the session.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'They relax and stay near you.'
     },
   ],
-  setup: ['Tiniest treats possible', 'Quiet room', 'Dog relaxed, not tired or hungry'],
-  successCriteria: 'Dog accepts 3-second paw hold, ear flap lift, and lip exam without resistance in 10 out of 15 sessions.',
-  commonMistakes: [
-    'Moving to a new body zone before the current one is calm',
-    'Treating after handling ends rather than during',
-    'Practicing when the dog is tired or hungry',
-    'Restraining when the dog resists — reduce intensity instead'
+  setup: [
+    'Tiny treats',
+    'Quiet room',
+    'Relaxed, not tired or hungry',
   ],
-  equipmentNeeded: ['High-value treats (tiniest possible pieces)', 'Treat pouch', 'Quiet room'],
+  successCriteria: 'Move on when they accept a 3-second paw hold, ear lift, and lip check in 10 of 15 sessions.',
+  commonMistakes: [
+    'Moving to a new spot too soon. Wait until the current one is calm.',
+    'Treating after you let go. Treat during the handling.',
+    'Practicing when they\'re tired or hungry. Pick a relaxed moment.',
+    'Holding tighter when they pull away. Go lighter instead.',
+  ],
+  equipmentNeeded: [
+    'High-value treats, tiny pieces',
+    'Treat pouch',
+    'Quiet room',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'coop_care_s2',
-  trainerNote: 'A dog that accepts handling is safer everywhere. Run a five-minute refresher every month for life.',
+  trainerNote: 'Keep it up with a 5-minute refresher once a month, even after it\'s easy.',
   supportsLiveAiTrainer: false,
 }
 
@@ -2996,8 +3326,8 @@ const coop_care_stage2: Protocol = {
   id: 'coop_care_s2',
   behavior: 'cooperative_care',
   stage: 2,
-  title: 'Nail Trim Desensitization',
-  objective: 'Build step-by-step acceptance of nail trimming from first sight of clippers to completing a full trim.',
+  title: 'Nails, one tap at a time',
+  objective: 'Your dog stays still for nail trims, from seeing the clippers to a full trim.',
   durationMinutes: 10,
   repCount: 10,
   steps: [
@@ -3007,7 +3337,7 @@ const coop_care_stage2: Protocol = {
       then: 'Any calm look or sniff earns a treat.',
       durationSeconds: null,
       reps: null,
-      tip: 'Scared? Put them on the floor at a distance and treat for looking.',
+      tip: 'Scared? Put them on the floor a few feet away and treat for looking.',
       successLook: 'Dog sniffs the clippers looking for a treat.'
     },
     {
@@ -3022,16 +3352,16 @@ const coop_care_stage2: Protocol = {
     {
       order: 3,
       instruction: 'Hold a paw and place the clipper opening around one nail.',
-      then: 'Do not cut. Treat richly, then let go.',
+      then: 'Do not cut. Treat well, then let go.',
       durationSeconds: null,
       reps: null,
-      tip: 'Each stage may take several sessions; the whole thing takes weeks.',
+      tip: 'Each step may take several sessions. The whole thing takes weeks.',
       successLook: 'Dog holds still with the clipper around a nail.'
     },
     {
       order: 4,
       instruction: 'Clip the tip of one nail.',
-      then: 'Jackpot 5 treats immediately, then stop for the day.',
+      then: 'Give 5 treats right away, then stop for the day.',
       durationSeconds: null,
       reps: null,
       tip: 'Stay well clear of the quick. Next session, 2 nails.',
@@ -3040,28 +3370,37 @@ const coop_care_stage2: Protocol = {
     {
       order: 5,
       instruction: 'Play or sniff break.',
-      then: 'Clippers away; nothing more today.',
+      then: 'Clippers away. Nothing more today.',
       durationSeconds: 60,
       reps: null,
-      tip: 'One nail and done is the strategy, not weakness.',
+      tip: 'Stopping after 1 nail is the plan, not giving up.',
       successLook: 'Dog relaxed and happy.'
     },
   ],
-  setup: ['Sharp nail clippers', 'Best treats you have', 'Styptic powder within reach', 'Quiet spot, dog relaxed'],
-  guide: 'Pace this across sessions: three sessions of just seeing the clippers, then touch, then placement, then one nail, then two. Two to four weeks is normal. Once a full trim is easy, keep the high-value treats flowing at every trim for life; a calm dog stays calm because the trim keeps paying. Trim monthly.',
-  successCriteria: 'Dog accepts clipper placement on 3 different nails without resistance, 7 out of 10 sessions. Full trim completed with treat support in 3 consecutive sessions.',
-  commonMistakes: [
-    'Rushing to a full trim before each step is calm',
-    'Dull clippers — replace annually at minimum',
-    'Gripping the paw harder when the dog resists — release and reduce',
-    'Stopping treats once the dog "knows" nail trim'
+  setup: [
+    'Sharp nail clippers',
+    'Best treats you have',
+    'Styptic powder nearby',
+    'Quiet spot, dog relaxed',
   ],
-  equipmentNeeded: ['Sharp nail clippers', 'Best available treats', 'Styptic powder in case of quick strike'],
+  guide: 'Spread this over many sessions: 3 sessions of just seeing the clippers, then touching, then placing, then 1 nail, then 2. Two to four weeks is normal. Once full trims are easy, keep the good treats coming at every trim. That\'s what keeps a calm dog calm. Trim once a month.',
+  successCriteria: 'Move on when they accept clippers on 3 nails in 7 of 10 sessions, then 3 full trims running.',
+  commonMistakes: [
+    'Rushing to a full trim. Each step should be calm first.',
+    'Dull clippers. Replace them at least once a year.',
+    'Gripping harder when they pull back. Let go and make it easier.',
+    'Stopping treats once they seem fine. Keep paying at every trim.',
+  ],
+  equipmentNeeded: [
+    'Sharp nail clippers',
+    'Your best treats',
+    'Styptic powder, in case you nick the quick',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'coop_care_s3',
-  trainerNote: 'Nail fear is a top reason dogs get sedated at the vet; four weeks here saves years.',
+  trainerNote: 'Expect 2 to 4 weeks. Nail fear is a common reason dogs get sedated at the vet.',
   supportsLiveAiTrainer: false,
 }
 
@@ -3069,8 +3408,8 @@ const coop_care_stage3: Protocol = {
   id: 'coop_care_s3',
   behavior: 'cooperative_care',
   stage: 3,
-  title: 'Vet Visit Simulation & Table Confidence',
-  objective: 'Simulate a full vet exam so the dog enters the clinic calm and tolerates a complete physical without stress.',
+  title: 'Practice vet visits',
+  objective: 'Your dog walks into the vet calm and stands still for a full exam.',
   durationMinutes: 12,
   repCount: 8,
   steps: [
@@ -3080,7 +3419,7 @@ const coop_care_stage3: Protocol = {
       then: 'After 30 seconds, lift them off; that is one rep.',
       durationSeconds: null,
       reps: 5,
-      tip: 'The vet table is cold and strange; rehearse on a folding table first.',
+      tip: 'The vet table is cold and strange. Rehearse on a folding table first.',
       successLook: 'They stand on the surface eating, not jumping off.'
     },
     {
@@ -3098,34 +3437,42 @@ const coop_care_stage3: Protocol = {
       then: 'Release after 30 seconds; if they struggle, ease off and shorten.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Vet techs hold exactly like this; a dog with no practice may panic.',
-      successLook: 'Firm hold accepted with minimal resistance.'
+      tip: 'Vet techs hold dogs just like this. Practice now so it isn\'t new.',
+      successLook: 'Firm hold accepted with little resistance.'
     },
     {
       order: 4,
       instruction: 'Release with play or a sniff break.',
-      then: 'Handling ends, fun begins; that is the lesson.',
+      then: 'Handling ends and fun starts. That\'s what they remember.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Relaxed, shaking off, ready to play.'
     },
   ],
-  setup: ['Raised surface or folding table', 'High-value treats', 'Happy visit booked with clinic'],
-  guide: 'Once a month, book a happy visit: walk into the clinic, let staff feed treats, sit in the waiting room for five minutes, and leave. No exam, no shots. Call ahead; most clinics welcome it. Do the home exam weekly too; it doubles as early health detection.',
-  successCriteria: 'Dog accepts a 3-minute full-body home exam with continuous treats, 6 out of 8 sessions. Dog enters vet clinic without pulling backward on 2 consecutive happy visits.',
-  commonMistakes: [
-    'Practicing home handling only and skipping vet happy visits',
-    'Doing the home exam only when something is wrong',
-    'Restraining harder when the dog struggles — release and reduce',
-    'Not advocating for slow, treat-supported exams at the vet'
+  setup: [
+    'Raised surface or folding table',
+    'High-value treats',
+    'Happy visit booked',
   ],
-  equipmentNeeded: ['Raised surface or folding table', 'High-value treats', 'Vet clinic access for happy visits'],
+  guide: 'Once a month, book a happy visit: walk in, let staff hand out treats, sit in the waiting room for 5 minutes, and leave. No exam, no shots. Call ahead first. Most clinics are glad to do it. Do the home exam weekly too. It also helps you spot lumps and sore spots early.',
+  successCriteria: 'Move on when they accept a 3-minute home exam 6 of 8 sessions and enter the clinic calmly twice running.',
+  commonMistakes: [
+    'Practicing only at home. Book happy visits at the clinic too.',
+    'Doing home exams only when something\'s wrong. Do one every week.',
+    'Holding tighter when they struggle. Let go and make it easier.',
+    'Staying quiet at the vet. Ask for a slow exam with treats.',
+  ],
+  equipmentNeeded: [
+    'Raised surface or folding table',
+    'High-value treats',
+    'A clinic that allows happy visits',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: null,
-  trainerNote: 'A calm dog gets a better exam and earlier catches; cooperative care is health care.',
+  trainerNote: 'A calm dog gets a more thorough exam, so problems get caught earlier.',
   supportsLiveAiTrainer: false,
 }
 
@@ -3137,15 +3484,15 @@ const wait_stay_stage1: Protocol = {
   id: 'wait_stay_s1',
   behavior: 'wait_and_stay',
   stage: 1,
-  title: 'Wait vs Stay: Teaching the Difference',
-  objective: 'Install two distinct cues — "wait" (brief pause, any position) and "stay" (hold in position until released).',
+  title: 'Wait versus stay',
+  objective: 'Your dog knows \'wait\' means pause and \'stay\' means hold until \'free\'.',
   durationMinutes: 8,
   repCount: 15,
   steps: [
     {
       order: 1,
       instruction: 'While walking, say \'wait\' and stop.',
-      then: 'The moment they pause in any position, mark and keep walking.',
+      then: 'The moment they pause in any position, mark, treat, walk on.',
       durationSeconds: null,
       reps: 8,
       tip: 'Wait is a pause, not a sit; mark any stop in movement.',
@@ -3157,7 +3504,7 @@ const wait_stay_stage1: Protocol = {
       then: 'Count 5 seconds, return, treat in position, say \'free\'.',
       durationSeconds: null,
       reps: 7,
-      tip: 'Stay means one position held until released; that is what makes it different.',
+      tip: 'Stay is one position, held until you release them.',
       successLook: 'They hold the sit 5 seconds until \'free\'.'
     },
     {
@@ -3175,33 +3522,41 @@ const wait_stay_stage1: Protocol = {
       then: 'Mark the wait pause; treat the 10-second stay, then release.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Alternating forces them to listen to the actual word.',
+      tip: 'Mixing the two makes your dog listen to the actual word.',
       successLook: 'A brief pause for wait, a held sit for stay.'
     },
     {
       order: 5,
       instruction: 'Let them sniff freely for a minute.',
-      then: 'Say \'free\' and follow them; no cues, no treats.',
+      then: 'Say \'free\' and follow them. No cues, no treats.',
       durationSeconds: 60,
       reps: null,
-      tip: 'The sniff break is the reward; it makes the structured work easier to take.',
+      tip: 'Sniffing is the reward for the work they just did.',
       successLook: 'They wander and sniff, relaxed.'
     },
   ],
-  setup: ['Low-distraction room', 'Treat pouch on', 'Space to walk a few steps'],
-  successCriteria: 'Dog pauses on "wait" without sitting in 10 out of 15 reps. Dog holds sit-stay for 10 seconds in 10 out of 15 reps.',
-  commonMistakes: [
-    'Using "wait" and "stay" interchangeably — each word must have one meaning',
-    'Asking for sit every time you say "wait"',
-    'No formal release from stay',
-    'Building duration before the cue distinction is clear'
+  setup: [
+    'Quiet room',
+    'Treat pouch on',
+    'Room to walk a few steps',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch', 'Low-distraction room'],
+  successCriteria: 'Move on when they pause on \'wait\' without sitting, and hold a 10-second stay, 10 of 15 each.',
+  commonMistakes: [
+    'Using \'wait\' and \'stay\' for the same thing. Give each word one meaning.',
+    'Asking for a sit with every \'wait\'. Any pause counts.',
+    'Letting stay end on its own. Always release with \'free\'.',
+    'Adding time before they know which word is which. Get the difference first.',
+  ],
+  equipmentNeeded: [
+    'High-value treats',
+    'Treat pouch',
+    'Quiet room',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'wait_stay_s2',
-  trainerNote: 'Wait at the curb, stay on the mat with guests: different problems, so build both.',
+  trainerNote: 'Wait is for curbs and doors. Stay is for the mat when guests come. You need both.',
   supportsLiveAiTrainer: true,
 }
 
@@ -3209,8 +3564,8 @@ const wait_stay_stage2: Protocol = {
   id: 'wait_stay_s2',
   behavior: 'wait_and_stay',
   stage: 2,
-  title: 'Stay with Distance & Handler Movement',
-  objective: 'Build stay to 30 seconds at 10 feet with the handler moving laterally.',
+  title: 'Stay while you move',
+  objective: 'Your dog holds a 20-second stay while you move around 10 feet away.',
   durationMinutes: 10,
   repCount: 12,
   steps: [
@@ -3229,8 +3584,8 @@ const wait_stay_stage2: Protocol = {
       then: 'Return to the front and treat.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Behind them is the hardest direction; build to it gradually.',
-      successLook: 'Stay holds while you are out of sight.'
+      tip: 'Behind them is the hardest spot. Work up to it.',
+      successLook: 'Stay holds while you stand behind them.'
     },
     {
       order: 3,
@@ -3238,7 +3593,7 @@ const wait_stay_stage2: Protocol = {
       then: 'Add steps each rep: 2, then 5 feet, then 10 feet.',
       durationSeconds: null,
       reps: 7,
-      tip: 'Three clean reps at each distance. Mix distances so they cannot predict.',
+      tip: '3 clean reps at each distance. Mix distances so they can\'t predict.',
       successLook: 'Stay holds at 10 feet for 5 seconds.'
     },
     {
@@ -3247,33 +3602,40 @@ const wait_stay_stage2: Protocol = {
       then: 'Step away again, return, then treat.',
       durationSeconds: null,
       reps: null,
-      tip: 'A stay that only works when you stand frozen is not trained.',
+      tip: 'If a stay only works while you stand frozen, it isn\'t done yet.',
       successLook: 'Stay holds through unpredictable movement.'
     },
     {
       order: 5,
-      instruction: 'Say free and take a play break.',
-      then: 'Walk back, pause, then release. No running.',
+      instruction: 'Walk back, pause, then say free.',
+      then: 'Take a minute-long play break together.',
       durationSeconds: 60,
       reps: null,
       tip: 'Running back excites them and breaks the stay.',
       successLook: 'Dog waits for the word, then plays.'
     },
   ],
-  setup: ['Treat pouch on', 'Room with space to move'],
-  successCriteria: 'Dog holds sit-stay for 20 seconds with handler at 10 feet moving laterally, 8 out of 12 trials.',
-  commonMistakes: [
-    'Building distance before duration is solid',
-    'Running back to the dog — excites them and causes breaking',
-    'Not varying distance to prevent anticipation',
-    'Releasing the moment you return rather than pausing first'
+  setup: [
+    'Treat pouch on',
+    'Room to move around',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch', 'Room with space to move'],
+  successCriteria: 'Move on when they hold a 20-second sit-stay with you moving 10 feet away, 8 of 12.',
+  commonMistakes: [
+    'Adding distance before time is easy. Build time first.',
+    'Running back to them. Walk back calmly so they don\'t break.',
+    'Always using the same distance. Mix it up so they can\'t guess.',
+    'Releasing the moment you get back. Pause, then say \'free\'.',
+  ],
+  equipmentNeeded: [
+    'High-value treats',
+    'Treat pouch',
+    'Room to move around',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'wait_stay_s3',
-  trainerNote: 'A stay that holds while you move is a stay that holds in real life.',
+  trainerNote: 'Most dogs break the first time you step behind them. That\'s normal. Make it easier and rebuild.',
   supportsLiveAiTrainer: true,
 }
 
@@ -3281,8 +3643,8 @@ const wait_stay_stage3: Protocol = {
   id: 'wait_stay_s3',
   behavior: 'wait_and_stay',
   stage: 3,
-  title: 'Stay Under Real-World Pressure',
-  objective: 'Proof stay in high-distraction environments and during real-life situations: mealtimes, guests, and curb crossings.',
+  title: 'Stay with distractions',
+  objective: 'Your dog holds a stay at meals, when guests arrive, and at curbs.',
   durationMinutes: 12,
   repCount: 10,
   steps: [
@@ -3292,7 +3654,7 @@ const wait_stay_stage3: Protocol = {
       then: 'Hold 5 seconds, say "free" and let them eat.',
       durationSeconds: null,
       reps: null,
-      tip: 'If they break toward the bowl, pick it up and reset. Free daily practice.',
+      tip: 'If they break for the bowl, pick it up and reset. Free daily practice.',
       successLook: 'They hold until "free."'
     },
     {
@@ -3301,7 +3663,7 @@ const wait_stay_stage3: Protocol = {
       then: 'Guest walks into the room; treat for holding, then release.',
       durationSeconds: null,
       reps: 4,
-      tip: 'A dog on the mat during arrivals is the easiest dog to live with.',
+      tip: 'A dog on the mat when guests arrive is the easiest dog to live with.',
       successLook: 'Stay holds until the guest reaches the couch.'
     },
     {
@@ -3319,7 +3681,7 @@ const wait_stay_stage3: Protocol = {
       then: 'Treat for holding 30 seconds; release with "free."',
       durationSeconds: null,
       reps: 3,
-      tip: 'One new element at a time; 3 clean reps before raising it.',
+      tip: 'One new thing at a time; 3 clean reps before making it harder.',
       successLook: 'Down-stay holds 30 seconds with a person at 5 feet.'
     },
     {
@@ -3343,27 +3705,37 @@ const wait_stay_stage3: Protocol = {
     {
       order: 7,
       instruction: 'Release with "free" and a sniff break.',
-      then: 'Nothing more asked; let them decompress.',
+      then: 'Nothing more asked. Let them unwind.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, nose down.'
     },
   ],
-  setup: ['Portable mat', 'Treat pouch', 'Helper', 'Leash'],
-  successCriteria: 'Dog holds mat stay during guest arrival in 7 out of 10 rehearsed trials. Pauses at curbs automatically on 8 consecutive walks.',
-  commonMistakes: [
-    'Skipping mealtime stay — free daily practice is too valuable to skip',
-    'Not proofing outdoors before relying on it in outdoor situations',
-    'Multiple distraction types introduced at once',
-    'Letting stay become optional in daily life'
+  setup: [
+    'Portable mat',
+    'Treat pouch',
+    'Helper',
+    'Leash',
   ],
-  equipmentNeeded: ['Mat (portable)', 'Treat pouch', 'Helper', 'Leash'],
+  successCriteria: 'Move on when they hold the mat stay for guests 7 of 10 and stop at curbs 8 walks running.',
+  commonMistakes: [
+    'Skipping the mealtime stay. It\'s free practice every day.',
+    'Counting on it outside before practicing outside. Practice there first.',
+    'Adding several distractions at once. Add one at a time.',
+    'Letting stay slide in daily life. Ask for it and mean it.',
+  ],
+  equipmentNeeded: [
+    'Portable mat',
+    'Treat pouch',
+    'A helper',
+    'Leash',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'A proofed stay is safety-critical; build it to a reflex, then maintain it forever.',
+  trainerNote: 'Keep using it every day, at meals and curbs, and it stays sharp for years.',
   supportsLiveAiTrainer: true,
 }
 
@@ -3375,72 +3747,82 @@ const reactivity_stage1: Protocol = {
   id: 'reactivity_s1',
   behavior: 'leash_reactivity',
   stage: 1,
-  title: 'Finding Threshold & Building a Calm Baseline',
-  objective: 'Identify the dog\'s reaction threshold distance to other dogs and establish calm, treat-responsive behavior at that distance.',
+  title: 'Find their comfortable distance',
+  objective: 'Your dog sees another dog, stays calm, and keeps taking treats from you.',
   durationMinutes: 10,
   repCount: 10,
   steps: [
     {
       order: 1,
       instruction: 'Walk toward the helper dog until yours notices it.',
-      then: 'Stop there; that distance is threshold, your starting point.',
+      then: 'Stop there. This is your starting distance.',
       durationSeconds: null,
       reps: null,
-      tip: 'Threshold: they see the trigger but can still eat and respond to you.',
+      tip: 'The right distance: they see the other dog but can still eat and listen.',
       successLook: 'They notice, take a treat, stay with you.'
     },
     {
       order: 2,
-      instruction: 'Stand 5 feet beyond threshold.',
+      instruction: 'Stand 5 feet farther back than that.',
       then: 'When the other dog appears, feed every 2 seconds until it leaves.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Open bar when the trigger is visible, closed when it is gone.',
+      tip: 'Food flows while the other dog is in sight and stops when it\'s gone.',
       successLook: 'They eat treats while the other dog is visible.'
     },
     {
       order: 3,
-      instruction: 'If they react, say nothing; turn and walk away.',
+      instruction: 'If they react, say nothing. Turn and walk away.',
       then: 'Stop when they can take a treat again.',
       durationSeconds: null,
       reps: null,
-      tip: 'A reacting dog is over threshold, not naughty; add 10 feet next time.',
+      tip: 'They aren\'t being naughty; you were too close. Add 10 feet next time.',
       successLook: 'They recover within 30 seconds and eat.'
     },
     {
       order: 4,
-      instruction: 'Stay at threshold and watch for a look back to you.',
-      then: 'The instant they glance from the dog to you, mark and treat.',
+      instruction: 'Stay at that distance and wait for a look back.',
+      then: 'The moment they glance from the dog to you, mark and treat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'The spontaneous head turn is the breakthrough; counter-conditioning is working.',
+      tip: 'That head turn on their own means the food is doing its work.',
       successLook: 'They see the dog, then turn to you.'
     },
     {
       order: 5,
-      instruction: 'Walk away from the helper and let them sniff.',
-      then: 'A minute of decompression sniffing ends the session.',
+      instruction: 'Walk away from the helper dog and let them sniff.',
+      then: 'A minute of sniffing ends the session.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, nose down.'
     },
   ],
-  setup: ['Calm helper dog 100 feet away', 'Front-clip harness, 6-foot leash', 'Chicken or hot dog, lots'],
-  guide: 'Repeat this session 2 to 3 times at the same distance before moving closer. Use the best food you have; the competition is a real dog. Never correct a reaction; distance is always the answer.',
-  successCriteria: 'Dog takes treats and stays calm when the other dog is visible at threshold distance, 7 out of 10 exposures. Orients to handler spontaneously in 4 out of 10 exposures.',
-  commonMistakes: [
-    'Starting too close — working over threshold rehearses the reaction',
-    'Correcting the dog for reacting',
-    'Low-value treats — the competition is a real dog',
-    'Practicing on regular walks without controlled threshold management'
+  setup: [
+    'Helper dog 100 feet away',
+    'Front-clip harness, 6-foot leash',
+    'Chicken or hot dog, lots',
   ],
-  equipmentNeeded: ['High-value treats (chicken, hot dog, cheese)', 'Treat pouch', 'Front-clip harness', '6-foot leash', 'Calm neutral stooge dog'],
+  guide: 'Your starting distance is where they can see the other dog and still eat. Repeat this session 2 or 3 times at that distance before moving closer. Use the best food you have. If they react, never correct it. Add distance instead.',
+  successCriteria: 'Move on when they eat calmly in 7 of 10 sightings and turn to you on their own in 4.',
+  commonMistakes: [
+    'Starting too close. If they can\'t eat, you are too close, so back up.',
+    'Correcting a lunge or bark. Say nothing, turn, and add distance.',
+    'Using kibble. Bring chicken or hot dog; kibble loses to a real dog.',
+    'Surprise dogs on regular walks. Pick quiet routes and times for now.',
+  ],
+  equipmentNeeded: [
+    'Chicken, hot dog, or cheese',
+    'Treat pouch',
+    'Front-clip harness',
+    '6-foot leash',
+    'A calm helper dog',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'reactivity_s2',
-  trainerNote: 'Corrections make reactivity worse. Under threshold, good food, more distance: that is the whole method.',
+  trainerNote: 'Never correct a reaction. It makes reactivity worse. More distance and better food fix it.',
   supportsLiveAiTrainer: false,
 }
 
@@ -3448,80 +3830,90 @@ const reactivity_stage2: Protocol = {
   id: 'reactivity_s2',
   behavior: 'leash_reactivity',
   stage: 2,
-  title: 'Shrinking the Threshold Distance',
-  objective: 'Systematically reduce the distance at which the dog remains calm around other dogs.',
+  title: 'Move closer, 5 feet at a time',
+  objective: 'Your dog stays calm with another dog in sight, closer than before.',
   durationMinutes: 12,
   repCount: 10,
   steps: [
     {
       order: 1,
-      instruction: 'Run 5 reps at your current threshold distance.',
-      then: 'Mark each calm look at the other dog and treat.',
+      instruction: 'Do 5 reps at your current comfortable distance.',
+      then: 'Mark each calm look at the other dog, then treat.',
       durationSeconds: null,
       reps: 5,
       tip: null,
-      successLook: 'Dog stays calm and orients to you.'
+      successLook: 'Calm, and checking in with you.'
     },
     {
       order: 2,
       instruction: 'Move 5 feet closer.',
-      then: 'Calm and orienting: this is the new threshold. Reactive: back up 10.',
+      then: 'Calm and checking in? New distance. Reacting? Back up 10 feet.',
       durationSeconds: null,
       reps: null,
-      tip: '5 feet at a time only. Slow shrinking lasts; fast shrinking regresses.',
+      tip: 'Only 5 feet at a time. Go slow and it sticks; rush it and it slips.',
       successLook: 'Same calm at the closer distance.'
     },
     {
       order: 3,
-      instruction: 'When the other dog appears, say look, happily.',
-      then: 'They look at it and back at you: mark, jackpot.',
+      instruction: 'When the other dog appears, say "look" in a happy voice.',
+      then: 'They look at it, then back at you: mark and treat big.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Look at That gives them a job: notice it, then check in.',
-      successLook: 'Dog looks at the dog, then at you.'
+      tip: 'This gives them a job: notice the dog, then check in with you.',
+      successLook: 'They look at the dog, then at you.'
     },
     {
       order: 4,
-      instruction: 'Walk parallel to the other dog, 20 feet apart.',
-      then: 'Treat continuously for 3 minutes.',
+      instruction: 'Walk parallel to the other dog at your comfortable distance.',
+      then: 'Treat steadily for 3 minutes.',
       durationSeconds: 180,
       reps: null,
-      tip: 'Dogs are calmer walking alongside than facing. Close the gap over 3 sessions.',
+      tip: 'Side by side is easier than facing. Work toward 20 feet over 3 sessions.',
       successLook: '3 minutes beside another dog, no reaction.'
     },
     {
       order: 5,
-      instruction: 'In a new place, start farther away and rebuild.',
-      then: 'Two or three warm-up reps, then work as usual.',
+      instruction: 'In a new place, start farther away than usual.',
+      then: 'Do 2 or 3 warm-up reps, then work as usual.',
       durationSeconds: null,
       reps: null,
-      tip: 'A new spot resets the threshold; that is normal, not failure.',
-      successLook: 'Calm orientation after a few warm-up reps.'
+      tip: 'A new spot means more distance at first. That is normal.',
+      successLook: 'Calm and checking in after a few warm-ups.'
     },
     {
       order: 6,
       instruction: 'Walk away from the other dog for a sniff break.',
-      then: 'Let them decompress; no more triggers today.',
+      then: 'Let them unwind. No more dogs today.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, nose down.'
     },
   ],
-  setup: ['Helper with a calm dog', 'Front-clip harness on', 'Treat pouch full', 'Start at your known threshold'],
-  successCriteria: 'Dog stays calm and orients to handler with another dog visible at 20 feet, 7 out of 10 trials, in at least 2 different environments.',
-  commonMistakes: [
-    'Moving closer too fast when sessions go well',
-    'Regular walks with unpredictable encounters before threshold is managed',
-    'Stopping counter-conditioning when the dog "seems fine"',
-    'Only working with one stooge dog'
+  setup: [
+    'Helper with a calm dog',
+    'Front-clip harness on',
+    'Treat pouch full',
+    'Start at your known distance',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch', 'Front-clip harness or head halter', 'Calm neutral dog and cooperative owner'],
+  successCriteria: 'Move on when they stay calm with a dog 20 feet away, 7 of 10 times, in 2 places.',
+  commonMistakes: [
+    'Moving closer fast after a good day. Stick to 5 feet per step.',
+    'Surprise meetings on everyday walks. Pick quiet routes until this is further along.',
+    'Dropping the treats once they seem fine. Keep feeding when dogs appear.',
+    'Practicing with only one helper dog. Borrow a few different calm dogs.',
+  ],
+  equipmentNeeded: [
+    'Chicken, hot dog, or cheese',
+    'Treat pouch',
+    'Front-clip harness or head halter',
+    'A calm helper dog and owner',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: 'reactivity_s3',
-  trainerNote: 'Progress is measured in months; compare your dog to their own baseline, never to other dogs.',
+  trainerNote: 'This takes months. Compare your dog to where they started, not to other dogs.',
   supportsLiveAiTrainer: false,
 }
 
@@ -3529,80 +3921,90 @@ const reactivity_stage3: Protocol = {
   id: 'reactivity_s3',
   behavior: 'leash_reactivity',
   stage: 3,
-  title: 'Controlled On-Leash Passes & Greetings',
-  objective: 'Build the ability to pass other dogs calmly at close range and, for appropriate dogs, a structured on-leash greeting.',
+  title: 'Pass other dogs calmly',
+  objective: 'Your dog walks past another dog calmly and, if it suits them, says a short hello.',
   durationMinutes: 12,
   repCount: 8,
   steps: [
     {
       order: 1,
-      instruction: 'Pass the stooge dog at 10 feet, treating as you go.',
-      then: 'Both handlers feed through the pass; keep walking.',
+      instruction: 'Pass the helper dog at 10 feet, treating as you go.',
+      then: 'Both handlers feed through the pass and keep walking.',
       durationSeconds: null,
       reps: 4,
-      tip: 'Close the gap to 6 feet over sessions, never within one.',
+      tip: 'Close the gap to 6 feet over several sessions, never within one.',
       successLook: 'Loose leash, no reaction, eating through the pass.'
     },
     {
       order: 2,
-      instruction: 'Walk parallel to the stooge dog at 10 feet.',
+      instruction: 'Walk parallel to the helper dog at 10 feet.',
       then: 'Both dogs moving, both handlers treating steadily.',
       durationSeconds: 60,
       reps: null,
-      tip: 'Passing at 6 feet is the real goal; greetings are optional.',
+      tip: 'Calm passing at 6 feet is the goal. Greetings are optional.',
       successLook: 'They walk, eat, and glance calmly at the other dog.'
     },
     {
       order: 3,
-      instruction: 'If greeting fits your dog, approach on an arc, never head-on.',
-      then: 'Allow a 3-second sniff, say "let\'s go" and walk off treating.',
+      instruction: 'If greeting suits your dog, curve in; never approach head-on.',
+      then: 'Allow a 3-second sniff, say "let\'s go", walk off treating.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Head-on is confrontational in dog language; always curve in from the side.',
+      tip: 'To a dog, walking straight at them is rude. Curve in from the side.',
       successLook: 'Brief sniff, then walks away without lunging.'
     },
     {
       order: 4,
       instruction: 'Count the sniff: 1, 2, 3, then "let\'s go."',
-      then: 'Leave sooner if leashes tangle or either dog stiffens.',
+      then: 'Leave sooner if leashes tangle or either dog goes stiff.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Say hi, then go; leave before anyone gets uncomfortable.',
+      tip: 'Say hi, then go. Leave before anyone gets uncomfortable.',
       successLook: 'Both dogs move on with loose leashes.'
     },
     {
       order: 5,
-      instruction: 'Pass the stooge dog at 6 feet with no greeting.',
+      instruction: 'Pass the helper dog at 6 feet, no greeting.',
       then: 'Treat through the pass and keep walking.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Dogs who expect to greet every dog get frustrated when denied.',
+      tip: 'Dogs who expect to greet every dog get frustrated when they can\'t.',
       successLook: 'No reaction and no attempt to greet.'
     },
     {
       order: 6,
-      instruction: 'Walk away from the stooge dog and let them sniff.',
-      then: 'No cues; loose leash, quiet spot.',
+      instruction: 'Walk away from the helper dog and let them sniff.',
+      then: 'No cues. Loose leash, quiet spot.',
       durationSeconds: 60,
       reps: null,
-      tip: 'Decompress after every dog session; sniffing lowers arousal.',
+      tip: 'Sniffing after every dog session helps them wind down.',
       successLook: 'Loose body, nose down.'
     },
   ],
-  setup: ['Calm stooge dog and handler', 'Front-clip harness, 6-foot leash', 'High-value treats in pouch'],
-  successCriteria: 'Dog passes another dog at 6 feet with no reaction in 6 out of 8 encounters. Dog completes a 3-second arc greeting without lunging in 4 out of 8 rehearsals.',
-  commonMistakes: [
-    'Head-on approaches',
-    'Greetings longer than 3 seconds for reactive dogs',
-    'Treating on-leash greetings as required',
-    'Stopping counter-conditioning because passing is working'
+  setup: [
+    'Calm helper dog and handler',
+    'Front-clip harness, 6-foot leash',
+    'Best treats in pouch',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch', 'Front-clip harness', '6-foot leash', 'Calm stooge dog'],
+  successCriteria: 'Move on when they pass calmly at 6 feet 6 of 8 times and greet without lunging 4 of 8.',
+  commonMistakes: [
+    'Walking straight at the other dog. Curve in from the side.',
+    'Letting greetings run past 3 seconds. Count it out, then walk away.',
+    'Thinking every dog must be greeted. Passing calmly is enough.',
+    'Dropping the treats once passing goes well. Keep feeding through every pass.',
+  ],
+  equipmentNeeded: [
+    'Chicken, hot dog, or cheese',
+    'Treat pouch',
+    'Front-clip harness',
+    '6-foot leash',
+    'A calm helper dog',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 4,
   nextProtocolId: null,
-  trainerNote: 'A reactive dog who passes calmly, with a handler who reads threshold, lives a full life. That is the goal.',
+  trainerNote: 'Plenty of reactive dogs never greet on leash, and that\'s fine. Calm passing is the goal.',
   supportsLiveAiTrainer: false,
 }
 
@@ -3614,8 +4016,8 @@ const sit_stage1: Protocol = {
   id: 'sit_s1',
   behavior: 'sit',
   stage: 1,
-  title: 'Sit on Verbal Cue',
-  objective: 'Teach the dog to sit on a single verbal cue within 2 seconds, no lure, no repeated commands.',
+  title: 'Sit on the word',
+  objective: 'Your dog sits the first time you say "sit", within 2 seconds, no food showing.',
   durationMinutes: 7,
   repCount: 20,
   steps: [
@@ -3625,7 +4027,7 @@ const sit_stage1: Protocol = {
       then: 'The instant their rear touches the floor, mark and treat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Keep the lure at nose height; too high and they jump.',
+      tip: 'Keep the treat at nose height. Too high and they jump.',
       successLook: 'A clean sit, no jumping or backing up.'
     },
     {
@@ -3634,42 +4036,49 @@ const sit_stage1: Protocol = {
       then: 'When they sit, mark and treat from your pouch.',
       durationSeconds: null,
       reps: 10,
-      tip: 'A dog that sits only for visible food has learned to follow food.',
+      tip: 'If they only sit when they see food, they\'re following food, not your hand.',
       successLook: 'They sit for the empty hand signal.'
     },
     {
       order: 3,
-      instruction: 'Say \'sit\' once, then give the hand signal.',
-      then: 'After 5 pairs, try the word alone; jackpot if they sit.',
+      instruction: 'Say "sit" once, then give the hand signal.',
+      then: 'After 5 pairs, try the word alone. Pay big if they sit.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Say it once and wait; repeating teaches the first cue is optional.',
+      tip: 'Say it once and wait. Repeating teaches them the first one doesn\'t count.',
       successLook: 'They sit on the word, hands at your sides.'
     },
     {
       order: 4,
       instruction: 'Let them sniff freely for a minute.',
-      then: 'Say \'free\' and follow them; no cues, no treats.',
+      then: 'Say "free" and follow them. No cues, no treats.',
       durationSeconds: 60,
       reps: null,
-      tip: 'The sniff break is the reward; it makes the structured work easier to take.',
+      tip: 'The sniff break is a reward, and it makes the next session easier.',
       successLook: 'They wander and sniff, relaxed.'
     },
   ],
-  setup: ['Low-distraction room', 'Tiny treats in a pouch'],
-  successCriteria: 'Dog sits on verbal "sit" alone within 2 seconds, 15 out of 20 reps.',
-  commonMistakes: [
-    'Keeping food visible in the lure hand past rep 5',
-    'Repeating the cue multiple times',
-    'Pushing the dog\'s rear down',
-    'Rewarding a partial hover rather than a full sit'
+  setup: [
+    'Quiet room',
+    'Tiny treats in a pouch',
   ],
-  equipmentNeeded: ['High-value small treats', 'Treat pouch', 'Low-distraction room'],
+  successCriteria: 'Move on when they sit on the word alone within 2 seconds, 15 of 20 reps.',
+  commonMistakes: [
+    'Keeping food in the luring hand too long. Empty it after rep 5.',
+    'Saying sit twice. Say it once, then wait.',
+    'Pushing their rear down. Let them work it out, and mark when they do.',
+    'Paying a half-sit hover. Wait for their rear on the floor.',
+  ],
+  equipmentNeeded: [
+    'Small, soft treats',
+    'Treat pouch',
+    'Quiet room',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'sit_s2',
-  trainerNote: 'A sit that sometimes works is not trained. Hold the 15 of 20 standard before moving on.',
+  trainerNote: 'Most dogs get this in a few short sessions. Hold out for 15 of 20 before moving on.',
   supportsLiveAiTrainer: true,
 }
 
@@ -3677,62 +4086,69 @@ const sit_stage2: Protocol = {
   id: 'sit_s2',
   behavior: 'sit',
   stage: 2,
-  title: 'Sit with Duration & Distance',
-  objective: 'Build sit-stay to 20 seconds and 6-foot distance, holding until explicitly released.',
+  title: 'Sit and stay put',
+  objective: 'Your dog holds a sit for 20 seconds, or with you 6 feet away, until released.',
   durationMinutes: 9,
   repCount: 15,
   steps: [
     {
       order: 1,
-      instruction: 'Cue sit, then say stay with your palm out.',
-      then: 'Count 3 seconds, mark while they still sit, then treat.',
+      instruction: 'Cue sit, then say "stay" with your palm out.',
+      then: 'Count 3 seconds, mark while they\'re still sitting, then treat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Mark while seated; the mark says exactly what earned the treat.',
-      successLook: 'Sit holds 3 seconds, no shuffling.'
+      tip: 'Marking while they sit tells them the sit earned the treat.',
+      successLook: 'Holds the sit 3 seconds, no shuffling.'
     },
     {
       order: 2,
       instruction: 'Vary the count: 3, 6, 4, 10, 15, 20 seconds.',
-      then: 'Mark, treat, then release with free every rep.',
+      then: 'Mark, treat, then release with "free" every rep.',
       durationSeconds: null,
       reps: 8,
-      tip: 'Mix short and long; a dog expecting release at 10 breaks at 11.',
-      successLook: 'Sit-stay holds 20 seconds with you in front.'
+      tip: 'Mix short and long. A dog expecting release at 10 breaks at 11.',
+      successLook: 'Holds a sit-stay 20 seconds, you in front.'
     },
     {
       order: 3,
       instruction: 'Take one step back, then return.',
-      then: 'Treat in position. Add a step each rep, to 6 feet.',
+      then: 'Treat in position. Add a step each rep, up to 6 feet.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Always return to reward; calling them teaches leaving the sit.',
+      tip: 'Always walk back to treat. Calling them teaches them to leave the sit.',
       successLook: 'Sit-stay holds while you go 6 feet and back.'
     },
     {
       order: 4,
-      instruction: 'Say free and take a play break.',
-      then: 'No cues; let them move.',
+      instruction: 'Say "free" and take a play break.',
+      then: 'No cues. Let them move.',
       durationSeconds: 60,
       reps: null,
       tip: null,
-      successLook: 'Dog loose and happy.'
+      successLook: 'Loose and happy.'
     },
   ],
-  setup: ['Quiet room', 'Treat pouch on', 'Space to step back'],
-  successCriteria: 'Dog holds sit-stay for 20 seconds with handler in front, 10 out of 15 trials. Holds at 6-foot distance for 10 seconds, 8 out of 15 trials.',
-  commonMistakes: [
-    'Building duration and distance simultaneously',
-    'Calling the dog to reward during stay',
-    'No formal release cue',
-    'Rewarding a reluctant or slow sit the same as an enthusiastic one'
+  setup: [
+    'Quiet room',
+    'Treat pouch on',
+    'Space to step back',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch', 'Space to step back'],
+  successCriteria: 'Move on when they hold 20 seconds close, 10 of 15, and 10 seconds at 6 feet, 8 of 15.',
+  commonMistakes: [
+    'Adding time and distance in the same rep. Build one, then the other.',
+    'Calling them to you for the treat. Walk back and treat in the sit.',
+    'Letting them decide when it\'s over. End every stay with "free".',
+  ],
+  equipmentNeeded: [
+    'Small, soft treats',
+    'Treat pouch',
+    'Room to step back',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'sit_s3',
-  trainerNote: 'Duration first, distance second, distraction third. Never all three at once.',
+  trainerNote: 'Time first, then distance, then distractions. Add one at a time.',
   supportsLiveAiTrainer: true,
 }
 
@@ -3740,8 +4156,8 @@ const sit_stage3: Protocol = {
   id: 'sit_s3',
   behavior: 'sit',
   stage: 3,
-  title: 'Sit Under Distraction & In Daily Life',
-  objective: 'Proof sit in distracting environments and integrate it into daily routines.',
+  title: 'Sit with distractions around',
+  objective: 'Your dog sits on one cue outdoors and before the everyday things they want.',
   durationMinutes: 10,
   repCount: 15,
   steps: [
@@ -3751,31 +4167,31 @@ const sit_stage3: Protocol = {
       then: 'Sit within 3 seconds? Mark and treat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'A new place resets difficulty to beginner; start easy.',
-      successLook: 'Sit on verbal cue outdoors within 3 seconds.'
+      tip: 'A new place makes it harder again. Start easy.',
+      successLook: 'Sits on the word outdoors within 3 seconds.'
     },
     {
       order: 2,
-      instruction: 'Cue sit-stay; helper walks past at 10 feet.',
-      then: 'Treat for holding; over the reps bring the helper to 5 feet.',
+      instruction: 'Cue sit-stay. A helper walks past 10 feet away.',
+      then: 'Treat for holding. Over the reps, bring the helper to 5 feet.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Lowest intensity first: calm person far away, then closer.',
+      tip: 'Start easy: a calm person far away, then closer.',
       successLook: 'They hold while a person passes at 5 feet.'
     },
     {
       order: 3,
-      instruction: 'Cue sit-stay; helper jogs past at 5 feet.',
-      then: 'Treat for holding; release with "free."',
+      instruction: 'Cue sit-stay. The helper jogs past at 5 feet.',
+      then: 'Treat for holding, then release with "free".',
       durationSeconds: null,
       reps: 3,
       tip: 'If they break, slow the helper down or add distance.',
-      successLook: 'Sit holds through a jogger.'
+      successLook: 'Sit holds as a jogger goes by.'
     },
     {
       order: 4,
-      instruction: 'Cue sit-stay; helper passes with a squeaky toy.',
-      then: 'Treat for holding; release with "free."',
+      instruction: 'Cue sit-stay. The helper passes, squeaking a toy.',
+      then: 'Treat for holding, then release with "free".',
       durationSeconds: null,
       reps: 3,
       tip: 'If they break, the toy was too loud or too close.',
@@ -3784,28 +4200,36 @@ const sit_stage3: Protocol = {
     {
       order: 5,
       instruction: 'Release with "free" and a sniff break.',
-      then: 'Nothing more asked; let them decompress.',
+      then: 'Nothing more asked. Let them unwind.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, nose down.'
     },
   ],
-  setup: ['Driveway', 'High-value treats, pouch', 'Helper for the passing steps'],
-  guide: 'Ask for sit in five daily routines: before the leash goes on, before the bowl goes down, before greeting a visitor, before crossing a curb, before getting in or out of the car. Pay with the real reward. For three days, note every sit cue; aim for 90 percent first-cue response within 2 seconds.',
-  successCriteria: 'Dog sits on first verbal cue outdoors in 12 out of 15 trials with distraction. Sits automatically before 4 of 5 daily routine checkpoints.',
-  commonMistakes: [
-    'Only practicing sit during formal training sessions',
-    'Letting the standard slip once it is learned',
-    'Not proofing in multiple environments',
-    'Over-cueing sit until the dog tunes it out'
+  setup: [
+    'Driveway or front walk',
+    'Best treats, in a pouch',
+    'Helper for the passing steps',
   ],
-  equipmentNeeded: ['Treat pouch', 'High-value treats', 'Helper for distraction work'],
+  guide: 'Ask for a sit at five moments each day: leash on, bowl down, greeting a visitor, at the curb, and at the car door. The reward is whatever they wanted next. For three days, note each sit cue. Aim for 9 of 10 on the first cue, within 2 seconds.',
+  successCriteria: 'Move on when they sit on first cue outside 12 of 15 times and unasked at 4 of 5 routines.',
+  commonMistakes: [
+    'Only asking for sit during sessions. Use it all day, before things they want.',
+    'Letting a slow sit slide once they know it. Keep the 3-second standard.',
+    'Practicing in one place. Try the driveway, the sidewalk, a friend\'s yard.',
+    'Asking for sit constantly for nothing. Make each sit earn something.',
+  ],
+  equipmentNeeded: [
+    'Treat pouch',
+    'Small, soft treats',
+    'A helper',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: null,
-  trainerNote: 'Sit before every exciting thing, every curb, every greeting; two weeks of that changes the dog.',
+  trainerNote: 'Ask for a sit before meals and doorways for two weeks. It turns into their habit.',
   supportsLiveAiTrainer: true,
 }
 
@@ -3817,18 +4241,18 @@ const down_stage1: Protocol = {
   id: 'down_s1',
   behavior: 'down',
   stage: 1,
-  title: 'Down on Verbal Cue',
-  objective: 'Teach the dog to lie down fully on a single verbal cue within 3 seconds.',
+  title: 'Down on the word',
+  objective: 'Your dog lies all the way down the first time you say "down", within 3 seconds.',
   durationMinutes: 8,
   repCount: 20,
   steps: [
     {
       order: 1,
-      instruction: 'From a sit, lure to the floor, then slide it away.',
+      instruction: 'From a sit, lure to the floor, then slide it out.',
       then: 'The instant elbows touch, mark and treat.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Slow is critical; move the lure too fast and they stand up.',
+      tip: 'Go slow. Move the treat too fast and they stand up.',
       successLook: 'Elbows down, hips follow into a full down.'
     },
     {
@@ -3837,42 +4261,50 @@ const down_stage1: Protocol = {
       then: 'When elbows land, mark and give 3 treats from your pouch.',
       durationSeconds: null,
       reps: 10,
-      tip: 'Pay down with 2 or 3 treats; it is a vulnerable position.',
+      tip: 'Pay the down with 2 or 3 treats. It\'s a big ask for many dogs.',
       successLook: 'They lie down for the empty hand signal.'
     },
     {
       order: 3,
-      instruction: 'Say \'down\' once, then give the hand signal.',
-      then: 'After 5 pairs, try the word alone; jackpot if they down.',
+      instruction: 'Say "down" once, then give the hand signal.',
+      then: 'After 5 pairs, try the word alone. Pay big if they do.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Down must mean one thing; use a different word for \'off the couch\'.',
-      successLook: 'They lie down on the word, hands at sides.'
+      tip: 'Down should mean one thing. Use another word for off the couch.',
+      successLook: 'They lie down on the word, hands at your sides.'
     },
     {
       order: 4,
       instruction: 'Let them sniff freely for a minute.',
-      then: 'Say \'free\' and follow them; no cues, no treats.',
+      then: 'Say "free" and follow them. No cues, no treats.',
       durationSeconds: 60,
       reps: null,
-      tip: 'The sniff break is the reward; it makes the structured work easier to take.',
+      tip: 'The sniff break is a reward, and it makes the next session easier.',
       successLook: 'They wander and sniff, relaxed.'
     },
   ],
-  setup: ['Non-slip surface or rug', 'Tiny treats in a pouch', 'Quiet room'],
-  successCriteria: 'Dog lies fully down on verbal "down" alone within 3 seconds, 15 out of 20 reps.',
-  commonMistakes: [
-    'Luring from standing rather than from a sit — sit-to-down is mechanically easier',
-    'Marking before elbows are fully on the floor',
-    'Using "down" to mean multiple things',
-    'Moving the lure too quickly along the floor'
+  setup: [
+    'Rug or non-slip floor',
+    'Tiny treats in a pouch',
+    'Quiet room',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch', 'Non-slip surface helps for hesitant dogs'],
+  successCriteria: 'Move on when they lie fully down on the word alone within 3 seconds, 15 of 20 reps.',
+  commonMistakes: [
+    'Luring from standing. Start from a sit; it\'s an easier path down.',
+    'Marking before the elbows touch. Wait for elbows on the floor.',
+    'Using "down" for off the couch too. Pick another word, like "off".',
+    'Sliding the treat along the floor too fast. Go slow so they follow.',
+  ],
+  equipmentNeeded: [
+    'Small, soft treats',
+    'Treat pouch',
+    'A rug, for hesitant dogs',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 1,
   nextProtocolId: 'down_s2',
-  trainerNote: 'Down is harder than sit because it is vulnerable. Go slower and pay any downward movement.',
+  trainerNote: 'Down is harder than sit because lying down feels exposed. Go slower and pay any downward move.',
   supportsLiveAiTrainer: true,
 }
 
@@ -3880,15 +4312,15 @@ const down_stage2: Protocol = {
   id: 'down_s2',
   behavior: 'down',
   stage: 2,
-  title: 'Down-Stay: Duration & Relaxed Body',
-  objective: 'Build a down-stay to 45 seconds with a genuinely relaxed body — hips rolled to one side.',
+  title: 'Stay down and relax',
+  objective: 'Your dog holds a relaxed down for 45 seconds, hips rolled to one side.',
   durationMinutes: 10,
   repCount: 12,
   steps: [
     {
       order: 1,
-      instruction: 'Cue down, then say stay.',
-      then: 'Walk a treat to them every 10 seconds, then release with free.',
+      instruction: 'Cue down, then say "stay".',
+      then: 'Walk a treat to them every 10 seconds, then release with "free".',
       durationSeconds: null,
       reps: 5,
       tip: 'Build from 10 to 30 seconds over the reps. Never call them to you.',
@@ -3896,25 +4328,25 @@ const down_stage2: Protocol = {
     },
     {
       order: 2,
-      instruction: 'Deliver the treat slightly to one side of their body.',
-      then: 'They turn their head; jackpot any hip roll.',
+      instruction: 'Hold the treat low, off to one side of them.',
+      then: 'They turn their head. Pay big for any hip roll.',
       durationSeconds: null,
       reps: 5,
-      tip: 'A hip-rolled down is sustainable; a tense sphinx is not settled.',
+      tip: 'A hip-rolled down is comfortable to hold. A tense sphinx isn\'t settled yet.',
       successLook: 'Hips rolled to one side, fully relaxed.'
     },
     {
       order: 3,
       instruction: 'Hold the down-stay for 45 seconds.',
-      then: 'Treat at random gaps, 8 to 20 seconds, then free.',
+      then: 'Treat at random gaps, 8 to 20 seconds, then "free".',
       durationSeconds: 45,
       reps: null,
-      tip: 'Random gaps keep them waiting; they cannot predict the next treat.',
+      tip: 'Random gaps keep them waiting, since they can\'t guess the next treat.',
       successLook: 'Relaxed down-stay for 45 seconds.'
     },
     {
       order: 4,
-      instruction: 'Say free and take a sniff or play break.',
+      instruction: 'Say "free" and take a sniff or play break.',
       then: 'Off the mat, no rules.',
       durationSeconds: 60,
       reps: null,
@@ -3922,20 +4354,29 @@ const down_stage2: Protocol = {
       successLook: 'Dog gets up only on the release.'
     },
   ],
-  setup: ['Mat or soft surface', 'Treat pouch on', 'Timer ready'],
-  successCriteria: 'Dog holds a relaxed down-stay for 45 seconds with handler returning to deliver treats, 9 out of 12 trials.',
-  commonMistakes: [
-    'Accepting a tense, alert sphinx as "good enough"',
-    'Calling the dog to reward during the stay',
-    'Building duration too fast',
-    'No formal release'
+  setup: [
+    'Mat or soft surface',
+    'Treat pouch on',
+    'Timer ready',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch', 'Comfortable surface or mat', 'Timer'],
+  successCriteria: 'Move on when they hold a relaxed down for 45 seconds, you walking treats to them, 9 of 12.',
+  commonMistakes: [
+    'Accepting a tense, alert down. Wait for the hips to roll over.',
+    'Calling them to you for the treat. Walk the treat to them.',
+    'Adding time too fast. Go up 5 or 10 seconds at a time.',
+    'Letting them get up on their own. End every stay with "free".',
+  ],
+  equipmentNeeded: [
+    'Small, soft treats',
+    'Treat pouch',
+    'Mat or soft surface',
+    'Timer',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'down_s3',
-  trainerNote: 'A dog who holds a relaxed down on cue can go anywhere: a café, a waiting room, a dinner.',
+  trainerNote: 'Once they can relax in a down on cue, cafes and vet waiting rooms get much easier.',
   supportsLiveAiTrainer: true,
 }
 
@@ -3943,89 +4384,98 @@ const down_stage3: Protocol = {
   id: 'down_s3',
   behavior: 'down',
   stage: 3,
-  title: 'Down at a Distance & Under Distraction',
-  objective: 'Proof down at 8-foot distance and in multiple novel environments with distractions.',
+  title: 'Down from farther away',
+  objective: 'Your dog lies down on the word from 8 feet away, in new places too.',
   durationMinutes: 12,
   repCount: 12,
   steps: [
     {
       order: 1,
       instruction: 'From 3 feet, say "down" once.',
-      then: 'Walk back to them to treat; add distance each rep, to 8.',
+      then: 'Walk back to treat. Add distance each rep, up to 8 feet.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Down from 8 feet on voice means they understand the word, not your hand.',
+      tip: 'Down from 8 feet on voice means they know the word, not your hand.',
       successLook: 'They lie down with you 8 feet away.'
     },
     {
       order: 2,
       instruction: 'In a new place, do 2 easy warm-up downs.',
-      then: 'Treat each; then cue down for real.',
+      then: 'Treat both, then start the real reps.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Two easy reps in a new place prime the behavior; never skip them.',
-      successLook: 'Down on verbal cue in a place outside home.'
+      tip: 'Two easy reps get them going in a new place. Don\'t skip them.',
+      successLook: 'Down on the word, away from home.'
     },
     {
       order: 3,
       instruction: 'In that new place, cue down and wait 30 seconds.',
-      then: 'Treat at the end; release with "free."',
+      then: 'Treat at the end, then release with "free".',
       durationSeconds: 30,
       reps: null,
-      tip: 'Backyard, porch, cafe: three new places before moving on.',
+      tip: 'Backyard, porch, cafe patio: 3 new places before moving on.',
       successLook: '30-second down-stay away from home.'
     },
     {
       order: 4,
-      instruction: 'Cue down-stay; helper walks past at 10 feet.',
-      then: 'Treat for holding 20 seconds; bring them to 5 feet over reps.',
+      instruction: 'Cue down-stay. A helper walks past 10 feet away.',
+      then: 'Treat after 20 seconds. Move the helper to 5 feet over reps.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Lowest intensity first; 3 clean reps before raising it.',
-      successLook: '20-second down-stay while a person passes at 5 feet.'
+      tip: 'Start easy. 3 clean reps before making it harder.',
+      successLook: '20-second down while someone passes at 5 feet.'
     },
     {
       order: 5,
-      instruction: 'Cue down-stay; helper jogs past at 5 feet.',
-      then: 'Treat for holding; release with "free."',
+      instruction: 'Cue down-stay. The helper jogs past at 5 feet.',
+      then: 'Treat for holding, then release with "free".',
       durationSeconds: null,
       reps: 3,
       tip: 'If they break, slow the helper down or add distance.',
-      successLook: 'Down holds through a jogger.'
+      successLook: 'Down holds as a jogger goes by.'
     },
     {
       order: 6,
-      instruction: 'Cue down-stay; helper passes with another dog.',
-      then: 'Treat for holding; release with "free."',
+      instruction: 'Cue down-stay. The helper walks past with a dog.',
+      then: 'Treat for holding, then release with "free".',
       durationSeconds: null,
       reps: 3,
-      tip: 'This is the hardest one; add distance if needed.',
+      tip: 'This is the hardest one. Add distance if they get up.',
       successLook: 'Down holds as the other dog passes.'
     },
     {
       order: 7,
       instruction: 'Release with "free" and a sniff break.',
-      then: 'Nothing more asked; let them decompress.',
+      then: 'Nothing more asked. Let them unwind.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, nose down.'
     },
   ],
-  setup: ['Treat pouch, high-value treats', 'Helper for the passing steps', 'Mat, optional'],
-  successCriteria: 'Dog responds to verbal "down" at 8-foot distance in 9 out of 12 trials. Holds 20-second down-stay with moving person at 5 feet in 3 different environments.',
-  commonMistakes: [
-    'Only practicing down at close range',
-    'Skipping warm-up reps in new environments',
-    'Adding distraction before duration and distance are solid',
-    'Only proofing indoors'
+  setup: [
+    'Pouch with your best treats',
+    'Helper for the passing steps',
+    'Mat, optional',
   ],
-  equipmentNeeded: ['Treat pouch', 'High-value treats', 'Mat (optional)', 'Helper for distraction work'],
+  successCriteria: 'Move on when they down from 8 feet, 9 of 12, and hold 20 seconds near passers-by in 3 places.',
+  commonMistakes: [
+    'Only practicing up close. Add a step of distance each rep.',
+    'Skipping warm-up reps in a new place. Do 2 easy ones first.',
+    'Adding distractions before distance and time are steady. One at a time.',
+    'Only practicing indoors. Try the yard, the porch, a cafe patio.',
+  ],
+  equipmentNeeded: [
+    'Treat pouch',
+    'Small, soft treats',
+    'Mat (optional)',
+    'A helper',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: null,
-  trainerNote: 'A proofed down is your reset button; anywhere they need to settle now, down-stay does it.',
+  trainerNote: 'Once this holds up in new places, a down is how you get your dog to settle anywhere.',
   supportsLiveAiTrainer: true,
 }
 
@@ -4037,8 +4487,8 @@ const heel_stage1: Protocol = {
   id: 'heel_s1',
   behavior: 'heel',
   stage: 1,
-  title: 'Heel Position: Building the Pocket',
-  objective: 'Teach the dog to find and hold the heel position — left hip, facing forward — and understand it as the reward zone.',
+  title: 'Find the spot by your hip',
+  objective: 'Your dog comes to your left side, shoulder at your hip, when you say "heel".',
   durationMinutes: 8,
   repCount: 20,
   steps: [
@@ -4048,7 +4498,7 @@ const heel_stage1: Protocol = {
       then: 'When their shoulder is by your leg, mark and treat there.',
       durationSeconds: null,
       reps: 8,
-      tip: 'Treat at the left hip every time; the reward zone lives there.',
+      tip: 'Treat at your left hip every time. That\'s where the good stuff happens.',
       successLook: 'They stand at your left, head near your hip.'
     },
     {
@@ -4062,46 +4512,55 @@ const heel_stage1: Protocol = {
     },
     {
       order: 3,
-      instruction: 'Say \'heel\' as they move into position.',
+      instruction: 'Say "heel" as they move into position.',
       then: 'Mark and treat at the hip.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Heel means left side, shoulder at your hip, facing forward; keep it precise.',
+      tip: 'Heel means left side, shoulder at your hip, facing forward. Keep it exact.',
       successLook: 'They hear the word as they arrive at your hip.'
     },
     {
       order: 4,
-      instruction: 'Stand still and say \'heel\' once.',
-      then: 'Wait; when they move to your left hip, mark and treat.',
+      instruction: 'Stand still and say "heel" once.',
+      then: 'Wait. When they move to your left hip, mark and treat.',
       durationSeconds: null,
       reps: 5,
       tip: null,
-      successLook: 'They find heel position without a lure.'
+      successLook: 'They find the spot without a lure.'
     },
     {
       order: 5,
       instruction: 'Let them sniff freely for a minute.',
-      then: 'Say \'free\' and follow them; no cues, no treats.',
+      then: 'Say "free" and follow them. No cues, no treats.',
       durationSeconds: 60,
       reps: null,
-      tip: 'The sniff break is the reward; it makes the structured work easier to take.',
+      tip: 'The sniff break is a reward, and it makes the next session easier.',
       successLook: 'They wander and sniff, relaxed.'
     },
   ],
-  setup: ['Treat pouch on your left hip', 'Flat collar or front-clip harness', '6-foot leash, loose'],
-  successCriteria: 'Dog moves to heel position on "heel" cue within 3 seconds, 15 out of 20 reps while handler is standing still.',
-  commonMistakes: [
-    'Delivering the treat in front of the body instead of at the hip',
-    'Accepting a position too far forward (dog ahead of your leg) or too far back',
-    'Adding movement before the position itself is solid',
-    'Confusing heel with loose leash walking — they are different behaviors'
+  setup: [
+    'Pouch on your left hip',
+    'Flat collar or front-clip harness',
+    '6-foot leash, loose',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch worn on left hip', 'Flat collar or front-clip harness', '6-foot leash'],
+  successCriteria: 'Move on when they get into heel within 3 seconds of the cue, 15 of 20, you standing still.',
+  commonMistakes: [
+    'Treating in front of you. Treat at your left hip, where you want them.',
+    'Paying when they\'re ahead of or behind your leg. Wait for shoulder at hip.',
+    'Adding steps too soon. Get the standing position first.',
+    'Mixing heel with loose leash walking. Heel is exact; a loose leash walk isn\'t.',
+  ],
+  equipmentNeeded: [
+    'Small, soft treats',
+    'Treat pouch on your left hip',
+    'Flat collar or front-clip harness',
+    '6-foot leash',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 2,
   nextProtocolId: 'heel_s2',
-  trainerNote: 'Heel is precision: left side, shoulder at your hip. Loose leash walking is a different behavior; never mix them.',
+  trainerNote: 'Heel means left side, shoulder at your hip. Loose leash walking is a separate skill; keep them apart.',
   supportsLiveAiTrainer: true,
 }
 
@@ -4109,28 +4568,28 @@ const heel_stage2: Protocol = {
   id: 'heel_s2',
   behavior: 'heel',
   stage: 2,
-  title: 'Heeling in Motion: Pace, Turns & Stops',
-  objective: 'Build heeling in motion through pace changes, left turns, right turns, and halts.',
+  title: 'Heel on the move',
+  objective: 'Your dog stays at your hip as you speed up, slow down, turn, and stop.',
   durationMinutes: 10,
   repCount: 12,
   steps: [
     {
       order: 1,
       instruction: 'From heel, walk 3 steps and stop.',
-      then: 'Still in position: mark and treat at your hip.',
+      then: 'Still in position? Mark and treat at your hip.',
       durationSeconds: null,
       reps: 6,
-      tip: 'Add steps each rep, 3 to 10. Drift means stop, reset, restart.',
+      tip: 'Add steps each rep, 3 to 10. If they drift, stop and start over.',
       successLook: 'Shoulder at your hip through 10 steps.'
     },
     {
       order: 2,
       instruction: 'Walk 5 steps, then speed up.',
-      then: 'Mark when they match you; then slow to a crawl and mark.',
+      then: 'Mark when they match you. Then slow to a crawl and mark.',
       durationSeconds: null,
       reps: 5,
-      tip: 'An unpredictable handler is an interesting handler.',
-      successLook: 'Dog matches every pace change at once.'
+      tip: 'Changing speed keeps them watching you.',
+      successLook: 'They match every speed change right away.'
     },
     {
       order: 3,
@@ -4138,21 +4597,21 @@ const heel_stage2: Protocol = {
       then: 'Mark each turn finished with them still at your hip.',
       durationSeconds: null,
       reps: 3,
-      tip: 'U-turns are your strongest engagement tool.',
+      tip: 'U-turns are the quickest way to get their attention back.',
       successLook: 'Dog stays at your hip through both turns.'
     },
     {
       order: 4,
       instruction: 'Make a small, deliberate left turn.',
-      then: 'Mark generously when they shift their rear to make room.',
+      then: 'Mark and treat well when they shift their rear to make room.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Hardest turn; you turn into the dog. Do not step on them.',
-      successLook: 'Dog adjusts and stays in position on a left turn.'
+      tip: 'This is the hardest turn because you turn into them. Don\'t step on them.',
+      successLook: 'They shift and stay in position on a left turn.'
     },
     {
       order: 5,
-      instruction: 'Say free and let them sniff on a loose leash.',
+      instruction: 'Say "free" and let them sniff on a loose leash.',
       then: 'No heel, no cues.',
       durationSeconds: 60,
       reps: null,
@@ -4160,20 +4619,29 @@ const heel_stage2: Protocol = {
       successLook: 'Dog relaxed, nose down.'
     },
   ],
-  setup: ['Treat pouch on your left hip', 'Flat collar or front-clip harness', 'Quiet space'],
-  successCriteria: 'Dog maintains heel position through 20 steps with one pace change and one turn, 8 out of 12 reps.',
-  commonMistakes: [
-    'Too many steps without rewarding — keep sessions short and heavily reinforced',
-    'Continuing to walk while the dog is out of position — stop, reset, restart',
-    'Skipping pace changes — they are the primary attention tool for heel',
-    'Not protecting the dog during left turns'
+  setup: [
+    'Pouch on your left hip',
+    'Flat collar or front-clip harness',
+    'Quiet space',
   ],
-  equipmentNeeded: ['High-value treats', 'Treat pouch on left hip', 'Flat collar or front-clip harness', 'Quiet space'],
+  successCriteria: 'Move on when they hold heel for 20 steps with one speed change and one turn, 8 of 12.',
+  commonMistakes: [
+    'Walking too many steps between treats. Keep stretches short and treat often.',
+    'Walking on when they drift. Stop, reset, and start again.',
+    'Always walking the same speed. Change pace; it keeps them watching you.',
+    'Stepping on them in left turns. Turn small and slow.',
+  ],
+  equipmentNeeded: [
+    'Small, soft treats',
+    'Treat pouch on your left hip',
+    'Flat collar or front-clip harness',
+    'Quiet space',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 3,
   nextProtocolId: 'heel_s3',
-  trainerNote: 'Heeling is a conversation: they watch you for changes, you pay them for tracking you.',
+  trainerNote: 'Heeling works when they watch you for what\'s next. Treat often while you build it.',
   supportsLiveAiTrainer: true,
 }
 
@@ -4181,27 +4649,27 @@ const heel_stage3: Protocol = {
   id: 'heel_s3',
   behavior: 'heel',
   stage: 3,
-  title: 'Proofed Heel: Duration, Outdoors & Distractions',
-  objective: 'Build heel to 60 continuous steps and maintain it in outdoor environments with real-world distractions.',
+  title: 'Heel on the street',
+  objective: 'Your dog heels 60 steps indoors and holds heel outside with people and dogs nearby.',
   durationMinutes: 12,
   repCount: 10,
   steps: [
     {
       order: 1,
-      instruction: 'Heel indoors; start at 10 steps, add 5 each session.',
-      then: 'Treat at random intervals, sometimes 10 steps, sometimes 25.',
+      instruction: 'Heel indoors: start at 10 steps, add 5 each session.',
+      then: 'Treat at random, sometimes after 10 steps, sometimes after 25.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Variable payment keeps them heeling; they never know when the next comes.',
-      successLook: 'Position held the whole stretch, no breaking.'
+      tip: 'Random treats keep them heeling. They never know when the next one comes.',
+      successLook: 'Holds position the whole way, no breaking.'
     },
     {
       order: 2,
-      instruction: 'Driveway, then quiet sidewalk: heel in 5-step segments.',
-      then: 'Treat each segment; your biggest praise when they check in.',
+      instruction: 'Heel in 5-step stretches, driveway first, then a quiet sidewalk.',
+      then: 'Treat each stretch. Praise big when they look up at you.',
       durationSeconds: null,
       reps: 5,
-      tip: 'Expect regression outdoors; use better treats than indoors.',
+      tip: 'Expect it to slip outdoors. Bring better treats than indoors.',
       successLook: '20 steps of heel on a quiet street.'
     },
     {
@@ -4210,21 +4678,21 @@ const heel_stage3: Protocol = {
       then: 'Treat every few steps for holding position.',
       durationSeconds: null,
       reps: 3,
-      tip: 'A person alongside is the most common real-world heel challenge.',
+      tip: 'Someone walking alongside is the most common heel test on a street.',
       successLook: '20 steps of heel with a person across the street.'
     },
     {
       order: 4,
-      instruction: 'Same walk; helper now 10 feet away, same direction.',
+      instruction: 'Same walk. The helper is now 10 feet away.',
       then: 'Treat every few steps for holding position.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Closer is harder; if position breaks, widen the gap.',
+      tip: 'Closer is harder. If they lose position, widen the gap.',
       successLook: '20 steps of heel with a person 10 feet away.'
     },
     {
       order: 5,
-      instruction: 'Same walk; helper now has a dog with them.',
+      instruction: 'Same walk. The helper now has a dog with them.',
       then: 'Treat every few steps for holding position.',
       durationSeconds: null,
       reps: 3,
@@ -4233,46 +4701,57 @@ const heel_stage3: Protocol = {
     },
     {
       order: 6,
-      instruction: 'Same walk; helper moves erratically, stops, jogs, turns.',
+      instruction: 'Same walk. The helper stops, jogs, and turns at random.',
       then: 'Treat every few steps for holding position.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Erratic movement mimics a crowded sidewalk.',
-      successLook: 'Heel holds through an unpredictable passerby.'
+      tip: 'It\'s like walking down a busy sidewalk.',
+      successLook: 'Heel holds as someone moves unpredictably.'
     },
     {
       order: 7,
-      instruction: 'From a sit at heel, say "heel" and step off left foot.',
-      then: 'Mark when they move with you; treat after 3 steps.',
+      instruction: 'From a sit at heel, say "heel", then step off left.',
+      then: 'Mark when they move with you. Treat after 3 steps.',
       durationSeconds: null,
       reps: 3,
-      tip: 'Left foot means move with me; right foot means stay.',
-      successLook: 'They step off the instant your left foot moves.'
+      tip: 'Left foot first means come with me. Right foot first means stay.',
+      successLook: 'They step off the moment your left foot moves.'
     },
     {
       order: 8,
       instruction: 'Release with "free" and a sniff break.',
-      then: 'Nothing more asked; let them decompress.',
+      then: 'Nothing more asked. Let them unwind.',
       durationSeconds: 60,
       reps: null,
       tip: null,
       successLook: 'Loose body, nose down.'
     },
   ],
-  setup: ['Pouch on left hip, best treats', 'Collar or front-clip harness', '6-foot leash', 'Open outdoor space'],
-  successCriteria: 'Dog heels continuously for 60 steps indoors. Maintains heel for 20 steps outdoors with a person walking 10 feet away, 7 out of 10 trials.',
-  commonMistakes: [
-    'Adding duration and outdoor environments in the same session',
-    'Not treating frequently enough outdoors',
-    'Continuing to walk while the dog is out of heel',
-    'Expecting competition-level precision from a pet dog'
+  setup: [
+    'Best treats in a pouch',
+    'Collar or front-clip harness',
+    '6-foot leash',
+    'Open outdoor space',
   ],
-  equipmentNeeded: ['Treat pouch on left hip', 'High-value treats', 'Flat collar or front-clip harness', '6-foot leash', 'Open outdoor space'],
+  successCriteria: 'Move on when they heel 60 steps indoors, then 20 outside with a person 10 feet away, 7 of 10.',
+  commonMistakes: [
+    'Adding length and going outside in the same session. Change one at a time.',
+    'Treating as rarely outside as you do indoors. Treat more often outdoors.',
+    'Walking on when they drift out of heel. Stop, reset, start again.',
+    'Expecting show-ring precision from a pet. Close to your hip is good enough.',
+  ],
+  equipmentNeeded: [
+    'Treat pouch on your left hip',
+    'Your best treats',
+    'Flat collar or front-clip harness',
+    '6-foot leash',
+    'Open outdoor space',
+  ],
   ageMinMonths: 8,
   ageMaxMonths: 999,
   difficulty: 4,
   nextProtocolId: null,
-  trainerNote: 'Reliable outdoor heel gets you through crowds and tight spaces without restraint; worth every rep.',
+  trainerNote: 'Outside, expect heel to fall apart at first. Use better treats and shorter stretches.',
   supportsLiveAiTrainer: true,
 }
 
