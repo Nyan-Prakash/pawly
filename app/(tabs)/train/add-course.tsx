@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, Switch, View } from 'react-native';
+import { ScrollView, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 
 import type { AppIconName } from '@/components/ui/AppIcon';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { Tag } from '@/components/ui/PillTag';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { MascotLoader } from '@/components/ui/MascotLoader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
@@ -231,7 +232,7 @@ function GoalSelectionStep({
 function GeneratingView() {
   return (
     <View style={{ padding: spacing.lg, gap: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
-      <ActivityIndicator color={colors.text.secondary} />
+      <MascotLoader activity="wake" size={64} />
       <Text variant="caption">Building the course</Text>
     </View>
   );

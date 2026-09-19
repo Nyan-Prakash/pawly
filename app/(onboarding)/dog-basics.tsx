@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, View } from 'react-native';
+import { Keyboard, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
-import { MascotCallout } from '@/components/ui/MascotCallout';
+import { MascotLoader } from '@/components/ui/MascotLoader';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
@@ -883,7 +883,7 @@ function GeneratingStep({ dogName }: { dogName: string }) {
           gap: spacing.lg,
         }}
       >
-        <MascotCallout state="thinking" size={96} />
+        <MascotLoader activity="wake" />
         <View style={{ alignItems: 'center', gap: spacing.xs }}>
           <Text variant="h2" style={{ textAlign: 'center' }}>
             Building {dogName || 'your dog'}'s plan
@@ -892,7 +892,6 @@ function GeneratingStep({ dogName }: { dogName: string }) {
             This takes a few seconds.
           </Text>
         </View>
-        <ActivityIndicator color={colors.text.secondary} />
       </View>
     </SafeScreen>
   );

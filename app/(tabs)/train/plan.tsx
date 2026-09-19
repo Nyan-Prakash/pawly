@@ -227,7 +227,7 @@ function SessionDetailSheet({
             <View>
               <SectionHeader title="You'll need" />
               <ListGroup>
-                {[...(protocol.setup ?? []), ...protocol.equipmentNeeded].map((item) => (
+                {(protocol.setup?.length ? protocol.setup : protocol.equipmentNeeded).map((item) => (
                   <ListRow key={item} icon="checkmark-circle-outline" iconTone="secondary" title={item} />
                 ))}
               </ListGroup>

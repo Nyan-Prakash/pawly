@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { MascotCallout } from '@/components/ui/MascotCallout';
+import { MascotLoader } from '@/components/ui/MascotLoader';
 import { SafeScreen } from '@/components/ui/SafeScreen';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
@@ -43,7 +44,7 @@ function PlanSkeleton({ dogName }: { dogName: string }) {
   return (
     <View style={{ gap: spacing.xl }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <MascotCallout state="thinking" size={64} />
+        <MascotLoader activity="wake" size={64} />
         <Text variant="caption">Building {dogName ? `${dogName}'s` : 'the'} plan</Text>
       </View>
       <View style={{ gap: spacing.sm }}>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { ThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
@@ -21,7 +21,7 @@ import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { navigationTheme } from '@/lib/navigationTheme';
 import { Text } from '@/components/ui/Text';
-import { MascotCallout } from '@/components/ui/MascotCallout';
+import { MascotLoader } from '@/components/ui/MascotLoader';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -37,7 +37,7 @@ function PrepLoadingScreen({ message, subMessage }: { message: string; subMessag
         gap: spacing.lg,
       }}
     >
-      <MascotCallout state="thinking" size={96} />
+      <MascotLoader activity="wake" />
       <View style={{ alignItems: 'center', gap: spacing.xs }}>
         <Text variant="h2" style={{ textAlign: 'center' }}>
           {message}
@@ -48,7 +48,6 @@ function PrepLoadingScreen({ message, subMessage }: { message: string; subMessag
           </Text>
         ) : null}
       </View>
-      <ActivityIndicator color={colors.text.secondary} />
     </View>
   );
 }

@@ -91,7 +91,9 @@ Competing patterns (hero cards, stat tiles, feature grids, glass panels, striped
 
 ## Motion
 
-Motion answers an action or shows a state change. Nothing animates on mount. Nothing loops except a loading indicator.
+Motion answers an action or shows a state change. Nothing animates on mount. Nothing loops except a loading indicator and a step's demonstration clip.
+
+- The one exception is `StepMedia`: a short, muted, looping clip of the dog doing the exercise, listed in `constants/stepMedia.ts` and shown between the step text and its control. It is a demonstration, not decoration: the same flat illustration style as the mascot, a locked-off camera, nothing else on the screen moving. With reduced motion on it is a still. No other surface loops.
 
 - Press feedback: filled buttons stand on a 4-pt darker edge (`accentEdge`) and press down into it; rows and text buttons dim to 0.6. No scale, no glow.
 - Screen transitions, sheets, and tab switches use the platform's own.

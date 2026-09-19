@@ -19,12 +19,14 @@ import { Text } from '@/components/ui/Text';
 import { TimerRing } from '@/components/session/TimerRing';
 import { RepCounter } from '@/components/session/RepCounter';
 import { StepCard } from '@/components/session/StepCard';
+import { StepMedia } from '@/components/session/StepMedia';
 import { StepHelpSheet } from '@/components/session/StepHelpSheet';
 import { SessionModePicker } from '@/components/session/SessionModePicker';
 import { LiveAiTrainerOverlay } from '@/components/vision/LiveAiTrainerOverlay';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { getStepMedia } from '@/constants/stepMedia';
 import { haptics } from '@/lib/haptics';
 import { durations, useReducedMotion } from '@/lib/motion';
 import { useTheme } from '@/lib/theme';
@@ -1048,8 +1050,9 @@ function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, on
       else next.add(item);
       return next;
     });
-  // Setup lines first ("Quiet room"), then equipment, de-duplicated.
-  const equipment = [...(protocol.setup ?? []), ...protocol.equipmentNeeded].filter(
+  // The setup checklist already names the gear in context ("Leash on, hanging loose");
+  // equipmentNeeded is only the fallback for a course without one.
+  const equipment = (protocol.setup?.length ? protocol.setup : protocol.equipmentNeeded).filter(
     (item, index, all) => item.trim().length > 0 && all.indexOf(item) === index,
   );
   return (
@@ -1158,6 +1161,7 @@ function StepActiveView({
 }: StepActiveViewProps) {
   const hasTimer = !!step.durationSeconds;
   const setupStep = !hasTimer && !showRepCounter;
+  const media = getStepMedia(activeSession.protocol.id, activeSession.currentStepIndex);
   const timerDone = hasTimer && activeSession.timerSeconds === 0 && !activeSession.isTimerRunning;
   const timerUntouched = !activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds;
 
@@ -1176,10 +1180,12 @@ function StepActiveView({
 
         <StepCard step={step} />
 
-        {/* The one control sits in the middle of whatever space is left, so the
-            thumb finds it in the same place on every step. */}
+        {/* The middle holds one thing, in the same place on every step: the
+            step's demonstration clip when it has one, otherwise its control. */}
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.xl, paddingVertical: spacing.lg }}>
-          {hasTimer ? (
+          {media ? (
+            <StepMedia clip={media} />
+          ) : hasTimer ? (
             <View style={{ alignItems: 'center', gap: spacing.lg }}>
               <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                 <TimerRing totalSeconds={step.durationSeconds!} currentSeconds={activeSession.timerSeconds} size={220} />
