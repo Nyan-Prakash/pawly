@@ -8,71 +8,40 @@ import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 
 type EmptyStateProps = {
+  /** What is missing, plainly: "No sessions yet". */
   title: string;
+  /** One sentence on what to do about it. */
   subtitle?: string;
   mascotState?: MascotState;
   icon?: AppIconName;
-  action?: {
-    label: string;
-    onPress: () => void;
-    variant?: 'primary' | 'secondary';
-    icon?: AppIconName;
-  };
+  /** The action that fills the empty state. Label names the action. */
+  action?: { label: string; onPress: () => void; icon?: AppIconName };
   style?: StyleProp<ViewStyle>;
 };
 
-export function EmptyState({
-  title,
-  subtitle,
-  mascotState,
-  icon,
-  action,
-  style,
-}: EmptyStateProps) {
+/**
+ * Centred by design: it fills a screen or a group that has no content.
+ * This is the one place text is centre-aligned.
+ */
+export function EmptyState({ title, subtitle, mascotState, icon, action, style }: EmptyStateProps) {
   return (
-    <View
-      style={[
-        {
-          alignItems: 'center',
-          gap: spacing.md,
-          padding: spacing.xl,
-        },
-        style,
-      ]}
-    >
+    <View style={[{ alignItems: 'center', gap: spacing.lg, paddingVertical: spacing.xxl, paddingHorizontal: spacing.xl }, style]}>
       {mascotState ? (
-        <MascotCallout state={mascotState} size={100} />
+        <MascotCallout state={mascotState} size={96} />
       ) : icon ? (
-        <View style={{ minHeight: 64, alignItems: 'center', justifyContent: 'center' }}>
-          <AppIcon name={icon} size={52} color={colors.text.secondary} />
-        </View>
+        <AppIcon name={icon} size={40} color={colors.text.secondary} />
       ) : null}
-
-      <View style={{ alignItems: 'center', gap: 8 }}>
-        <Text variant="h3" style={{ textAlign: 'center' }}>
+      <View style={{ alignItems: 'center', gap: spacing.xs }}>
+        <Text variant="h2" style={{ textAlign: 'center' }}>
           {title}
         </Text>
-        {subtitle && (
-          <Text
-            variant="body"
-            color={colors.text.secondary}
-            style={{ textAlign: 'center', lineHeight: 24 }}
-          >
+        {subtitle ? (
+          <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center' }}>
             {subtitle}
           </Text>
-        )}
+        ) : null}
       </View>
-
-      {action && (
-        <Button
-          label={action.label}
-          onPress={action.onPress}
-          variant={action.variant ?? 'primary'}
-          leftIcon={action.icon}
-          size="md"
-          style={{ minWidth: 160 }}
-        />
-      )}
+      {action ? <Button label={action.label} onPress={action.onPress} icon={action.icon} size="md" /> : null}
     </View>
   );
 }

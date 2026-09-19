@@ -1,32 +1,34 @@
-import { useState } from 'react';
-import {
-  View,
-  TextInput,
-  ActivityIndicator,
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
-  KeyboardAvoidingView,
-  ScrollView,
-  Pressable
-} from 'react-native';
+import { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
-import { SafeScreen } from '@/components/ui/SafeScreen';
+import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
+import { MascotCallout } from '@/components/ui/MascotCallout';
+import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { supabase } from '@/lib/supabase';
+import { useTheme } from '@/lib/theme';
 import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
-import { typography } from '@/constants/typography';
+
+const NETWORK_ERROR = "Couldn't reach Pawly. Check your connection and try again.";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
+  const { isDark } = useTheme();
+  const passwordRef = useRef<TextInput>(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [generalError, setGeneralError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     setAuthError('');
@@ -35,16 +37,16 @@ export default function LoginScreen() {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        password
+        password,
       });
 
       if (error) {
-        setAuthError('Incorrect email or password.');
+        setAuthError("That email and password don't match. Try again or reset your password.");
         return;
       }
       // Root layout auth listener handles redirect
     } catch {
-      setGeneralError('Something went wrong. Please try again.');
+      setGeneralError(NETWORK_ERROR);
     } finally {
       setIsLoading(false);
     }
@@ -52,31 +54,33 @@ export default function LoginScreen() {
 
   const handleAppleSignIn = async () => {
     if (Platform.OS !== 'ios') return;
+    setAuthError('');
+    setGeneralError('');
     setIsLoading(true);
     try {
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL
-        ]
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
       });
 
       if (!credential.identityToken) {
-        setGeneralError('Something went wrong. Please try again.');
+        setGeneralError("Apple didn't return a login token. Try again.");
         return;
       }
 
       const { error } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
-        token: credential.identityToken
+        token: credential.identityToken,
       });
 
       if (error) {
-        setGeneralError('Something went wrong. Please try again.');
+        setGeneralError("Couldn't log in with Apple. Try again or use your email.");
       }
     } catch (err: unknown) {
       if ((err as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
-        setGeneralError('Something went wrong. Please try again.');
+        setGeneralError(NETWORK_ERROR);
       }
     } finally {
       setIsLoading(false);
@@ -84,173 +88,106 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeScreen>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={headerHeight}
+    >
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            contentContainerStyle={{ flexGrow: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: spacing.xl }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text
-              style={{
-                fontSize: 34,
-                fontWeight: '800',
-                color: colors.textPrimary,
-                letterSpacing: -0.5,
-                lineHeight: 40,
-                marginBottom: spacing.xs,
-              }}
-            >
-              Welcome back
-            </Text>
-            <Text
-              variant="body"
-              style={{ marginBottom: spacing.xxl, color: colors.textSecondary }}
-            >
-              Log in to continue with your dog's training.
-            </Text>
+        <View style={{ gap: spacing.lg }}>
+          <Text variant="h1">Welcome back</Text>
+          <MascotCallout state="happy" size={64} calloutPlacement="right" callout="Your dog's plan is right where you left it." />
+        </View>
 
-            {/* Email */}
-            <Text
-              style={{
-                marginBottom: spacing.xs,
-                fontWeight: '600',
-                fontSize: typography.sizes.sm,
-                color: colors.textPrimary,
-              }}
-            >
-              Email
-            </Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              autoCorrect={false}
-              placeholder="you@example.com"
-              placeholderTextColor={colors.textSecondary}
-              style={inputStyle(!!authError)}
-            />
-
-            {/* Password */}
-            <Text
-              style={{
-                marginTop: spacing.md,
-                marginBottom: spacing.xs,
-                fontWeight: '600',
-                fontSize: typography.sizes.sm,
-                color: colors.textPrimary,
-              }}
-            >
-              Password
-            </Text>
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-              placeholder="Your password"
-              placeholderTextColor={colors.textSecondary}
-              style={inputStyle(!!authError)}
-            />
-
-            {!!authError && (
-              <Text variant="caption" style={{ color: colors.error, marginTop: spacing.xs }}>
-                {authError}
-              </Text>
-            )}
-            {!!generalError && (
-              <Text variant="caption" style={{ color: colors.error, marginTop: spacing.xs }}>
-                {generalError}
-              </Text>
-            )}
-
-            {/* Forgot password */}
-            <Pressable onPress={() => router.push('/(auth)/forgot-password')} style={{ alignSelf: 'flex-end', marginTop: spacing.sm }}>
-              <Text variant="caption" style={{ color: colors.primary, fontWeight: typography.weights.medium }}>
-                Forgot password?
-              </Text>
-            </Pressable>
-
-            {/* Submit */}
-            <Pressable
-              onPress={handleLogin}
-              disabled={isLoading}
-              style={[primaryButtonStyle, { marginTop: spacing.xl, opacity: isLoading ? 0.7 : 1 }]}
-            >
-              {isLoading
-                ? <ActivityIndicator color={colors.surface} />
-                : <Text style={{ color: colors.surface, fontWeight: '700', fontSize: typography.sizes.md }}>Log in</Text>
+        {Platform.OS === 'ios' ? (
+          <View style={{ gap: spacing.lg }}>
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={
+                isDark
+                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
               }
-            </Pressable>
-
-            {/* Apple Sign In — iOS only */}
-            {Platform.OS === 'ios' && (
-              <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.xl }}>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
-                <Text variant="caption" style={{ marginHorizontal: spacing.md, color: colors.textSecondary }}>OR</Text>
-                <View style={{ flex: 1, height: 1, backgroundColor: colors.border.default }} />
-              </View>
-              <Pressable
-                onPress={handleAppleSignIn}
-                disabled={isLoading}
-                style={[appleButtonStyle, { marginBottom: spacing.md, opacity: isLoading ? 0.7 : 1 }]}
-              >
-                <Text style={{ color: '#FFFFFF', fontWeight: typography.weights.semibold, fontSize: typography.sizes.md }}>
-                   Continue with Apple
-                </Text>
-              </Pressable>
-              </>
-            )}
-
-            {/* Sign up link — routes to onboarding, not directly to signup.
-                Per product contract: onboarding (dog profile + goal + plan) must
-                happen before account creation. */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 'auto' }}>
-              <Text variant="caption" style={{ color: colors.textSecondary }}>Don't have an account? </Text>
-              <Pressable onPress={() => router.replace('/(onboarding)/dog-basics')}>
-                <Text variant="caption" style={{ color: colors.primary, fontWeight: typography.weights.semibold }}>Sign up</Text>
-              </Pressable>
+              cornerRadius={radii.md}
+              style={{ height: 52 }}
+              onPress={handleAppleSignIn}
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
+              <Text variant="caption">or with email</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: colors.border.hairline }} />
             </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
-    </SafeScreen>
+          </View>
+        ) : null}
+
+        <View style={{ gap: spacing.lg }}>
+          <Input
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            autoCapitalize="none"
+            autoComplete="email"
+            autoCorrect={false}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            blurOnSubmit={false}
+            placeholder="you@example.com"
+          />
+          <Input
+            ref={passwordRef}
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            textContentType="password"
+            autoComplete="password"
+            returnKeyType="go"
+            onSubmitEditing={handleLogin}
+            placeholder="Your password"
+            error={authError || undefined}
+            trailing={
+              <IconButton
+                icon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                tone="secondary"
+                onPress={() => setShowPassword((v) => !v)}
+              />
+            }
+          />
+          {generalError ? (
+            <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+              {generalError}
+            </Text>
+          ) : null}
+          <Button label="Log in" onPress={handleLogin} loading={isLoading} />
+          <Button
+            label="Forgot password?"
+            variant="ghost"
+            size="md"
+            onPress={() => router.push('/(auth)/forgot-password')}
+            style={{ alignSelf: 'center' }}
+          />
+        </View>
+
+        {/* Account creation routes to onboarding: dog profile and plan come before the account. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+          <Text variant="caption">Don't have an account?</Text>
+          <Button
+            label="Create account"
+            variant="ghost"
+            size="md"
+            onPress={() => router.replace('/(onboarding)/dog-basics')}
+            style={{ paddingHorizontal: 0 }}
+          />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
-
-const inputStyle = (hasError: boolean) => ({
-  borderWidth: 1.5,
-  borderColor: hasError ? colors.error : colors.border.soft,
-  borderRadius: 16,
-  paddingVertical: spacing.lg,
-  paddingHorizontal: spacing.lg,
-  fontSize: typography.sizes.md,
-  color: colors.textPrimary,
-  backgroundColor: colors.surface,
-  minHeight: 58,
-});
-
-const primaryButtonStyle = {
-  backgroundColor: colors.primary,
-  borderRadius: 16,
-  paddingVertical: spacing.lg,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  minHeight: 58,
-};
-
-const appleButtonStyle = {
-  backgroundColor: '#000000',
-  borderRadius: 16,
-  paddingVertical: spacing.lg,
-  alignItems: 'center' as const,
-  justifyContent: 'center' as const,
-  minHeight: 58,
-};
-

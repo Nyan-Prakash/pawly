@@ -1,145 +1,88 @@
+/**
+ * Pawly colour tokens. See DESIGN.md.
+ *
+ * Six roles: background system, text system, one hairline border, one accent
+ * (+ its soft tint), and two statuses. Every text/background pair below is
+ * computed to pass WCAG AA (>= 4.5:1) in both schemes.
+ *
+ * No screen file may contain a hex literal. Add a role here or use an
+ * existing one.
+ */
+
 export type AppColorScheme = 'light' | 'dark';
 
+/** The mascot's own colours, taken from the app icon. Not for UI. */
+const mascot = {
+  cream: '#FCE1B2',
+  brown: '#4A2C18',
+  patch: '#6B4527',
+  eye: '#2B1A0E',
+  nose: '#3B2314',
+  blush: '#F2B8A2',
+  tongue: '#F26D6D',
+  highlight: '#FFFFFF',
+  sky: '#5974DB',
+} as const;
+
 export const lightColors = {
-  brand: {
-    primary: '#22C55E',
-    secondary: '#F59E0B',
-    coach: '#3B82F6',
-  },
+  accent: '#3F5BD1',
+  accentSoft: '#E3E8FB',
+  /** Darker accent for the pressed-edge of primary buttons. */
+  accentEdge: '#2F46B0',
   bg: {
     app: '#F7F2EC',
     surface: '#FFFDF9',
-    surfaceAlt: '#F5F7F9',
-    // Warm "sand" fill: the quiet, borderless, shadowless surface used for
-    // notes, icon wells and secondary tiles so not everything is a white card.
-    sand: '#F1EBE2',
-    elevated: 'rgba(255,255,255,0.88)',
-    elevatedMuted: 'rgba(255,255,255,0.72)',
-    glass: 'rgba(255,255,255,0.66)',
+    fill: '#EFE8DE',
   },
   text: {
-    primary: '#111827',
-    secondary: '#6B7280',
-    inverse: '#FFFFFF',
+    primary: '#1C1917',
+    secondary: '#5C5650',
+    onAccent: '#FFFFFF',
+    onDanger: '#FFFFFF',
   },
   border: {
-    default: '#E5E7EB',
-    soft: '#EEF2F7',
-    strong: '#D1D5DB',
+    hairline: '#E6DED3',
   },
   status: {
-    infoBg: '#E0F2FE',
-    infoBorder: '#BAE6FD',
-    successBg: '#DCFCE7',
-    successBorder: '#BBF7D0',
-    warningBg: '#FEF3C7',
-    warningBorder: '#FDE68A',
-    dangerBg: '#FEF2F2',
-    dangerBorder: '#FECACA',
+    danger: '#B42318',
+    dangerSoft: '#FCE8E6',
+    warning: '#8A5A00',
+    warningSoft: '#FBEBC9',
   },
-  gradient: {
-    app: ['#F7F2EC', '#F2EDE6', '#EEF6F1'] as const,
-  },
-  mascot: {
-    fur: '#F6B66E',
-    furDark: '#E19A53',
-    earInner: '#FFD9B3',
-    nose: '#3A3A3A',
-    collar: '#22C55E',
-  },
-  shadow: {
-    soft: '#94A3B8',
-    strong: '#0F172A',
-    success: '#15803D',
-  },
-  success: '#22C55E',
-  warning: '#FBBF24',
-  error: '#EF4444',
-  primary: '#22C55E',
-  secondary: '#F5F7F9',
-  accent: '#F59E0B',
-  success_old: '#22C55E',
-  warning_old: '#FBBF24',
-  error_old: '#EF4444',
-  textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  background: '#F7F2EC',
-  surface: '#FFFFFF',
-  borderColor: '#E5E7EB',
-  borderLegacy: '#E5E7EB',
+  scrim: 'rgba(28, 25, 23, 0.45)',
+  mascot,
 } as const;
 
 export const darkColors = {
-  brand: {
-    primary: '#4ADE80',
-    secondary: '#FBBF24',
-    coach: '#60A5FA',
-  },
+  accent: '#9AAEF7',
+  accentSoft: '#1F2A55',
+  accentEdge: '#6F86E0',
   bg: {
-    app: '#0B1220',
-    surface: '#121A29',
-    surfaceAlt: '#1A2436',
-    sand: '#18212F',
-    elevated: 'rgba(18,26,41,0.94)',
-    elevatedMuted: 'rgba(26,36,54,0.92)',
-    glass: 'rgba(18,26,41,0.84)',
+    app: '#151412',
+    surface: '#201E1B',
+    fill: '#2A2724',
   },
   text: {
-    primary: '#F8FAFC',
-    secondary: '#94A3B8',
-    inverse: '#08111D',
+    primary: '#F3EFE9',
+    secondary: '#ABA39A',
+    onAccent: '#0F1735',
+    onDanger: '#1C1917',
   },
   border: {
-    default: '#243042',
-    soft: '#1E293B',
-    strong: '#334155',
+    hairline: '#35312C',
   },
   status: {
-    infoBg: '#082F49',
-    infoBorder: '#0C4A6E',
-    successBg: '#052E1A',
-    successBorder: '#166534',
-    warningBg: '#451A03',
-    warningBorder: '#92400E',
-    dangerBg: '#450A0A',
-    dangerBorder: '#991B1B',
+    danger: '#F08A80',
+    dangerSoft: '#3A1B18',
+    warning: '#F2C069',
+    warningSoft: '#3A2C12',
   },
-  gradient: {
-    app: ['#08111D', '#0B1220', '#122032'] as const,
-  },
-  mascot: {
-    fur: '#F6B66E',
-    furDark: '#E19A53',
-    earInner: '#FFD9B3',
-    nose: '#3A3A3A',
-    collar: '#4ADE80',
-  },
-  shadow: {
-    soft: '#020617',
-    strong: '#020617',
-    success: '#14532D',
-  },
-  success: '#4ADE80',
-  warning: '#FBBF24',
-  error: '#F87171',
-  primary: '#4ADE80',
-  secondary: '#1A2436',
-  accent: '#FBBF24',
-  success_old: '#4ADE80',
-  warning_old: '#FBBF24',
-  error_old: '#F87171',
-  textPrimary: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  background: '#0B1220',
-  surface: '#121A29',
-  borderColor: '#243042',
-  borderLegacy: '#243042',
+  scrim: 'rgba(0, 0, 0, 0.6)',
+  mascot,
 } as const;
 
 type DeepNormalize<T> = T extends string
   ? string
-  : T extends readonly string[]
-  ? readonly string[]
   : { [K in keyof T]: DeepNormalize<T[K]> };
 
 export type AppColors = DeepNormalize<typeof lightColors>;
@@ -155,7 +98,11 @@ export function setColorScheme(scheme: AppColorScheme) {
   currentScheme = scheme;
 }
 
-export function getThemeColors(scheme: AppColorScheme = currentScheme) {
+export function getColorScheme(): AppColorScheme {
+  return currentScheme;
+}
+
+export function getThemeColors(scheme: AppColorScheme = currentScheme): AppColors {
   return palettes[scheme];
 }
 
@@ -164,33 +111,22 @@ function createColorProxy(path: string[] = []): unknown {
     {},
     {
       get(_target, prop) {
-        if (typeof prop !== 'string') {
-          return undefined;
-        }
-
+        if (typeof prop !== 'string') return undefined;
         const value = [...path, prop].reduce<unknown>(
-          (acc, key) => (acc as Record<string, unknown>)[key],
+          (acc, key) => (acc as Record<string, unknown> | undefined)?.[key],
           getThemeColors(),
         );
-
         if (value && typeof value === 'object') {
           return createColorProxy([...path, prop]);
         }
-
         return value;
       },
     },
   );
 }
 
-export const colors = new Proxy(createColorProxy() as AppColors, {
-  get(target, prop, receiver) {
-    if (prop === 'borderColor') {
-      return getThemeColors().border.default;
-    }
-
-    return Reflect.get(target, prop, receiver);
-  },
-}) as AppColors & {
-  borderColor: string;
-};
+/**
+ * Theme-aware colour accessor. Values resolve at read time against the
+ * current scheme, so `colors.accent` is always correct without prop drilling.
+ */
+export const colors = createColorProxy() as AppColors;

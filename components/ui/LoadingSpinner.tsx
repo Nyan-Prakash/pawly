@@ -2,10 +2,11 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { colors } from '@/constants/colors';
 
+/** Use only where a skeleton has no shape to mirror. */
 export function LoadingSpinner() {
   return (
-    <View className="flex-1 items-center justify-center">
-      <ActivityIndicator color={colors.primary} />
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator color={colors.text.secondary} />
     </View>
   );
 }

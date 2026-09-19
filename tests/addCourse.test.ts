@@ -350,10 +350,10 @@ test('normalizeGoalKey: maps human-readable labels to snake_case keys', () => {
 });
 
 test('buildCourseTitle: returns readable label for known goal keys', () => {
-  assert.equal(buildCourseTitle('leash_pulling'), 'Loose Leash Walking');
-  assert.equal(buildCourseTitle('recall'), 'Reliable Recall');
-  assert.equal(buildCourseTitle('barking'), 'Calm Barking');
-  assert.equal(buildCourseTitle('crate_anxiety'), 'Crate Confidence');
+  assert.equal(buildCourseTitle('leash_pulling'), 'Loose leash walking');
+  assert.equal(buildCourseTitle('recall'), 'Coming when called');
+  assert.equal(buildCourseTitle('barking'), 'Quiet on cue');
+  assert.equal(buildCourseTitle('crate_anxiety'), 'Crate training');
 });
 
 test('buildCourseTitle: falls back to goal string for unknown key', () => {
@@ -395,7 +395,7 @@ test('second course: created as secondary, original primary stays primary', asyn
       id: 'plan-original',
       goal: 'leash_pulling',
       is_primary: true,
-      course_title: 'Loose Leash Walking',
+      course_title: 'Loose leash walking',
       status: 'active',
       priority: 0,
     },
@@ -431,7 +431,7 @@ test('duplicate goal: blocked with duplicate_goal reason', async () => {
       id: 'plan-leash',
       goal: 'leash_pulling',
       is_primary: true,
-      course_title: 'Loose Leash Walking',
+      course_title: 'Loose leash walking',
       status: 'active',
       priority: 0,
     },
@@ -455,7 +455,7 @@ test('duplicate goal (human label vs snake key): still blocked', async () => {
       id: 'plan-recall',
       goal: 'recall',
       is_primary: true,
-      course_title: 'Reliable Recall',
+      course_title: 'Coming when called',
       status: 'active',
       priority: 0,
     },
@@ -482,7 +482,7 @@ test('makePrimary=true: new course becomes primary, old primary is cleared', asy
       id: 'plan-leash',
       goal: 'leash_pulling',
       is_primary: true,
-      course_title: 'Loose Leash Walking',
+      course_title: 'Loose leash walking',
       status: 'active',
       priority: 0,
     },

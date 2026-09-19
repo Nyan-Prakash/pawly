@@ -3,62 +3,42 @@ import { Animated, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
+import { durations, useReducedMotion } from '@/lib/motion';
 
 type ProgressBarProps = {
-  progress: number; // 0–1
-  height?: number;
-  color?: string;
-  trackColor?: string;
-  animated?: boolean;
+  /** 0–1 */
+  progress: number;
+  height?: 4 | 8;
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
-export function ProgressBar({
-  progress,
-  height = 6,
-  color = colors.brand.primary,
-  trackColor = colors.border.default,
-  animated = true,
-  style,
-}: ProgressBarProps) {
-  const widthAnim = useRef(new Animated.Value(0)).current;
+export function ProgressBar({ progress, height = 4, accessibilityLabel, style }: ProgressBarProps) {
+  const clamped = Math.max(0, Math.min(1, progress));
+  const width = useRef(new Animated.Value(clamped)).current;
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
-    const clampedProgress = Math.min(1, Math.max(0, progress));
-    if (animated) {
-      Animated.timing(widthAnim, {
-        toValue: clampedProgress,
-        duration: 500,
-        useNativeDriver: false,
-      }).start();
-    } else {
-      widthAnim.setValue(clampedProgress);
+    if (reducedMotion) {
+      width.setValue(clamped);
+      return;
     }
-  }, [progress, animated, widthAnim]);
-
-  const widthInterp = widthAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
+    Animated.timing(width, { toValue: clamped, duration: durations.base, useNativeDriver: false }).start();
+  }, [clamped, reducedMotion, width]);
 
   return (
     <View
-      style={[
-        {
-          height,
-          borderRadius: radii.pill,
-          backgroundColor: trackColor,
-          overflow: 'hidden',
-        },
-        style,
-      ]}
+      accessibilityRole="progressbar"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(clamped * 100) }}
+      style={[{ height, borderRadius: radii.full, backgroundColor: colors.bg.fill, overflow: 'hidden' }, style]}
     >
       <Animated.View
         style={{
           height: '100%',
-          borderRadius: radii.pill,
-          backgroundColor: color,
-          width: widthInterp,
+          borderRadius: radii.full,
+          backgroundColor: colors.accent,
+          width: width.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
         }}
       />
     </View>

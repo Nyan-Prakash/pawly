@@ -1,55 +1,60 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
-  View,
-  ScrollView,
-  Pressable,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Switch,
+  TextInput,
+  View,
 } from 'react-native';
-import Animated, { FadeInRight, FadeIn } from 'react-native-reanimated';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
-import { SafeScreen } from '@/components/ui/SafeScreen';
-import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
-import { VideoUploadProgress } from '@/components/video/VideoUploadProgress';
+import { Input } from '@/components/ui/Input';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { Text } from '@/components/ui/Text';
 import { ExpertReviewRequest } from '@/components/video/ExpertReviewRequest';
+import { VideoUploadProgress } from '@/components/video/VideoUploadProgress';
 import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
+import { generateThumbnail, uploadVideo } from '@/lib/videoUploader';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
-import { uploadVideo, generateThumbnail } from '@/lib/videoUploader';
 import type { VideoContext } from '@/types';
 
-// ─── Behavior categories (matching the 8 training goals) ──────────────────
+// ─── Behavior categories (same labels as the add-course picker) ─────────────
 
-const BEHAVIOR_CATEGORIES = [
-  { id: 'leash_pulling', label: 'Leash Pulling' },
-  { id: 'jumping_up', label: 'Jumping Up' },
-  { id: 'barking', label: 'Barking' },
-  { id: 'recall', label: 'Recall / Coming when called' },
-  { id: 'potty_training', label: 'Potty Training' },
-  { id: 'crate_anxiety', label: 'Crate / Separation Anxiety' },
-  { id: 'puppy_biting', label: 'Puppy Biting' },
-  { id: 'settling', label: 'Settling / Impulse Control' },
-] as const;
+const BEHAVIOR_CATEGORIES: { id: string; label: string; icon: AppIconName }[] = [
+  { id: 'leash_pulling', label: 'Leash pulling', icon: 'walk' },
+  { id: 'jumping_up', label: 'Jumping up', icon: 'arrow-up-circle' },
+  { id: 'barking', label: 'Barking', icon: 'volume-high' },
+  { id: 'recall', label: 'Recall', icon: 'return-down-back' },
+  { id: 'potty_training', label: 'Potty training', icon: 'sunny' },
+  { id: 'crate_anxiety', label: 'Crate anxiety', icon: 'home' },
+  { id: 'puppy_biting', label: 'Puppy biting', icon: 'happy' },
+  { id: 'settling', label: 'Settling', icon: 'bed' },
+];
 
 type Step = 1 | 2 | 3;
 
-const VIDEO_TIPS = [
-  { icon: 'sunny', text: 'Film in good lighting. Outdoors or near a window works great.' },
-  { icon: 'phone-landscape', text: 'Hold your phone horizontally for the best view.' },
-  { icon: 'paw', text: 'Keep your dog and yourself both in frame.' },
-  { icon: 'repeat', text: 'Show 2-3 repetitions of the behavior if possible.' },
+const VIDEO_TIPS: { icon: AppIconName; text: string }[] = [
+  { icon: 'sunny-outline', text: 'Film in good light, outdoors or near a window.' },
+  { icon: 'phone-landscape-outline', text: 'Hold your phone sideways for the widest view.' },
+  { icon: 'paw-outline', text: 'Keep your dog and yourself both in frame.' },
+  { icon: 'repeat-outline', text: 'Show two or three repetitions if you can.' },
 ];
 
 export default function UploadVideoScreen() {
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
   const params = useLocalSearchParams<{ context?: string }>();
   const videoContext: VideoContext =
     (params.context as VideoContext) ?? 'behavior';
@@ -59,7 +64,6 @@ export default function UploadVideoScreen() {
 
   // Step state
   const [step, setStep] = useState<Step>(1);
-  const [tipsExpanded, setTipsExpanded] = useState(false);
 
   // Video selection
   const [videoUri, setVideoUri] = useState<string | null>(null);
@@ -71,11 +75,13 @@ export default function UploadVideoScreen() {
   const [beforeContext, setBeforeContext] = useState('');
   const [goalContext, setGoalContext] = useState('');
   const [isSessionClip, setIsSessionClip] = useState(false);
+  const goalInputRef = useRef<TextInput>(null);
 
   // Upload
   const [uploading, setUploading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [uploadedVideoId, setUploadedVideoId] = useState<string | null>(null);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   // Review
   const [showReviewSheet, setShowReviewSheet] = useState(false);
@@ -89,7 +95,7 @@ export default function UploadVideoScreen() {
     if (fromCamera) {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Camera access needed', 'Please allow camera access to record a video.');
+        Alert.alert('Camera access needed', 'Allow camera access in Settings to record a video.');
         return;
       }
       result = await ImagePicker.launchCameraAsync({
@@ -100,7 +106,7 @@ export default function UploadVideoScreen() {
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('Photo library access needed', 'Please allow photo library access to pick a video.');
+        Alert.alert('Photo library access needed', 'Allow photo library access in Settings to pick a video.');
         return;
       }
       result = await ImagePicker.launchImageLibraryAsync({
@@ -133,9 +139,10 @@ export default function UploadVideoScreen() {
   const handleUpload = async () => {
     if (!videoUri || !user?.id || !dog?.id) return;
     if (!behaviorCategory) {
-      Alert.alert('Required', 'Please select a behavior category before uploading.');
+      setCategoryError('Pick the behavior the video shows, then upload.');
       return;
     }
+    setCategoryError(null);
 
     setUploading(true);
     setUploadPercent(0);
@@ -155,8 +162,8 @@ export default function UploadVideoScreen() {
       setUploadedVideoId(result.videoId);
       setStep(3);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Upload failed';
-      Alert.alert('Upload failed', message);
+      console.warn('[upload-video] upload failed:', err);
+      Alert.alert('Upload failed', "The video didn't upload. Check your connection and try again.");
     } finally {
       setUploading(false);
     }
@@ -170,348 +177,177 @@ export default function UploadVideoScreen() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const selectCategory = (id: string) => {
+    haptics.selection();
+    setBehaviorCategory(id);
+    setCategoryError(null);
+  };
+
   // ─── Step 1 — Choose video ────────────────────────────────────────────────
 
   const renderStep1 = () => (
-    <Animated.View entering={FadeInRight.duration(280)}>
-      <Text variant="title" style={{ marginBottom: spacing.xs, color: colors.textPrimary }}>
-        Upload a training clip
-      </Text>
-      <Text variant="body" style={{ marginBottom: spacing.xl, color: colors.textSecondary }}>
-        Short clips help trainers give you specific, actionable feedback.
+    <View style={{ gap: spacing.xl }}>
+      <Text variant="body" color={colors.text.secondary}>
+        A short clip is enough. It helps the trainer give feedback on what they see.
       </Text>
 
-      {/* Pick area */}
-      <View
-        style={{
-          borderWidth: 2,
-          borderStyle: 'dashed',
-          borderColor: colors.border.default,
-          borderRadius: 20,
-          height: 200,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.secondary,
-          marginBottom: spacing.lg,
-          gap: spacing.md,
-        }}
-      >
-        <AppIcon name="videocam" size={44} color={colors.textSecondary} />
-        <Text variant="body" style={{ color: colors.textSecondary }}>
-          Select a video to get started
-        </Text>
+      <View style={{ gap: spacing.sm }}>
+        <Button label="Record a video" icon="camera" onPress={() => pickVideo(true)} />
+        <Button label="Choose from library" icon="images" variant="secondary" onPress={() => pickVideo(false)} />
       </View>
 
-      <View style={{ gap: 12, marginBottom: spacing.xl }}>
-        <Button label="Record new video" leftIcon="camera" onPress={() => pickVideo(true)} />
-        <Pressable
-          onPress={() => pickVideo(false)}
-          style={({ pressed }) => ({
-            padding: spacing.md,
-            borderRadius: 14,
-            borderWidth: 1.5,
-            borderColor: colors.primary,
-            backgroundColor: pressed ? `${colors.primary}10` : colors.surface,
-            alignItems: 'center',
-          })}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <AppIcon name="images" size={18} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 15 }}>
-              Choose from library
-            </Text>
-          </View>
-        </Pressable>
-      </View>
-
-      {/* Tips expandable */}
-      <Pressable
-        onPress={() => setTipsExpanded((v) => !v)}
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingVertical: spacing.sm,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.default,
-        }}
-      >
-        <Text variant="body" style={{ color: colors.textPrimary, fontWeight: '600' }}>
-          Tips for good training videos
-        </Text>
-        <Text style={{ color: colors.textSecondary, fontSize: 18 }}>
-          {tipsExpanded ? '▲' : '▼'}
-        </Text>
-      </Pressable>
-      {tipsExpanded && (
-        <Animated.View entering={FadeIn.duration(200)} style={{ gap: spacing.sm, paddingTop: spacing.sm }}>
+      <View>
+        <SectionHeader title="Tips for a useful video" />
+        <ListGroup>
           {VIDEO_TIPS.map((tip) => (
-            <View key={tip.text} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-              <AppIcon name={tip.icon as AppIconName} size={16} color={colors.primary} />
-              <Text variant="body" style={{ color: colors.textSecondary, flex: 1 }}>
-                {tip.text}
-              </Text>
-            </View>
+            <ListRow key={tip.text} icon={tip.icon} iconTone="secondary" title={tip.text} />
           ))}
-        </Animated.View>
-      )}
-    </Animated.View>
+        </ListGroup>
+      </View>
+    </View>
   );
 
   // ─── Step 2 — Add context ─────────────────────────────────────────────────
 
   const renderStep2 = () => (
-    <Animated.View entering={FadeInRight.duration(280)} style={{ gap: spacing.lg }}>
-      <View>
-        <Text variant="title" style={{ color: colors.textPrimary, marginBottom: spacing.xs }}>
-          Add context
-        </Text>
-        <Text variant="body" style={{ color: colors.textSecondary }}>
-          Help the trainer understand what they're watching.
-        </Text>
-      </View>
-
-      {/* Thumbnail preview */}
-      <View style={{ borderRadius: 16, overflow: 'hidden', position: 'relative' }}>
+    <View style={{ gap: spacing.xl }}>
+      <View style={{ gap: spacing.sm }}>
         {thumbUri ? (
           <Image
             source={{ uri: thumbUri }}
-            style={{ width: '100%', height: 180 }}
+            style={{ width: '100%', height: 180, borderRadius: radii.md }}
             resizeMode="cover"
+            accessibilityLabel="Video preview"
           />
         ) : (
           <View
             style={{
               width: '100%',
               height: 180,
-              backgroundColor: colors.secondary,
+              borderRadius: radii.md,
+              backgroundColor: colors.bg.fill,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <AppIcon name="film" size={40} color={colors.textSecondary} />
+            <AppIcon name="film-outline" size={40} color={colors.text.secondary} />
           </View>
         )}
-        {duration > 0 && (
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 10,
-              right: 10,
-              backgroundColor: 'rgba(0,0,0,0.65)',
-              borderRadius: 6,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-            }}
-          >
-            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>
-              {formatDuration(duration)}
-            </Text>
-          </View>
-        )}
+        {duration > 0 ? <Text variant="caption">{formatDuration(duration)} long</Text> : null}
       </View>
 
-      {/* Behavior category */}
       <View>
-        <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.sm }}>
-          What behavior are you showing? *
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.xl }}>
-          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: spacing.xl }}>
-            {BEHAVIOR_CATEGORIES.map((cat) => (
-              <Pressable
-                key={cat.id}
-                onPress={() => setBehaviorCategory(cat.id)}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 20,
-                  borderWidth: 1.5,
-                  borderColor: behaviorCategory === cat.id ? colors.primary : colors.border.default,
-                  backgroundColor:
-                    behaviorCategory === cat.id ? `${colors.primary}15` : colors.surface,
-                }}
-              >
-                <Text
-                  style={{
-                    color: behaviorCategory === cat.id ? colors.primary : colors.textSecondary,
-                    fontWeight: behaviorCategory === cat.id ? '600' : '400',
-                    fontSize: 14,
-                  }}
-                >
-                  {cat.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </ScrollView>
+        <SectionHeader title="What behavior does it show?" />
+        <ListGroup>
+          {BEHAVIOR_CATEGORIES.map((cat) => (
+            <ListRow
+              key={cat.id}
+              icon={cat.icon}
+              iconTone={behaviorCategory === cat.id ? 'accent' : 'secondary'}
+              title={cat.label}
+              selected={behaviorCategory === cat.id}
+              onPress={() => selectCategory(cat.id)}
+            />
+          ))}
+        </ListGroup>
+        {categoryError ? (
+          <Text variant="caption" color={colors.status.danger} style={{ marginTop: spacing.sm }} accessibilityLiveRegion="polite">
+            {categoryError}
+          </Text>
+        ) : null}
       </View>
 
-      {/* Before context */}
-      <View>
-        <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs }}>
-          What happened just before this clip?
-        </Text>
-        <TextInput
-          value={beforeContext}
-          onChangeText={setBeforeContext}
-          placeholder="e.g. He was calm, then saw another dog across the street…"
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          numberOfLines={2}
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: 1.5,
-            borderColor: beforeContext ? colors.primary : colors.border.default,
-            borderRadius: 12,
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
-            fontSize: 15,
-            color: colors.textPrimary,
-            minHeight: 72,
-            textAlignVertical: 'top',
-          }}
+      <Input
+        label="What happened just before this clip? (optional)"
+        value={beforeContext}
+        onChangeText={setBeforeContext}
+        placeholder="He was calm, then saw another dog across the street"
+        multiline
+        numberOfLines={2}
+        returnKeyType="next"
+        blurOnSubmit
+        onSubmitEditing={() => goalInputRef.current?.focus()}
+      />
+
+      <Input
+        ref={goalInputRef}
+        label="What were you hoping to see? (optional)"
+        value={goalContext}
+        onChangeText={setGoalContext}
+        placeholder="I wanted him to walk on a loose leash past other dogs"
+        multiline
+        numberOfLines={2}
+        returnKeyType="done"
+        blurOnSubmit
+      />
+
+      <ListGroup>
+        <ListRow
+          title="This is a clip from a session"
+          subtitle="Off for a problem behavior filmed outside a session."
+          trailing={
+            <Switch
+              value={isSessionClip}
+              onValueChange={setIsSessionClip}
+              trackColor={{ false: colors.bg.fill, true: colors.accent }}
+              accessibilityLabel="This is a clip from a session"
+            />
+          }
         />
-      </View>
+      </ListGroup>
 
-      {/* Goal context */}
-      <View>
-        <Text variant="body" style={{ fontWeight: '600', color: colors.textPrimary, marginBottom: spacing.xs }}>
-          What were you hoping to see?
-        </Text>
-        <TextInput
-          value={goalContext}
-          onChangeText={setGoalContext}
-          placeholder="e.g. I wanted him to walk loose-leash past other dogs…"
-          placeholderTextColor={colors.textSecondary}
-          multiline
-          numberOfLines={2}
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: 1.5,
-            borderColor: goalContext ? colors.primary : colors.border.default,
-            borderRadius: 12,
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
-            fontSize: 15,
-            color: colors.textPrimary,
-            minHeight: 72,
-            textAlignVertical: 'top',
-          }}
-        />
-      </View>
-
-      {/* Session / problem toggle */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <Text variant="body" style={{ color: colors.textPrimary, flex: 1 }}>
-          This is a training session clip
-        </Text>
-        <Pressable
-          onPress={() => setIsSessionClip((v) => !v)}
-          style={{
-            width: 50,
-            height: 28,
-            borderRadius: 14,
-            backgroundColor: isSessionClip ? colors.primary : colors.border.default,
-            justifyContent: 'center',
-            paddingHorizontal: 3,
-          }}
-        >
-          <View
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 11,
-              backgroundColor: colors.surface,
-              transform: [{ translateX: isSessionClip ? 22 : 0 }],
-            }}
-          />
-        </Pressable>
-      </View>
-
-      {/* Remove / change */}
-      <Pressable onPress={() => { setVideoUri(null); setThumbUri(null); setStep(1); }}>
-        <Text variant="caption" style={{ color: colors.error, textAlign: 'center' }}>
-          Remove video and start over
-        </Text>
-      </Pressable>
-    </Animated.View>
+      <Button
+        label="Choose a different video"
+        variant="ghost"
+        size="md"
+        onPress={() => {
+          setVideoUri(null);
+          setThumbUri(null);
+          setStep(1);
+        }}
+        style={{ alignSelf: 'flex-start', paddingHorizontal: 0 }}
+      />
+    </View>
   );
 
-  // ─── Step 3 — Success ─────────────────────────────────────────────────────
+  // ─── Step 3 — Uploaded ────────────────────────────────────────────────────
 
   const renderStep3 = () => (
-    <Animated.View entering={FadeIn.duration(400)} style={{ alignItems: 'center', gap: spacing.lg, paddingTop: spacing.xl }}>
-      <AppIcon name="checkmark-circle" size={64} color={colors.success} />
-      <Text variant="title" style={{ color: colors.textPrimary, textAlign: 'center' }}>
-        Video uploaded!
-      </Text>
-      <Text variant="body" style={{ color: colors.textSecondary, textAlign: 'center' }}>
-        Your clip has been saved to Pawly.
-      </Text>
-
-      <View style={{ width: '100%', gap: spacing.sm, marginTop: spacing.md }}>
-        {uploadedVideoId && (
-          <Button
-            label="Request expert review"
-            leftIcon="search"
-            onPress={() => setShowReviewSheet(true)}
-          />
-        )}
-        <Pressable
-          onPress={() => router.replace('/(tabs)/train')}
-          style={({ pressed }) => ({
-            padding: spacing.md,
-            borderRadius: 14,
-            borderWidth: 1.5,
-            borderColor: colors.primary,
-            backgroundColor: pressed ? `${colors.primary}10` : colors.surface,
-            alignItems: 'center',
-          })}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <AppIcon name="paw" size={18} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 15 }}>
-              Back to training
-            </Text>
-          </View>
-        </Pressable>
-        <Pressable
-          onPress={() => router.back()}
-          style={{ alignItems: 'center', paddingVertical: spacing.sm }}
-        >
-          <Text variant="caption" style={{ color: colors.textSecondary }}>
-            Done
-          </Text>
-        </Pressable>
+    <View style={{ alignItems: 'center', gap: spacing.xl, paddingTop: spacing.xxl }}>
+      <AppIcon name="checkmark-circle" size={48} color={colors.accent} />
+      <View style={{ alignItems: 'center', gap: spacing.xs }}>
+        <Text variant="h2" style={{ textAlign: 'center' }}>
+          Video uploaded
+        </Text>
+        <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center' }}>
+          The clip is saved to {dog?.name ? `${dog.name}'s` : "your dog's"} profile.
+        </Text>
       </View>
 
-      {reviewRequested && (
-        <Animated.View
-          entering={FadeIn}
-          style={{
-            backgroundColor: `${colors.success}15`,
-            borderRadius: 14,
-            padding: spacing.md,
-            width: '100%',
-            flexDirection: 'row',
-            gap: spacing.sm,
-          }}
-        >
-          <AppIcon name="checkmark-circle" size={20} color={colors.success} />
-          <Text variant="body" style={{ color: colors.textPrimary, flex: 1 }}>
-            {"Review requested! You'll be notified within 48 hours."}
-          </Text>
-        </Animated.View>
-      )}
-    </Animated.View>
+      <View style={{ width: '100%', gap: spacing.sm }}>
+        {uploadedVideoId && !reviewRequested ? (
+          <Button label="Request expert review" icon="search" onPress={() => setShowReviewSheet(true)} />
+        ) : null}
+        <Button
+          label="Back to Train"
+          variant={uploadedVideoId && !reviewRequested ? 'secondary' : 'primary'}
+          onPress={() => router.replace('/(tabs)/train')}
+        />
+      </View>
+
+      {reviewRequested ? (
+        <Text variant="body" style={{ textAlign: 'center' }} accessibilityLiveRegion="polite">
+          Review requested. You'll get a notification within 48 hours.
+        </Text>
+      ) : null}
+    </View>
   );
 
   return (
-    <SafeScreen>
+    <>
       <VideoUploadProgress visible={uploading} percent={uploadPercent} />
 
-      {uploadedVideoId && (
+      {uploadedVideoId ? (
         <ExpertReviewRequest
           visible={showReviewSheet}
           videoId={uploadedVideoId}
@@ -521,83 +357,35 @@ export default function UploadVideoScreen() {
             setReviewRequested(true);
           }}
         />
-      )}
+      ) : null}
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: spacing.xl,
-            paddingVertical: spacing.md,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border.default,
-          }}
-        >
-          <Pressable onPress={() => router.back()} style={{ marginRight: spacing.md }}>
-            <Text style={{ color: colors.primary, fontSize: 28, lineHeight: 32 }}>‹</Text>
-          </Pressable>
-          <Text variant="title" style={{ color: colors.textPrimary, fontSize: 18 }}>
-            {step === 1 ? 'Choose video' : step === 2 ? 'Add context' : 'Done'}
-          </Text>
-        </View>
-
-        {/* Step indicator */}
-        {step < 3 && (
-          <View
-            style={{
-              flexDirection: 'row',
-              paddingHorizontal: spacing.xl,
-              paddingTop: spacing.md,
-              gap: 6,
-            }}
-          >
-            {[1, 2].map((s) => (
-              <View
-                key={s}
-                style={{
-                  flex: 1,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: step >= s ? colors.primary : colors.border.default,
-                }}
-              />
-            ))}
-          </View>
-        )}
-
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={headerHeight}
+        style={{ flex: 1 }}
+      >
         <ScrollView
-          contentContainerStyle={{ padding: spacing.xl, paddingBottom: step === 2 ? 140 : 40 }}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           {step === 1 && renderStep1()}
           {step === 2 && renderStep2()}
           {step === 3 && renderStep3()}
         </ScrollView>
 
-        {/* Bottom CTA for step 2 */}
-        {step === 2 && (
-          <View
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: spacing.xl,
-              backgroundColor: colors.background,
-              borderTopWidth: 1,
-              borderTopColor: colors.border.default,
-            }}
-          >
+        {step === 2 ? (
+          <View style={{ padding: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
             <Button
               label="Upload video"
               onPress={handleUpload}
               disabled={!behaviorCategory || uploading}
+              loading={uploading}
             />
           </View>
-        )}
+        ) : null}
       </KeyboardAvoidingView>
-    </SafeScreen>
+    </>
   );
 }

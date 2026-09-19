@@ -4,12 +4,11 @@ import type { Session, User } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { supabase, createUserRecord } from '@/lib/supabase';
-import type { SubscriptionTier, DogProfile } from '@/types';
+import type { DogProfile } from '@/types';
 
 interface AuthStore {
   user: User | null;
   session: Session | null;
-  subscriptionTier: SubscriptionTier;
   isLoading: boolean;
   isInitialized: boolean;
 
@@ -24,13 +23,11 @@ interface AuthStore {
   signIn: (email: string, password: string) => Promise<void>;
   signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
-  setSubscriptionTier: (tier: SubscriptionTier) => void;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   session: null,
-  subscriptionTier: 'free',
   isLoading: false,
   isInitialized: false,
 
@@ -104,11 +101,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      set({ user: null, session: null, subscriptionTier: 'free', hasDogProfile: false, dogProfile: null });
+      set({ user: null, session: null, hasDogProfile: false, dogProfile: null });
     } finally {
       set({ isLoading: false });
     }
-  },
-
-  setSubscriptionTier: (tier) => set({ subscriptionTier: tier })
+  }
 }));

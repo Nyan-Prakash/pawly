@@ -1,61 +1,53 @@
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
 
+import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { colors } from '@/constants/colors';
-
-type IconButtonVariant = 'ghost' | 'surface' | 'filled';
+import { radii } from '@/constants/radii';
 
 type IconButtonProps = {
-  icon: React.ReactNode;
+  icon: AppIconName;
+  /** Required: an icon-only control must be announced. */
+  accessibilityLabel: string;
   onPress: () => void;
-  size?: number;
-  variant?: IconButtonVariant;
-  style?: StyleProp<ViewStyle>;
-  hitSlop?: number;
+  tone?: 'accent' | 'secondary' | 'primary';
+  variant?: 'plain' | 'filled';
   disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
 };
 
+/** 44×44 icon-only control. */
 export function IconButton({
   icon,
+  accessibilityLabel,
   onPress,
-  size = 44,
-  variant = 'ghost',
-  style,
-  hitSlop = 4,
+  tone = 'accent',
+  variant = 'plain',
   disabled,
+  style,
 }: IconButtonProps) {
-  const variantStyle: ViewStyle = {
-    ghost: {
-      backgroundColor: 'transparent',
-    },
-    surface: {
-      backgroundColor: colors.bg.surfaceAlt,
-      borderWidth: 1,
-      borderColor: colors.border.soft,
-    },
-    filled: {
-      backgroundColor: colors.brand.primary,
-    },
-  }[variant];
-
+  const color = { accent: colors.accent, secondary: colors.text.secondary, primary: colors.text.primary }[tone];
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      hitSlop={hitSlop}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => [
         {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
+          width: 44,
+          height: 44,
+          borderRadius: radii.full,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: pressed ? 0.7 : 1,
-          ...variantStyle,
+          backgroundColor: variant === 'filled' ? colors.bg.fill : 'transparent',
+          opacity: disabled ? 0.4 : pressed ? 0.6 : 1,
         },
         style,
       ]}
     >
-      <View>{icon}</View>
+      <AppIcon name={icon} size={22} color={color} />
     </Pressable>
   );
 }

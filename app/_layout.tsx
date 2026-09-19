@@ -1,21 +1,14 @@
-import '../global.css';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, View } from 'react-native';
-import {
-  useFonts,
-  Nunito_400Regular,
-  Nunito_500Medium,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-  Nunito_800ExtraBold,
-} from '@expo-google-fonts/nunito';
+import { useEffect, useMemo, useState } from 'react';
+import { View } from 'react-native';
+import { ThemeProvider } from '@react-navigation/native';
+import * as SplashScreen from 'expo-splash-screen';
+import { Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { getRouteFromNotification, trackNotificationOpened } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
@@ -24,111 +17,40 @@ import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { colors } from '@/constants/colors';
+import { spacing } from '@/constants/spacing';
+import { navigationTheme } from '@/lib/navigationTheme';
 import { Text } from '@/components/ui/Text';
-import { MascotCallout } from '@/components/ui/MascotCallout';
+import { MascotLoader } from '@/components/ui/MascotLoader';
+import { PaywallSheet } from '@/components/paywall/PaywallSheet';
 
-function BouncingDot({ delay }: { delay: number }) {
-  const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(anim, {
-          toValue: -8,
-          duration: 400,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim, {
-          toValue: 0,
-          duration: 400,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.delay(600),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [anim, delay]);
-
-  return (
-    <Animated.View
-      style={{
-        width: 7,
-        height: 7,
-        borderRadius: 4,
-        backgroundColor: colors.brand.primary,
-        marginHorizontal: 4,
-        transform: [{ translateY: anim }],
-      }}
-    />
-  );
-}
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function PrepLoadingScreen({ message, subMessage }: { message: string; subMessage?: string }) {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(24)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
-
   return (
-    <LinearGradient
-      colors={[colors.gradient.app[0], colors.gradient.app[1], colors.gradient.app[2]]}
-      style={{ flex: 1 }}
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.bg.app,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.xxl,
+        gap: spacing.lg,
+      }}
     >
-      <Animated.View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingHorizontal: 40,
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        }}
-      >
-        <MascotCallout state="thinking" size={110} style={{ marginBottom: 36 }} />
-
-        <Text
-          variant="h2"
-          style={{ textAlign: 'center', fontWeight: '700', marginBottom: 8 }}
-        >
+      <MascotLoader activity="wake" />
+      <View style={{ alignItems: 'center', gap: spacing.xs }}>
+        <Text variant="h2" style={{ textAlign: 'center' }}>
           {message}
         </Text>
-
-        {subMessage && (
-          <Text
-            variant="caption"
-            style={{ textAlign: 'center', opacity: 0.65, marginBottom: 32 }}
-          >
+        {subMessage ? (
+          <Text variant="caption" style={{ textAlign: 'center' }}>
             {subMessage}
           </Text>
-        )}
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-          <BouncingDot delay={0} />
-          <BouncingDot delay={150} />
-          <BouncingDot delay={300} />
-        </View>
-      </Animated.View>
-    </LinearGradient>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -296,46 +218,61 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
     }
   }, [hasDogProfile, isBootstrapping, isDogFetched, router, segments, session, dogName, submissionIntent]);
 
+  useEffect(() => {
+    if (!isBootstrapping) SplashScreen.hideAsync().catch(() => {});
+  }, [isBootstrapping]);
+
+  // Keep the RevenueCat user in step with the Supabase user. Never blocks routing.
+  const userId = session?.user?.id;
+  useEffect(() => {
+    if (isBootstrapping) return;
+    const { identify, reset } = useSubscriptionStore.getState();
+    if (userId) identify(userId);
+    else reset();
+  }, [isBootstrapping, userId]);
+
   if (isBootstrapping || isSubmittingOnboarding) {
     if (isSubmittingOnboarding) {
       return (
         <PrepLoadingScreen
-          message={`Building ${dogName}'s plan…`}
-          subMessage="Crafting a training programme tailored just for them."
+          message={`Building ${dogName}'s plan`}
+          subMessage="This takes a few seconds."
         />
       );
     }
     return (
       <PrepLoadingScreen
-        message="Preparing things for you"
-        subMessage="Just a moment while we get everything ready."
+        message="Loading your plan"
       />
     );
   }
 
-  return <Slot key={themeKey} />;
+  return (
+    <>
+      <Slot key={themeKey} />
+      <PaywallSheet />
+    </>
+  );
 }
 
 export default function RootLayout() {
   const queryClient = useMemo(() => new QueryClient(), []);
   const { colorScheme } = useTheme();
-  const [fontsLoaded] = useFonts({
-    Nunito_400Regular,
-    Nunito_500Medium,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-    Nunito_800ExtraBold,
-  });
+  const theme = useMemo(() => navigationTheme(colorScheme), [colorScheme]);
+  // The heading face. If it fails to load, headings fall back to the system
+  // font rather than blocking the app.
+  const [fontsLoaded, fontError] = useFonts({ Nunito_800ExtraBold });
 
-  if (!fontsLoaded) return null;
-
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg.app }}>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <RootNavigationGate themeKey={colorScheme} />
-      </GestureHandlerRootView>
+      <ThemeProvider value={theme}>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg.app }}>
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          <RootNavigationGate themeKey={colorScheme} />
+        </GestureHandlerRootView>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

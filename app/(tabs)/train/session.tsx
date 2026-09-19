@@ -1,102 +1,103 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  AppState,
-  type AppStateStatus,
-  Modal,
-  Pressable,
-  ScrollView,
-  View,
-  Vibration,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, Animated, AppState, type AppStateStatus, ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
-import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import { AppIcon } from '@/components/ui/AppIcon';
+import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { IconButton } from '@/components/ui/IconButton';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { MascotCallout } from '@/components/ui/MascotCallout';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { SafeScreen } from '@/components/ui/SafeScreen';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { TimerRing } from '@/components/session/TimerRing';
 import { RepCounter } from '@/components/session/RepCounter';
 import { StepCard } from '@/components/session/StepCard';
+import { StepMedia } from '@/components/session/StepMedia';
+import { StepHelpSheet } from '@/components/session/StepHelpSheet';
 import { SessionModePicker } from '@/components/session/SessionModePicker';
 import { LiveAiTrainerOverlay } from '@/components/vision/LiveAiTrainerOverlay';
 import { colors } from '@/constants/colors';
-import { getCourseUiColors, hexToRgba, type CourseUiColors } from '@/constants/courseColors';
+import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
-import { useSessionStore } from '@/stores/sessionStore';
+import { getStepMedia } from '@/constants/stepMedia';
+import { haptics } from '@/lib/haptics';
+import { durations, useReducedMotion } from '@/lib/motion';
+import { useTheme } from '@/lib/theme';
+import { useSessionStore, type ActiveSession, type StepResult } from '@/stores/sessionStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
-import { saveSession, checkMilestones, updateStreak } from '@/lib/sessionManager';
-import { EXERCISE_TO_PROTOCOL } from '@/constants/protocols';
+import {
+  saveSession,
+  checkMilestones,
+  updateStreak,
+  fetchRecentSessionSummaries,
+} from '@/lib/sessionManager';
+import { EXERCISE_TO_PROTOCOL, type Protocol, type ProtocolStep } from '@/constants/protocols';
 import { didUpcomingScheduleChange } from '@/lib/notifications';
 import { useLiveAiTrainerSession } from '@/hooks/useLiveAiTrainerSession';
 import type { LiveAiTrainerSummary } from '@/lib/liveCoach/liveAiTrainerTypes';
 import { buildPostSessionReflectionQuestions } from '@/lib/adaptivePlanning/reflectionQuestionEngine';
-import type { ReflectionQuestionConfig } from '@/lib/adaptivePlanning/reflectionQuestionTypes';
+import type {
+  RecentSessionSummary,
+  ReflectionQuestionConfig,
+} from '@/lib/adaptivePlanning/reflectionQuestionTypes';
 import {
   PostSessionReflectionCard,
   applyReflectionAnswer,
   makeEmptyReflection,
 } from '@/components/session/PostSessionReflectionCard';
+import {
+  ABANDONED_SUCCESS_SCORE,
+  formatDuration,
+  formatTimer,
+  isSetupStep,
+  outcomeToDifficulty,
+  outcomeToPlanRating,
+  outcomeToSuccessScore,
+  shouldLogAbandonedSession,
+  summarizeStepOutcomes,
+  type SessionOutcome,
+  type StepOutcome,
+} from '@/lib/sessionScoring';
+import {
+  clearSessionSnapshot,
+  loadSessionSnapshot,
+  saveSessionSnapshot,
+} from '@/lib/sessionPersistence';
 import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
 
 // ── Local UI state for live coaching (does not touch session store) ──────────
-// These two extra states sit on top of the store's SessionState and are
-// managed with a separate local useState to avoid any regression.
 type LocalOverlayState = 'NONE' | 'MODE_PICKER' | 'LIVE_COACHING';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m === 0) return `${s} sec`;
-  return `${m} min ${s > 0 ? `${s} sec` : ''}`.trim();
-}
-
-function formatTimer(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Setup checklist items derived from equipment
-// ─────────────────────────────────────────────────────────────────────────────
-
-const BASE_CHECKLIST = [
-  'Find a low-distraction space',
-  'Have high-value treats ready',
-];
-
-function buildChecklist(equipment: string[]): string[] {
-  const items = [...BASE_CHECKLIST];
-  if (equipment.some((e) => e.toLowerCase().includes('leash'))) {
-    items.push('Leash attached');
-  }
-  if (equipment.some((e) => e.toLowerCase().includes('clicker'))) {
-    items.push('Clicker in hand');
-  }
-  if (equipment.some((e) => e.toLowerCase().includes('mat') || e.toLowerCase().includes('bed'))) {
-    items.push('Mat or bed in place');
-  }
-  return items;
-}
+/** Quick reps never rerun more than this many reps; the point is 60–90 seconds. */
+const QUICK_REPS_MAX = 5;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function SessionScreen() {
-  const { id: sessionId, planId } = useLocalSearchParams<{ id: string; planId?: string }>();
-  const insets = useSafeAreaInsets();
+  const {
+    id: sessionId,
+    planId,
+    mode,
+    step: quickStepParam,
+  } = useLocalSearchParams<{ id: string; planId?: string; mode?: string; step?: string }>();
+  const { colorScheme } = useTheme();
+
+  // Quick reps: `mode=quick&step=<index>` runs ONE step outside the plan.
+  const parsedQuickStep = quickStepParam != null ? Number.parseInt(quickStepParam, 10) : Number.NaN;
+  const quickStepIndex = mode === 'quick' && Number.isFinite(parsedQuickStep) ? Math.max(0, parsedQuickStep) : null;
+  const isQuickMode = quickStepIndex !== null;
 
   const { fetchProtocol, markSessionComplete, plansById } = usePlanStore();
   const { dog, fetchDogLearningState, dogLearningState, activePlans } = useDogStore();
@@ -104,57 +105,63 @@ export default function SessionScreen() {
   const ensureNotificationPermission = useNotificationStore((s) => s.ensurePermissionAfterMeaningfulAction);
   const refreshSchedulesForPlans = useNotificationStore((s) => s.refreshSchedulesForPlans);
 
-  // Resolve the plan and session for this sessionId across ALL active plans.
-  // This is the canonical multi-plan-safe lookup — avoids breaking when the
-  // session belongs to a non-primary (secondary) plan.
+  // Resolve the plan across ALL active plans so secondary-plan sessions work.
   const resolvedPlan = planId && plansById[planId]
     ? plansById[planId]
     : sessionId
     ? Object.values(plansById).find((p) => p.sessions.some((s) => s.id === sessionId)) ?? null
     : null;
-  const activePlan = resolvedPlan; // alias used throughout the component
+  const activePlan = resolvedPlan;
+
   const {
     activeSession,
     startSession,
     setState,
+    beginTraining,
     completeStep,
+    undoLastStep,
     startTimer,
     pauseTimer,
     resetTimer,
     incrementRep,
+    decrementRep,
     resetReps,
     advanceToNextStep,
     goToPreviousStep,
     submitSession,
     abandonSession,
+    endTraining,
     tick,
     clearSession,
+    getTrainingSeconds,
   } = useSessionStore();
 
-  const [showAbandonSheet, setShowAbandonSheet] = useState(false);
-  const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
-  const [reviewDifficulty, setReviewDifficulty] = useState<'easy' | 'okay' | 'hard' | null>(null);
+  const [showHelpSheet, setShowHelpSheet] = useState(false);
+  const [reviewOutcome, setReviewOutcome] = useState<SessionOutcome | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [completedSessionCount, setCompletedSessionCount] = useState(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastStepOutcome, setLastStepOutcome] = useState<StepOutcome>('success');
+  const [resumedNotice, setResumedNotice] = useState(false);
 
   // ── Post-session reflection state ──────────────────────────────────────────
   const [reflectionQuestions, setReflectionQuestions] = useState<ReflectionQuestionConfig[]>([]);
   const [reflectionAnswers, setReflectionAnswers] = useState<PostSessionReflection>(makeEmptyReflection());
+  const [recentSessions, setRecentSessions] = useState<RecentSessionSummary[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // ── Live coaching local overlay state ──────────────────────────────────────
-  // Kept local so normal session flow (store state machine) is never touched.
   const [overlayState, setOverlayState] = useState<LocalOverlayState>('NONE');
-  // Metrics captured when live coaching completes; passed to saveSession.
   const liveAiSummaryRef = useRef<LiveAiTrainerSummary | null>(null);
 
   const tickIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const backgroundTimeRef = useRef<number | null>(null);
   const stepStartTimeRef = useRef<number>(Date.now());
   const startedSessionIdRef = useRef<string | null>(null);
+  /** Log id from a save that succeeded before a later step failed — lets retry skip the insert. */
+  const savedLogIdRef = useRef<string | null>(null);
 
-  // ── Load protocol & start session ──────────────────────────────────────────
+  // ── Load protocol & start (or resume) session ──────────────────────────────
 
   useEffect(() => {
     if (!sessionId) return;
@@ -163,30 +170,63 @@ export default function SessionScreen() {
 
     const planSession = activePlan.sessions.find((s) => s.id === sessionId);
     if (!planSession) {
-      setLoadError('This session was not found in your active plan.');
+      setLoadError('This session is not in your active plan. Go back and pick a session from today.');
       return;
     }
 
     let isCancelled = false;
     setLoadError(null);
 
-    fetchProtocol(planSession.exerciseId).then((protocol) => {
-      if (isCancelled) return;
-      if (!protocol) {
-        setLoadError('We could not load this session protocol.');
-        return;
-      }
-      startedSessionIdRef.current = sessionId;
-      startSession(sessionId, planSession.exerciseId, protocol);
-    });
+    // Quick reps never resume and never touch a saved snapshot.
+    const snapshotPromise = isQuickMode ? Promise.resolve(null) : loadSessionSnapshot();
 
-    const completedCount = activePlan.sessions.filter((s) => s.isCompleted).length;
-    setCompletedSessionCount(completedCount + 1); // +1 for this session
+    Promise.all([fetchProtocol(planSession.exerciseId), snapshotPromise]).then(
+      ([protocol, snapshot]) => {
+        if (isCancelled) return;
+        if (!protocol) {
+          setLoadError("Couldn't load this session. Check your connection and try again.");
+          return;
+        }
+        startedSessionIdRef.current = sessionId;
+
+        if (isQuickMode) {
+          if (quickStepIndex >= protocol.steps.length) {
+            setLoadError('That step is not in this session. Go back and pick another quick rep.');
+            return;
+          }
+          startSession(sessionId, planSession.exerciseId, protocol, undefined, { quickStepIndex });
+          return;
+        }
+
+        const canResume =
+          snapshot &&
+          snapshot.sessionId === sessionId &&
+          snapshot.exerciseId === planSession.exerciseId &&
+          (snapshot.state === 'STEP_ACTIVE' ||
+            snapshot.state === 'STEP_COMPLETE' ||
+            snapshot.state === 'SESSION_REVIEW');
+
+        if (canResume && snapshot) {
+          startSession(sessionId, planSession.exerciseId, protocol, {
+            startedAt: new Date(snapshot.startedAt),
+            trainingStartedAt: snapshot.trainingStartedAt ? new Date(snapshot.trainingStartedAt) : null,
+            savedAt: snapshot.savedAt ? new Date(snapshot.savedAt) : null,
+            currentStepIndex: snapshot.currentStepIndex,
+            stepResults: snapshot.stepResults,
+            repCount: snapshot.repCount,
+            state: snapshot.state,
+          });
+          setResumedNotice(true);
+        } else {
+          startSession(sessionId, planSession.exerciseId, protocol);
+        }
+      },
+    );
 
     return () => {
       isCancelled = true;
     };
-  }, [sessionId, activePlan, activeSession?.sessionId, fetchProtocol, startSession, clearSession]);
+  }, [sessionId, activePlan, activeSession?.sessionId, fetchProtocol, startSession, isQuickMode, quickStepIndex]);
 
   useEffect(() => {
     return () => {
@@ -195,27 +235,66 @@ export default function SessionScreen() {
     };
   }, [clearSession]);
 
+  useEffect(() => {
+    if (!resumedNotice) return;
+    const t = setTimeout(() => setResumedNotice(false), 4000);
+    return () => clearTimeout(t);
+  }, [resumedNotice]);
+
+  // ── Crash-safe snapshot ────────────────────────────────────────────────────
+  // Written on every meaningful change while training; cleared when the
+  // session ends either way.
+
+  useEffect(() => {
+    if (!activeSession) return;
+    // A quick rep is not worth resuming and must not clobber a real session's snapshot.
+    if (activeSession.isQuickReps) return;
+    const { state } = activeSession;
+    if (state === 'COMPLETE' || state === 'ABANDONED') {
+      void clearSessionSnapshot();
+      return;
+    }
+    if (state === 'STEP_ACTIVE' || state === 'STEP_COMPLETE' || state === 'SESSION_REVIEW') {
+      void saveSessionSnapshot({
+        sessionId: activeSession.sessionId,
+        planId: activePlan?.id ?? null,
+        exerciseId: activeSession.exerciseId,
+        protocolId: activeSession.protocol.id,
+        protocolTitle: activeSession.protocol.title,
+        totalSteps: activeSession.protocol.steps.length,
+        startedAt: activeSession.startedAt.toISOString(),
+        trainingStartedAt: activeSession.trainingStartedAt?.toISOString() ?? null,
+        currentStepIndex: activeSession.currentStepIndex,
+        stepResults: activeSession.stepResults,
+        repCount: activeSession.repCount,
+        state,
+        savedAt: new Date().toISOString(),
+      });
+    }
+  }, [
+    activeSession?.state,
+    activeSession?.currentStepIndex,
+    activeSession?.stepResults,
+    activeSession?.repCount,
+  ]);
+
   // ── Tick interval ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (activeSession?.isTimerRunning) {
-      tickIntervalRef.current = setInterval(() => {
-        tick();
-      }, 1000);
-    } else {
-      if (tickIntervalRef.current) {
-        clearInterval(tickIntervalRef.current);
-        tickIntervalRef.current = null;
-      }
+      tickIntervalRef.current = setInterval(() => tick(), 1000);
+    } else if (tickIntervalRef.current) {
+      clearInterval(tickIntervalRef.current);
+      tickIntervalRef.current = null;
     }
     return () => {
-      if (tickIntervalRef.current) {
-        clearInterval(tickIntervalRef.current);
-      }
+      if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
     };
   }, [activeSession?.isTimerRunning]);
 
   // ── Timer reaches zero ─────────────────────────────────────────────────────
+  // The handler is usually looking at the dog, not the phone, so the end of a
+  // timed step is announced with a haptic.
 
   useEffect(() => {
     if (
@@ -225,12 +304,18 @@ export default function SessionScreen() {
     ) {
       const step = activeSession.protocol.steps[activeSession.currentStepIndex];
       if (step?.durationSeconds && step.durationSeconds > 0) {
-        Vibration.vibrate([0, 100, 50, 100]);
+        haptics.warning();
       }
     }
   }, [activeSession?.timerSeconds, activeSession?.isTimerRunning]);
 
-  // ── AppState — track background time for timer ─────────────────────────────
+  // ── Session complete: the one orchestrated moment ──────────────────────────
+
+  useEffect(() => {
+    if (activeSession?.state === 'COMPLETE') haptics.success();
+  }, [activeSession?.state]);
+
+  // ── AppState — keep a running timer honest across backgrounding ───────────
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
@@ -250,167 +335,330 @@ export default function SessionScreen() {
     return () => sub.remove();
   }, [activeSession?.isTimerRunning, activeSession?.timerSeconds]);
 
-  // ── Step active: auto-start timer and track step start time ───────────────
+  // ── Step active: track when the step began. Timers are started by the user.
 
   useEffect(() => {
     if (activeSession?.state === 'STEP_ACTIVE') {
       stepStartTimeRef.current = Date.now();
-      const step = activeSession.protocol.steps[activeSession.currentStepIndex];
-      if (step?.durationSeconds) {
-        startTimer();
-      }
     }
   }, [activeSession?.currentStepIndex, activeSession?.state]);
 
-  // ── Build reflection questions once when entering SESSION_REVIEW ──────────
-  // Runs whenever the session state changes to SESSION_REVIEW.
-  // Uses safe fallbacks for any context not yet available locally:
-  //   - recentSessions: [] (session logs not held in local state)
-  //   - learningState: mapped from dogLearningState if present
-  // If question generation throws for any reason, we silently fall back to
-  // an empty list — the review still shows difficulty + notes normally.
+  // ── Entering review: fetch recent history for the question engine ─────────
+
   useEffect(() => {
     if (activeSession?.state !== 'SESSION_REVIEW') return;
-
-    try {
-      const durationSeconds = Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000);
-      const planSession = activePlan?.sessions.find((s) => s.id === activeSession.sessionId);
-
-      const questions = buildPostSessionReflectionQuestions({
-        difficulty: reviewDifficulty ?? 'okay',
-        sessionStatus: 'completed',
-        durationSeconds,
-        protocolId: EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId,
-        skillId: planSession?.skillId ?? null,
-        environmentTag: planSession?.environment ?? null,
-        recentSessions: [],
-        learningState: dogLearningState
-          ? {
-              distractionSensitivity: dogLearningState.distractionSensitivity,
-              handlerConsistencyScore: dogLearningState.handlerConsistencyScore,
-              confidenceScore: dogLearningState.confidenceScore,
-              inconsistencyIndex:
-                typeof (dogLearningState.behaviorSignals as Record<string, unknown>)?.inconsistencyIndex === 'number'
-                  ? ((dogLearningState.behaviorSignals as Record<string, unknown>).inconsistencyIndex as number)
-                  : null,
-            }
-          : null,
-      });
-
-      setReflectionQuestions(questions);
-      setReflectionAnswers(makeEmptyReflection());
-    } catch {
-      // Graceful fallback: no questions shown, difficulty + notes still work.
-      setReflectionQuestions([]);
-    }
+    setReviewOutcome(null);
+    setReflectionQuestions([]);
+    setReflectionAnswers(makeEmptyReflection());
+    setSaveError(null);
+    if (!dog?.id) return;
+    let cancelled = false;
+    fetchRecentSessionSummaries(dog.id, 5)
+      .then((rows) => {
+        if (!cancelled) setRecentSessions(rows);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSession?.state]);
+
+  // ── Reflection questions are built from the REAL outcome ──────────────────
+
+  const buildQuestionsFor = useCallback(
+    (outcome: SessionOutcome): ReflectionQuestionConfig[] => {
+      if (!activeSession) return [];
+      try {
+        const planSession = activePlan?.sessions.find((s) => s.id === activeSession.sessionId);
+        return buildPostSessionReflectionQuestions({
+          difficulty: outcomeToDifficulty(outcome),
+          sessionStatus: 'completed',
+          durationSeconds: getTrainingSeconds(),
+          protocolId: EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId,
+          skillId: planSession?.skillId ?? null,
+          environmentTag: planSession?.environment ?? null,
+          recentSessions,
+          learningState: dogLearningState
+            ? {
+                distractionSensitivity: dogLearningState.distractionSensitivity,
+                handlerConsistencyScore: dogLearningState.handlerConsistencyScore,
+                confidenceScore: dogLearningState.confidenceScore,
+                inconsistencyIndex:
+                  typeof (dogLearningState.behaviorSignals as Record<string, unknown>)?.inconsistencyIndex === 'number'
+                    ? ((dogLearningState.behaviorSignals as Record<string, unknown>).inconsistencyIndex as number)
+                    : null,
+              }
+            : null,
+        });
+      } catch {
+        return [];
+      }
+    },
+    [activeSession, activePlan, dogLearningState, recentSessions, getTrainingSeconds],
+  );
+
+  useEffect(() => {
+    if (!reviewOutcome) return;
+    const untouched = Object.values(reflectionAnswers).every((v) => v === null);
+    if (untouched) setReflectionQuestions(buildQuestionsFor(reviewOutcome));
+  // Only re-run when history arrives; buildQuestionsFor already closes over it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentSessions]);
+
+  const handleSelectOutcome = useCallback(
+    (outcome: SessionOutcome) => {
+      if (outcome !== reviewOutcome) {
+        // Changing the headline answer changes which follow-ups make sense.
+        setReflectionQuestions(buildQuestionsFor(outcome));
+        setReflectionAnswers(makeEmptyReflection());
+      }
+      setReviewOutcome(outcome);
+    },
+    [buildQuestionsFor, reviewOutcome],
+  );
 
   // ─────────────────────────────────────────────────────────────────────────
   // Actions
   // ─────────────────────────────────────────────────────────────────────────
 
-  const handleStepDone = useCallback(() => {
-    if (!activeSession) return;
-    const step = activeSession.protocol.steps[activeSession.currentStepIndex];
-    const durationSeconds = Math.floor((Date.now() - stepStartTimeRef.current) / 1000);
+  const recordStep = useCallback(
+    (outcome: StepOutcome): { step: ProtocolStep; isLast: boolean } | null => {
+      if (!activeSession) return null;
+      const { protocol, currentStepIndex, repCount } = activeSession;
+      const step = protocol.steps[currentStepIndex];
+      if (!step) return null;
+      const durationSeconds = Math.floor((Date.now() - stepStartTimeRef.current) / 1000);
+      const result: StepResult = {
+        stepOrder: step.order,
+        completed: outcome !== 'skipped',
+        outcome,
+        durationSeconds,
+        repCount,
+      };
+      completeStep(result);
+      return { step, isLast: currentStepIndex >= protocol.steps.length - 1 };
+    },
+    [activeSession, completeStep],
+  );
 
-    Vibration.vibrate([0, 60, 40, 120]);
+  // ── Quick reps: one step, then straight to the log and the complete screen ─
 
-    completeStep({
-      stepOrder: step.order,
-      completed: true,
-      durationSeconds,
-      repCount: activeSession.repCount,
-    });
-    setState('STEP_COMPLETE');
-  }, [activeSession]);
+  const handleSubmitQuick = useCallback(
+    async (outcome: StepOutcome) => {
+      if (!activeSession || !user || !dog || !activePlan) return;
+      setIsSaving(true);
+      setSaveError(null);
+      endTraining();
 
-  const handleNextStep = useCallback(() => {
+      const sessionOutcome: SessionOutcome = outcome === 'success' ? 'met' : 'not_met';
+      const stepResults = useSessionStore.getState().activeSession?.stepResults ?? activeSession.stepResults;
+
+      try {
+        await submitSession(async (sid, durationSeconds) => {
+          const planSession = activePlan.sessions.find((session) => session.id === sid);
+          const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
+
+          if (!savedLogIdRef.current) {
+            const result = await saveSession({
+              userId: user.id,
+              dogId: dog.id,
+              planId: activePlan.id,
+              sessionId: sid,
+              exerciseId: activeSession.exerciseId,
+              protocolId,
+              durationSeconds,
+              difficulty: outcomeToDifficulty(sessionOutcome),
+              notes: '',
+              completedAt: new Date().toISOString(),
+              successScore: outcomeToSuccessScore(sessionOutcome, stepResults),
+              stepResults,
+              sessionStatus: 'completed',
+              skillId: planSession?.skillId ?? null,
+              sessionKind: planSession?.sessionKind ?? null,
+              environmentTag: planSession?.environment ?? null,
+              liveCoachingUsed: false,
+              postSessionReflection: null,
+              isQuickReps: true,
+            });
+            if (result.error || !result.sessionLogId) {
+              throw new Error(result.error ?? 'Could not save the quick reps.');
+            }
+            savedLogIdRef.current = result.sessionLogId;
+          }
+
+          // Quick reps count toward the streak but never complete a plan session.
+          updateStreak(user.id, dog.id).catch(() => {});
+          fetchDogLearningState(dog.id).catch(() => {});
+        });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'The quick reps could not be saved.';
+        console.warn('[session] quick submit failed:', message);
+        setSaveError(message);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [activeSession, user, dog, activePlan, endTraining, submitSession, fetchDogLearningState],
+  );
+
+  /** Manual mode: record the outcome, then either pause on it or move straight on. */
+  const handleStepDone = useCallback(
+    (outcome: StepOutcome) => {
+      const recorded = recordStep(outcome);
+      if (!recorded) return;
+      setShowHelpSheet(false);
+
+      if (activeSession?.isQuickReps) {
+        void handleSubmitQuick(outcome);
+        return;
+      }
+
+      // Setup-style steps and skips get no interstitial: there is nothing to
+      // note, and it only slows the handler down.
+      if (isSetupStep(recorded.step) || outcome === 'skipped') {
+        advanceToNextStep();
+        return;
+      }
+
+      setLastStepOutcome(outcome);
+      setState('STEP_COMPLETE');
+    },
+    [recordStep, advanceToNextStep, setState, activeSession?.isQuickReps, handleSubmitQuick],
+  );
+
+  /** "Try this step again": back to zero on this step, nothing recorded. */
+  const handleRetryStep = useCallback(() => {
+    const step = activeSession?.protocol.steps[activeSession.currentStepIndex];
+    resetReps();
+    if (step?.durationSeconds) resetTimer(step.durationSeconds);
+    stepStartTimeRef.current = Date.now();
+  }, [activeSession, resetReps, resetTimer]);
+
+  const handleNextStep = useCallback(() => advanceToNextStep(), [advanceToNextStep]);
+
+  const handleUndoStep = useCallback(() => undoLastStep(), [undoLastStep]);
+
+  // Live coach: no interstitial; record + advance immediately.
+  const handleLiveStepDone = useCallback(() => {
+    const recorded = recordStep('success');
+    if (!recorded) return;
     advanceToNextStep();
-  }, [advanceToNextStep]);
+    if (recorded.isLast) setOverlayState('NONE');
+  }, [recordStep, advanceToNextStep]);
 
   const handleSubmitSession = useCallback(async () => {
-    if (!reviewDifficulty || !activeSession || !user || !dog || !activePlan) return;
+    if (!reviewOutcome || !activeSession || !user || !dog || !activePlan) return;
     setIsSaving(true);
+    setSaveError(null);
+
+    const outcome = reviewOutcome;
+    const stepResults = activeSession.stepResults;
+    const successScore = outcomeToSuccessScore(outcome, stepResults);
 
     try {
-      await submitSession(reviewDifficulty, reviewNotes, async (sid, durationSeconds) => {
-        // Mark session complete in plan store (planId required for multi-plan support)
+      await submitSession(async (sid, durationSeconds) => {
+        const planSession = activePlan.sessions.find((session) => session.id === sid);
+        const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
+        const liveAiSummary = liveAiSummaryRef.current;
+
+        // 1. The log is the source of truth. Write it first; if it fails we
+        //    stop here and let the handler retry with everything intact.
+        if (!savedLogIdRef.current) {
+          const result = await saveSession({
+            userId: user.id,
+            dogId: dog.id,
+            planId: activePlan.id,
+            sessionId: sid,
+            exerciseId: activeSession.exerciseId,
+            protocolId,
+            durationSeconds,
+            difficulty: outcomeToDifficulty(outcome),
+            notes: reviewNotes,
+            completedAt: new Date().toISOString(),
+            successScore,
+            stepResults,
+            sessionStatus: 'completed',
+            skillId: planSession?.skillId ?? null,
+            sessionKind: planSession?.sessionKind ?? null,
+            environmentTag: planSession?.environment ?? null,
+            liveCoachingUsed: liveAiSummary !== null && liveAiSummary.used,
+            liveAiTrainerSummary: liveAiSummary ?? undefined,
+            postSessionReflection: reflectionQuestions.length > 0 ? reflectionAnswers : null,
+          });
+          if (result.error || !result.sessionLogId) {
+            throw new Error(result.error ?? 'Could not save the session log.');
+          }
+          savedLogIdRef.current = result.sessionLogId;
+        }
+
+        // 2. Mark the plan session complete (idempotent — safe on retry).
         await markSessionComplete(activePlan.id, sid, {
           sessionId: sid,
-          rating: reviewDifficulty === 'easy' ? 5 : reviewDifficulty === 'okay' ? 3 : 1,
+          rating: outcomeToPlanRating(outcome, stepResults),
           completedAt: new Date().toISOString(),
           notes: reviewNotes || undefined,
         });
 
-        const planSession = activePlan.sessions.find((session) => session.id === sid);
-        const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
-        const liveAiSummary = liveAiSummaryRef.current;
-        await saveSession({
-          userId: user.id,
-          dogId: dog.id,
-          planId: activePlan.id,
-          sessionId: sid,
-          exerciseId: activeSession.exerciseId,
-          protocolId,
-          durationSeconds,
-          difficulty: reviewDifficulty,
-          notes: reviewNotes,
-          completedAt: new Date().toISOString(),
-          successScore: reviewDifficulty === 'easy' ? 5 : reviewDifficulty === 'okay' ? 3 : 2,
-          stepResults: activeSession.stepResults,
-          sessionStatus: 'completed',
-          skillId: planSession?.skillId ?? null,
-          sessionKind: planSession?.sessionKind ?? null,
-          environmentTag: planSession?.environment ?? null,
-          // Live AI Trainer fields
-          liveCoachingUsed: liveAiSummary !== null && liveAiSummary.used,
-          liveAiTrainerSummary: liveAiSummary ?? undefined,
-          // Post-session reflection — pass answered object or null when no
-          // questions were shown (e.g. engine fallback or all skipped).
-          postSessionReflection: reflectionQuestions.length > 0 ? reflectionAnswers : null,
-        });
-
-        // Update streak (non-blocking)
+        // 3. Best-effort side effects.
         updateStreak(user.id, dog.id).catch(() => {});
+        checkMilestones(user.id, dog.id, { sessionId: sid, dogId: dog.id, planId: activePlan.id }).catch(() => {});
 
-        // Check milestones (non-blocking)
-        checkMilestones(user.id, dog.id, {
-          sessionId: sid,
-          dogId: dog.id,
-          planId: activePlan.id,
-        }).catch(() => {});
-
-        // Refresh plans and notifications for all active plans (multi-plan safe).
-        if (dog?.id) {
-          const plansBefore = usePlanStore.getState().plansById;
-          await usePlanStore.getState().refreshPlans(dog.id).catch(() => {});
-          ensureNotificationPermission().catch(() => {});
-          const plansAfter = usePlanStore.getState().plansById;
-          const primaryBefore = Object.values(plansBefore).find((p) => p.isPrimary) ?? null;
-          const primaryAfter = Object.values(plansAfter).find((p) => p.isPrimary) ?? null;
-          if (didUpcomingScheduleChange(primaryBefore, primaryAfter) && activePlans.length > 0) {
-            const refreshedPlans = usePlanStore.getState().activePlanIds
-              .map((id) => usePlanStore.getState().plansById[id])
-              .filter((p): p is NonNullable<typeof p> => p != null);
-            refreshSchedulesForPlans(dog, refreshedPlans).catch(() => {});
-          }
+        const plansBefore = usePlanStore.getState().plansById;
+        await usePlanStore.getState().refreshPlans(dog.id).catch(() => {});
+        ensureNotificationPermission().catch(() => {});
+        const plansAfter = usePlanStore.getState().plansById;
+        const primaryBefore = Object.values(plansBefore).find((p) => p.isPrimary) ?? null;
+        const primaryAfter = Object.values(plansAfter).find((p) => p.isPrimary) ?? null;
+        if (didUpcomingScheduleChange(primaryBefore, primaryAfter) && activePlans.length > 0) {
+          const refreshedPlans = usePlanStore.getState().activePlanIds
+            .map((id) => usePlanStore.getState().plansById[id])
+            .filter((p): p is NonNullable<typeof p> => p != null);
+          refreshSchedulesForPlans(dog, refreshedPlans).catch(() => {});
         }
         fetchDogLearningState(dog.id).catch(() => {});
       });
+      await clearSessionSnapshot();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'The session could not be saved.';
+      console.warn('[session] submit failed:', message);
+      setSaveError(message);
     } finally {
       setIsSaving(false);
     }
-  }, [reviewDifficulty, reviewNotes, reflectionQuestions, reflectionAnswers, activeSession, user, dog, activePlan, activePlans, fetchDogLearningState, ensureNotificationPermission, refreshSchedulesForPlans]);
+  }, [
+    reviewOutcome,
+    reviewNotes,
+    reflectionQuestions,
+    reflectionAnswers,
+    activeSession,
+    user,
+    dog,
+    activePlan,
+    activePlans,
+    submitSession,
+    markSessionComplete,
+    fetchDogLearningState,
+    ensureNotificationPermission,
+    refreshSchedulesForPlans,
+  ]);
+
+  const trainingSecondsNow = activeSession?.trainingStartedAt ? getTrainingSeconds() : null;
+  const abandonWouldLog = activeSession
+    ? shouldLogAbandonedSession({
+        state: activeSession.state,
+        stepResultCount: activeSession.stepResults.length,
+        secondsTraining: trainingSecondsNow,
+      })
+    : false;
 
   const handleAbandonConfirm = useCallback(async () => {
-    if (activeSession && user && dog && activePlan) {
+
+    // Only a real attempt is recorded. Backing out of the intro is not a
+    // failed session and must not poison the learning state.
+    if (activeSession && abandonWouldLog && user && dog && activePlan) {
       const planSession = activePlan.sessions.find((session) => session.id === activeSession.sessionId);
       const protocolId = EXERCISE_TO_PROTOCOL[activeSession.exerciseId] ?? activeSession.exerciseId;
-      const durationSeconds = Math.floor(
-        (Date.now() - activeSession.startedAt.getTime()) / 1000
-      );
 
       await saveSession({
         userId: user.id,
@@ -419,98 +667,147 @@ export default function SessionScreen() {
         sessionId: activeSession.sessionId,
         exerciseId: activeSession.exerciseId,
         protocolId,
-        durationSeconds,
+        durationSeconds: getTrainingSeconds(),
         difficulty: 'hard',
         notes: reviewNotes,
         completedAt: new Date().toISOString(),
-        successScore: 1,
+        successScore: ABANDONED_SUCCESS_SCORE,
         stepResults: activeSession.stepResults,
         sessionStatus: 'abandoned',
         skillId: planSession?.skillId ?? null,
         sessionKind: planSession?.sessionKind ?? null,
         environmentTag: planSession?.environment ?? null,
+        liveCoachingUsed: liveAiSummaryRef.current?.used ?? false,
+        liveAiTrainerSummary: liveAiSummaryRef.current ?? undefined,
       }).catch(() => {});
       fetchDogLearningState(dog.id).catch(() => {});
     }
 
     abandonSession();
-    setShowAbandonSheet(false);
+    await clearSessionSnapshot();
     clearSession();
     router.replace('/(tabs)/train');
-  }, [activeSession, activePlan, user, dog, reviewNotes, abandonSession, clearSession, fetchDogLearningState]);
+  }, [
+    activeSession,
+    abandonWouldLog,
+    activePlan,
+    user,
+    dog,
+    reviewNotes,
+    abandonSession,
+    clearSession,
+    fetchDogLearningState,
+    getTrainingSeconds,
+  ]);
 
-  // ── Setup → mode decision ──────────────────────────────────────────────────
-  // After the setup checklist, if the protocol supports live coaching and no
-  // overlay is active yet, show the mode picker instead of jumping straight to
-  // STEP_ACTIVE.  We keep the store state at 'SETUP' while the picker is shown.
-  const handleSetupStart = useCallback(() => {
-    if (activeSession?.protocol.supportsLiveAiTrainer) {
-      setOverlayState('MODE_PICKER');
-    } else {
-      setState('STEP_ACTIVE');
-    }
-  }, [activeSession?.protocol, setState]);
+  // ── Intro to training ───────────────────────────────────────────────────────
+
+  const handleStart = useCallback(() => beginTraining(), [beginTraining]);
+  const handleChooseMode = useCallback(() => setOverlayState('MODE_PICKER'), []);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Back press guard
+  // Leaving
   // ─────────────────────────────────────────────────────────────────────────
 
-  const handleBackPress = () => {
-    if (activeSession?.state === 'COMPLETE') {
+  const handleExit = () => {
+    if (!activeSession || activeSession.state === 'COMPLETE') {
       clearSession();
       router.replace('/(tabs)/train');
       return;
     }
-    setShowAbandonSheet(true);
+    // Quick reps are throwaway until saved: leaving records nothing.
+    if (activeSession.isQuickReps) {
+      clearSession();
+      router.back();
+      return;
+    }
+    // Nothing recorded yet: just leave. No guilt, no bogus log.
+    if (activeSession.state === 'INTRO') {
+      void clearSessionSnapshot();
+      clearSession();
+      router.back();
+      return;
+    }
+    confirmLeave();
   };
 
   // ─────────────────────────────────────────────────────────────────────────
   // Render states
   // ─────────────────────────────────────────────────────────────────────────
 
-  const courseTheme = getCourseUiColors(activePlan ?? { id: sessionId ?? 'session-fallback' });
+  const statusBarStyle = colorScheme === 'dark' ? 'light' : 'dark';
 
   if (!activeSession || activeSession.state === 'LOADING') {
-    return <LoadingView insets={insets} error={loadError} onBack={() => router.back()} theme={courseTheme} />;
+    return (
+      <SafeScreen edges={['top', 'bottom']}>
+        <StatusBar style={statusBarStyle} />
+        <TopBar onClose={() => router.back()} progress={0} />
+        {loadError ? (
+          <EmptyState
+            icon="alert-circle-outline"
+            title="Session unavailable"
+            subtitle={loadError}
+            action={{ label: 'Back to Train', onPress: () => router.back() }}
+          />
+        ) : (
+          <LoadingSkeleton />
+        )}
+      </SafeScreen>
+    );
   }
 
   const { state, protocol, currentStepIndex } = activeSession;
   const currentStep = protocol.steps[currentStepIndex];
   const totalSteps = protocol.steps.length;
   const dogName = dog?.name ?? 'your dog';
+  const stepSummary = summarizeStepOutcomes(activeSession.stepResults);
+  const scoredStepSummary = summarizeStepOutcomes(
+    activeSession.stepResults.filter((r) => {
+      const step = protocol.steps.find((st) => st.order === r.stepOrder);
+      return step ? !isSetupStep(step) : true;
+    }),
+  );
+  const totalReps = activeSession.stepResults.reduce((sum, r) => sum + r.repCount, 0);
 
-  // ── Live coaching screen renders as a full-screen replacement ────────────
-  // While MODE_PICKER or LIVE_COACHING is active we return early so the normal
-  // session JSX is never mounted.  This avoids any stacking / display issues.
+  const confirmLeave = () => {
+    haptics.warning();
+    const body = abandonWouldLog
+      ? stepSummary.total > 0
+        ? `You've done ${stepSummary.total} of ${totalSteps} steps. It will be saved as unfinished so your plan can adjust.`
+        : 'This will be noted as an unfinished attempt so your plan can adjust.'
+      : 'Nothing has been recorded yet. Come back whenever you and your dog are ready.';
+    Alert.alert('Leave this session?', body, [
+      { text: 'Keep training', style: 'cancel' },
+      { text: 'Leave session', style: 'destructive', onPress: () => void handleAbandonConfirm() },
+    ]);
+  };
 
   if (overlayState === 'MODE_PICKER') {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <StatusBar style="dark" />
+      <SafeScreen edges={['top', 'bottom']}>
+        <StatusBar style={statusBarStyle} />
         <SessionModePicker
           dogName={dogName}
-          accentColor={courseTheme.solid}
-          accentTint={courseTheme.tint}
-          contrastTextColor={courseTheme.contrastText}
           onBack={() => {
             setOverlayState('NONE');
-            setState('SETUP');
+            setState('INTRO');
           }}
           onNormal={() => {
             setOverlayState('NONE');
-            setState('STEP_ACTIVE');
+            beginTraining();
           }}
           onCamera={() => {
             setOverlayState('LIVE_COACHING');
+            beginTraining();
           }}
         />
-      </View>
+      </SafeScreen>
     );
   }
 
-  if (overlayState === 'LIVE_COACHING' && activeSession) {
+  if (overlayState === 'LIVE_COACHING') {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <View style={{ flex: 1 }}>
         <StatusBar style="light" />
         <LiveAiTrainerScreen
           protocol={activeSession.protocol}
@@ -521,1313 +818,610 @@ export default function SessionScreen() {
           repCount={activeSession.repCount}
           timerSeconds={activeSession.timerSeconds ?? 0}
           isTimerRunning={activeSession.isTimerRunning}
-          onComplete={(summary: LiveAiTrainerSummary) => {
+          onSummary={(summary: LiveAiTrainerSummary) => {
             liveAiSummaryRef.current = summary;
-            setOverlayState('NONE');
-            setState('SESSION_REVIEW');
           }}
-          onExit={() => {
-            setOverlayState('NONE');
-            setShowAbandonSheet(true);
-          }}
+          onExit={confirmLeave}
           onManualSwitch={() => {
             setOverlayState('NONE');
             setState('STEP_ACTIVE');
           }}
-          onStepDone={handleStepDone}
+          onStepDone={handleLiveStepDone}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
           }}
           onIncrementRep={incrementRep}
-        />
-        {/* Abandon sheet is accessible from live coaching too */}
-        <AbandonSheet
-          visible={showAbandonSheet}
-          onKeepGoing={() => setShowAbandonSheet(false)}
-          onLeave={handleAbandonConfirm}
         />
       </View>
     );
   }
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <StatusBar style="dark" />
+  // Progress through the steps; the review and completion states are "done".
+  const isQuickReps = activeSession.isQuickReps;
+  const progress =
+    state === 'INTRO'
+      ? 0
+      : state === 'SESSION_REVIEW' || state === 'COMPLETE'
+        ? 1
+        : isQuickReps
+          ? 0
+          : state === 'STEP_COMPLETE'
+            ? (currentStepIndex + 1) / totalSteps
+            : currentStepIndex / totalSteps;
+  const stepLabel =
+    state === 'STEP_ACTIVE' || state === 'STEP_COMPLETE'
+      ? isQuickReps
+        ? 'Quick reps'
+        : `${currentStepIndex + 1} of ${totalSteps}`
+      : null;
 
-      {/* ── INTRO ── */}
+  // Quick reps: a rep step (or a setup step run as reps) stops at a handful.
+  const quickRepTarget = currentStep ? Math.min(QUICK_REPS_MAX, currentStep.reps ?? QUICK_REPS_MAX) : null;
+  const repTarget = isQuickReps ? quickRepTarget : (currentStep?.reps ?? null);
+  const showRepCounter = currentStep ? (isQuickReps ? !currentStep.durationSeconds : !!currentStep.reps) : false;
+
+  return (
+    <SafeScreen edges={['top', 'bottom']}>
+      <StatusBar style={statusBarStyle} />
+      <TopBar onClose={handleExit} progress={progress} stepLabel={stepLabel} />
+
       {state === 'INTRO' && (
         <IntroView
           protocol={protocol}
+          courseTitle={activePlan?.courseTitle ?? null}
           dogName={dogName}
-          theme={courseTheme}
-          insets={insets}
-          onBack={handleBackPress}
-          onReady={() => setState('SETUP')}
+          showModeChoice={protocol.supportsLiveAiTrainer}
+          onStart={handleStart}
+          onChooseMode={handleChooseMode}
         />
       )}
 
-      {/* ── SETUP ── */}
-      {state === 'SETUP' && (
-        <SetupView
-          protocol={protocol}
-          checkedItems={checkedItems}
-          theme={courseTheme}
-          onToggle={(i) => {
-            setCheckedItems((prev) => {
-              const next = new Set(prev);
-              next.has(i) ? next.delete(i) : next.add(i);
-              return next;
-            });
-          }}
-          insets={insets}
-          onBack={handleBackPress}
-          onStart={handleSetupStart}
-        />
-      )}
-
-      {/* ── STEP_ACTIVE ── */}
       {state === 'STEP_ACTIVE' && currentStep && (
         <StepActiveView
           step={currentStep}
-          stepNumber={currentStepIndex + 1}
-          totalSteps={totalSteps}
-          protocol={protocol}
           activeSession={activeSession}
-          theme={courseTheme}
-          onBack={goToPreviousStep}
-          onHome={handleBackPress}
+          resumedNotice={resumedNotice}
+          repTarget={repTarget}
+          showRepCounter={showRepCounter}
+          onPreviousStep={!isQuickReps && currentStepIndex > 0 ? goToPreviousStep : null}
+          onWhy={() => setShowHelpSheet(true)}
           onToggleTimer={() => {
             activeSession.isTimerRunning ? pauseTimer() : startTimer();
           }}
           onResetTimer={() => {
-            const step = protocol.steps[activeSession.currentStepIndex];
-            if (step?.durationSeconds) resetTimer(step.durationSeconds);
+            if (currentStep.durationSeconds) resetTimer(currentStep.durationSeconds);
           }}
           onIncrementRep={incrementRep}
-          onResetReps={resetReps}
-          onStepDone={handleStepDone}
-          insets={insets}
+          onDecrementRep={decrementRep}
+          onWorked={() => handleStepDone('success')}
+          onNotYet={() =>
+            Alert.alert('Not yet', 'That is normal. Pick what happens next.', [
+              { text: 'Try this step again', onPress: handleRetryStep },
+              { text: 'Make it easier', onPress: () => handleStepDone('struggled') },
+              { text: 'Cancel', style: 'cancel' },
+            ])
+          }
+          isSaving={isSaving}
+          saveError={isQuickReps ? saveError : null}
         />
       )}
 
-      {/* ── STEP_COMPLETE ── */}
       {state === 'STEP_COMPLETE' && (
         <StepCompleteView
           stepNumber={currentStepIndex + 1}
           totalSteps={totalSteps}
-          currentStep={currentStep}
+          outcome={lastStepOutcome}
           nextStep={protocol.steps[currentStepIndex + 1]}
-          theme={courseTheme}
           onNext={handleNextStep}
-          insets={insets}
+          onUndo={handleUndoStep}
         />
       )}
 
-      {/* ── SESSION_REVIEW ── */}
       {state === 'SESSION_REVIEW' && (
-        <SessionReviewView
-          activeSession={activeSession}
+        <PostSessionReflectionCard
           dogName={dogName}
-          reviewDifficulty={reviewDifficulty}
-          reviewNotes={reviewNotes}
-          isSaving={isSaving}
-          reflectionQuestions={reflectionQuestions}
-          reflectionAnswers={reflectionAnswers}
-          onSelectDifficulty={setReviewDifficulty}
-          onNotesChange={setReviewNotes}
-          onReflectionAnswer={(qId, value) =>
-            setReflectionAnswers((prev) => applyReflectionAnswer(prev, qId, value))
+          durationLabel={`${formatDuration(getTrainingSeconds())} trained`}
+          successCriteria={protocol.successCriteria}
+          stepSummaryLabel={
+            scoredStepSummary.total > 0
+              ? `${scoredStepSummary.success} of ${scoredStepSummary.total} steps worked`
+              : null
           }
-          onSave={handleSubmitSession}
-          insets={insets}
-          theme={courseTheme}
+          questions={reflectionQuestions}
+          answers={reflectionAnswers}
+          outcome={reviewOutcome}
+          notes={reviewNotes}
+          onSelectOutcome={handleSelectOutcome}
+          onAnswer={(qId, value) => setReflectionAnswers((prev) => applyReflectionAnswer(prev, qId, value))}
+          onNotesChange={setReviewNotes}
+          onSubmit={handleSubmitSession}
+          isSaving={isSaving}
+          saveError={saveError}
         />
       )}
 
-      {/* ── COMPLETE ── */}
-      {state === 'COMPLETE' && (
-        <CompleteView
-          dogName={dogName}
-          protocol={protocol}
-          completedSessionCount={completedSessionCount}
-          totalSessions={activePlan?.sessions.length ?? 0}
-          activeSession={activeSession}
-          theme={courseTheme}
+      {state === 'COMPLETE' && isQuickReps && currentStep && (
+        <QuickCompleteView
+          totalReps={totalReps}
+          stepInstruction={currentStep.instruction}
           onBack={() => {
             clearSession();
             router.replace('/(tabs)/train');
           }}
-          insets={insets}
         />
       )}
 
-      {/* ── Abandon Bottom Sheet ── */}
-      <AbandonSheet
-        visible={showAbandonSheet}
-        onKeepGoing={() => setShowAbandonSheet(false)}
-        onLeave={handleAbandonConfirm}
-      />
-    </View>
+      {state === 'COMPLETE' && !isQuickReps && (
+        <CompleteView
+          outcome={reviewOutcome ?? 'met'}
+          totalReps={totalReps}
+          trainingSeconds={getTrainingSeconds()}
+          onBack={() => {
+            clearSession();
+            router.replace('/(tabs)/train');
+          }}
+        />
+      )}
+
+      {currentStep && (
+        <StepHelpSheet
+          visible={showHelpSheet}
+          onClose={() => setShowHelpSheet(false)}
+          protocol={protocol}
+          step={currentStep}
+          stepNumber={currentStepIndex + 1}
+          dogName={dogName}
+          onSkipStep={isQuickReps ? undefined : () => handleStepDone('skipped')}
+        />
+      )}
+
+    </SafeScreen>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sub-views
+// Top bar: leave + step progress. The screen is a fullScreenModal with no
+// native header, so this is the only chrome it draws.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LoadingView({
-  insets,
-  error,
-  onBack,
-  theme,
+function TopBar({
+  onClose,
+  progress,
+  stepLabel,
 }: {
-  insets: ReturnType<typeof useSafeAreaInsets>;
-  error?: string | null;
-  onBack?: () => void;
-  theme?: CourseUiColors;
+  onClose: () => void;
+  progress: number;
+  /** "3 of 5" while on a step; nothing on the intro, review, and complete screens. */
+  stepLabel?: string | null;
 }) {
-  const accentColor = theme?.solid ?? colors.primary;
   return (
     <View
       style={{
-        flex: 1,
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: colors.background,
-        paddingTop: insets.top,
+        gap: spacing.md,
+        paddingLeft: spacing.sm,
+        paddingRight: spacing.lg,
       }}
     >
-      <AppIcon name="paw" size={48} color={accentColor} />
-      <ActivityIndicator size="large" color={accentColor} />
-      <Text style={{ marginTop: spacing.lg, color: colors.textSecondary, fontSize: 16 }}>
-        {error ?? 'Getting your session ready...'}
-      </Text>
-      {error && onBack ? (
-        <Pressable
-          onPress={onBack}
-          style={({ pressed }) => ({
-            marginTop: spacing.lg,
-            opacity: pressed ? 0.7 : 1,
-            minHeight: 44,
-            justifyContent: 'center',
-          })}
-        >
-          <Text style={{ color: accentColor, fontSize: 16, fontWeight: '600' }}>
-            Back
-          </Text>
-        </Pressable>
-      ) : null}
+      <IconButton icon="close" accessibilityLabel="Leave session" tone="secondary" onPress={onClose} />
+      <ProgressBar progress={progress} accessibilityLabel="Session progress" style={{ flex: 1 }} />
+      {stepLabel ? <Text variant="caption">{stepLabel}</Text> : null}
     </View>
   );
 }
 
+function LoadingSkeleton() {
+  return (
+    <View style={{ padding: spacing.lg, gap: spacing.xl }} accessibilityLabel="Loading session">
+      <View style={{ gap: spacing.sm }}>
+        <SkeletonBlock height={20} width="40%" />
+        <SkeletonBlock height={30} width="80%" />
+        <SkeletonBlock height={22} width="95%" />
+        <SkeletonBlock height={22} width="70%" />
+      </View>
+      <SkeletonBlock height={156} borderRadius={radii.md} />
+      <Text variant="caption">Loading session</Text>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INTRO — overview + "before you start" in one screen
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface IntroViewProps {
-  protocol: import('@/constants/protocols').Protocol;
+  protocol: Protocol;
+  courseTitle: string | null;
   dogName: string;
-  theme: CourseUiColors;
-  insets: ReturnType<typeof useSafeAreaInsets>;
-  onBack: () => void;
-  onReady: () => void;
+  showModeChoice: boolean;
+  onStart: () => void;
+  onChooseMode: () => void;
 }
 
-function IntroView({ protocol, dogName, theme, insets, onBack, onReady }: IntroViewProps) {
+function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, onChooseMode }: IntroViewProps) {
+  // Setup is a checklist, not a step. Ticks are for the handler's own
+  // benefit; nothing is gated on them and nothing is recorded.
+  const [ticked, setTicked] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleTicked = (item: string) =>
+    setTicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(item)) next.delete(item);
+      else next.add(item);
+      return next;
+    });
+  // The setup checklist already names the gear in context ("Leash on, hanging loose");
+  // equipmentNeeded is only the fallback for a course without one.
+  const equipment = (protocol.setup?.length ? protocol.setup : protocol.equipmentNeeded).filter(
+    (item, index, all) => item.trim().length > 0 && all.indexOf(item) === index,
+  );
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + 140,
-          gap: spacing.xl,
-        }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
-        <BackButton onPress={onBack} />
-
-        {/* Title */}
         <View style={{ gap: spacing.sm }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.textPrimary, lineHeight: 36 }}>
-            {protocol.title}
-          </Text>
-          <Text style={{ fontSize: 16, lineHeight: 24, color: colors.textSecondary }}>
-            {protocol.objective}
+          {courseTitle ? <Text variant="caption">{courseTitle}</Text> : null}
+          <Text variant="h1">{protocol.title}</Text>
+          <Text variant="body">{protocol.objective}</Text>
+          <Text variant="caption">
+            {protocol.durationMinutes} min, {protocol.steps.length} steps
           </Text>
         </View>
 
-        {/* Chips row */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-          <Chip label={`${protocol.durationMinutes} minutes`} icon="time" color={theme.solid} textColor={theme.text} />
-          <Chip label={`${protocol.steps.length} steps`} icon="list" color={theme.solid} textColor={theme.text} />
+        <View>
+          <SectionHeader title={`Today's goal for ${dogName}`} />
+          <Text variant="body">{protocol.successCriteria}</Text>
         </View>
 
-        {/* Equipment */}
-        {protocol.equipmentNeeded.length > 0 && (
-          <View style={{ gap: spacing.sm }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              You'll need
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {protocol.equipmentNeeded.map((item) => (
-                <Chip key={item} label={item} color={colors.secondary} textColor={colors.textPrimary} />
-              ))}
-            </View>
+        {equipment.length > 0 ? (
+          <View>
+            <SectionHeader title="Before you start" />
+            <ListGroup>
+              {equipment.map((item) => {
+                const isTicked = ticked.has(item);
+                return (
+                  <ListRow
+                    key={item}
+                    icon={isTicked ? 'checkmark-circle' : 'ellipse-outline'}
+                    iconTone={isTicked ? 'accent' : 'secondary'}
+                    title={item}
+                    onPress={() => toggleTicked(item)}
+                    accessibilityLabel={`${item}, ${isTicked ? 'ready' : 'not ready'}`}
+                    accessibilityHint={isTicked ? 'Untick' : 'Tick when it is in place'}
+                  />
+                );
+              })}
+            </ListGroup>
           </View>
-        )}
+        ) : null}
 
-        {/* Trainer note */}
         {protocol.trainerNote ? (
-          <View
-            style={{
-              backgroundColor: theme.tint,
-              borderRadius: 14,
-              padding: spacing.lg,
-              borderLeftWidth: 4,
-              borderLeftColor: theme.solid,
-              gap: spacing.xs,
-            }}
-          >
-            <Text style={{ fontSize: 12, fontWeight: '700', color: theme.text, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              Trainer note
-            </Text>
-            <Text style={{ fontSize: 15, lineHeight: 22, color: colors.textPrimary }}>
-              {protocol.trainerNote}
-            </Text>
-          </View>
+          <Card style={{ gap: spacing.xs }}>
+            <Text variant="caption">From the coach</Text>
+            <Text variant="body">{protocol.trainerNote}</Text>
+          </Card>
         ) : null}
       </ScrollView>
 
-      {/* CTA */}
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + spacing.md,
-          paddingTop: spacing.md,
-        }}
-      >
-        <Button
-          label="I'm ready"
-          rightIcon="arrow-forward"
-          onPress={onReady}
-          size="lg"
-          style={{
-            minHeight: 58,
-            borderRadius: 16,
-            backgroundColor: theme.solid,
-            borderColor: theme.solid,
-            borderWidth: 1,
-          }}
-        />
+      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <Button label="Start session" icon="play" onPress={onStart} />
+        {showModeChoice ? <Button label="Choose how to train" variant="secondary" onPress={onChooseMode} /> : null}
       </View>
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-interface SetupViewProps {
-  protocol: import('@/constants/protocols').Protocol;
-  checkedItems: Set<number>;
-  theme: CourseUiColors;
-  onToggle: (i: number) => void;
-  insets: ReturnType<typeof useSafeAreaInsets>;
-  onBack: () => void;
-  onStart: () => void;
-}
-
-function SetupView({ protocol, checkedItems, theme, onToggle, insets, onBack, onStart }: SetupViewProps) {
-  const checklist = buildChecklist(protocol.equipmentNeeded);
-  const allChecked = checkedItems.size === checklist.length;
-  const checkedCount = checkedItems.size;
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        contentContainerStyle={{
-          paddingTop: insets.top + spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: spacing.xl,
-        }}
-      >
-        <BackButton onPress={onBack} />
-
-        {/* Header */}
-        <View style={{ marginTop: spacing.lg, marginBottom: spacing.xl, gap: spacing.sm }}>
-          <Text
-            style={{
-              fontSize: 26,
-              fontWeight: '700',
-              lineHeight: 32, // 👈 ADD THIS
-              color: colors.textPrimary,
-              letterSpacing: -0.5,
-            }}
-              >
-              Quick setup
-            </Text>
-          <Text style={{ fontSize: 15, color: colors.textSecondary, lineHeight: 22 }}>
-            Check off each item before you begin.
-          </Text>
-        </View>
-
-        {/* Progress indicator */}
-        <View style={{ marginBottom: spacing.lg, gap: spacing.sm }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textSecondary }}>
-              {checkedCount} of {checklist.length} ready
-            </Text>
-            {allChecked && (
-              <Text style={{ fontSize: 13, fontWeight: '600', color: theme.text }}>
-                All set!
-              </Text>
-            )}
-          </View>
-          <View style={{ height: 4, borderRadius: 99, backgroundColor: colors.border.soft, overflow: 'hidden' }}>
-            <View
-              style={{
-                height: 4,
-                borderRadius: 99,
-                backgroundColor: theme.solid,
-                width: `${(checkedCount / checklist.length) * 100}%`,
-              }}
-            />
-          </View>
-        </View>
-
-        {/* Checklist */}
-        <View style={{ gap: spacing.md }}>
-          {checklist.map((item, i) => {
-            const checked = checkedItems.has(i);
-            return (
-              <Pressable
-                key={i}
-                onPress={() => onToggle(i)}
-                style={({ pressed }) => ({
-                  borderRadius: 16,
-                  paddingHorizontal: spacing.lg,
-                  paddingVertical: spacing.lg,
-                  borderWidth: 1.5,
-                  backgroundColor: checked ? colors.status.successBg : colors.surface,
-                  borderColor: checked ? colors.status.successBorder : '#C5C9D0',
-                  opacity: pressed ? 0.75 : 1,
-                })}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 10,
-                      borderWidth: checked ? 0 : 2,
-                      borderColor: '#C5C9D0',
-                      backgroundColor: checked ? theme.solid : 'transparent',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {checked && <AppIcon name="checkmark" size={17} color="#fff" />}
-                  </View>
-                  <Text
-                    style={{
-                      flex: 1,
-                      fontSize: 17,
-                      fontWeight: checked ? '400' : '500',
-                      color: checked ? colors.textSecondary : colors.textPrimary,
-                      textDecorationLine: checked ? 'line-through' : 'none',
-                      lineHeight: 26,
-                    }}
-                  >
-                    {item}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      </ScrollView>
-
-      {/* Bottom CTA */}
-      <View
-        style={{
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + spacing.lg,
-          paddingTop: spacing.md,
-          backgroundColor: colors.background,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.soft,
-          gap: spacing.sm,
-        }}
-      >
-        <Pressable
-          onPress={onStart}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? theme.selectedBorder : theme.solid,
-            borderWidth: 1,
-            borderColor: pressed ? theme.solid : theme.selectedBorder,
-            borderRadius: 16,
-            paddingVertical: spacing.lg,
-            alignItems: 'center',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            gap: spacing.sm,
-            minHeight: 54,
-            shadowColor: theme.solid,
-            shadowOffset: { width: 0, height: allChecked ? 6 : 4 },
-            shadowOpacity: allChecked ? 0.28 : 0.18,
-            shadowRadius: allChecked ? 16 : 12,
-            elevation: allChecked ? 6 : 4,
-            opacity: pressed ? 0.9 : 1,
-          })}
-        >
-          <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>
-            Start session
-          </Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
+// STEP_ACTIVE
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface StepActiveViewProps {
-  step: import('@/constants/protocols').ProtocolStep;
-  stepNumber: number;
-  totalSteps: number;
-  protocol: import('@/constants/protocols').Protocol;
-  activeSession: import('@/stores/sessionStore').ActiveSession;
-  theme: CourseUiColors;
-  onBack: () => void;
-  onHome: () => void;
+  step: ProtocolStep;
+  activeSession: ActiveSession;
+  resumedNotice: boolean;
+  /** Reps to aim for; quick reps cap it. */
+  repTarget: number | null;
+  showRepCounter: boolean;
+  /** Null on the first step and in quick reps. */
+  onPreviousStep: (() => void) | null;
+  onWhy: () => void;
   onToggleTimer: () => void;
   onResetTimer: () => void;
   onIncrementRep: () => void;
-  onResetReps: () => void;
-  onStepDone: () => void;
-  insets: ReturnType<typeof useSafeAreaInsets>;
+  onDecrementRep: () => void;
+  onWorked: () => void;
+  onNotYet: () => void;
+  isSaving: boolean;
+  /** Quick reps save straight from this screen, so a failed save shows here. */
+  saveError: string | null;
 }
 
+/**
+ * One step per screen: three lines of text, the one control the step needs,
+ * and two answers. Nothing advances on its own; the dog sets the pace.
+ */
 function StepActiveView({
   step,
-  stepNumber,
-  totalSteps,
-  protocol,
   activeSession,
-  theme,
-  onBack,
-  onHome,
+  resumedNotice,
+  repTarget,
+  showRepCounter,
+  onPreviousStep,
+  onWhy,
   onToggleTimer,
   onResetTimer,
   onIncrementRep,
-  onResetReps,
-  onStepDone,
-  insets,
+  onDecrementRep,
+  onWorked,
+  onNotYet,
+  isSaving,
+  saveError,
 }: StepActiveViewProps) {
   const hasTimer = !!step.durationSeconds;
-  const hasReps = !!step.reps;
+  const setupStep = !hasTimer && !showRepCounter;
+  const media = getStepMedia(activeSession.protocol.id, activeSession.currentStepIndex);
   const timerDone = hasTimer && activeSession.timerSeconds === 0 && !activeSession.isTimerRunning;
-  const progressRatio = (stepNumber - 1) / totalSteps;
-
-  const commonMistake = protocol.commonMistakes[stepNumber - 1] ?? protocol.commonMistakes[0];
+  const timerUntouched = !activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds;
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Progress bar */}
-      <View
-        style={{
-          height: 4,
-          backgroundColor: colors.border.default,
-          marginTop: insets.top,
-        }}
-      >
-        <View
-          style={{
-            height: 4,
-            width: `${progressRatio * 100}%`,
-            backgroundColor: theme.solid,
-          }}
-        />
-      </View>
-
       <ScrollView
-        contentContainerStyle={{
-          paddingTop: spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + 140,
-          gap: spacing.xl,
-        }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.xl, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Back + step counter + home row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <BackButton onPress={onBack} />
-          <View
-            style={{
-              backgroundColor: hexToRgba(theme.solid, 0.12),
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.xs,
-              borderRadius: 99,
-            }}
-          >
-            <Text style={{ fontSize: 13, fontWeight: '700', color: theme.text, letterSpacing: 0.3 }}>
-              Step {stepNumber} of {totalSteps}
-            </Text>
+        {resumedNotice ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }} accessibilityLiveRegion="polite">
+            <AppIcon name="refresh" size={16} color={colors.text.secondary} />
+            <Text variant="caption">Picked up where you left off.</Text>
           </View>
-          <Pressable
-            onPress={onHome}
-            hitSlop={12}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.6 : 1,
-              minHeight: 44,
-              minWidth: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-            })}
-          >
-            <AppIcon name="home" size={22} color={colors.textSecondary} />
-          </Pressable>
-        </View>
+        ) : null}
 
-        <StepCard
-          step={step}
-          stepNumber={stepNumber}
-          totalSteps={totalSteps}
-          commonMistake={commonMistake}
-          accentColor={theme.solid}
-        />
+        <StepCard step={step} />
 
-        {/* Timer */}
-        {hasTimer && (
-          <View
-            style={{
-              backgroundColor: hexToRgba(theme.solid, 0.06),
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: hexToRgba(theme.solid, 0.12),
-              paddingVertical: spacing.xl,
-              paddingHorizontal: spacing.lg,
-              alignItems: 'center',
-              gap: spacing.lg,
-            }}
-          >
-            {/* Ring + time text */}
-            <View
-              style={{
-                position: 'relative',
-                alignItems: 'center',
-                justifyContent: 'center',
-                paddingVertical: spacing.sm,
-              }}
-            >
-              <TimerRing
-                totalSeconds={step.durationSeconds!}
-                currentSeconds={activeSession.timerSeconds}
-                size={200}
-                color={timerDone ? colors.success : theme.solid}
-              />
-              <View
-                style={{
-                  position: 'absolute',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 40,
-                    fontWeight: '700',
-                    lineHeight: 46,
-                    color: timerDone ? colors.success : colors.textPrimary,
-                  }}
-                >
-                  {formatTimer(activeSession.timerSeconds)}
-                </Text>
-                {timerDone && (
+        {/* The middle holds one thing, in the same place on every step: the
+            step's demonstration clip when it has one, otherwise its control. */}
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.xl, paddingVertical: spacing.lg }}>
+          {media ? (
+            <StepMedia clip={media} />
+          ) : hasTimer ? (
+            <View style={{ alignItems: 'center', gap: spacing.lg }}>
+              <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                <TimerRing totalSeconds={step.durationSeconds!} currentSeconds={activeSession.timerSeconds} size={220} />
+                <View style={{ position: 'absolute', alignItems: 'center' }}>
                   <Text
-                    style={{
-                      fontSize: 13,
-                      color: colors.success,
-                      fontWeight: '600',
-                      marginTop: 4,
-                    }}
+                    variant="numeral"
+                    color={timerDone ? colors.accent : colors.text.primary}
+                    accessibilityLiveRegion={timerDone ? 'polite' : 'none'}
                   >
-                    Done!
+                    {formatTimer(activeSession.timerSeconds)}
                   </Text>
-                )}
+                  <Text variant="caption">
+                    {activeSession.isTimerRunning ? 'Running' : timerDone ? 'Time’s up' : 'Ready'}
+                  </Text>
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <Button
+                  label={activeSession.isTimerRunning ? 'Pause' : timerDone ? 'Finished' : 'Start timer'}
+                  icon={activeSession.isTimerRunning ? 'pause' : 'play'}
+                  size="md"
+                  onPress={onToggleTimer}
+                  disabled={timerDone}
+                />
+                <Button label="Reset" variant="ghost" size="md" onPress={onResetTimer} disabled={timerUntouched} />
               </View>
             </View>
+          ) : showRepCounter ? (
+            <RepCounter
+              count={activeSession.repCount}
+              target={repTarget}
+              onIncrement={onIncrementRep}
+              onDecrement={onDecrementRep}
+            />
+          ) : null}
+        </View>
 
-            {/* Timer controls — reset always reserves space to avoid layout shift */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 24,
-              }}
-            >
-              {/* Reset — invisible when not applicable, preserves layout */}
-              <Pressable
-                onPress={onResetTimer}
-                disabled={!activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds}
-                style={({ pressed }) => ({
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: pressed ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: (!activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds) ? 0 : 1,
-                })}
-              >
-                <AppIcon name="refresh" size={20} color={colors.textSecondary} />
-              </Pressable>
-
-              {/* Play / Pause */}
-              <Pressable
-                onPress={onToggleTimer}
-                style={({ pressed }) => ({
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  backgroundColor: pressed
-                    ? (timerDone ? hexToRgba(colors.success, 0.85) : theme.selectedBorder)
-                    : (timerDone ? colors.success : theme.solid),
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  shadowColor: timerDone ? colors.success : theme.solid,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 8,
-                  elevation: 4,
-                })}
-              >
-                <AppIcon
-                  name={activeSession.isTimerRunning ? 'pause' : 'play'}
-                  size={28}
-                  color="#FFFFFF"
-                />
-              </Pressable>
-
-              {/* Spacer to balance the reset button */}
-              <View style={{ width: 48, height: 48 }} />
-            </View>
-
-            {/* Status label */}
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: '600',
-                color: timerDone ? colors.success : colors.textSecondary,
-                textAlign: 'center',
-                letterSpacing: 0.3,
-              }}
-            >
-              {activeSession.isTimerRunning
-                ? 'Running...'
-                : timerDone
-                  ? 'Complete!'
-                  : 'Tap to start'}
-            </Text>
-          </View>
-        )}
-
-        {/* Rep counter */}
-        {hasReps && (
-          <View style={{ height: 300 }}>
-        <RepCounter
-          count={activeSession.repCount}
-          target={step.reps}
-          onIncrement={onIncrementRep}
-          onReset={onResetReps}
-          accentColor={theme.solid}
-        />
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.sm }}>
+          {onPreviousStep ? (
+            <Button label="Previous step" icon="chevron-back" variant="ghost" size="md" onPress={onPreviousStep} />
+          ) : null}
+          <Button label="Why this step" icon="help-circle-outline" variant="ghost" size="md" onPress={onWhy} />
+        </View>
       </ScrollView>
 
-      {/* Step done CTA */}
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: insets.bottom + spacing.lg,
-          paddingTop: spacing.md,
-          backgroundColor: colors.background,
-          borderTopWidth: 1,
-          borderTopColor: colors.border.default,
-        }}
-      >
-        <Pressable
-          onPress={onStepDone}
-          style={({ pressed }) => ({
-            backgroundColor: pressed ? theme.selectedBorder : theme.solid,
-            borderWidth: 1,
-            borderColor: pressed ? theme.solid : theme.selectedBorder,
-            borderRadius: 14,
-            paddingVertical: spacing.lg,
-            alignItems: 'center',
-            flexDirection: 'row',
-            justifyContent: 'center',
-            gap: spacing.sm,
-            minHeight: 54,
-            shadowColor: theme.solid,
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.14,
-            shadowRadius: 10,
-            elevation: 3,
-          })}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Step done</Text>
-            <AppIcon name="checkmark" size={16} color={colors.text.primary} />
-          </View>
-        </Pressable>
+      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+        {saveError ? (
+          <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+            {saveError} Check your connection and try again.
+          </Text>
+        ) : null}
+        {setupStep ? (
+          <Button label={saveError ? 'Try saving again' : 'Next step'} onPress={onWorked} loading={isSaving} />
+        ) : (
+          <>
+            <Button label={saveError ? 'Try saving again' : 'It worked'} icon="checkmark" onPress={onWorked} loading={isSaving} />
+            <Button label="Not yet" variant="ghost" onPress={onNotYet} disabled={isSaving} />
+          </>
+        )}
       </View>
     </View>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// "Not yet" — stick or drop, one tap each. The owner never types.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STEP_COMPLETE — brief, undoable, outcome-aware. The handler moves on.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface StepCompleteViewProps {
   stepNumber: number;
   totalSteps: number;
-  currentStep: import('@/constants/protocols').ProtocolStep | undefined;
-  nextStep: import('@/constants/protocols').ProtocolStep | undefined;
-  theme: CourseUiColors;
+  outcome: StepOutcome;
+  nextStep: ProtocolStep | undefined;
   onNext: () => void;
-  insets: ReturnType<typeof useSafeAreaInsets>;
+  onUndo: () => void;
 }
 
-function StepCompleteView({ stepNumber, totalSteps, currentStep, nextStep, theme, onNext, insets }: StepCompleteViewProps) {
+function StepCompleteView({ stepNumber, totalSteps, outcome, nextStep, onNext, onUndo }: StepCompleteViewProps) {
   const isLast = !nextStep;
-  const ADVANCE_MS = 2500;
-
-  // Animated countdown bar for auto-advance
-  const countdownAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (!isLast) {
-      countdownAnim.setValue(1);
-      const anim = Animated.timing(countdownAnim, {
-        toValue: 0,
-        duration: ADVANCE_MS,
-        useNativeDriver: false,
-      });
-      anim.start();
-      const t = setTimeout(onNext, ADVANCE_MS);
-      return () => {
-        anim.stop();
-        clearTimeout(t);
-      };
-    }
-    return undefined;
-  }, [isLast]);
-
-  // Trim next step label cleanly at a word boundary
-  const nextStepLabel = nextStep
-    ? nextStep.instruction.length > 48
-      ? nextStep.instruction.slice(0, 48).replace(/\s\S+$/, '') + '...'
-      : nextStep.instruction
-    : '';
+  const struggled = outcome === 'struggled';
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: spacing.xl,
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-        gap: spacing.xl,
-        backgroundColor: colors.background,
-      }}
-    >
-      <AppIcon name="checkmark-circle" size={64} color={colors.success} />
-
-      <View style={{ alignItems: 'center', gap: spacing.sm }}>
-        <Text style={{ fontSize: 26, fontWeight: '700', lineHeight: 32, color: colors.textPrimary, textAlign: 'center' }}>
-          Step {stepNumber} complete!
-        </Text>
-        {currentStep && (
-          <Text style={{ fontSize: 16, color: colors.textSecondary, textAlign: 'center', lineHeight: 24 }}>
-            Great work on step {stepNumber} of {totalSteps}
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }} showsVerticalScrollIndicator={false}>
+        <AppIcon
+          name={struggled ? 'bookmark-outline' : 'checkmark-circle'}
+          size={40}
+          color={struggled ? colors.text.secondary : colors.accent}
+        />
+        <View style={{ gap: spacing.sm }}>
+          <Text variant="h1">{struggled ? `Step ${stepNumber} noted` : `Step ${stepNumber} done`}</Text>
+          <Text variant="body">
+            {struggled
+              ? 'Struggles are useful data. Your plan will factor it in.'
+              : isLast
+                ? 'That was the last step.'
+                : `${totalSteps - stepNumber} to go.`}
           </Text>
-        )}
-      </View>
-
-      {isLast ? (
-        <View style={{ alignItems: 'center', gap: spacing.lg }}>
-          <Text style={{ fontSize: 17, color: colors.textSecondary, textAlign: 'center' }}>
-            All steps done! How did it go?
-          </Text>
-          <Pressable
-            onPress={onNext}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? theme.selectedBorder : theme.solid,
-              borderWidth: 1,
-              borderColor: pressed ? theme.solid : theme.selectedBorder,
-              borderRadius: 14,
-              paddingVertical: spacing.lg,
-              paddingHorizontal: spacing.xxl,
-              minHeight: 54,
-              shadowColor: theme.solid,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.14,
-              shadowRadius: 10,
-              elevation: 3,
-            })}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Rate session</Text>
-              <AppIcon name="arrow-forward" size={16} color={colors.text.primary} />
-            </View>
-          </Pressable>
         </View>
-      ) : (
-        <View style={{ alignItems: 'center', gap: spacing.md, width: '100%' }}>
-          <Text style={{ fontSize: 15, color: colors.textSecondary, textAlign: 'center' }}>
-            Next: {nextStepLabel}
-          </Text>
-          <Pressable
-            onPress={onNext}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? theme.selectedBorder : theme.solid,
-              borderWidth: 1,
-              borderColor: pressed ? theme.solid : theme.selectedBorder,
-              borderRadius: 14,
-              paddingVertical: spacing.md,
-              paddingHorizontal: spacing.xl,
-              minHeight: 44,
-              shadowColor: theme.solid,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.12,
-              shadowRadius: 8,
-              elevation: 2,
-            })}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text.primary }}>Next step</Text>
-              <AppIcon name="arrow-forward" size={14} color={colors.text.primary} />
-            </View>
-          </Pressable>
 
-          {/* Animated countdown bar */}
-          <View style={{ width: '60%', height: 3, borderRadius: 99, backgroundColor: colors.border.soft, overflow: 'hidden' }}>
-            <Animated.View
-              style={{
-                height: 3,
-                borderRadius: 99,
-                backgroundColor: theme.solid,
-                width: countdownAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-              }}
-            />
+        {nextStep ? (
+          <View>
+            <SectionHeader title="Next step" />
+            <Text variant="body">{nextStep.instruction}</Text>
           </View>
-          <Text style={{ fontSize: 13, color: colors.textSecondary, opacity: 0.6 }}>
-            Advancing automatically...
-          </Text>
-        </View>
-      )}
+        ) : null}
+      </ScrollView>
+
+      <View style={{ padding: spacing.lg, gap: spacing.sm }}>
+        <Button label={isLast ? 'Review session' : 'Next step'} onPress={onNext} />
+        <Button label="Undo" variant="ghost" onPress={onUndo} accessibilityLabel="Undo, go back to this step" />
+      </View>
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-interface SessionReviewViewProps {
-  activeSession: import('@/stores/sessionStore').ActiveSession;
-  dogName: string;
-  reviewDifficulty: 'easy' | 'okay' | 'hard' | null;
-  reviewNotes: string;
-  isSaving: boolean;
-  reflectionQuestions: ReflectionQuestionConfig[];
-  reflectionAnswers: PostSessionReflection;
-  onSelectDifficulty: (d: 'easy' | 'okay' | 'hard') => void;
-  onNotesChange: (s: string) => void;
-  onReflectionAnswer: (qId: ReflectionQuestionId, value: string | number) => void;
-  onSave: () => void;
-  insets: ReturnType<typeof useSafeAreaInsets>;
-  theme: CourseUiColors;
-}
-
-function SessionReviewView({
-  activeSession,
-  dogName,
-  reviewDifficulty,
-  reviewNotes,
-  isSaving,
-  reflectionQuestions,
-  reflectionAnswers,
-  onSelectDifficulty,
-  onNotesChange,
-  onReflectionAnswer,
-  onSave,
-  insets,
-  theme,
-}: SessionReviewViewProps) {
-  const durationSeconds = Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000);
-  const durationLabel = `Completed in ${formatDuration(durationSeconds)}`;
-
-  return (
-    <PostSessionReflectionCard
-      dogName={dogName}
-      durationLabel={durationLabel}
-      questions={reflectionQuestions}
-      answers={reflectionAnswers}
-      difficulty={reviewDifficulty}
-      notes={reviewNotes}
-      onSelectDifficulty={onSelectDifficulty}
-      onAnswer={onReflectionAnswer}
-      onNotesChange={onNotesChange}
-      onSubmit={onSave}
-      isSaving={isSaving}
-      insets={insets}
-      theme={theme}
-    />
-  );
-}
-
+// COMPLETE — the one orchestrated moment
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CompleteViewProps {
-  dogName: string;
-  protocol: import('@/constants/protocols').Protocol;
-  completedSessionCount: number;
-  totalSessions: number;
-  activeSession: import('@/stores/sessionStore').ActiveSession;
-  theme: CourseUiColors;
+  outcome: SessionOutcome;
+  totalReps: number;
+  trainingSeconds: number;
   onBack: () => void;
-  insets: ReturnType<typeof useSafeAreaInsets>;
 }
 
-function CompleteView({ dogName, protocol, completedSessionCount, totalSessions, activeSession, theme, onBack }: CompleteViewProps) {
-  const nextProtocol = protocol.nextProtocolId;
-  const insets = useSafeAreaInsets();
+const OUTCOME_LABEL: Record<SessionOutcome, string> = {
+  met: 'Goal met',
+  partial: 'Mostly met',
+  not_met: 'Not yet',
+};
+
+function CompleteView({ outcome, totalReps, trainingSeconds, onBack }: CompleteViewProps) {
+  const reducedMotion = useReducedMotion();
+  const reveal = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+
+  // Draws in once when the complete state is entered; instant under reduced motion.
+  useEffect(() => {
+    if (reducedMotion) {
+      reveal.setValue(1);
+      return;
+    }
+    Animated.timing(reveal, { toValue: 1, duration: durations.base, useNativeDriver: true }).start();
+  }, [reducedMotion, reveal]);
 
   return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        paddingHorizontal: spacing.xl,
-        paddingTop: insets.top + spacing.xl * 2,
-        paddingBottom: insets.bottom + spacing.xl,
-        gap: spacing.xl,
-        backgroundColor: theme.tint,
-      }}
-    >
-      {/* Celebration */}
-      <View style={{ alignItems: 'center', gap: spacing.md }}>
-        <AppIcon name="ribbon" size={72} color={theme.solid} />
-        <Text style={{ fontSize: 30, fontWeight: '800', color: theme.text, textAlign: 'center', lineHeight: 42 }}>
-          {dogName} crushed it!
-        </Text>
-      </View>
-
-      {/* Stats */}
-      <View
-        style={{
-          backgroundColor: colors.surface,
-          borderRadius: 20,
-          padding: spacing.xl,
-          gap: spacing.lg,
-          width: '100%',
-          borderWidth: 1,
-          borderColor: colors.border.default,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          elevation: 3,
-        }}
-      >
-        <StatRow emoji="paw" label="Sessions completed" value={`${completedSessionCount} of ${totalSessions}`} color={theme.solid} />
-        <StatRow
-          emoji="time"
-          label="Time trained"
-          value={formatDuration(Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000))}
-          color={theme.solid}
-        />
-        {nextProtocol && (
-          <StatRow emoji="arrow-forward" label="Next up" value={`Stage ${(protocol.stage + 1)} session`} color={theme.solid} />
-        )}
-      </View>
-
-      <Pressable
-        onPress={onBack}
-        style={({ pressed }) => ({
-          backgroundColor: pressed ? theme.selectedBorder : theme.solid,
-          borderRadius: 14,
-          paddingVertical: spacing.lg,
-          paddingHorizontal: spacing.xxl,
-          alignItems: 'center',
-          minHeight: 54,
-          width: '100%',
-        })}
-      >
-        <Text style={{ fontSize: 17, fontWeight: '700', color: colors.text.primary }}>Back to today</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function StatRow({ emoji, label, value, color }: { emoji: AppIconName; label: string; value: string; color: string }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-      <AppIcon name={emoji} size={20} color={color} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 13, color: colors.textSecondary }}>{label}</Text>
-        <Text style={{ fontSize: 16, fontWeight: '600', color: colors.textPrimary }}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-function AbandonSheet({
-  visible,
-  onKeepGoing,
-  onLeave,
-}: {
-  visible: boolean;
-  onKeepGoing: () => void;
-  onLeave: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <Modal visible={visible} transparent animationType="fade">
-      <Pressable
-        style={{
-          flex: 1,
-          justifyContent: 'flex-end',
-          backgroundColor: 'rgba(6,10,18,0.72)',
-        }}
-        onPress={onKeepGoing}
-      >
-        <Pressable
-          onPress={() => {}}
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }} showsVerticalScrollIndicator={false}>
+        <Animated.View
           style={{
-            backgroundColor: colors.surface,
-            borderTopLeftRadius: 32,
-            borderTopRightRadius: 32,
-            paddingTop: spacing.sm,
-            paddingHorizontal: spacing.xl,
-            paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -8 },
-            shadowOpacity: 0.22,
-            shadowRadius: 28,
-            elevation: 16,
-            overflow: 'hidden',
+            alignItems: 'center',
+            gap: spacing.lg,
+            opacity: reveal,
+            transform: [{ scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }],
           }}
         >
-          {/* Drag handle */}
-          <View
-            style={{
-              alignSelf: 'center',
-              width: 40,
-              height: 4,
-              borderRadius: 999,
-              backgroundColor: colors.borderColor,
-              marginBottom: spacing.lg,
-            }}
-          />
-
-          {/* Icon badge */}
-          <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 36,
-                backgroundColor: '#FEF3C7',
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: '#F59E0B',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.25,
-                shadowRadius: 12,
-                elevation: 6,
-              }}
-            >
-              <AppIcon name="paw" size={32} color="#D97706" />
-            </View>
-          </View>
-
-          {/* Text content */}
-          <View style={{ alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xl }}>
-            <Text
-              style={{
-                fontSize: 22,
-                fontWeight: '800',
-                lineHeight: 30,
-                color: colors.textPrimary,
-                textAlign: 'center',
-                letterSpacing: -0.3,
-              }}
-            >
-              Leave this session?
+          <MascotCallout state="celebrating" size={120} />
+          <View style={{ alignItems: 'center', gap: spacing.sm }}>
+            <Text variant="display" style={{ textAlign: 'center' }} accessibilityRole="header">
+              Session complete
             </Text>
-            <Text
-              style={{
-                fontSize: 15,
-                color: colors.textSecondary,
-                textAlign: 'center',
-                lineHeight: 23,
-                maxWidth: 280,
-              }}
-            >
-              Your pup is counting on you! Progress from this session won't be saved.
+            <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center' }}>
+              Your plan will adjust from what happened today.
             </Text>
           </View>
+        </Animated.View>
 
-          {/* Buttons */}
-          <View style={{ gap: spacing.sm }}>
-            {/* Primary: Keep Going */}
-            <Pressable
-              onPress={onKeepGoing}
-              style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}
-            >
-              <View
-                style={{
-                  backgroundColor: colors.brand.primary,
-                  borderRadius: 18,
-                  paddingVertical: 17,
-                  alignItems: 'center',
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                  gap: spacing.sm,
-                  shadowColor: colors.brand.primary,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.35,
-                  shadowRadius: 12,
-                  elevation: 6,
-                }}
-              >
-                <AppIcon name="paw" size={18} color="#fff" />
-                <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff', letterSpacing: 0.1 }}>
-                  Keep going!
-                </Text>
-              </View>
-            </Pressable>
+        <ListGroup>
+          <ListRow title="Reps" trailing={`${totalReps}`} />
+          <ListRow title="Time" trailing={formatDuration(trainingSeconds)} />
+          <ListRow title="Outcome" trailing={OUTCOME_LABEL[outcome]} />
+        </ListGroup>
+      </ScrollView>
 
-            {/* Secondary: Leave session */}
-            <Pressable
-              onPress={onLeave}
-              style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}
-            >
-              <View
-                style={{
-                  borderWidth: 1.5,
-                  borderColor: colors.error,
-                  borderRadius: 18,
-                  paddingVertical: 15,
-                  alignItems: 'center',
-                  flexDirection: 'row',
-                  justifyContent: 'center',
-                  gap: spacing.sm,
-                }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: '600', color: colors.error }}>
-                  Leave session
-                </Text>
-              </View>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared tiny components
-// ─────────────────────────────────────────────────────────────────────────────
-
-function BackButton({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={12}
-      style={({ pressed }) => ({
-        alignSelf: 'flex-start',
-        opacity: pressed ? 0.6 : 1,
-        minHeight: 44,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        justifyContent: 'center',
-      })}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        <AppIcon name="chevron-back" size={18} color={colors.textSecondary} />
-        <Text style={{ fontSize: 16, color: colors.textSecondary }}>Back</Text>
+      <View style={{ padding: spacing.lg }}>
+        <Button label="Back to today" onPress={onBack} />
       </View>
-    </Pressable>
-  );
-}
-
-function Chip({
-  label,
-  icon,
-  color,
-  textColor,
-}: {
-  label: string;
-  icon?: AppIconName;
-  color?: string;
-  textColor?: string;
-}) {
-  const chipColor = color ?? colors.primary;
-  const chipTextColor = textColor ?? chipColor;
-  return (
-    <View
-      style={{
-        backgroundColor: hexToRgba(chipColor, 0.12),
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.xs + 2,
-        borderRadius: 99,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.xs,
-      }}
-    >
-      {icon ? (
-        <AppIcon
-          name={icon}
-          size={14}
-          color={chipTextColor}
-        />
-      ) : null}
-      <Text style={{ fontSize: 14, color: chipTextColor, fontWeight: '500' }}>
-        {label}
-      </Text>
     </View>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUICK COMPLETE — compact; no reflection, no plan changes
+// ─────────────────────────────────────────────────────────────────────────────
+
+function QuickCompleteView({
+  totalReps,
+  stepInstruction,
+  onBack,
+}: {
+  totalReps: number;
+  stepInstruction: string;
+  onBack: () => void;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }} showsVerticalScrollIndicator={false}>
+        <View style={{ alignItems: 'center', gap: spacing.lg }}>
+          <MascotCallout state="celebrating" size={120} />
+          <View style={{ alignItems: 'center', gap: spacing.sm }}>
+            <Text variant="h1" style={{ textAlign: 'center' }} accessibilityRole="header">
+              Quick reps done
+            </Text>
+            <Text variant="body" color={colors.text.secondary} style={{ textAlign: 'center' }}>
+              {totalReps} {totalReps === 1 ? 'rep' : 'reps'} of {stepInstruction}
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      <View style={{ padding: spacing.lg }}>
+        <Button label="Back to today" onPress={onBack} />
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Abandon sheet — honest about what happens
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LiveAiTrainerScreen
 //
 // Self-contained sub-screen that mounts useLiveAiTrainerSession and
-// delegates UI to LiveAiTrainerOverlay.
+// delegates UI to LiveAiTrainerOverlay.  Reports its usage summary to the
+// parent on unmount so every exit path is recorded.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface LiveAiTrainerScreenProps {
-  protocol: import('@/constants/protocols').Protocol;
+  protocol: Protocol;
   dogId: string;
   planId: string;
   sessionId: string;
@@ -1835,7 +1429,7 @@ interface LiveAiTrainerScreenProps {
   repCount: number;
   timerSeconds: number;
   isTimerRunning: boolean;
-  onComplete: (summary: LiveAiTrainerSummary) => void;
+  onSummary: (summary: LiveAiTrainerSummary) => void;
   onExit: () => void;
   onManualSwitch: () => void;
   onStepDone: () => void;
@@ -1852,36 +1446,45 @@ function LiveAiTrainerScreen({
   repCount,
   timerSeconds,
   isTimerRunning,
-  onComplete,
+  onSummary,
   onExit,
   onManualSwitch,
   onStepDone,
   onToggleTimer,
   onIncrementRep,
 }: LiveAiTrainerScreenProps) {
-  const coaching = useLiveAiTrainerSession({ protocol, dogId, planId, sessionId, currentStepIndex });
+  const [autoRepPulse, setAutoRepPulse] = useState(0);
 
-  // Start coaching on mount; stop on unmount
+  const handleAutoRep = useCallback(() => {
+    onIncrementRep();
+    setAutoRepPulse((n) => n + 1);
+    haptics.selection();
+  }, [onIncrementRep]);
+
+  const coaching = useLiveAiTrainerSession({
+    protocol,
+    dogId,
+    planId,
+    sessionId,
+    currentStepIndex,
+    repCount,
+    onAutoRep: handleAutoRep,
+    onFallback: () => haptics.warning(),
+  });
+
+  const onSummaryRef = useRef(onSummary);
+  onSummaryRef.current = onSummary;
+  const getSummaryRef = useRef(coaching.getSummary);
+  getSummaryRef.current = coaching.getSummary;
+
   useEffect(() => {
     coaching.start();
     return () => {
       coaching.stop();
+      onSummaryRef.current(getSummaryRef.current());
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Watch for session completion
-  useEffect(() => {
-    if (coaching.isComplete) {
-      onComplete(coaching.getSummary());
-    }
-  }, [coaching.isComplete]);
-
-  // Haptic feedback on coach messages
-  useEffect(() => {
-    if (coaching.lastResponse?.coachMessage) {
-      Vibration.vibrate(60);
-    }
-  }, [coaching.lastResponse?.coachMessage]);
 
   const currentStep = protocol.steps[currentStepIndex];
   const stepInfo = {
@@ -1897,14 +1500,20 @@ function LiveAiTrainerScreen({
     <LiveAiTrainerOverlay
       status={coaching.status}
       lastResponse={coaching.lastResponse}
+      error={coaching.error}
+      fallbackReason={coaching.fallbackReason}
+      speechEnabled={coaching.speechEnabled}
+      onToggleSpeech={coaching.toggleSpeech}
       cameraRef={coaching.cameraRef}
       onExit={onExit}
       onAskCoach={coaching.askCoach}
       onAnalyzeFrame={coaching.analyzeFrame}
       onManualSwitch={onManualSwitch}
+      onKeepTrying={coaching.resume}
       onStepDone={onStepDone}
       step={stepInfo}
       repCount={repCount}
+      autoRepPulse={autoRepPulse}
       timerSeconds={timerSeconds}
       isTimerRunning={isTimerRunning}
       onToggleTimer={onToggleTimer}

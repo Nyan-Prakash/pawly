@@ -3,6 +3,7 @@ import { Animated, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import { colors } from '@/constants/colors';
+import { durations, useReducedMotion } from '@/lib/motion';
 
 interface TimerRingProps {
   totalSeconds: number;
@@ -14,29 +15,35 @@ interface TimerRingProps {
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
+/** State-driven ring: the arc follows `currentSeconds`. Accent on fill. */
 export function TimerRing({
   totalSeconds,
   currentSeconds,
   size = 180,
-  color = colors.brand.primary,
-  trackColor = colors.border.default,
+  color = colors.accent,
+  trackColor = colors.bg.fill,
 }: TimerRingProps) {
   const strokeWidth = 10;
   const radius = (size - strokeWidth * 2) / 2;
   const circumference = 2 * Math.PI * radius;
   const cx = size / 2;
   const cy = size / 2;
+  const reducedMotion = useReducedMotion();
 
   const animatedValue = useRef(new Animated.Value(currentSeconds / Math.max(totalSeconds, 1))).current;
 
   useEffect(() => {
     const ratio = totalSeconds > 0 ? currentSeconds / totalSeconds : 0;
+    if (reducedMotion) {
+      animatedValue.setValue(ratio);
+      return;
+    }
     Animated.timing(animatedValue, {
       toValue: ratio,
-      duration: 300,
+      duration: durations.base,
       useNativeDriver: false,
     }).start();
-  }, [currentSeconds, totalSeconds]);
+  }, [currentSeconds, totalSeconds, reducedMotion, animatedValue]);
 
   const strokeDashoffset = animatedValue.interpolate({
     inputRange: [0, 1],
@@ -46,16 +53,7 @@ export function TimerRing({
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
-        {/* Background track */}
-        <Circle
-          cx={cx}
-          cy={cy}
-          r={radius}
-          stroke={trackColor}
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        {/* Progress arc */}
+        <Circle cx={cx} cy={cy} r={radius} stroke={trackColor} strokeWidth={strokeWidth} fill="none" />
         <AnimatedCircle
           cx={cx}
           cy={cy}

@@ -45,25 +45,25 @@ interface SupportSessionSpec {
 
 const SUPPORT_SESSION_SPECS: Record<SupportSessionType, SupportSessionSpec> = {
   foundation: {
-    title: (base) => `${base} — Foundation Reinforcement`,
+    title: (base) => `${base}, a step easier`,
     durationDeltaMinutes: -3,
     preferLowerEnvironment: true,
     sessionKind: 'repeat',
   },
   transition: {
-    title: (base) => `${base} — Distraction Transition`,
+    title: (base) => `${base}, fewer distractions`,
     durationDeltaMinutes: -2,
     preferLowerEnvironment: true,
     sessionKind: 'repeat',
   },
   duration_building: {
-    title: (base) => `${base} — Duration Builder`,
+    title: (base) => `${base}, shorter holds`,
     durationDeltaMinutes: -4,
     preferLowerEnvironment: false,
     sessionKind: 'repeat',
   },
   calm_reset: {
-    title: (base) => `${base} — Calm Reset`,
+    title: (base) => `${base}, short and calm`,
     durationDeltaMinutes: -5,
     preferLowerEnvironment: true,
     sessionKind: 'repeat',

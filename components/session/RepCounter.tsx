@@ -1,108 +1,114 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Pressable, Text as RNText, View, Vibration } from 'react-native';
+import { Animated, Pressable, View } from 'react-native';
 
-import { colors } from '@/constants/colors';
 import { AppIcon } from '@/components/ui/AppIcon';
+import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
+import { colors } from '@/constants/colors';
+import { radii } from '@/constants/radii';
+import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
+import { durations, useReducedMotion } from '@/lib/motion';
 
 interface RepCounterProps {
   count: number;
   target: number | null;
   onIncrement: () => void;
-  onReset: () => void;
-  accentColor?: string;
+  onDecrement: () => void;
 }
 
-export function RepCounter({
-  count,
-  target,
-  onIncrement,
-  onReset,
-  accentColor = colors.brand.primary,
-}: RepCounterProps) {
+/** Big enough to hit while watching the dog, not the phone. */
+const DIAL = 220;
+const EDGE = 6;
+
+/**
+ * The hero of a rep step: the counter is the button. Tap the dial to count a
+ * rep; it presses down on its edge, the number bounces once, a selection
+ * haptic confirms it, and the dial fills when the target is reached.
+ */
+export function RepCounter({ count, target, onIncrement, onDecrement }: RepCounterProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const reducedMotion = useReducedMotion();
   const targetReached = target !== null && count >= target;
+  const previousCount = useRef(count);
 
   useEffect(() => {
-    if (count === 0) return;
+    const wentUp = count > previousCount.current;
+    previousCount.current = count;
+    if (!wentUp) return;
+    if (target !== null && count === target) haptics.success();
+    if (reducedMotion) return;
     Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 1.25, duration: 80, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1.12, duration: durations.fast, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1, duration: durations.fast, useNativeDriver: true }),
     ]).start();
-  }, [count]);
+  }, [count, target, reducedMotion, scaleAnim]);
 
-  const handlePress = () => {
-    Vibration.vibrate(30);
+  const handleRep = () => {
+    haptics.selection();
     onIncrement();
   };
 
+  const fill = targetReached ? colors.accent : colors.bg.surface;
+  const edge = targetReached ? colors.accentEdge : colors.bg.fill;
+  const numberColor = targetReached ? colors.text.onAccent : colors.text.primary;
+  const captionColor = targetReached ? colors.text.onAccent : colors.text.secondary;
+  const countLabel =
+    target !== null ? `${count} of ${target} reps${targetReached ? ', target reached' : ''}` : `${count} reps`;
+
   return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      {/* Large tap zone */}
+    <View style={{ alignItems: 'center', gap: spacing.md }}>
       <Pressable
-        onPress={handlePress}
+        onPress={handleRep}
+        accessibilityRole="button"
+        accessibilityLabel="Count a rep"
+        accessibilityValue={{ text: countLabel }}
         style={({ pressed }) => ({
-          flex: 1,
-          width: '100%',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: pressed
-            ? targetReached
-              ? '#FEF9C3'
-              : '#DCFCE7'
-            : targetReached
-            ? '#FEFCE8'
-            : 'transparent',
-          borderRadius: 24,
+          width: DIAL,
+          height: DIAL + EDGE,
+          borderRadius: radii.full,
+          backgroundColor: edge,
+          paddingTop: pressed ? EDGE : 0,
         })}
       >
-        <Animated.View style={{ transform: [{ scale: scaleAnim }], alignItems: 'center' }}>
-          <RNText
+        {({ pressed }) => (
+          <View
             style={{
-              fontSize: 96,
-              fontWeight: '700',
-              color: targetReached ? colors.brand.secondary : accentColor,
-              lineHeight: 110,
+              width: DIAL,
+              height: DIAL,
+              borderRadius: radii.full,
+              backgroundColor: fill,
+              borderWidth: targetReached ? 0 : 2,
+              borderColor: colors.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.92 : 1,
             }}
           >
-            {count}
-          </RNText>
-          {target !== null && (
-            <Text
-              style={{
-                fontSize: 18,
-                color: targetReached ? colors.brand.secondary : colors.text.secondary,
-                fontWeight: '600',
-              }}
-            >
-              {targetReached ? 'Target reached!' : `of ${target} reps`}
-            </Text>
-          )}
-        </Animated.View>
-        {targetReached && (
-          <View style={{ marginTop: 8 }}>
-            <AppIcon name="trophy" size={22} color={colors.brand.secondary} />
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }} accessibilityLiveRegion="polite">
+              <Text variant="numeral" color={numberColor} style={{ textAlign: 'center' }}>
+                {count}
+              </Text>
+            </Animated.View>
+            {target !== null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                {targetReached ? <AppIcon name="checkmark-circle" size={16} color={captionColor} /> : null}
+                <Text variant="captionStrong" color={captionColor}>
+                  of {target}
+                </Text>
+              </View>
+            ) : (
+              <Text variant="captionStrong" color={captionColor}>
+                reps
+              </Text>
+            )}
           </View>
         )}
-
-        <Text
-          style={{
-            marginTop: 16,
-            fontSize: 14,
-            color: colors.text.secondary,
-            opacity: 0.6,
-          }}
-        >
-          Tap anywhere to count
-        </Text>
       </Pressable>
 
-      {/* Reset link */}
-      <Pressable onPress={onReset} style={{ paddingVertical: 12, minHeight: 44 }}>
-        <Text style={{ fontSize: 14, color: colors.text.secondary, textDecorationLine: 'underline' }}>
-          Reset
-        </Text>
-      </Pressable>
+      <Text variant="caption">{targetReached ? 'Target reached. Finish on this one.' : 'Tap the dial for every rep'}</Text>
+
+      <Button label="Undo" variant="ghost" size="md" onPress={onDecrement} disabled={count === 0} />
     </View>
   );
 }

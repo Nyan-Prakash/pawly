@@ -1,417 +1,246 @@
-import { Image, ScrollView, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
 import { useState } from 'react';
+import { Alert, Image, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
+import { router } from 'expo-router';
 
-import { AppIcon } from '@/components/ui/AppIcon';
-import { Button } from '@/components/ui/Button';
-import { SafeScreen } from '@/components/ui/SafeScreen';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { MascotCallout } from '@/components/ui/MascotCallout';
-import { Text } from '@/components/ui/Text';
 import { FeedbackModal } from '@/components/profile/FeedbackModal';
+import { AppIcon } from '@/components/ui/AppIcon';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { Card } from '@/components/ui/Card';
+import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { MascotCallout } from '@/components/ui/MascotCallout';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
-import { hexToRgba } from '@/constants/courseColors';
 import { radii } from '@/constants/radii';
-import { shadows } from '@/constants/shadows';
 import { spacing } from '@/constants/spacing';
+import { haptics } from '@/lib/haptics';
+import { PRO_ENTITLEMENT } from '@/lib/subscription';
+import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useProgressStore } from '@/stores/progressStore';
-import { supabase } from '@/lib/supabase';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import type { ThemePreference } from '@/stores/themeStore';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Settings row
-// ─────────────────────────────────────────────────────────────────────────────
+const AVATAR_SIZE = 64;
 
-function SettingsRow({
-  icon,
-  iconColor,
-  iconBg,
-  label,
-  subtitle,
-  onPress,
-}: {
-  icon: string;
-  iconColor?: string;
-  iconBg?: string;
-  label: string;
-  subtitle?: string;
-  onPress: () => void;
-}) {
-  const ic = iconColor ?? colors.brand.primary;
-  const bg = iconBg ?? hexToRgba(ic, 0.1);
-  return (
-    <TouchableOpacity
-      activeOpacity={0.75}
-      onPress={onPress}
-      style={{
-        backgroundColor: colors.bg.surface,
-        borderRadius: radii.lg,
-        paddingVertical: spacing.sm + 2,
-        paddingHorizontal: spacing.md,
-        borderWidth: 1.5,
-        borderColor: colors.border.soft,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        ...shadows.card,
-      }}
-    >
-      <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          backgroundColor: bg,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <AppIcon name={icon as any} size={18} color={ic} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text variant="bodyStrong">{label}</Text>
-        {subtitle && (
-          <Text variant="micro" color={colors.text.secondary} style={{ marginTop: 1 }}>
-            {subtitle}
-          </Text>
-        )}
-      </View>
-      <AppIcon name="chevron-forward" size={16} color={colors.text.secondary} />
-    </TouchableOpacity>
-  );
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'Match device' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
+
+function formatAge(ageMonths: number): string {
+  if (ageMonths < 12) return `${ageMonths} month${ageMonths === 1 ? '' : 's'}`;
+  const years = Math.floor(ageMonths / 12);
+  return `${years} year${years === 1 ? '' : 's'}`;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Stat pill
-// ─────────────────────────────────────────────────────────────────────────────
+const STORE_SUBSCRIPTIONS_URL = Platform.select({
+  ios: 'https://apps.apple.com/account/subscriptions',
+  default: 'https://play.google.com/store/account/subscriptions',
+});
 
-function StatPill({
-  icon,
-  value,
-  label,
-  color,
-}: {
-  icon: string;
-  value: number;
-  label: string;
-  color: string;
-}) {
-  return (
-    <View
-      style={{
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.xs,
-        backgroundColor: hexToRgba(color, 0.08),
-        borderRadius: radii.pill,
-        paddingVertical: spacing.sm,
-        paddingHorizontal: spacing.sm,
-        borderWidth: 1,
-        borderColor: hexToRgba(color, 0.18),
-      }}
-    >
-      <AppIcon name={icon as any} size={16} color={color} />
-      <Text style={{ fontSize: 16, fontWeight: '800', color, letterSpacing: -0.3 }}>
-        {value}
-      </Text>
-      <Text variant="micro" color={color} style={{ opacity: 0.75 }}>
-        {label}
-      </Text>
-    </View>
-  );
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Screen
-// ─────────────────────────────────────────────────────────────────────────────
+function pluralize(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
 
 export default function ProfileScreen() {
   const { user } = useAuthStore();
   const { dog } = useDogStore();
   const { sessionStreak, totalSessionsCompleted } = useProgressStore();
   const { preference, setPreference } = useTheme();
+  const tier = useSubscriptionStore((s) => s.tier);
+  const customerInfo = useSubscriptionStore((s) => s.customerInfo);
+  const openPaywall = useSubscriptionStore((s) => s.openPaywall);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showThemeSheet, setShowThemeSheet] = useState(false);
 
-  const themeOptions: ThemePreference[] = ['system', 'light', 'dark'];
-  const ageLabel = dog
-    ? dog.ageMonths < 12
-      ? `${dog.ageMonths}mo`
-      : `${Math.floor(dog.ageMonths / 12)}y`
+  const themeLabel = THEME_OPTIONS.find((option) => option.value === preference)?.label ?? 'Match device';
+  const pro = customerInfo?.entitlements.active[PRO_ENTITLEMENT];
+  const proStatus = pro?.expirationDate
+    ? `${pro.willRenew ? 'Renews' : 'Ends'} ${formatDay(pro.expirationDate)}`
+    : 'Active';
+  const dogSummary = dog
+    ? [dog.breed, formatAge(dog.ageMonths)].filter((part) => !!part).join(', ')
     : '';
 
-  async function handleSignOut() {
-    await supabase.auth.signOut();
+  function handleLogOut() {
+    Alert.alert('Log out?', 'You can log back in any time.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: () => {
+          supabase.auth.signOut();
+        },
+      },
+    ]);
+  }
+
+  function choosePreference(value: ThemePreference) {
+    haptics.selection();
+    setPreference(value);
+    setShowThemeSheet(false);
   }
 
   return (
-    <SafeScreen>
-      {/* Soft gradient wash at top */}
-      <LinearGradient
-        colors={[hexToRgba(colors.brand.primary, 0.07), 'transparent']}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
-        pointerEvents="none"
-      />
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing.xxl * 2 }}
-      >
-        {/* ── Profile header ── */}
-        <View
-          style={{
-            alignItems: 'center',
-            paddingTop: spacing.xl,
-            paddingBottom: spacing.lg,
-            paddingHorizontal: spacing.md,
-            gap: spacing.sm,
-          }}
-        >
-          {/* Avatar ring */}
-          <View style={{ position: 'relative' }}>
-            <View
-              style={{
-                width: 108,
-                height: 108,
-                borderRadius: 54,
-                backgroundColor: hexToRgba(colors.brand.primary, 0.12),
-                borderWidth: 3,
-                borderColor: hexToRgba(colors.brand.primary, 0.3),
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: dog?.avatarUrl ? 'hidden' : 'visible',
-              }}
-            >
-              {dog?.avatarUrl ? (
-                <Image
-                  source={{ uri: dog.avatarUrl }}
-                  style={{ width: 108, height: 108, borderRadius: 54 }}
-                />
-              ) : (
-                <MascotCallout state="happy" size={96} style={{ marginBottom: -8 }} />
-              )}
-            </View>
-            {/* Edit badge */}
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/profile/edit-dog')}
-              activeOpacity={0.8}
-              style={{
-                position: 'absolute',
-                bottom: 2,
-                right: 2,
-                width: 28,
-                height: 28,
-                borderRadius: 14,
-                backgroundColor: colors.brand.primary,
-                borderWidth: 2,
-                borderColor: colors.bg.app,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <AppIcon name="pencil" size={13} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Dog name */}
-          <Text
-            style={{
-              fontSize: 28,
-              fontWeight: '800',
-              color: colors.text.primary,
-              lineHeight: 32,
-              letterSpacing: -0.5,
-              textAlign: 'center',
-              marginTop: spacing.xs,
-            }}
-          >
-            {dog?.name ?? 'Your Dog'}
-          </Text>
-
-          {/* Breed · age */}
-          {dog && dog.breed && (
-            <Text variant="caption" color={colors.text.secondary} style={{ textAlign: 'center' }}>
-              {dog.breed}
-              {ageLabel ? `  ·  ${ageLabel}` : ''}
-            </Text>
-          )}
-
-          {/* Stat pills */}
+    <>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}>
+        {/* No mascot line here: the dog's own avatar sits right below, and two dogs on one screen is one too many. */}
+        <PageHeader title="Profile" />
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
           <View
             style={{
-              flexDirection: 'row',
-              gap: spacing.sm,
-              marginTop: spacing.xs,
-              width: '100%',
+              width: AVATAR_SIZE,
+              height: AVATAR_SIZE,
+              borderRadius: radii.full,
+              backgroundColor: colors.bg.fill,
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
             }}
           >
-            <StatPill
-              icon="trophy"
-              value={totalSessionsCompleted}
-              label="sessions"
-              color={colors.brand.primary}
-            />
-            <StatPill
-              icon="flame"
-              value={sessionStreak}
-              label="day streak"
-              color={colors.brand.secondary}
-            />
+            {dog?.avatarUrl ? (
+              <Image
+                source={{ uri: dog.avatarUrl }}
+                style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }}
+                accessibilityIgnoresInvertColors
+              />
+            ) : (
+              <MascotCallout state="happy" size={AVATAR_SIZE} />
+            )}
           </View>
+          <View style={{ flex: 1, gap: spacing.xs }}>
+            <Text variant="h2" numberOfLines={1}>
+              {dog?.name ?? 'Your dog'}
+            </Text>
+            {dogSummary ? (
+              <Text variant="caption" numberOfLines={1}>
+                {dogSummary}
+              </Text>
+            ) : null}
+          </View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/profile/edit-dog')}
+            accessibilityRole="button"
+            accessibilityLabel="Edit dog"
+            hitSlop={8}
+            style={({ pressed }) => ({ minHeight: 44, minWidth: 44, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
+          >
+            <Text variant="bodyStrong" color={colors.accent}>
+              Edit
+            </Text>
+          </Pressable>
+        </Card>
+
+        <View>
+          <SectionHeader title="Stats" />
+          <ListGroup>
+            <ListRow icon="paw-outline" title="Sessions" trailing={String(totalSessionsCompleted)} />
+            <ListRow icon="calendar-outline" title="Streak" trailing={pluralize(sessionStreak, 'day')} />
+          </ListGroup>
         </View>
 
-        <View style={{ paddingHorizontal: spacing.md, gap: 20 }}>
+        <View>
+          <SectionHeader title="Subscription" />
+          <ListGroup>
+            {tier === 'pro' ? (
+              <ListRow icon="ribbon-outline" title="Pawly Pro" trailing={proStatus} />
+            ) : (
+              <ListRow
+                icon="ribbon-outline"
+                title="Pawly Pro"
+                subtitle="Every session, the coach without a limit"
+                trailing="chevron"
+                onPress={() => openPaywall('profile')}
+              />
+            )}
+            {tier === 'pro' ? (
+              <ListRow
+                icon="card-outline"
+                title="Manage subscription"
+                trailing="chevron"
+                onPress={() => Linking.openURL(customerInfo?.managementURL ?? STORE_SUBSCRIPTIONS_URL)}
+              />
+            ) : null}
+          </ListGroup>
+        </View>
 
-          {/* ── Appearance ── */}
-          <View style={{ gap: spacing.sm }}>
-            <SectionHeader title="Appearance" />
-            <View
-              style={{
-                backgroundColor: colors.bg.surface,
-                borderRadius: radii.lg,
-                padding: spacing.md,
-                borderWidth: 1.5,
-                borderColor: colors.border.soft,
-                ...shadows.card,
-              }}
-            >
-              <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-                {themeOptions.map((option) => {
-                  const selected = preference === option;
-                  const themeIcon =
-                    option === 'light' ? 'sunny' : option === 'dark' ? 'moon' : 'phone-portrait';
-                  return (
-                    <TouchableOpacity
-                      key={option}
-                      activeOpacity={0.75}
-                      onPress={() => setPreference(option)}
-                      style={{
-                        flex: 1,
-                        paddingVertical: 10,
-                        borderRadius: radii.pill,
-                        borderWidth: 1.5,
-                        borderColor: selected ? colors.brand.primary : colors.border.default,
-                        backgroundColor: selected
-                          ? hexToRgba(colors.brand.primary, 0.1)
-                          : colors.bg.surfaceAlt,
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <AppIcon
-                        name={themeIcon as any}
-                        size={15}
-                        color={selected ? colors.brand.primary : colors.text.secondary}
-                      />
-                      <Text
-                        variant="micro"
-                        color={selected ? colors.brand.primary : colors.text.secondary}
-                        style={{ fontWeight: '700', textTransform: 'capitalize' }}
-                      >
-                        {option}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-
-          
-
-          {/* ── Account ── */}
-          <View style={{ gap: spacing.sm }}>
-            <SectionHeader title="Account" />
-
-            {/* Email row (non-tappable) */}
-            <View
-              style={{
-                backgroundColor: colors.bg.surface,
-                borderRadius: radii.lg,
-                paddingVertical: spacing.sm + 2,
-                paddingHorizontal: spacing.md,
-                borderWidth: 1.5,
-                borderColor: colors.border.soft,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.sm,
-                ...shadows.card,
-              }}
-            >
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
-                  backgroundColor: hexToRgba(colors.brand.coach, 0.1),
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <AppIcon name="person" size={18} color={colors.brand.coach} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text variant="micro" color={colors.text.secondary}>
-                  Email
-                </Text>
-                <Text variant="bodyStrong" numberOfLines={1}>
-                  {user?.email ?? '—'}
-                </Text>
-              </View>
-            </View>
-
-            <SettingsRow
+        <View>
+          <SectionHeader title="Settings" />
+          <ListGroup>
+            <ListRow
               icon="notifications-outline"
-              label="Notifications"
-              subtitle="Training reminders, walk check-ins, milestones"
+              title="Notifications"
+              trailing="chevron"
               onPress={() => router.push('/(tabs)/profile/notification-settings')}
             />
-
-            <SettingsRow
+            <ListRow
+              icon="contrast-outline"
+              title="Appearance"
+              trailing={themeLabel}
+              onPress={() => setShowThemeSheet(true)}
+              accessibilityHint="Opens the appearance picker"
+            />
+            <ListRow
               icon="chatbubble-outline"
-              iconColor={colors.brand.coach}
-              label="Send Feedback"
-              subtitle="Bugs, feature requests, or general thoughts"
+              title="Send feedback"
+              trailing="chevron"
               onPress={() => setShowFeedbackModal(true)}
             />
-          </View>
-                
-          {/* ── Legal ── */}
-          <View style={{ gap: spacing.sm }}>
-            <SectionHeader title="Legal" />
-
-            <SettingsRow
+            <ListRow
               icon="document-text-outline"
-              label="Privacy Policy"
+              title="Privacy policy"
+              trailing="chevron"
               onPress={() => router.push('/(tabs)/profile/privacy-policy')}
             />
-
-            <SettingsRow
+            <ListRow
               icon="reader-outline"
-              label="Terms of Service"
+              title="Terms of service"
+              trailing="chevron"
               onPress={() => router.push('/(tabs)/profile/terms-of-service')}
             />
-          </View>
+          </ListGroup>
+        </View>
 
-          {/* Sign out */}
-          <Button
-            label="Sign out"
-            variant="ghost"
-            onPress={handleSignOut}
-          />
+        <View>
+          <SectionHeader title="Account" />
+          <ListGroup>
+            <ListRow icon="mail-outline" iconTone="secondary" title="Email" trailing={user?.email ?? 'Not set'} />
+            <ListRow icon="log-out-outline" title="Log out" destructive onPress={handleLogOut} />
+            <ListRow
+              icon="trash-outline"
+              title="Delete account"
+              destructive
+              trailing="chevron"
+              onPress={() => router.push('/(tabs)/profile/delete-account')}
+            />
+          </ListGroup>
         </View>
       </ScrollView>
 
-      <FeedbackModal
-        visible={showFeedbackModal}
-        onClose={() => setShowFeedbackModal(false)}
-      />
-    </SafeScreen>
+      <BottomSheet visible={showThemeSheet} onClose={() => setShowThemeSheet(false)} title="Appearance">
+        <ListGroup>
+          {THEME_OPTIONS.map((option) => (
+            <ListRow
+              key={option.value}
+              title={option.label}
+              selected={preference === option.value}
+              trailing={preference === option.value ? <AppIcon name="checkmark" color={colors.accent} /> : undefined}
+              onPress={() => choosePreference(option.value)}
+            />
+          ))}
+        </ListGroup>
+      </BottomSheet>
+
+      <FeedbackModal visible={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
+    </>
   );
 }

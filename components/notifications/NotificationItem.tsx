@@ -7,6 +7,11 @@ import { spacing } from '@/constants/spacing';
 import { formatNotificationTimestamp } from '@/lib/inAppNotifications';
 import type { InAppNotification } from '@/types';
 
+/**
+ * A ListRow-style pressable. Unread rows lead with an accent dot and a strong
+ * title; read rows use the plain body weight. The row itself is the action:
+ * a plan update opens the updated plan on press.
+ */
 export function NotificationItem({
   item,
   onPress,
@@ -15,64 +20,47 @@ export function NotificationItem({
   onPress: (item: InAppNotification) => void;
 }) {
   const isPlanUpdate = item.type === 'plan_updated';
+  const timestamp = formatNotificationTimestamp(item.createdAt);
+  const hint = isPlanUpdate ? 'Opens the updated plan' : undefined;
 
   return (
     <Pressable
       onPress={() => onPress(item)}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.isRead ? '' : 'Unread. '}${item.title}. ${item.body}`}
+      accessibilityHint={hint}
       style={({ pressed }) => ({
-        backgroundColor: item.isRead ? colors.bg.surface : colors.bg.elevated,
+        minHeight: 52,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.md,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
         borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: item.isRead ? colors.border.default : colors.status.infoBorder,
-        padding: spacing.md,
-        opacity: pressed ? 0.82 : 1,
-        gap: spacing.xs,
+        backgroundColor: colors.bg.surface,
+        opacity: pressed ? 0.6 : 1,
       })}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-        <View style={{ flex: 1, gap: spacing.xs }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-            {!item.isRead ? (
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: colors.brand.coach,
-                  marginTop: 4,
-                }}
-              />
-            ) : null}
-            <Text
-              variant="bodyStrong"
-              style={{
-                flex: 1,
-                color: colors.text.primary,
-                opacity: item.isRead ? 0.86 : 1,
-              }}
-            >
-              {item.title}
-            </Text>
-          </View>
+      <View
+        style={{
+          width: spacing.sm,
+          height: spacing.sm,
+          borderRadius: radii.full,
+          marginTop: spacing.sm,
+          backgroundColor: item.isRead ? 'transparent' : colors.accent,
+        }}
+      />
 
-          <Text variant="caption" style={{ color: colors.text.secondary }}>
-            {item.body}
-          </Text>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
-            <Text variant="micro">{formatNotificationTimestamp(item.createdAt)}</Text>
-            {isPlanUpdate ? (
-              <Text
-                variant="micro"
-                color={colors.brand.primary}
-                style={{ fontWeight: '700' }}
-              >
-                View updated plan
-              </Text>
-            ) : null}
-          </View>
-        </View>
+      <View style={{ flex: 1, gap: spacing.xs }}>
+        <Text variant={item.isRead ? 'body' : 'bodyStrong'} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text variant="caption" numberOfLines={3}>
+          {item.body}
+        </Text>
       </View>
+
+      {timestamp ? <Text variant="caption">{timestamp}</Text> : null}
     </Pressable>
   );
 }

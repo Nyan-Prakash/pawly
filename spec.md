@@ -977,34 +977,36 @@ Example rules:
 
 ### 6.4 Live AI Trainer (Server-Side Vision)
 
-**Trigger:** User selects "Live AI Trainer" mode in `SessionModePicker` during a session.
+**Trigger:** User selects "Live AI Trainer" mode in `SessionModePicker` during a session (only offered when `protocol.supportsLiveAiTrainer` is true).
 
 **Pipeline:**
 ```
-Camera Frame (Vision Camera v4)
-    ↓ Frame sampling (idle: ~2s interval, burst: rapid, question: on demand)
-    ↓ Supabase Edge Function 'live-ai-trainer'
-    ↓ OpenAI Vision API — frame analysis
-    ↓ Response JSON { coachMessage, shouldSpeak, suggestedUiAction, ... }
-    ↓ LiveAiTrainerOverlay — visual + audio feedback
+Camera Frame (Vision Camera v4, takePhoto)
+    ↓ Resize to 640px / JPEG 0.6 / base64 (expo-image-manipulator)
+    ↓ Client rate limit (15/min) + 8s timeout + AppState pause
+    ↓ Supabase Edge Function 'live-ai-trainer'  (JWT + dog ownership + body validation + 20/min limit)
+    ↓ OpenAI gpt-4o vision, JSON mode, low-detail images, 12s timeout
+    ↓ Sanitized response { coachMessage, shouldSpeak, suggestedUiAction, confidenceCategory, ... }
+    ↓ useLiveAiTrainerSession — speech (expo-speech), haptics, auto-rep, fallback streaks
+    ↓ LiveAiTrainerOverlay — HUD, error banner, reframe hint, fallback sheet
 ```
 
 **Sampling Modes:**
-- `idle` — background frame capture every 2–3 seconds
-- `burst` — rapid capture on user tap or utterance trigger
-- `question` — user asks question; focused single-frame analysis
+- `idle` — one frame every 2s while status is idle and no request is in flight
+- `burst` — 3 frames 500ms apart on "Analyze" tap
+- `question` — one frame plus the typed question on "Ask Coach"
 
-**Detected State per Frame:**
-- `dogVisible` (boolean)
-- `framingQuality` (description)
-- `observedBehavior` (sit / down / stand / moving)
-- `repStatus` (completed / in_progress / failed)
-- `holdStatus` (holding / broke / too_short)
-- `mainIssue` (description or null)
+**Client behaviour (`hooks/useLiveAiTrainerSession.ts`):**
+- Sends real `currentReps` and `repGoal` for the active step, plus the last 5 coach turns as history.
+- Auto-counts a rep on `suggestedUiAction: "mark_success"` only when confidence is high, the step tracks reps, the goal is unmet, and 4s have passed since the last auto-count.
+- Speaks `coachMessage` when `shouldSpeak` is true; user can mute via the HUD.
+- Enters fallback after 3 consecutive low-confidence responses, 3 poor-framing responses, 3 transport errors, or an explicit model request. Fallback sheet offers "Switch to Manual" or "Keep trying".
+- Pauses sampling and aborts in-flight requests when the app is backgrounded.
+- Pure logic (response parsing, rate limiter, fallback tracker, summary aggregator) lives in `lib/liveCoach/liveAiTrainerLogic.ts` and is unit-tested in `tests/liveAiTrainer.test.ts`.
 
-**Fallback:** If `live-ai-trainer` returns error, `LiveAiTrainerOverlay` switches to manual mode with message "I'm having trouble seeing clearly. Switching to manual mode."
+**Step flow in live mode:** "Step done" records the step result and advances immediately (no interstitial). On the last step the session moves to `SESSION_REVIEW` and the camera is dismissed.
 
-**Summary Stored:** `session_logs.live_ai_trainer_summary` (JSONB) captures the session's AI feedback log.
+**Summary Stored:** `session_logs.live_ai_trainer_summary` (JSONB) is captured on every exit path (finish, manual switch, abandon) so partial usage is recorded. Frames are never persisted.
 
 ---
 

@@ -33,6 +33,7 @@ import {
   flattenMergedSchedule,
 } from '../lib/mergedSchedule.ts';
 import { getCoursePillColors, resolveSelectedCourseTheme } from '../constants/courseColors.ts';
+import { lightColors } from '../constants/colors.ts';
 import type { Plan, PlanSession } from '../types/index.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -249,7 +250,7 @@ test('course switcher: selectPlanSummaries produces one entry per active plan', 
   assert.equal(switcherEntries[1].isPrimary, false);
 });
 
-test('selected course theme selector: selected course drives the active themed color', () => {
+test('selected course theme selector: every course resolves to the single accent', () => {
   const planA = makePlan({ id: 'p1', sessions: [], isPrimary: true, goal: 'Recall' });
   const planB = makePlan({ id: 'p2', sessions: [], isPrimary: false, goal: 'Barking' });
 
@@ -267,16 +268,18 @@ test('selected course theme selector: selected course drives the active themed c
 
   assert.ok(beforeSwitch);
   assert.ok(afterSwitch);
-  assert.notEqual(beforeSwitch?.solid, afterSwitch?.solid);
+  assert.equal(beforeSwitch?.solid, afterSwitch?.solid);
+  assert.equal(beforeSwitch?.solid, lightColors.accent);
 });
 
-test('course pill theming: each course pill keeps its own color identity', () => {
-  const courseASelected = getCoursePillColors({ id: 'p1', goal: 'Recall' }, true);
-  const courseBUnselected = getCoursePillColors({ id: 'p2', goal: 'Barking' }, false);
+test('course pill theming: selected and unselected pills use accent and fill', () => {
+  const selected = getCoursePillColors({ id: 'p1', goal: 'Recall' }, true);
+  const unselected = getCoursePillColors({ id: 'p2', goal: 'Barking' }, false);
 
-  assert.notEqual(courseASelected.backgroundColor, courseBUnselected.dotColor);
-  assert.equal(courseBUnselected.backgroundColor, '#F5F7F9');
-  assert.notEqual(courseBUnselected.borderColor, '#F5F7F9');
+  assert.equal(selected.backgroundColor, lightColors.accent);
+  assert.equal(selected.textColor, lightColors.text.onAccent);
+  assert.equal(unselected.backgroundColor, lightColors.bg.fill);
+  assert.equal(unselected.textColor, lightColors.text.primary);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
