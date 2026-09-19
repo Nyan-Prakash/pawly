@@ -17,11 +17,13 @@ import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore } from '@/stores/planStore';
 import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { navigationTheme } from '@/lib/navigationTheme';
 import { Text } from '@/components/ui/Text';
 import { MascotLoader } from '@/components/ui/MascotLoader';
+import { PaywallSheet } from '@/components/paywall/PaywallSheet';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -220,6 +222,15 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
     if (!isBootstrapping) SplashScreen.hideAsync().catch(() => {});
   }, [isBootstrapping]);
 
+  // Keep the RevenueCat user in step with the Supabase user. Never blocks routing.
+  const userId = session?.user?.id;
+  useEffect(() => {
+    if (isBootstrapping) return;
+    const { identify, reset } = useSubscriptionStore.getState();
+    if (userId) identify(userId);
+    else reset();
+  }, [isBootstrapping, userId]);
+
   if (isBootstrapping || isSubmittingOnboarding) {
     if (isSubmittingOnboarding) {
       return (
@@ -236,7 +247,12 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
     );
   }
 
-  return <Slot key={themeKey} />;
+  return (
+    <>
+      <Slot key={themeKey} />
+      <PaywallSheet />
+    </>
+  );
 }
 
 export default function RootLayout() {

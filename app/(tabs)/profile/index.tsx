@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Image, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { FeedbackModal } from '@/components/profile/FeedbackModal';
@@ -15,11 +15,13 @@ import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
 import { haptics } from '@/lib/haptics';
+import { PRO_ENTITLEMENT } from '@/lib/subscription';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useProgressStore } from '@/stores/progressStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import type { ThemePreference } from '@/stores/themeStore';
 
 const AVATAR_SIZE = 64;
@@ -36,6 +38,15 @@ function formatAge(ageMonths: number): string {
   return `${years} year${years === 1 ? '' : 's'}`;
 }
 
+const STORE_SUBSCRIPTIONS_URL = Platform.select({
+  ios: 'https://apps.apple.com/account/subscriptions',
+  default: 'https://play.google.com/store/account/subscriptions',
+});
+
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function pluralize(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
@@ -45,10 +56,17 @@ export default function ProfileScreen() {
   const { dog } = useDogStore();
   const { sessionStreak, totalSessionsCompleted } = useProgressStore();
   const { preference, setPreference } = useTheme();
+  const tier = useSubscriptionStore((s) => s.tier);
+  const customerInfo = useSubscriptionStore((s) => s.customerInfo);
+  const openPaywall = useSubscriptionStore((s) => s.openPaywall);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
 
   const themeLabel = THEME_OPTIONS.find((option) => option.value === preference)?.label ?? 'Match device';
+  const pro = customerInfo?.entitlements.active[PRO_ENTITLEMENT];
+  const proStatus = pro?.expirationDate
+    ? `${pro.willRenew ? 'Renews' : 'Ends'} ${formatDay(pro.expirationDate)}`
+    : 'Active';
   const dogSummary = dog
     ? [dog.breed, formatAge(dog.ageMonths)].filter((part) => !!part).join(', ')
     : '';
@@ -127,6 +145,31 @@ export default function ProfileScreen() {
           <ListGroup>
             <ListRow icon="paw-outline" title="Sessions" trailing={String(totalSessionsCompleted)} />
             <ListRow icon="calendar-outline" title="Streak" trailing={pluralize(sessionStreak, 'day')} />
+          </ListGroup>
+        </View>
+
+        <View>
+          <SectionHeader title="Subscription" />
+          <ListGroup>
+            {tier === 'pro' ? (
+              <ListRow icon="ribbon-outline" title="Pawly Pro" trailing={proStatus} />
+            ) : (
+              <ListRow
+                icon="ribbon-outline"
+                title="Pawly Pro"
+                subtitle="Every session, the coach without a limit"
+                trailing="chevron"
+                onPress={() => openPaywall('profile')}
+              />
+            )}
+            {tier === 'pro' ? (
+              <ListRow
+                icon="card-outline"
+                title="Manage subscription"
+                trailing="chevron"
+                onPress={() => Linking.openURL(customerInfo?.managementURL ?? STORE_SUBSCRIPTIONS_URL)}
+              />
+            ) : null}
           </ListGroup>
         </View>
 

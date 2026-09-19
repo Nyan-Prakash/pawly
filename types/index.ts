@@ -5,7 +5,7 @@ export type DogProfile = {
   name: string;
 };
 
-export type SubscriptionTier = 'free' | 'core' | 'premium';
+export type SubscriptionTier = 'free' | 'pro';
 
 export interface AppUser {
   id: string;
