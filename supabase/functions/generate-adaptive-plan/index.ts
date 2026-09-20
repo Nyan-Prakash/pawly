@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import OpenAI from 'https://esm.sh/openai@4';
+import { consumeQuota, DAY_SECONDS, userSubject } from '../_shared/quota.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types (server-side duplicates — Edge Functions are standalone)
@@ -919,6 +920,18 @@ serve(async (req) => {
   if (!body.dogId) {
     return jsonResponse({ error: 'dogId is required' }, 400);
   }
+  if (body.goalOverride !== undefined && (typeof body.goalOverride !== 'string' || body.goalOverride.length > 80)) {
+    return jsonResponse({ error: 'goalOverride is invalid' }, 400);
+  }
+
+  // Each call can run gpt-4o and inserts a plan row; onboarding + a few added
+  // courses is the legitimate ceiling.
+  const exhausted = await consumeQuota(adminClient, [
+    { subject: userSubject(user.id), feature: 'plan', limit: 10, windowSeconds: DAY_SECONDS },
+  ]);
+  if (exhausted) {
+    return jsonResponse({ error: 'Plan generation limit reached for today' }, 429);
+  }
 
   // ── 3. Fetch context ────────────────────────────────────────────────────────
   const [dogResult, nodesResult, edgesResult] = await Promise.all([
@@ -983,7 +996,7 @@ serve(async (req) => {
   const sessionsPerWeek = Math.min(dog.available_days_per_week, 5);
   const systemPrompt = buildPrompt(dog, behaviorNodes, goalKey);
 
-  const openai = new OpenAI({ apiKey: openaiApiKey });
+  const openai = new OpenAI({ apiKey: openaiApiKey, timeout: 45_000, maxRetries: 1 });
   let aiOutput: AIPlannerOutput;
   let fallbackReason: string | undefined;
   const startTime = Date.now();

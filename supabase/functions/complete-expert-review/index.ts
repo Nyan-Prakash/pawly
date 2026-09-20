@@ -59,12 +59,15 @@ serve(async (req) => {
 
   // ── Admin key auth ────────────────────────────────────────────────────────
   // This endpoint is for trainers / admin tooling, not end users.
+  // Fails closed: without ADMIN_API_KEY configured nobody can call this.
   const adminApiKey = Deno.env.get('ADMIN_API_KEY');
-  if (adminApiKey) {
-    const providedKey = req.headers.get('X-Admin-Key');
-    if (!providedKey || providedKey !== adminApiKey) {
-      return jsonResponse({ error: 'Forbidden' }, 403);
-    }
+  if (!adminApiKey) {
+    console.error('[complete-expert-review] ADMIN_API_KEY is not set');
+    return jsonResponse({ error: 'Service misconfigured' }, 500);
+  }
+  const providedKey = req.headers.get('X-Admin-Key');
+  if (!providedKey || providedKey !== adminApiKey) {
+    return jsonResponse({ error: 'Forbidden' }, 403);
   }
 
   // ── Parse body ────────────────────────────────────────────────────────────

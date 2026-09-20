@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import OpenAI from 'https://esm.sh/openai@4';
+import { consumeQuota, userSubject } from '../_shared/quota.ts';
 import { buildLearningStateCoachSummary } from '../../../lib/adaptivePlanning/learningStateSummary.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -243,6 +244,8 @@ ${adaptationSummary}
 - Always end advice with a clear section: **Try This Today** followed by one specific next action`;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main handler
 // ─────────────────────────────────────────────────────────────────────────────
@@ -294,16 +297,40 @@ serve(async (req) => {
   if (!conversationId || !dogId) {
     return jsonResponse({ error: 'conversationId and dogId are required' }, 400);
   }
+  if (!UUID_RE.test(conversationId) || !UUID_RE.test(dogId)) {
+    return jsonResponse({ error: 'conversationId and dogId must be UUIDs' }, 400);
+  }
+
+  // The admin client bypasses RLS, so conversation ownership is checked here.
+  const { data: conversation } = await adminClient
+    .from('coach_conversations')
+    .select('id')
+    .eq('id', conversationId)
+    .eq('user_id', user.id)
+    .eq('dog_id', dogId)
+    .maybeSingle();
+  if (!conversation) {
+    return jsonResponse({ error: 'Conversation not found' }, 404);
+  }
 
   // ── 3. Rate limit check ────────────────────────────────────────────────────
-  // Fetch user's subscription tier
-  const { data: userRow } = await adminClient
-    .from('users')
+  // Burst guard first: it is atomic, so parallel requests can't slip past the
+  // count-based limits below.
+  const burst = await consumeQuota(adminClient, [
+    { subject: userSubject(user.id), feature: 'coach', limit: 10, windowSeconds: 60 },
+  ]);
+  if (burst) {
+    return jsonResponse({ error: 'Too many messages. Please wait a moment.' }, 429);
+  }
+
+  // subscription_tier is service-role-write only (see launch_security migration).
+  const { data: profileRow } = await adminClient
+    .from('user_profiles')
     .select('subscription_tier')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  const tier = (userRow?.subscription_tier ?? 'free') as 'free' | 'core' | 'premium';
+  const tier = profileRow?.subscription_tier && profileRow.subscription_tier !== 'free' ? 'paid' : 'free';
 
   if (tier === 'free') {
     // Max 5 messages per day
@@ -324,7 +351,7 @@ serve(async (req) => {
       );
     }
   } else {
-    // core / premium: max 30 per hour
+    // Paid: max 30 per hour
     const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
     const { count } = await adminClient
@@ -419,7 +446,7 @@ serve(async (req) => {
   const systemPrompt = buildSystemPrompt(dog, plan, sessions, walks, learningState, adaptations);
 
   // ── 6. Call OpenAI API ────────────────────────────────────────────────────
-  const openai = new OpenAI({ apiKey: openaiApiKey });
+  const openai = new OpenAI({ apiKey: openaiApiKey, timeout: 45_000, maxRetries: 1 });
 
   const apiMessages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },

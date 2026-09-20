@@ -128,7 +128,7 @@ export const useVideoStore = create<VideoStore>((set, get) => ({
     if (creditError) throw creditError;
 
     // Trigger Edge Function to notify admin (fire-and-forget)
-    supabase.functions.invoke('notify-expert-review', { body: { videoId, userId } }).catch(
+    supabase.functions.invoke('notify-expert-review', { body: { videoId } }).catch(
       (err) => console.warn('notify-expert-review invoke failed (non-fatal):', err),
     );
 

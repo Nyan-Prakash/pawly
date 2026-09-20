@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { consumeQuota, DAY_SECONDS, userSubject } from '../_shared/quota.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // notify-expert-review
@@ -14,7 +15,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 interface RequestBody {
   videoId: string;
-  userId: string;
 }
 
 interface VideoRow {
@@ -56,6 +56,15 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -91,9 +100,18 @@ serve(async (req) => {
     return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
-  const { videoId, userId } = body;
-  if (!videoId || !userId) {
-    return jsonResponse({ error: 'videoId and userId are required' }, 400);
+  // The caller's identity comes from the verified token, never from the body.
+  const { videoId } = body;
+  const userId = user.id;
+  if (!videoId) {
+    return jsonResponse({ error: 'videoId is required' }, 400);
+  }
+
+  const exhausted = await consumeQuota(adminClient, [
+    { subject: userSubject(userId), feature: 'expert_review_email', limit: 5, windowSeconds: DAY_SECONDS },
+  ]);
+  if (exhausted) {
+    return jsonResponse({ error: 'Too many review requests today' }, 429);
   }
 
   // ── Fetch video, dog, and review data ─────────────────────────────────────
@@ -144,20 +162,20 @@ serve(async (req) => {
 
 <h3>Dog Profile</h3>
 <ul>
-  <li><strong>Name:</strong> ${dogData?.name ?? 'Unknown'}</li>
-  <li><strong>Breed:</strong> ${dogData?.breed ?? 'Unknown'}</li>
+  <li><strong>Name:</strong> ${escapeHtml(dogData?.name ?? 'Unknown')}</li>
+  <li><strong>Breed:</strong> ${escapeHtml(dogData?.breed ?? 'Unknown')}</li>
   <li><strong>Age:</strong> ${ageLabel}</li>
-  <li><strong>Sex:</strong> ${dogData?.sex ?? 'Unknown'}</li>
-  <li><strong>Behavior goals:</strong> ${dogData?.behavior_goals?.join(', ') ?? 'Not specified'}</li>
-  <li><strong>Training experience:</strong> ${dogData?.training_experience ?? 'Unknown'}</li>
+  <li><strong>Sex:</strong> ${escapeHtml(dogData?.sex ?? 'Unknown')}</li>
+  <li><strong>Behavior goals:</strong> ${escapeHtml(dogData?.behavior_goals?.join(', ') ?? 'Not specified')}</li>
+  <li><strong>Training experience:</strong> ${escapeHtml(dogData?.training_experience ?? 'Unknown')}</li>
 </ul>
 
 <h3>Video Context</h3>
 <ul>
-  <li><strong>Category:</strong> ${video.behavior_context?.replace(/_/g, ' ') ?? video.context}</li>
+  <li><strong>Category:</strong> ${escapeHtml(video.behavior_context?.replace(/_/g, ' ') ?? video.context)}</li>
   <li><strong>Duration:</strong> ${video.duration_seconds}s</li>
-  ${video.before_context ? `<li><strong>What happened before:</strong> ${video.before_context}</li>` : ''}
-  ${video.goal_context ? `<li><strong>Owner's goal:</strong> ${video.goal_context}</li>` : ''}
+  ${video.before_context ? `<li><strong>What happened before:</strong> ${escapeHtml(video.before_context)}</li>` : ''}
+  ${video.goal_context ? `<li><strong>Owner's goal:</strong> ${escapeHtml(video.goal_context)}</li>` : ''}
 </ul>
 
 <h3>Access</h3>
@@ -165,7 +183,7 @@ serve(async (req) => {
   View the video in Supabase Storage:<br/>
   <a href="${videoAdminUrl}">${videoAdminUrl}</a>
 </p>
-<p>Storage path: <code>${video.storage_path}</code></p>
+<p>Storage path: <code>${escapeHtml(video.storage_path)}</code></p>
 
 <hr/>
 <p><em>To submit your review, use the complete-expert-review Edge Function or update the expert_reviews table directly in Supabase Studio.</em></p>

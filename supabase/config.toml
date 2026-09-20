@@ -1,3 +1,6 @@
+# verify_jwt = false functions validate the caller's token themselves (auth.getUser)
+# so they keep working with non-JWT publishable API keys. generate-dog-avatar is
+# the only one that accepts signed-out callers; it is metered per IP instead.
 [functions.generate-adaptive-plan]
 verify_jwt = false
 
