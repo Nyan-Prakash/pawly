@@ -6,6 +6,62 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// deno-lint-ignore no-explicit-any
+type AdminClient = any;
+
+const LIST_PAGE = 1000;
+
+async function listAll(adminClient: AdminClient, bucket: string, folder: string, search?: string) {
+  const names: string[] = [];
+  for (let offset = 0; ; offset += LIST_PAGE) {
+    const { data, error } = await adminClient.storage
+      .from(bucket)
+      .list(folder, { limit: LIST_PAGE, offset, search });
+    if (error) throw new Error(`list ${bucket}/${folder}: ${error.message}`);
+    // Entries without an id are sub-folders; mark them with a trailing slash.
+    for (const entry of (data ?? []) as { name: string; id: string | null }[]) {
+      names.push(entry.id ? `${folder}/${entry.name}` : `${folder}/${entry.name}/`);
+    }
+    if (!data || data.length < LIST_PAGE) break;
+  }
+  return names;
+}
+
+async function removeFolder(adminClient: AdminClient, bucket: string, folder: string) {
+  const entries = await listAll(adminClient, bucket, folder);
+  const files = entries.filter((e) => !e.endsWith('/'));
+  for (const sub of entries.filter((e) => e.endsWith('/'))) {
+    await removeFolder(adminClient, bucket, sub.slice(0, -1));
+  }
+  for (let i = 0; i < files.length; i += 100) {
+    const { error } = await adminClient.storage.from(bucket).remove(files.slice(i, i + 100));
+    if (error) throw new Error(`remove ${bucket}/${folder}: ${error.message}`);
+  }
+}
+
+async function deleteUserStorage(adminClient: AdminClient, userId: string): Promise<string | null> {
+  try {
+    // pawly-videos: videos/{userId}/{dogId}/… and thumbnails/{userId}/{dogId}/…
+    await removeFolder(adminClient, 'pawly-videos', `videos/${userId}`);
+    await removeFolder(adminClient, 'pawly-videos', `thumbnails/${userId}`);
+
+    // avatars: current layout is {userId}/{ts}.png
+    await removeFolder(adminClient, 'avatars', userId);
+
+    // avatars: legacy flat layout avatars/{userId}_{ts}.png
+    const legacy = (await listAll(adminClient, 'avatars', 'avatars', userId)).filter((p) =>
+      p.startsWith(`avatars/${userId}_`),
+    );
+    if (legacy.length > 0) {
+      const { error } = await adminClient.storage.from('avatars').remove(legacy);
+      if (error) throw new Error(`remove legacy avatars: ${error.message}`);
+    }
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -45,98 +101,22 @@ serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // ── 1. Fetch dog IDs owned by this user ──────────────────────────────────
-    const { data: dogs } = await adminClient
-      .from('dogs')
-      .select('id')
-      .eq('owner_id', userId);
-
-    const dogIds = (dogs ?? []).map((d: { id: string }) => d.id);
-
-    // ── 2. Delete avatar storage objects ─────────────────────────────────────
-    if (dogIds.length > 0) {
-      // List and delete files in the avatars bucket under each dog ID prefix
-      for (const dogId of dogIds) {
-        const { data: avatarFiles } = await adminClient.storage
-          .from('avatars')
-          .list(dogId);
-
-        if (avatarFiles && avatarFiles.length > 0) {
-          const paths = avatarFiles.map((f: { name: string }) => `${dogId}/${f.name}`);
-          await adminClient.storage.from('avatars').remove(paths);
-        }
-      }
+    // ── 1. Delete storage objects ────────────────────────────────────────────
+    // Storage is not covered by FK cascades, and Apple requires uploaded media
+    // to go with the account. Any failure here aborts before the auth user is
+    // removed, so the user can retry instead of orphaning files.
+    const storageError = await deleteUserStorage(adminClient, userId);
+    if (storageError) {
+      console.error('delete-account storage cleanup failed:', storageError);
+      return new Response(JSON.stringify({ error: 'Failed to delete account. Please try again.' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // ── 3. Delete video storage objects ──────────────────────────────────────
-    const { data: videos } = await adminClient
-      .from('training_videos')
-      .select('storage_path')
-      .eq('user_id', userId);
-
-    if (videos && videos.length > 0) {
-      const paths = videos
-        .map((v: { storage_path: string | null }) => v.storage_path)
-        .filter(Boolean) as string[];
-
-      if (paths.length > 0) {
-        await adminClient.storage.from('training-videos').remove(paths);
-      }
-    }
-
-    // ── 4. Delete all user data (cascade order) ───────────────────────────────
-    // Plans cascade-delete sessions, schedule slots, and adaptations via FK constraints.
-    // Explicit deletions here for tables without cascades.
-
-    if (dogIds.length > 0) {
-      // Fetch plan IDs for this user's dogs
-      const { data: plans } = await adminClient
-        .from('plans')
-        .select('id')
-        .in('dog_id', dogIds);
-
-      const planIds = (plans ?? []).map((p: { id: string }) => p.id);
-
-      if (planIds.length > 0) {
-        await adminClient.from('session_logs').delete().in('plan_id', planIds);
-        await adminClient.from('plan_adaptations').delete().in('plan_id', planIds);
-        await adminClient.from('plan_sessions').delete().in('plan_id', planIds);
-        await adminClient.from('plans').delete().in('id', planIds);
-      }
-
-      await adminClient.from('walk_logs').delete().in('dog_id', dogIds);
-      await adminClient.from('milestones').delete().in('dog_id', dogIds);
-      await adminClient.from('dog_learning_state').delete().in('dog_id', dogIds);
-      await adminClient.from('learning_state_signals').delete().in('dog_id', dogIds);
-      await adminClient.from('learning_hypotheses').delete().in('dog_id', dogIds);
-      await adminClient.from('dogs').delete().in('id', dogIds);
-    }
-
-    // Coach conversations & messages
-    const { data: convos } = await adminClient
-      .from('coach_conversations')
-      .select('id')
-      .eq('user_id', userId);
-
-    const convoIds = (convos ?? []).map((c: { id: string }) => c.id);
-    if (convoIds.length > 0) {
-      await adminClient.from('coach_messages').delete().in('conversation_id', convoIds);
-      await adminClient.from('coach_conversations').delete().in('id', convoIds);
-    }
-
-    // Training videos metadata
-    await adminClient.from('training_videos').delete().eq('user_id', userId);
-
-    // Notifications
-    await adminClient.from('in_app_notifications').delete().eq('user_id', userId);
-
-    // User feedback
-    await adminClient.from('user_feedback').delete().eq('user_id', userId);
-
-    // User profile
-    await adminClient.from('user_profiles').delete().eq('id', userId);
-
-    // ── 5. Delete the auth user ───────────────────────────────────────────────
+    // ── 2. Delete the auth user ───────────────────────────────────────────────
+    // Every user table references auth.users or dogs with ON DELETE CASCADE, so
+    // this removes all database rows as well.
     const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(userId);
     if (deleteAuthError) {
       console.error('Failed to delete auth user:', deleteAuthError);

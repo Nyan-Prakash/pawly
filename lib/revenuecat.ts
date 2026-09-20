@@ -12,8 +12,15 @@ const API_KEY = Platform.select({
   android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
 });
 
-/** False until real keys are in `.env`; every call below is then a no-op. */
-export const isRevenueCatAvailable = !!API_KEY && !API_KEY.startsWith('your_');
+/**
+ * False until real keys are in `.env`; every call below is then a no-op.
+ * Only public SDK keys (`appl_` / `goog_`) are accepted — an `sk_` secret key
+ * must never be bundled into the client.
+ */
+export const isRevenueCatAvailable = !!API_KEY && /^(appl|goog)_/.test(API_KEY);
+if (__DEV__ && API_KEY?.startsWith('sk_')) {
+  console.error('[revenuecat] EXPO_PUBLIC_REVENUECAT_*_KEY is a SECRET key. Rotate it and use the public appl_/goog_ SDK key.');
+}
 
 export type ProPackages = {
   monthly: PurchasesPackage | null;

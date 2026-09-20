@@ -14,6 +14,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import OpenAI from 'https://esm.sh/openai@4';
+import { consumeQuota, DAY_SECONDS, userSubject } from '../_shared/quota.ts';
 
 // ── Types (mirror lib/liveCoach/liveAiTrainerTypes.ts) ───────────────────────
 
@@ -68,6 +69,8 @@ const MAX_UTTERANCE_CHARS = 300;
 const MAX_HISTORY = 5;
 const MAX_TEXT_FIELD_CHARS = 500;
 const RATE_LIMIT_PER_MINUTE = 20; // slightly above the client's 15 to absorb clock skew
+// Hard daily ceiling per user (~40 min of coaching at the client's 15/min).
+const DAILY_REQUEST_LIMIT = 600;
 const SLOW_LATENCY_MS = 4000;
 const MODEL = 'gpt-4o';
 
@@ -328,6 +331,12 @@ serve(async (req) => {
   const limit = checkRateLimit(user.id, Date.now());
   if (!limit.ok) {
     return jsonResponse({ error: 'Too many requests' }, 429, { 'Retry-After': String(limit.retryAfterSec) });
+  }
+  const exhausted = await consumeQuota(adminClient, [
+    { subject: userSubject(user.id), feature: 'live_trainer', limit: DAILY_REQUEST_LIMIT, windowSeconds: DAY_SECONDS },
+  ]);
+  if (exhausted) {
+    return jsonResponse({ error: 'Daily live coaching limit reached' }, 429, { 'Retry-After': '3600' });
   }
 
   // 3. Body

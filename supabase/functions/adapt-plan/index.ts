@@ -69,36 +69,34 @@ serve(async (req) => {
     return jsonResponse({ error: 'dogId is required' }, 400);
   }
 
+  // verify_jwt is off for this function, so the user token check here is the
+  // only gate in front of service-role writes. It must never be optional.
   const authHeader = req.headers.get('Authorization');
-  let authenticatedUserId: string | null = null;
-
-  if (authHeader) {
-    const token = authHeader.replace('Bearer ', '');
-    const {
-      data: { user },
-      error: authError,
-    } = await adminClient.auth.getUser(token);
-
-    if (authError || !user) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
-    }
-
-    authenticatedUserId = user.id;
+  if (!authHeader) {
+    return jsonResponse({ error: 'Missing authorization header' }, 401);
   }
+
+  const token = authHeader.replace('Bearer ', '');
+  const {
+    data: { user },
+    error: authError,
+  } = await adminClient.auth.getUser(token);
+
+  if (authError || !user) {
+    return jsonResponse({ error: 'Unauthorized' }, 401);
+  }
+
+  const authenticatedUserId = user.id;
 
   const startedAt = Date.now();
   const now = new Date().toISOString();
 
-  let dogQuery = adminClient
+  const dogResult = await adminClient
     .from('dogs')
     .select('id, owner_id, name')
-    .eq('id', body.dogId);
-
-  if (authenticatedUserId) {
-    dogQuery = dogQuery.eq('owner_id', authenticatedUserId);
-  }
-
-  const dogResult = await dogQuery.maybeSingle();
+    .eq('id', body.dogId)
+    .eq('owner_id', authenticatedUserId)
+    .maybeSingle();
 
   if (dogResult.error || !dogResult.data) {
     return jsonResponse({ error: 'Dog not found or access denied' }, 404);

@@ -289,7 +289,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
               for (let i = 0; i < binaryString.length; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
               }
-              const path = `avatars/${userId}_${Date.now()}.png`;
+              // Storage policy only allows writes under the caller's own folder.
+              const path = `${userId}/${Date.now()}.png`;
               const { error: uploadError } = await supabase.storage
                 .from('avatars')
                 .upload(path, bytes, { upsert: true, contentType: 'image/png' });
