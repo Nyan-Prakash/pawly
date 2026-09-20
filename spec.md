@@ -1097,18 +1097,50 @@ Stored in `in_app_notifications` table. Displayed in the notification bell/inbox
 
 ## 11. Payments & Subscriptions
 
-### Current State
+**Provider:** RevenueCat (`react-native-purchases`) via `lib/revenuecat.ts`. Pure tier and gate logic lives in `lib/subscription.ts`; client state lives in `stores/subscriptionStore.ts`. Dashboard and store setup steps are in `docs/REVENUECAT-SETUP.md`.
 
-- `authStore.subscriptionTier` holds `'free' | 'core' | 'premium'`
-- Plan records have an `isPaid` flag derived from subscription tier
-- `review_credits` table gates expert review requests
+### 11.1 Products
 
-### Not Yet Implemented
+- Two tiers: `'free' | 'pro'` (`SubscriptionTier`)
+- One entitlement, `pawly_pro` (`PRO_ENTITLEMENT`), attached to both products
+- One subscription group, "Pawly Pro", served from the current RevenueCat offering:
 
-- No RevenueCat or Apple IAP integration
-- No paywall UI
-- No subscription management screen
-- All features currently accessible to all users regardless of tier
+| Package | Price |
+|---|---|
+| Monthly (`$rc_monthly`) | $9.99 / month |
+| Annual (`$rc_annual`) | $79.99 / year |
+
+Prices, trial length and the annual "% less than monthly" line are read from the store at runtime, not hardcoded in the app.
+
+### 11.2 Free Tier Limits
+
+Defined in `FREE_LIMITS` (`lib/subscription.ts`). Anything in `PRO_FEATURES` needs Pro; a feature that is not listed is free.
+
+| Limit | Free | Pro |
+|---|---|---|
+| Completed sessions across all courses | 3, then new sessions lock (completed ones stay repeatable) | Unlimited |
+| AI coach messages | 3 per day | Unlimited |
+| Progress history | 2 weeks | 8 weeks |
+
+The coach limit is enforced server-side in the `ai-coach-message` Edge Function (`FREE_DAILY_MESSAGES`), which returns `free_daily_limit`. The other limits are enforced on the client.
+
+### 11.3 Paywall
+
+A single `PaywallSheet` (`components/paywall/PaywallSheet.tsx`) is mounted in `app/_layout.tsx` and opened with `useSubscriptionStore.getState().openPaywall(source)`.
+
+| Source | Trigger |
+|---|---|
+| `plan_preview` | Shown once at the end of onboarding for free users |
+| `plan` | Starting a locked session (`guardSessionStart()` in `lib/proGate.ts`) |
+| `coach` | Daily coach message limit reached |
+| `progress` | Locked progress history |
+| `profile` | Pawly Pro row in Profile (shows renewal status once subscribed) |
+
+The sheet also carries the "Restore purchases" action.
+
+### 11.4 Server Sync
+
+The `revenuecat-webhook` Edge Function keeps `user_profiles.subscription_tier`, `subscription_expires_at` and `subscription_event_at` in step with the `pawly_pro` entitlement so server-side limits follow purchases. It is authenticated with a shared secret (`REVENUECAT_WEBHOOK_SECRET`) rather than a JWT. The RevenueCat app user ID is the Supabase user ID.
 
 ---
 
