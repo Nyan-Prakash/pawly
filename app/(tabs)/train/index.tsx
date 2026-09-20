@@ -39,6 +39,7 @@ import { useNotificationStore } from '@/stores/notificationStore';
 import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
 import { useProgressStore } from '@/stores/progressStore';
 import type { Milestone, Plan, PlanSession } from '@/types';
+import { guardSessionStart } from '@/lib/proGate';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Date helpers (local time — session.scheduledDate is a local YYYY-MM-DD)
@@ -431,9 +432,10 @@ export default function TrainScreen() {
             variant={heroVariant}
             canReschedule={canReschedule}
             rescheduleLabel={rescheduleLabel}
-            onStart={() =>
-              router.push(`/(tabs)/train/session?id=${heroSession.id}&planId=${heroSession.planId}`)
-            }
+            onStart={() => {
+              if (!guardSessionStart(heroSession.planId, heroSession.id)) return;
+              router.push(`/(tabs)/train/session?id=${heroSession.id}&planId=${heroSession.planId}`);
+            }}
             onViewPlan={() => openPlan(heroSession.planId)}
             onReschedule={() => rescheduleMissedSession(heroSession.planId, heroSession.id)}
           />
@@ -496,9 +498,10 @@ export default function TrainScreen() {
                   title={session.title}
                   subtitle={`${session.planCourseTitle ?? getBehaviorLabel(session.planGoal)}, ${session.durationMinutes} min`}
                   trailing="chevron"
-                  onPress={() =>
-                    router.push(`/(tabs)/train/session?id=${session.id}&planId=${session.planId}`)
-                  }
+                  onPress={() => {
+                    if (!guardSessionStart(session.planId, session.id)) return;
+                    router.push(`/(tabs)/train/session?id=${session.id}&planId=${session.planId}`);
+                  }}
                 />
               ))}
               {walkGoalText ? (

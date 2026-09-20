@@ -23,6 +23,8 @@ import { MILESTONE_DEFINITIONS } from '@/lib/milestoneEngine';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useProgressStore } from '@/stores/progressStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
+import { canAccess, progressWeeksFor } from '@/lib/subscription';
 import type { BehaviorScore, Milestone, MilestoneDefinition } from '@/types';
 
 const CHART_HEIGHT = 120;
@@ -255,6 +257,8 @@ export default function ProgressScreen() {
     fetchMilestones,
   } = useProgressStore();
 
+  const tier = useSubscriptionStore((s) => s.tier);
+  const openPaywall = useSubscriptionStore((s) => s.openPaywall);
   const [refreshing, setRefreshing] = useState(false);
   const [celebrationMilestone, setCelebrationMilestone] = useState<Milestone | null>(null);
 
@@ -299,9 +303,10 @@ export default function ProgressScreen() {
     .slice(0, 3);
   const upcoming: MilestoneDefinition[] = MILESTONE_DEFINITIONS.filter((def) => !reachedIds.includes(def.id)).slice(0, 3);
 
-  // Always show the last eight weeks so one session is a bar, not a block.
-  // Keys are local YYYY-MM-DD, matching the store's weekStart values.
-  const WEEKS_SHOWN = 8;
+  // Pro shows the last eight weeks so one session is a bar, not a block; free
+  // shows the most recent ones. Keys are local YYYY-MM-DD, matching the store.
+  const WEEKS_SHOWN = progressWeeksFor(tier);
+  const hasFullHistory = canAccess('progress_history', tier);
   const weekBuckets = (() => {
     const toKey = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -390,7 +395,7 @@ export default function ProgressScreen() {
               <SectionHeader title="Sessions by week" />
               <Card>
                 {sessionBars.length > 0 ? (
-                  <BarChart bars={sessionBars} max={sessionMax} showEveryLabel={false} />
+                  <BarChart bars={sessionBars} max={sessionMax} showEveryLabel={!hasFullHistory} />
                 ) : (
                   <EmptyState
                     icon="stats-chart-outline"
@@ -401,6 +406,18 @@ export default function ProgressScreen() {
                 )}
               </Card>
             </View>
+
+            {!hasFullHistory ? (
+              <ListGroup>
+                <ListRow
+                  icon="stats-chart-outline"
+                  title="See the full history"
+                  subtitle={`Free shows the last ${WEEKS_SHOWN} weeks. Pro shows all of it.`}
+                  trailing="chevron"
+                  onPress={() => openPaywall('progress')}
+                />
+              </ListGroup>
+            ) : null}
 
             <View>
               <SectionHeader title="Walk quality" />

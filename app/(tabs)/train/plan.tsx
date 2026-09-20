@@ -24,6 +24,7 @@ import { formatDisplayTime, formatScheduleLabel, getBehaviorLabel, getPlanComple
 import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
 import type { PlanAdaptation, PlanSession } from '@/types';
+import { guardSessionStart } from '@/lib/proGate';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -450,7 +451,10 @@ export default function PlanScreen() {
             {nextSession ? (
               <Button
                 label={`Start: ${nextSession.title}`}
-                onPress={() => router.push(`/(tabs)/train/session?id=${nextSession.id}&planId=${displayPlanId ?? ''}`)}
+                onPress={() => {
+                  if (!guardSessionStart(displayPlanId, nextSession.id)) return;
+                  router.push(`/(tabs)/train/session?id=${nextSession.id}&planId=${displayPlanId ?? ''}`);
+                }}
               />
             ) : null}
           </Card>
@@ -479,6 +483,7 @@ export default function PlanScreen() {
         onStart={() => {
           if (selectedSession && !selectedSession.isCompleted) {
             setSelectedSession(null);
+            if (!guardSessionStart(displayPlanId, selectedSession.id)) return;
             router.push(`/(tabs)/train/session?id=${selectedSession.id}&planId=${displayPlanId ?? ''}`);
           } else {
             setSelectedSession(null);

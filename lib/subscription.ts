@@ -6,7 +6,7 @@ import type { SubscriptionTier } from '../types/index.ts';
  */
 
 /** The one entitlement configured in the RevenueCat dashboard. */
-export const PRO_ENTITLEMENT = 'pro';
+export const PRO_ENTITLEMENT = 'pawly_pro';
 
 export type Feature =
   | 'full_plan'
@@ -24,8 +24,39 @@ const PRO_FEATURES: ReadonlySet<Feature> = new Set<Feature>([
   'progress_history',
 ]);
 
+/**
+ * What the free tier gets. Tune here; the coach limit is mirrored in
+ * `supabase/functions/ai-coach-message` (FREE_DAILY_MESSAGES), which enforces it.
+ */
+export const FREE_LIMITS = {
+  /** Completed sessions across all courses before new ones need Pro. */
+  sessions: 3,
+  coachMessagesPerDay: 3,
+  /** Weekly bars shown on Progress. Pro sees PRO_PROGRESS_WEEKS. */
+  progressWeeks: 2,
+} as const;
+
+export const PRO_PROGRESS_WEEKS = 8;
+
 export function canAccess(feature: Feature, tier: SubscriptionTier): boolean {
   return tier === 'pro' || !PRO_FEATURES.has(feature);
+}
+
+/**
+ * A session a free user cannot start. Completed sessions stay open so they can
+ * be repeated; everything else locks once the free sessions are used up.
+ */
+export function isSessionLocked(
+  session: { isCompleted: boolean },
+  completedSessions: number,
+  tier: SubscriptionTier,
+): boolean {
+  if (canAccess('unlimited_sessions', tier) || session.isCompleted) return false;
+  return completedSessions >= FREE_LIMITS.sessions;
+}
+
+export function progressWeeksFor(tier: SubscriptionTier): number {
+  return canAccess('progress_history', tier) ? PRO_PROGRESS_WEEKS : FREE_LIMITS.progressWeeks;
 }
 
 type EntitlementSource = {

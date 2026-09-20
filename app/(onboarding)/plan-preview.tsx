@@ -25,6 +25,7 @@ import { formatDisplayTime, getBehaviorLabel } from '@/lib/scheduleEngine';
 import { mapDogRowToDog, mapPlanRowToPlan } from '@/lib/modelMappers';
 import { supabase } from '@/lib/supabase';
 import { usePlanStore } from '@/stores/planStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import type { AdaptivePlanMetadata, Plan, Weekday } from '@/types';
 
 const ROW_HEIGHT = 52;
@@ -157,6 +158,9 @@ export default function PlanPreviewScreen() {
     setOnboardingField('submissionIntent', null);
     resetOnboarding();
     router.replace('/(tabs)/train');
+    // The one moment everyone sees the offer. Closing it lands on the free tier.
+    const { tier, openPaywall } = useSubscriptionStore.getState();
+    if (tier === 'free') openPaywall('plan_preview');
   };
 
   const bullets = getPlanBullets(primaryGoal);

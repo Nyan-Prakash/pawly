@@ -15,9 +15,11 @@ const API_KEY = Platform.select({
 /**
  * False until real keys are in `.env`; every call below is then a no-op.
  * Only public SDK keys (`appl_` / `goog_`) are accepted — an `sk_` secret key
- * must never be bundled into the client.
+ * must never be bundled into the client. A Test Store key (`test_`) works in
+ * dev builds only; the SDK refuses it in release.
  */
-export const isRevenueCatAvailable = !!API_KEY && /^(appl|goog)_/.test(API_KEY);
+export const isRevenueCatAvailable =
+  !!API_KEY && (/^(appl|goog)_/.test(API_KEY) || (__DEV__ && API_KEY.startsWith('test_')));
 if (__DEV__ && API_KEY?.startsWith('sk_')) {
   console.error('[revenuecat] EXPO_PUBLIC_REVENUECAT_*_KEY is a SECRET key. Rotate it and use the public appl_/goog_ SDK key.');
 }

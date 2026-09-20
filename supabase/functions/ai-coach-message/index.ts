@@ -4,6 +4,9 @@ import OpenAI from 'https://esm.sh/openai@4';
 import { consumeQuota, userSubject } from '../_shared/quota.ts';
 import { buildLearningStateCoachSummary } from '../../../lib/adaptivePlanning/learningStateSummary.ts';
 
+// Mirrors FREE_LIMITS.coachMessagesPerDay in lib/subscription.ts.
+const FREE_DAILY_MESSAGES = 3;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -333,7 +336,6 @@ serve(async (req) => {
   const tier = profileRow?.subscription_tier && profileRow.subscription_tier !== 'free' ? 'paid' : 'free';
 
   if (tier === 'free') {
-    // Max 5 messages per day
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
 
@@ -344,9 +346,13 @@ serve(async (req) => {
       .eq('role', 'user')
       .gte('created_at', dayStart.toISOString());
 
-    if ((count ?? 0) >= 5) {
+    if ((count ?? 0) >= FREE_DAILY_MESSAGES) {
+      // `code` tells the app to open the paywall.
       return jsonResponse(
-        { error: 'Daily coaching limit reached. Upgrade for unlimited coaching.' },
+        {
+          error: `That's today's ${FREE_DAILY_MESSAGES} free coach messages. Pro removes the daily limit.`,
+          code: 'free_daily_limit',
+        },
         429,
       );
     }

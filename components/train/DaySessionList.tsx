@@ -6,6 +6,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { formatDisplayTime, getBehaviorLabel } from '@/lib/scheduleEngine';
 import type { EnrichedPlanSession, PlanSession, SupportSessionType } from '@/types';
+import { guardSessionStart } from '@/lib/proGate';
 
 function supportSessionLabel(type: SupportSessionType | null | undefined): string {
   switch (type) {
@@ -65,13 +66,14 @@ export function DaySessionList({ date, sessions, showCourseBadge = false }: DayS
                 title={session.title}
                 subtitle={subtitle}
                 trailing="chevron"
-                onPress={() =>
+                onPress={() => {
+                  if (!guardSessionStart(enriched?.planId, session.id)) return;
                   router.push(
                     enriched
                       ? `/(tabs)/train/session?id=${session.id}&planId=${enriched.planId}`
                       : `/(tabs)/train/session?id=${session.id}`,
-                  )
-                }
+                  );
+                }}
               />
             );
           })}
