@@ -120,7 +120,6 @@ export function PaywallSheet() {
           <ListGroup>
             <ListRow icon="calendar-outline" title="Every session in the plan" subtitle="All courses, start to finish" />
             <ListRow icon="chatbubbles-outline" title="The coach, without a daily limit" />
-            <ListRow icon="videocam-outline" title="Video feedback on any session" />
             <ListRow icon="stats-chart-outline" title="Full progress history" />
           </ListGroup>
 

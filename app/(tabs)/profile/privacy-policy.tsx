@@ -83,7 +83,7 @@ export default function PrivacyPolicyScreen() {
         </Bullet>
         <Bullet>Training activity: completed session logs, walk logs, milestones reached and behavior progress scores.</Bullet>
         <Bullet>Coach conversations: messages you send to and receive from the coach.</Bullet>
-        <Bullet>Photos and videos: images or video clips of your dog that you choose to upload for session review.</Bullet>
+        <Bullet>Photos: a photo of your dog that you choose to upload to create an avatar.</Bullet>
         <Bullet>Device information: device type, operating system version and app version, for diagnostics.</Bullet>
         <Bullet>Usage data: features used, screens visited and in-app actions taken, to improve the app.</Bullet>
       </Section>
@@ -123,11 +123,11 @@ export default function PrivacyPolicyScreen() {
         </Body>
       </Section>
 
-      <Section title="5. Photos and videos">
+      <Section title="5. Photos">
         <Body>
-          Photos and videos you upload are stored securely and used only to provide session review features in the app.
+          Photos you upload are stored securely and used only to create your dog's avatar in the app.
           We do not use your pet photos for advertising or share them with third parties beyond the service providers
-          needed to deliver the feature. You can delete uploaded media at any time.
+          needed to deliver the feature. Your avatar is deleted when you delete your account.
         </Body>
       </Section>
 

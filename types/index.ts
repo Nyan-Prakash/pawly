@@ -233,7 +233,6 @@ export interface NotificationPrefs {
   streakAlerts: boolean;
   milestoneAlerts: boolean;
   insights: boolean;
-  expertReview: boolean;
   lifecycle: boolean;
   weeklySummary: boolean;
   scheduledSessionReminders: boolean;
@@ -451,50 +450,6 @@ export interface Article {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
-}
-
-// ─── Video & Expert Review ─────────────────────────────────────────────────
-
-export type VideoContext = 'onboarding' | 'session' | 'behavior';
-
-export type ExpertReviewStatus = 'queued' | 'in_review' | 'complete';
-
-export interface VideoRecord {
-  id: string;
-  userId: string;
-  dogId: string;
-  storagePath: string;
-  thumbnailPath: string | null;
-  durationSeconds: number;
-  context: VideoContext;
-  behaviorContext: string | null;
-  beforeContext: string | null;
-  goalContext: string | null;
-  uploadedAt: string;
-  expertReview?: ExpertReview;
-}
-
-export interface TimestampMarker {
-  time: number; // seconds
-  note: string;
-}
-
-export interface ExpertReview {
-  id: string;
-  videoId: string;
-  userId: string;
-  status: ExpertReviewStatus;
-  trainerName: string | null;
-  trainerPhotoUrl: string | null;
-  feedback: string | null;
-  timestamps: TimestampMarker[];
-  requestedAt: string;
-  completedAt: string | null;
-}
-
-export interface ReviewCredit {
-  userId: string;
-  creditsRemaining: number;
 }
 
 // ─── Adaptive Planning ───────────────────────────────────────────────────────

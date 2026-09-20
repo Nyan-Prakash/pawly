@@ -17,7 +17,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       NSCameraUsageDescription:
         "Pawly uses the camera to provide real-time AI feedback and coaching during your training sessions.",
       NSPhotoLibraryUsageDescription:
-        "Pawly uses your photo library so you can choose photos and videos of your dog for avatars and training uploads.",
+        "Pawly uses your photo library so you can choose a photo of your dog to create an avatar.",
       NSPhotoLibraryAddUsageDescription:
         "Pawly may save generated dog avatars to your device when you choose to keep them.",
       NSMicrophoneUsageDescription:
@@ -36,9 +36,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-image-picker',
       {
         photosPermission:
-          "Pawly uses your photo library so you can choose photos and videos of your dog for avatars and training uploads.",
+          "Pawly uses your photo library so you can choose a photo of your dog to create an avatar.",
         cameraPermission:
-          "Pawly uses the camera so you can take photos and videos of your dog for avatars and training uploads."
+          "Pawly uses the camera so you can take a photo of your dog to create an avatar."
       }
     ],
     [
