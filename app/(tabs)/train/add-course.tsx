@@ -10,8 +10,8 @@
  * Relies on lib/addCourse.ts for all business logic.
  */
 
-import { useState } from 'react';
-import { ScrollView, Switch, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, ScrollView, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 
 import type { AppIconName } from '@/components/ui/AppIcon';
@@ -29,8 +29,9 @@ import { getPlanBullets } from '@/lib/planGenerator';
 import {
   addCourse,
   buildCourseTitle,
+  confirmDraftCourse,
+  discardDraftCourse,
   normalizeGoalKey,
-  setPrimaryPlanInDB,
   MAX_ACTIVE_COURSES,
 } from '@/lib/addCourse';
 import { useDogStore } from '@/stores/dogStore';
@@ -193,7 +194,7 @@ function GoalSelectionStep({
             Course limit reached
           </Text>
           <Text variant="body">
-            You can have {MAX_ACTIVE_COURSES} active courses at once. Finish or pause one before adding another.
+            You can have {MAX_ACTIVE_COURSES} active courses at once. Finish one before adding another.
           </Text>
         </View>
       ) : (
@@ -361,6 +362,22 @@ export default function AddCourseScreen() {
   const [confirming, setConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // The previewed plan is a hidden draft until "Add course" is tapped. Track it
+  // so backing out (or leaving the screen) deletes it instead of enrolling it.
+  const draftPlanIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+      if (draftPlanIdRef.current) {
+        discardDraftCourse(draftPlanIdRef.current).catch(() => {});
+        draftPlanIdRef.current = null;
+      }
+    },
+    [],
+  );
+
   // Keys of goals that already have active courses — used for duplicate display
   const activeGoalKeys = activePlans.map((p) => normalizeGoalKey(p.goal));
 
@@ -371,13 +388,20 @@ export default function AddCourseScreen() {
     setSelectedGoal(goalKey);
     setStep('generating');
 
-    // Pre-generate the plan so the user sees a real preview
+    // Pre-generate the plan as a draft so the user sees a real preview.
+    // Nothing is enrolled until handleConfirm.
     const result = await addCourse({
       dog,
       goal: goalKey,
-      makePrimary: false, // generate first as secondary; user can toggle
       accessToken: null,
+      draft: true,
     });
+
+    // The user left while the plan was building — don't keep the draft.
+    if (!isMountedRef.current) {
+      if (result.ok) discardDraftCourse(result.plan.id).catch(() => {});
+      return;
+    }
 
     if (!result.ok) {
       // Raw store/network text stays in the console; the screen says what to do.
@@ -386,13 +410,14 @@ export default function AddCourseScreen() {
         result.reason === 'duplicate_goal'
           ? `${dog.name} already has an active course for this goal. Pick a different one.`
           : result.reason === 'limit_reached'
-            ? `${dog.name} already has ${MAX_ACTIVE_COURSES} active courses. Finish or pause one before adding another.`
+            ? `${dog.name} already has ${MAX_ACTIVE_COURSES} active courses. Finish one before adding another.`
             : 'Check your connection and try again.',
       );
       setStep('error');
       return;
     }
 
+    draftPlanIdRef.current = result.plan.id;
     setGeneratedPlan(result.plan);
     setStep('preview');
   }
@@ -400,19 +425,25 @@ export default function AddCourseScreen() {
   async function handleConfirm() {
     if (!dog || !generatedPlan || !selectedGoal) return;
 
-    // If the user changed the primary toggle, we need to re-apply primary
-    // assignment. The plan was already inserted in handleGoalSelect.
+    // This is the moment the draft becomes a course.
     setConfirming(true);
     try {
-      if (makePrimary && !generatedPlan.isPrimary) {
-        const err = await setPrimaryPlanInDB(dog.id, generatedPlan.id);
-        if (err) {
-          setErrorMessage("Couldn't make this the primary course. The course was still added; try again from Plan.");
+      const failure = await confirmDraftCourse(dog, generatedPlan, makePrimary);
+      if (failure) {
+        if (failure === 'limit_reached') {
+          discardDraftCourse(generatedPlan.id).catch(() => {});
+          draftPlanIdRef.current = null;
+          setErrorMessage(
+            `${dog.name} already has ${MAX_ACTIVE_COURSES} active courses. Finish one before adding another.`,
+          );
           setStep('error');
-          setConfirming(false);
           return;
         }
+        // Keep the draft and the preview so "Add course" can be tried again.
+        Alert.alert("Couldn't add the course", 'Check your connection and try again.');
+        return;
       }
+      draftPlanIdRef.current = null;
 
       // Refresh stores so Today / Plan / Calendar update immediately
       await refreshPlans(dog.id);
@@ -438,6 +469,10 @@ export default function AddCourseScreen() {
   }
 
   function handleBackToSelect() {
+    if (draftPlanIdRef.current) {
+      discardDraftCourse(draftPlanIdRef.current).catch(() => {});
+      draftPlanIdRef.current = null;
+    }
     setStep('select');
     setSelectedGoal(null);
     setGeneratedPlan(null);

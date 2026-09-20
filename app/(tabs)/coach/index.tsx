@@ -98,13 +98,18 @@ export default function CoachScreen() {
     const text = inputText.trim();
     if (!text || isTyping) return;
     setInputText('');
-    sendMessage(text);
+    sendMessage(text).then((sent) => {
+      // Not delivered: put the text back unless they've started typing again.
+      if (!sent) setInputText((current) => (current.length === 0 ? text : current));
+    });
   }, [inputText, isTyping, sendMessage]);
 
   const handleSuggestion = useCallback(
     (suggestion: string) => {
       if (isTyping) return;
-      sendMessage(suggestion);
+      sendMessage(suggestion).then((sent) => {
+        if (!sent) setInputText((current) => (current.length === 0 ? suggestion : current));
+      });
     },
     [isTyping, sendMessage],
   );

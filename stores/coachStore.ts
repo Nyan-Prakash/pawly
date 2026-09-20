@@ -14,7 +14,8 @@ interface CoachStore {
   initConversation: (dogId: string) => Promise<void>;
   resetConversation: (dogId: string) => Promise<void>;
   loadHistory: (conversationId: string) => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  /** Resolves false when the message was not delivered, so the caller can keep the text. */
+  sendMessage: (content: string) => Promise<boolean>;
   clearRateLimitError: () => void;
 }
 
@@ -140,12 +141,13 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       .from('coach_messages')
       .select('id, role, content, created_at')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(50);
 
     if (error || !data) return;
 
-    const messages: ChatMessage[] = data.map((row) => ({
+    // Newest 50, shown oldest first.
+    const messages: ChatMessage[] = data.slice().reverse().map((row) => ({
       id: row.id,
       role: row.role as 'user' | 'assistant',
       content: row.content,
@@ -156,10 +158,11 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
 
   sendMessage: async (content: string) => {
     const { conversation } = get();
-    if (!conversation) return;
-
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!conversation || !session) {
+      set({ rateLimitError: "The coach isn't connected yet. Please try again." });
+      return false;
+    }
 
     // Optimistically add user message to UI
     const tempUserMsg: ChatMessage = {
@@ -175,7 +178,6 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
     }));
 
     try {
-      console.log('Calling Edge Function:', EDGE_FUNCTION_URL);
       const res = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
@@ -199,7 +201,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
             isTyping: false,
             rateLimitError: json.error ?? 'Coaching limit reached.',
           }));
-          return;
+          return false;
         }
         throw new Error(json.error ?? `HTTP ${res.status}`);
       }
@@ -220,6 +222,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
         ],
         isTyping: false,
       }));
+      return true;
     } catch (err) {
       console.error('sendMessage error:', err);
       set((state) => ({
@@ -227,6 +230,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
         isTyping: false,
         rateLimitError: 'Something went wrong. Please try again.',
       }));
+      return false;
     }
   },
 

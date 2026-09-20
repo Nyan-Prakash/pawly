@@ -4,7 +4,6 @@ import type { AdaptationApiResult, PlanEnvironment, PlanSession, PostSessionRefl
 import type { StepResult } from '@/stores/sessionStore';
 import type { LiveAiTrainerSummary } from './liveCoach/liveAiTrainerTypes';
 import type { RecentSessionSummary } from './adaptivePlanning/reflectionQuestionTypes';
-import { computeStreakUpdate, localDateKey } from './sessionScoring';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -188,45 +187,6 @@ export async function fetchRecentSessionSummaries(
     sessionKind: row.session_kind ?? null,
     skillId: row.skill_id ?? row.exercise_id ?? null,
   }));
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// updateStreak
-// ─────────────────────────────────────────────────────────────────────────────
-
-export async function updateStreak(userId: string, dogId: string): Promise<void> {
-  const now = new Date();
-  const today = localDateKey(now);
-
-  const { data: existing } = await supabase
-    .from('streaks')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('dog_id', dogId)
-    .maybeSingle();
-
-  if (!existing) {
-    await supabase.from('streaks').insert({
-      user_id: userId,
-      dog_id: dogId,
-      current_streak: 1,
-      longest_streak: 1,
-      last_session_date: today,
-    });
-    return;
-  }
-
-  const update = computeStreakUpdate(
-    {
-      current_streak: existing.current_streak ?? 0,
-      longest_streak: existing.longest_streak ?? 0,
-      last_session_date: existing.last_session_date ?? null,
-    },
-    now,
-  );
-  if (!update) return; // already trained today
-
-  await supabase.from('streaks').update(update).eq('id', existing.id);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

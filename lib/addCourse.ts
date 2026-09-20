@@ -53,6 +53,13 @@ export interface AddCourseOptions {
    * Used during onboarding when secondary goals are created alongside the primary plan.
    */
   skipLimitCheck?: boolean;
+  /**
+   * When true, the plan is saved as a hidden draft (status 'paused',
+   * metadata.draft) so it can be previewed without becoming a course. It does
+   * not count toward the course limit and never shows on Train, Plan or
+   * Calendar. Call confirmDraftCourse() to enrol, or discardDraftCourse() to drop it.
+   */
+  draft?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,7 +77,12 @@ export interface AddCourseOptions {
  *    which also clears the flag on all other active plans for the dog).
  */
 export async function addCourse(options: AddCourseOptions): Promise<AddCourseResult> {
-  const { dog, goal, makePrimary = false, accessToken, skipLimitCheck = false } = options;
+  const { dog, goal, makePrimary = false, accessToken, skipLimitCheck = false, draft = false } = options;
+
+  // ── 0. Drop drafts left behind by an earlier preview (e.g. the app was closed) ─
+  if (draft) {
+    await discardDraftCourses(dog.id);
+  }
 
   // ── 1. Fetch current active plans ────────────────────────────────────────
   const { data: activePlanRows, error: fetchError } = await supabase
@@ -135,7 +147,7 @@ export async function addCourse(options: AddCourseOptions): Promise<AddCourseRes
   }
 
   // ── 5. If making primary, clear the flag on all existing active plans ─────
-  if (makePrimary && existingPlans.length > 0) {
+  if (!draft && makePrimary && existingPlans.length > 0) {
     const { error: clearError } = await supabase
       .from('plans')
       .update({ is_primary: false })
@@ -157,8 +169,13 @@ export async function addCourse(options: AddCourseOptions): Promise<AddCourseRes
   // returned plan.id and only need to patch is_primary + course_title.
   // If the plan.id is empty (rules-based path), we do a fresh INSERT.
 
-  const shouldBePrimary = makePrimary || existingPlans.length === 0;
+  // A draft is never primary; confirmDraftCourse() decides that at enrol time.
+  const shouldBePrimary = !draft && (makePrimary || existingPlans.length === 0);
   const courseTitle = buildCourseTitle(goal);
+  const status: Plan['status'] = draft ? 'paused' : generatedPlan.status;
+  const metadata = draft
+    ? { ...(generatedPlan.metadata ?? {}), draft: true }
+    : generatedPlan.metadata ?? {};
   let finalPlan: Plan;
 
   if (generatedPlan.id) {
@@ -169,10 +186,13 @@ export async function addCourse(options: AddCourseOptions): Promise<AddCourseRes
         is_primary: shouldBePrimary,
         course_title: courseTitle,
         priority: shouldBePrimary ? 1 : 0,
+        ...(draft ? { status, metadata } : {}),
       })
       .eq('id', generatedPlan.id);
 
     if (patchError) {
+      // The Edge Function inserted this plan as active; don't leave it enrolled.
+      if (draft) await supabase.from('plans').delete().eq('id', generatedPlan.id);
       return {
         ok: false,
         reason: 'generation_failed',
@@ -182,6 +202,8 @@ export async function addCourse(options: AddCourseOptions): Promise<AddCourseRes
 
     finalPlan = {
       ...generatedPlan,
+      status,
+      metadata: metadata as Plan['metadata'],
       isPrimary: shouldBePrimary,
       courseTitle,
       priority: shouldBePrimary ? 1 : 0,
@@ -193,13 +215,13 @@ export async function addCourse(options: AddCourseOptions): Promise<AddCourseRes
       .insert({
         dog_id: dog.id,
         goal: generatedPlan.goal,
-        status: generatedPlan.status,
+        status,
         duration_weeks: generatedPlan.durationWeeks,
         sessions_per_week: generatedPlan.sessionsPerWeek,
         current_week: generatedPlan.currentWeek,
         current_stage: generatedPlan.currentStage,
         sessions: generatedPlan.sessions,
-        metadata: generatedPlan.metadata ?? {},
+        metadata,
         is_primary: shouldBePrimary,
         course_title: courseTitle,
         priority: shouldBePrimary ? 1 : 0,
@@ -218,6 +240,8 @@ export async function addCourse(options: AddCourseOptions): Promise<AddCourseRes
     finalPlan = {
       ...generatedPlan,
       id: planData.id as string,
+      status,
+      metadata: metadata as Plan['metadata'],
       isPrimary: shouldBePrimary,
       courseTitle,
       priority: shouldBePrimary ? 1 : 0,
@@ -225,6 +249,80 @@ export async function addCourse(options: AddCourseOptions): Promise<AddCourseRes
   }
 
   return { ok: true, plan: finalPlan, madeNewPlanPrimary: finalPlan.isPrimary };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Draft courses
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Enrol a draft created with addCourse({ draft: true }). Re-checks the course
+ * limit, because another course may have been added since the preview was built.
+ *
+ * Returns an error reason on failure, or null on success.
+ */
+export async function confirmDraftCourse(
+  dog: Dog,
+  plan: Plan,
+  makePrimary: boolean
+): Promise<'limit_reached' | 'failed' | null> {
+  const { data: activeRows, error: fetchError } = await supabase
+    .from('plans')
+    .select('id')
+    .eq('dog_id', dog.id)
+    .eq('status', 'active');
+
+  if (fetchError) return 'failed';
+
+  const activeCount = (activeRows ?? []).length;
+  if (activeCount >= MAX_ACTIVE_COURSES) return 'limit_reached';
+
+  const shouldBePrimary = makePrimary || activeCount === 0;
+
+  if (shouldBePrimary && activeCount > 0) {
+    const { error: clearError } = await supabase
+      .from('plans')
+      .update({ is_primary: false })
+      .eq('dog_id', dog.id)
+      .eq('status', 'active')
+      .eq('is_primary', true);
+
+    if (clearError) return 'failed';
+  }
+
+  const { draft: _draft, ...metadata } = (plan.metadata ?? {}) as Record<string, unknown>;
+
+  const { error: activateError } = await supabase
+    .from('plans')
+    .update({
+      status: 'active',
+      is_primary: shouldBePrimary,
+      priority: shouldBePrimary ? 1 : 0,
+      metadata,
+    })
+    .eq('id', plan.id);
+
+  return activateError ? 'failed' : null;
+}
+
+/** Delete one unconfirmed draft. Never touches a plan that has been enrolled. */
+export async function discardDraftCourse(planId: string): Promise<void> {
+  await supabase
+    .from('plans')
+    .delete()
+    .eq('id', planId)
+    .eq('status', 'paused')
+    .eq('metadata->>draft', 'true');
+}
+
+/** Delete every unconfirmed draft for a dog. */
+export async function discardDraftCourses(dogId: string): Promise<void> {
+  await supabase
+    .from('plans')
+    .delete()
+    .eq('dog_id', dogId)
+    .eq('status', 'paused')
+    .eq('metadata->>draft', 'true');
 }
 
 /**
