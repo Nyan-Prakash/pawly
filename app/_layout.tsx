@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { ThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Slot, usePathname, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
 import * as Notifications from 'expo-notifications';
 
+import { captureScreen, identifyUser, resetAnalytics } from '@/lib/analytics';
 import { getRouteFromNotification, trackNotificationOpened } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
@@ -63,6 +64,7 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
   const submissionIntent = useOnboardingStore((s) => s.submissionIntent);
   const dogName = useOnboardingStore((s) => s.dogName);
   const segments = useSegments();
+  const pathname = usePathname();
   const router = useRouter();
   const fetchDog = useDogStore((s) => s.fetchDog);
   const fetchDogLearningState = useDogStore((s) => s.fetchDogLearningState);
@@ -230,6 +232,28 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
     if (userId) identify(userId);
     else reset();
   }, [isBootstrapping, userId]);
+
+  // Same for PostHog. Reset only on an actual sign-out, so an anonymous
+  // visitor keeps one id through onboarding and is merged into it on signup.
+  const identifiedUserId = useRef<string | null>(null);
+  useEffect(() => {
+    if (isBootstrapping) return;
+    if (userId) {
+      identifyUser(userId);
+      identifiedUserId.current = userId;
+    } else if (identifiedUserId.current) {
+      resetAnalytics();
+      identifiedUserId.current = null;
+    }
+  }, [isBootstrapping, userId]);
+
+  // Screen views. The segments give the route pattern (`/session/[id]`), so
+  // screens group together in PostHog instead of one entry per id.
+  const screenName = `/${segments.filter((s) => !s.startsWith('(')).join('/')}`;
+  useEffect(() => {
+    if (isBootstrapping) return;
+    captureScreen(screenName, { path: pathname });
+  }, [isBootstrapping, screenName, pathname]);
 
   if (isBootstrapping || isSubmittingOnboarding) {
     if (isSubmittingOnboarding) {
