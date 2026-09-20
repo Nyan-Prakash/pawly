@@ -113,46 +113,6 @@ async function computeBehaviorScores(dogId: string): Promise<BehaviorScore[]> {
   });
 }
 
-async function updateWalkStreak(userId: string, dogId: string): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
-
-  const { data: existing } = await supabase
-    .from('walk_streaks')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('dog_id', dogId)
-    .single();
-
-  if (!existing) {
-    await supabase.from('walk_streaks').insert({
-      user_id: userId,
-      dog_id: dogId,
-      current_streak: 1,
-      longest_streak: 1,
-      last_walk_date: today,
-    });
-    return;
-  }
-
-  if (existing.last_walk_date === today) return;
-
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-  const newStreak =
-    existing.last_walk_date === yesterdayStr ? existing.current_streak + 1 : 1;
-
-  await supabase
-    .from('walk_streaks')
-    .update({
-      current_streak: newStreak,
-      longest_streak: Math.max(newStreak, existing.longest_streak ?? 0),
-      last_walk_date: today,
-    })
-    .eq('id', existing.id);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Store
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,7 +288,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
         });
     }
 
-    await updateWalkStreak(userId, dogId);
+    // The walk streak is written by the walk_logs trigger, in the dog's timezone.
 
     // Refresh walk quality chart data
     const { data: walkLogs } = await supabase

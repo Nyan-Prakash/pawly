@@ -394,12 +394,12 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(3),
 
-    // Last 20 messages in this conversation
+    // Most recent 20 messages in this conversation (newest first; reversed below)
     adminClient
       .from('coach_messages')
       .select('role, content')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(20),
   ]);
 
@@ -413,7 +413,7 @@ serve(async (req) => {
   const walks = (walksResult.data ?? []) as WalkLogRow[];
   const learningState = (learningStateResult.data ?? null) as LearningStateRow | null;
   const adaptations = (adaptationsResult.data ?? []) as AdaptationRow[];
-  const history = (historyResult.data ?? []) as MessageRow[];
+  const history = ((historyResult.data ?? []) as MessageRow[]).slice().reverse();
 
   // ── 5. Assemble system prompt ──────────────────────────────────────────────
   const systemPrompt = buildSystemPrompt(dog, plan, sessions, walks, learningState, adaptations);
@@ -448,12 +448,16 @@ serve(async (req) => {
   }
 
   // ── 7. Store message pair ──────────────────────────────────────────────────
-  await adminClient.from('coach_messages').insert([
+  // Explicit timestamps: rows inserted in one statement share now(), which
+  // makes the user/assistant order ambiguous when history is sorted.
+  const storedAt = Date.now();
+  const { error: storeError } = await adminClient.from('coach_messages').insert([
     {
       conversation_id: conversationId,
       user_id: user.id,
       role: 'user',
       content: message.trim(),
+      created_at: new Date(storedAt).toISOString(),
     },
     {
       conversation_id: conversationId,
@@ -462,8 +466,12 @@ serve(async (req) => {
       content: assistantContent,
       tokens_used: tokensUsed,
       model_version: 'gpt-4o',
+      created_at: new Date(storedAt + 1).toISOString(),
     },
   ]);
+  if (storeError) {
+    console.error('Failed to store coach messages:', storeError.message);
+  }
 
   // Update conversation updated_at
   await adminClient

@@ -85,6 +85,13 @@ export const useDogStore = create<DogStore>((set, get) => ({
       if (data) {
         const dog = mapDogRowToDog(data);
         set({ dog });
+
+        // Streak triggers read dogs.timezone to decide what "today" is, so keep
+        // it in step with the device (rows default to 'UTC'; people also move).
+        const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (deviceTimezone && deviceTimezone !== data.timezone) {
+          get().updateDog({ timezone: deviceTimezone }).catch(() => {});
+        }
       }
     } finally {
       set({ isLoading: false });

@@ -38,7 +38,6 @@ import { useNotificationStore } from '@/stores/notificationStore';
 import {
   saveSession,
   checkMilestones,
-  updateStreak,
   fetchRecentSessionSummaries,
 } from '@/lib/sessionManager';
 import { EXERCISE_TO_PROTOCOL, type Protocol, type ProtocolStep } from '@/constants/protocols';
@@ -487,8 +486,8 @@ export default function SessionScreen() {
             savedLogIdRef.current = result.sessionLogId;
           }
 
-          // Quick reps count toward the streak but never complete a plan session.
-          updateStreak(user.id, dog.id).catch(() => {});
+          // Quick reps count toward the streak (the session_logs trigger writes it)
+          // but never complete a plan session.
           fetchDogLearningState(dog.id).catch(() => {});
         });
       } catch (e) {
@@ -600,8 +599,7 @@ export default function SessionScreen() {
           notes: reviewNotes || undefined,
         });
 
-        // 3. Best-effort side effects.
-        updateStreak(user.id, dog.id).catch(() => {});
+        // 3. Best-effort side effects. The streak is written by the session_logs trigger.
         checkMilestones(user.id, dog.id, { sessionId: sid, dogId: dog.id, planId: activePlan.id }).catch(() => {});
 
         const plansBefore = usePlanStore.getState().plansById;
