@@ -55,9 +55,22 @@ serve(async (req) => {
     // A signed-in caller is metered per user; the anon key (no session) fails
     // getUser and falls through to per-IP metering.
     const token = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
-    const { data: authData } = token
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const sentAnonKey = !!anonKey && (req.headers.get('apikey') === anonKey || token === anonKey);
+    const { data: authData } = token && token !== anonKey
       ? await adminClient.auth.getUser(token)
       : { data: { user: null } };
+
+    // supabase-js always sends the project's anon key as `apikey`. The key ships
+    // in the app, so this is no secret; it only turns away drive-by callers that
+    // found the URL. Compared against the legacy JWT anon key the app uses today:
+    // moving the app to an sb_publishable_ key means updating this check.
+    if (!authData?.user && !sentAnonKey) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const callerRule = authData?.user
       ? { subject: userSubject(authData.user.id), limit: USER_DAILY_LIMIT }
       : { subject: await ipSubject(req), limit: IP_DAILY_LIMIT };

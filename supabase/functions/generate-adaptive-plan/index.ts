@@ -340,6 +340,12 @@ const GOAL_MAP: Record<string, string> = {
   sit: 'sit',
   down: 'down',
   heel: 'heel',
+  touch: 'touch',
+  spin: 'spin',
+  high_five: 'high_five',
+  bow: 'bow',
+  roll_over: 'roll_over',
+  leg_weave: 'leg_weave',
   'Leash Pulling': 'leash_pulling',
   'Jumping Up': 'jumping_up',
   Barking: 'barking',
@@ -359,7 +365,25 @@ const GOAL_MAP: Record<string, string> = {
   Sit: 'sit',
   Down: 'down',
   Heel: 'heel',
+  Touch: 'touch',
+  Spin: 'spin',
+  'High Five': 'high_five',
+  Bow: 'bow',
+  'Roll Over': 'roll_over',
+  'Leg Weave': 'leg_weave',
 };
+
+/**
+ * Resolve a stored goal to a course key. Unknown goals still fall back to loose
+ * leash so old rows keep producing a plan, but the fallback is logged: a goal
+ * offered in the app and missing here builds the wrong course. Keep GOAL_MAP and
+ * SEQUENCES identical to lib/planGenerator.ts (tests/goalCoverage.test.ts checks).
+ */
+function resolveGoalKey(goal: string | null | undefined): string {
+  if (typeof goal === 'string' && Object.hasOwn(GOAL_MAP, goal)) return GOAL_MAP[goal];
+  console.warn(`[generate-adaptive-plan] Unknown goal "${String(goal)}" is not in GOAL_MAP. Falling back to "leash_pulling".`);
+  return 'leash_pulling';
+}
 
 const VALID_ENVIRONMENTS = new Set([
   'indoors_low_distraction',
@@ -829,10 +853,58 @@ const SEQUENCES: Record<string, Array<[string, string, number]>> = {
     ['hl_05', 'Heel past distractions', 12],
     ['hl_06', 'Heel on the sidewalk', 12],
   ],
+  touch: [
+    ['tc_01', 'Nose to your palm', 5],
+    ['tc_02', 'Add the word touch', 5],
+    ['tc_03', 'Touch from across the room', 6],
+    ['tc_04', 'Follow a moving hand', 6],
+    ['tc_05', 'Touch in new places', 6],
+    ['tc_06', 'Touch past distractions', 6],
+  ],
+  spin: [
+    ['sp_01', 'Lure a half circle', 5],
+    ['sp_02', 'Lure a full circle', 5],
+    ['sp_03', 'Spin on a hand signal', 6],
+    ['sp_04', 'Spin on the word alone', 6],
+    ['sp_05', 'Twirl the other way', 6],
+    ['sp_06', 'Spin and twirl in new places', 6],
+  ],
+  high_five: [
+    ['hf_01', 'Paw to your closed hand', 5],
+    ['hf_02', 'Paw to your open palm', 5],
+    ['hf_03', 'Raise your palm upright', 6],
+    ['hf_04', 'High five on the word', 6],
+    ['hf_05', 'High five with the other paw', 6],
+    ['hf_06', 'High five in new places', 6],
+  ],
+  bow: [
+    ['bw_01', 'Nose down between the paws', 5],
+    ['bw_02', 'Elbows down, rear up', 5],
+    ['bw_03', 'Add the word bow', 6],
+    ['bw_04', 'Hold the bow for 2 seconds', 6],
+    ['bw_05', 'Bow on the word alone', 6],
+    ['bw_06', 'Bow for an audience', 6],
+  ],
+  roll_over: [
+    ['ro_01', 'Down, then onto one side', 5],
+    ['ro_02', 'Relax on one side', 5],
+    ['ro_03', 'Lure the full roll', 5],
+    ['ro_04', 'Roll with an empty hand', 5],
+    ['ro_05', 'Roll over on the word alone', 6],
+    ['ro_06', 'Roll over in a new place', 6],
+  ],
+  leg_weave: [
+    ['lw_01', 'Through your legs', 5],
+    ['lw_02', 'Around one leg', 5],
+    ['lw_03', 'Figure eight with a lure', 6],
+    ['lw_04', 'Figure eight, empty hand', 6],
+    ['lw_05', 'Weave for 2 walking steps', 6],
+    ['lw_06', 'Weave for 4 walking steps', 6],
+  ],
 };
 
 function generateFallbackPlan(dog: DogRow, goalOverride?: string) {
-  const goalKey = GOAL_MAP[goalOverride ?? dog.behavior_goals[0]] ?? 'leash_pulling';
+  const goalKey = resolveGoalKey(goalOverride ?? dog.behavior_goals[0]);
   const sessionsPerWeek = Math.min(dog.available_days_per_week, 5);
   const totalWeeks = 4;
   const sequences = SEQUENCES[goalKey] ?? SEQUENCES.leash_pulling;
@@ -920,8 +992,14 @@ serve(async (req) => {
   if (!body.dogId) {
     return jsonResponse({ error: 'dogId is required' }, 400);
   }
-  if (body.goalOverride !== undefined && (typeof body.goalOverride !== 'string' || body.goalOverride.length > 80)) {
-    return jsonResponse({ error: 'goalOverride is invalid' }, 400);
+  // Own-property check: GOAL_MAP is a plain object, so 'constructor' and
+  // friends would otherwise pass. An unknown goal used to fall back to
+  // leash_pulling while the raw string was stored as the plan's goal.
+  if (
+    body.goalOverride !== undefined &&
+    (typeof body.goalOverride !== 'string' || !Object.hasOwn(GOAL_MAP, body.goalOverride))
+  ) {
+    return jsonResponse({ error: 'goalOverride is not a supported goal', code: 'invalid_goal' }, 400);
   }
 
   // Each call can run gpt-4o and inserts a plan row; onboarding + a few added
@@ -957,7 +1035,7 @@ serve(async (req) => {
   const allEdges = (edgesResult.data ?? []) as SkillEdgeRow[];
 
   const effectiveGoal = body.goalOverride ?? dog.behavior_goals[0];
-  const goalKey = GOAL_MAP[effectiveGoal] ?? 'leash_pulling';
+  const goalKey = resolveGoalKey(effectiveGoal);
   const behaviorNodes = allNodes.filter(
     (n) =>
       n.behavior === goalKey &&
@@ -978,17 +1056,18 @@ serve(async (req) => {
       current_week: 1,
       current_stage: fallback.currentStage,
       sessions: fallback.sessions,
-      metadata: { ...fallback.metadata, fallbackReason: 'No skill nodes for behavior' },
+      metadata: { ...fallback.metadata, fallbackReason: 'no_skill_nodes' },
     }).select('*').single();
 
     if (planError) {
-      return jsonResponse({ error: 'Failed to create plan' }, 500);
+      console.error('[generate-adaptive-plan] Fallback plan insert failed:', planError);
+      return jsonResponse({ error: 'Failed to create plan', code: 'plan_insert_failed' }, 500);
     }
 
     return jsonResponse({
       plan: planData,
       plannerMode: 'rules_fallback',
-      fallbackReason: 'No skill nodes for behavior',
+      fallbackReason: 'no_skill_nodes',
     });
   }
 
@@ -998,7 +1077,9 @@ serve(async (req) => {
 
   const openai = new OpenAI({ apiKey: openaiApiKey, timeout: 45_000, maxRetries: 1 });
   let aiOutput: AIPlannerOutput;
-  let fallbackReason: string | undefined;
+  // Stable code only: it is stored in plan metadata and returned to the client.
+  // The detail behind it is logged here.
+  let fallbackReason: 'ai_call_failed' | 'validation_failed' | undefined;
   const startTime = Date.now();
 
   try {
@@ -1024,7 +1105,7 @@ serve(async (req) => {
     aiOutput = JSON.parse(cleaned);
   } catch (err) {
     console.error('[generate-adaptive-plan] AI call failed:', err);
-    fallbackReason = `AI call failed: ${err instanceof Error ? err.message : String(err)}`;
+    fallbackReason = 'ai_call_failed';
     aiOutput = null as unknown as AIPlannerOutput;
   }
 
@@ -1037,7 +1118,7 @@ serve(async (req) => {
     const validationErrors = validateOutput(aiOutput, nodeMap, allEdges, sessionsPerWeek);
     if (validationErrors.length > 0) {
       console.warn('[generate-adaptive-plan] Validation errors:', validationErrors);
-      fallbackReason = `Validation failed: ${validationErrors.join('; ')}`;
+      fallbackReason = 'validation_failed';
       aiOutput = null as unknown as AIPlannerOutput;
     }
   }
@@ -1087,7 +1168,7 @@ serve(async (req) => {
 
   if (planError) {
     console.error('[generate-adaptive-plan] Plan insert failed:', planError);
-    return jsonResponse({ error: 'Failed to create plan' }, 500);
+    return jsonResponse({ error: 'Failed to create plan', code: 'plan_insert_failed' }, 500);
   }
 
   // ── 8. Return ───────────────────────────────────────────────────────────────

@@ -9,9 +9,22 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 //   Header: Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET>
 // The same value is set with `supabase secrets set REVENUECAT_WEBHOOK_SECRET=…`.
 // verify_jwt is off for this function (config.toml); the shared secret is the auth.
+//
+// Optional secrets:
+//   REVENUECAT_SECRET_API_KEY  sk_… key; lets TRANSFER look up the real expiry.
+//   REVENUECAT_IGNORE_SANDBOX  'true' drops sandbox / Test Store events. Leave it
+//                              unset for launch: App Review and TestFlight buy
+//                              in the sandbox, and a reviewer who subscribes
+//                              must get Pro server-side too. Sandbox purchases
+//                              need a TestFlight or development build, so the
+//                              exposure is invited testers only. Set it once
+//                              the app is live if testers should stay free.
 
 /** Matches PRO_ENTITLEMENT in lib/subscription.ts. */
 const PRO_ENTITLEMENT = 'pawly_pro';
+
+/** TRANSFER carries no expiry. Without the REST key, grant this long; RENEWAL then extends it. */
+const TRANSFER_FALLBACK_MS = 35 * 24 * 60 * 60 * 1000;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -29,6 +42,7 @@ const GRANTING = new Set([
 
 type RevenueCatEvent = {
   type: string;
+  environment?: 'SANDBOX' | 'PRODUCTION';
   app_user_id?: string;
   original_app_user_id?: string;
   aliases?: string[];
@@ -50,6 +64,39 @@ function timingSafeEqual(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
   return diff === 0;
+}
+
+type Grant = { tier: 'free' | 'pro'; expiresAt: string | null };
+
+/**
+ * What a TRANSFER recipient actually holds, read from the RevenueCat REST API.
+ * Falls back to a bounded grant when the key is unset or the lookup fails, so a
+ * transfer is never "Pro forever".
+ */
+async function transferredGrant(appUserId: string): Promise<Grant> {
+  const fallback: Grant = { tier: 'pro', expiresAt: new Date(Date.now() + TRANSFER_FALLBACK_MS).toISOString() };
+  const apiKey = Deno.env.get('REVENUECAT_SECRET_API_KEY');
+  if (!apiKey) return fallback;
+
+  try {
+    const res = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const entitlement = (await res.json())?.subscriber?.entitlements?.[PRO_ENTITLEMENT];
+    if (!entitlement) return { tier: 'free', expiresAt: null };
+
+    // expires_date is null for a lifetime entitlement.
+    const expiresDate: string | null = entitlement.expires_date ?? null;
+    if (expiresDate === null) return { tier: 'pro', expiresAt: null };
+    const expiresMs = Date.parse(expiresDate);
+    if (Number.isNaN(expiresMs)) return fallback;
+    return { tier: expiresMs > Date.now() ? 'pro' : 'free', expiresAt: new Date(expiresMs).toISOString() };
+  } catch (err) {
+    console.error('[revenuecat-webhook] subscriber lookup failed; using bounded grant:', err);
+    return fallback;
+  }
 }
 
 /** The Supabase user ids named by an event. The app always logs in with the Supabase id. */
@@ -77,6 +124,11 @@ serve(async (req) => {
   }
   if (!event?.type) return jsonResponse({ error: 'Missing event' }, 400);
 
+  // 200, not an error: RevenueCat retries anything else.
+  if (event.environment === 'SANDBOX' && Deno.env.get('REVENUECAT_IGNORE_SANDBOX') === 'true') {
+    return jsonResponse({ ok: true, ignored: 'sandbox' });
+  }
+
   const adminClient = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -85,6 +137,20 @@ serve(async (req) => {
 
   async function apply(ids: string[], tier: 'free' | 'pro', expiresAt: string | null) {
     for (const id of ids) {
+      // The row normally exists (handle_new_user trigger); create it if not, or
+      // the update below would match nothing and the purchase would be lost.
+      const { error: insertError } = await adminClient
+        .from('user_profiles')
+        .upsert({ id }, { onConflict: 'id', ignoreDuplicates: true });
+      if (insertError) {
+        // 23503: no such auth user (account deleted). Retrying can't fix that.
+        if (insertError.code === '23503') {
+          console.warn(`[revenuecat-webhook] no auth user for ${id}; skipped`);
+          continue;
+        }
+        throw new Error(`upsert ${id}: ${insertError.message}`);
+      }
+
       // Skip when a newer event has already been applied.
       const { error } = await adminClient
         .from('user_profiles')
@@ -98,7 +164,10 @@ serve(async (req) => {
   try {
     if (event.type === 'TRANSFER') {
       await apply(userIds(event.transferred_from ?? []), 'free', null);
-      await apply(userIds(event.transferred_to ?? []), 'pro', null);
+      for (const id of userIds(event.transferred_to ?? [])) {
+        const grant = await transferredGrant(id);
+        await apply([id], grant.tier, grant.expiresAt);
+      }
       return jsonResponse({ ok: true });
     }
 

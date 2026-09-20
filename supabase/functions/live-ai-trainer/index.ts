@@ -7,7 +7,8 @@
 // Security
 //   • Caller JWT is validated; the dog must belong to the caller.
 //   • Payload is size-capped and shape-validated before any model call.
-//   • Per-user sliding-window rate limit (best effort, per isolate).
+//   • DB-backed quotas: per-user per-minute and per-day (tier-aware), plus a
+//     global daily ceiling. Nothing is consumed until the payload is valid.
 //   • Model output is sanitized to the response contract; never trusted raw.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import OpenAI from 'https://esm.sh/openai@4';
 import { consumeQuota, DAY_SECONDS, userSubject } from '../_shared/quota.ts';
+import { isProProfile, PROFILE_SUBSCRIPTION_COLUMNS } from '../_shared/subscription.ts';
 
 // ── Types (mirror lib/liveCoach/liveAiTrainerTypes.ts) ───────────────────────
 
@@ -69,8 +71,12 @@ const MAX_UTTERANCE_CHARS = 300;
 const MAX_HISTORY = 5;
 const MAX_TEXT_FIELD_CHARS = 500;
 const RATE_LIMIT_PER_MINUTE = 20; // slightly above the client's 15 to absorb clock skew
-// Hard daily ceiling per user (~40 min of coaching at the client's 15/min).
+// Hard daily ceiling per Pro user (~40 min of coaching at the client's 15/min).
 const DAILY_REQUEST_LIMIT = 600;
+// Free users get a taste (~4 min); override with LIVE_TRAINER_FREE_DAILY_LIMIT.
+const FREE_DAILY_REQUEST_LIMIT = 60;
+// Circuit breaker across all users; override with LIVE_TRAINER_GLOBAL_DAILY_LIMIT.
+const GLOBAL_DAILY_LIMIT = 20_000;
 const SLOW_LATENCY_MS = 4000;
 const MODEL = 'gpt-4o';
 
@@ -95,24 +101,9 @@ const isNonEmptyString = (v: unknown, max = MAX_TEXT_FIELD_CHARS): v is string =
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 
-// ── Rate limiting (per isolate, best effort) ─────────────────────────────────
-
-const buckets = new Map<string, number[]>();
-
-function checkRateLimit(userId: string, now: number): { ok: boolean; retryAfterSec: number } {
-  const windowMs = 60_000;
-  const recent = (buckets.get(userId) ?? []).filter((t) => now - t < windowMs);
-  if (recent.length >= RATE_LIMIT_PER_MINUTE) {
-    buckets.set(userId, recent);
-    return { ok: false, retryAfterSec: Math.ceil((windowMs - (now - recent[0])) / 1000) };
-  }
-  recent.push(now);
-  buckets.set(userId, recent);
-  // Opportunistic cleanup so the map doesn't grow unbounded.
-  if (buckets.size > 5000) {
-    for (const [k, v] of buckets) if (v.every((t) => now - t >= windowMs)) buckets.delete(k);
-  }
-  return { ok: true, retryAfterSec: 0 };
+function envLimit(name: string, fallback: number): number {
+  const value = Number(Deno.env.get(name));
+  return Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
 // ── Body validation ──────────────────────────────────────────────────────────
@@ -327,19 +318,8 @@ serve(async (req) => {
   const { data: { user }, error: authError } = await adminClient.auth.getUser(token);
   if (authError || !user) return jsonResponse({ error: 'Unauthorized' }, 401);
 
-  // 2. Rate limit
-  const limit = checkRateLimit(user.id, Date.now());
-  if (!limit.ok) {
-    return jsonResponse({ error: 'Too many requests' }, 429, { 'Retry-After': String(limit.retryAfterSec) });
-  }
-  const exhausted = await consumeQuota(adminClient, [
-    { subject: userSubject(user.id), feature: 'live_trainer', limit: DAILY_REQUEST_LIMIT, windowSeconds: DAY_SECONDS },
-  ]);
-  if (exhausted) {
-    return jsonResponse({ error: 'Daily live coaching limit reached' }, 429, { 'Retry-After': '3600' });
-  }
-
-  // 3. Body
+  // 2. Body — validated before any quota is touched, so a malformed request
+  // never costs the user a unit.
   let raw: unknown;
   try {
     raw = await req.json();
@@ -350,7 +330,7 @@ serve(async (req) => {
   if ('error' in validated) return jsonResponse({ error: validated.error }, 400);
   const body = validated.body;
 
-  // 4. Dog ownership
+  // 3. Dog ownership
   const { data: dog, error: dogError } = await adminClient
     .from('dogs')
     .select('name, breed, age_months, owner_id')
@@ -362,8 +342,54 @@ serve(async (req) => {
   }
   if (!dog || dog.owner_id !== user.id) return jsonResponse({ error: 'Dog not found' }, 404);
 
+  // 4. Quotas. Rules are consumed in order, so the cheap per-minute guard
+  // rejects a burst before it can eat into the daily or global budgets.
+  // subscription_tier is service-role-write only (see launch_security migration).
+  const { data: profileRow } = await adminClient
+    .from('user_profiles')
+    .select(PROFILE_SUBSCRIPTION_COLUMNS)
+    .eq('id', user.id)
+    .maybeSingle();
+  const isPro = isProProfile(profileRow);
+
+  const subject = userSubject(user.id);
+  const exhausted = await consumeQuota(adminClient, [
+    { subject, feature: 'live_trainer_minute', limit: RATE_LIMIT_PER_MINUTE, windowSeconds: 60 },
+    {
+      subject,
+      feature: 'live_trainer',
+      limit: isPro ? DAILY_REQUEST_LIMIT : envLimit('LIVE_TRAINER_FREE_DAILY_LIMIT', FREE_DAILY_REQUEST_LIMIT),
+      windowSeconds: DAY_SECONDS,
+    },
+    {
+      subject: 'global',
+      feature: 'live_trainer',
+      limit: envLimit('LIVE_TRAINER_GLOBAL_DAILY_LIMIT', GLOBAL_DAILY_LIMIT),
+      windowSeconds: DAY_SECONDS,
+    },
+  ]);
+  if (exhausted) {
+    if (exhausted.windowSeconds === 60) {
+      return jsonResponse({ error: 'Too many requests' }, 429, { 'Retry-After': '60' });
+    }
+    if (exhausted.subject === subject && !isPro) {
+      // `code` tells the app to open the paywall (same contract as the coach's free_daily_limit).
+      return jsonResponse(
+        {
+          error: "That's today's free live coaching. Pro gives you much more every day.",
+          code: 'free_live_trainer_limit',
+        },
+        429,
+        { 'Retry-After': '3600' },
+      );
+    }
+    return jsonResponse({ error: 'Daily live coaching limit reached' }, 429, { 'Retry-After': '3600' });
+  }
+
   // 5. Model call
-  const openai = new OpenAI({ apiKey: openaiApiKey });
+  // No retries: a second 12s attempt would land long after the moment it
+  // describes; the client just sends the next frame.
+  const openai = new OpenAI({ apiKey: openaiApiKey, maxRetries: 0 });
   const content: Array<
     | { type: 'text'; text: string }
     | { type: 'image_url'; image_url: { url: string; detail: 'low' | 'high' | 'auto' } }

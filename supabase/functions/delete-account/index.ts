@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { appleConfig, revokeRefreshToken } from '../_shared/apple.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,16 +40,34 @@ async function removeFolder(adminClient: AdminClient, bucket: string, folder: st
   }
 }
 
-async function deleteUserStorage(adminClient: AdminClient, userId: string): Promise<string | null> {
-  try {
-    // pawly-videos: videos/{userId}/{dogId}/… and thumbnails/{userId}/{dogId}/…
-    await removeFolder(adminClient, 'pawly-videos', `videos/${userId}`);
-    await removeFolder(adminClient, 'pawly-videos', `thumbnails/${userId}`);
+const isBucketNotFound = (message: string) => /bucket not found/i.test(message);
 
-    // avatars: current layout is {userId}/{ts}.png
-    await removeFolder(adminClient, 'avatars', userId);
+/**
+ * Best effort: returns what could not be cleaned up instead of throwing. Each
+ * location is attempted on its own so one failure doesn't skip the rest.
+ */
+async function deleteUserStorage(adminClient: AdminClient, userId: string): Promise<string[]> {
+  const failures: string[] = [];
+  const attempt = async (label: string, task: () => Promise<void>) => {
+    try {
+      await task();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // pawly-videos was retired with video upload and may have been removed
+      // from the dashboard; a bucket that is gone holds nothing to delete.
+      if (!isBucketNotFound(message)) failures.push(`${label}: ${message}`);
+    }
+  };
 
-    // avatars: legacy flat layout avatars/{userId}_{ts}.png
+  // pawly-videos: videos/{userId}/{dogId}/… and thumbnails/{userId}/{dogId}/…
+  await attempt('videos', () => removeFolder(adminClient, 'pawly-videos', `videos/${userId}`));
+  await attempt('thumbnails', () => removeFolder(adminClient, 'pawly-videos', `thumbnails/${userId}`));
+
+  // avatars: current layout is {userId}/{ts}.png
+  await attempt('avatars', () => removeFolder(adminClient, 'avatars', userId));
+
+  // avatars: legacy flat layout avatars/{userId}_{ts}.png
+  await attempt('legacy avatars', async () => {
     const legacy = (await listAll(adminClient, 'avatars', 'avatars', userId)).filter((p) =>
       p.startsWith(`avatars/${userId}_`),
     );
@@ -56,9 +75,33 @@ async function deleteUserStorage(adminClient: AdminClient, userId: string): Prom
       const { error } = await adminClient.storage.from('avatars').remove(legacy);
       if (error) throw new Error(`remove legacy avatars: ${error.message}`);
     }
-    return null;
+  });
+
+  return failures;
+}
+
+/**
+ * App Store guideline 5.1.1(v): revoke the Sign in with Apple token with the
+ * account. Best effort; the row itself goes with the auth user (FK cascade).
+ */
+async function revokeAppleToken(adminClient: AdminClient, userId: string) {
+  try {
+    const { data, error } = await adminClient
+      .from('apple_credentials')
+      .select('refresh_token')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data?.refresh_token) return;
+
+    const config = appleConfig();
+    if (!config) {
+      console.warn('delete-account: Apple token stored but APPLE_* secrets are not set; not revoked');
+      return;
+    }
+    await revokeRefreshToken(config, data.refresh_token);
   } catch (err) {
-    return err instanceof Error ? err.message : String(err);
+    console.error('delete-account Apple revoke failed:', err);
   }
 }
 
@@ -103,18 +146,17 @@ serve(async (req: Request) => {
 
     // ── 1. Delete storage objects ────────────────────────────────────────────
     // Storage is not covered by FK cascades, and Apple requires uploaded media
-    // to go with the account. Any failure here aborts before the auth user is
-    // removed, so the user can retry instead of orphaning files.
-    const storageError = await deleteUserStorage(adminClient, userId);
-    if (storageError) {
-      console.error('delete-account storage cleanup failed:', storageError);
-      return new Response(JSON.stringify({ error: 'Failed to delete account. Please try again.' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // to go with the account. Deleting the account matters most though: a
+    // storage failure is logged for manual cleanup and never blocks it.
+    const storageFailures = await deleteUserStorage(adminClient, userId);
+    if (storageFailures.length > 0) {
+      console.error(`delete-account storage cleanup incomplete for ${userId}:`, storageFailures.join(' | '));
     }
 
-    // ── 2. Delete the auth user ───────────────────────────────────────────────
+    // ── 2. Revoke Sign in with Apple ─────────────────────────────────────────
+    await revokeAppleToken(adminClient, userId);
+
+    // ── 3. Delete the auth user ───────────────────────────────────────────────
     // Every user table references auth.users or dogs with ON DELETE CASCADE, so
     // this removes all database rows as well.
     const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(userId);
