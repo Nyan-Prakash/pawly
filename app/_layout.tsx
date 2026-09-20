@@ -245,7 +245,9 @@ function RootNavigationGate({ themeKey }: { themeKey: string }) {
 
     // Arrived from a reset email: hold on the new-password screen until it is saved.
     if (isPasswordRecovery) {
-      if (segments[1] !== 'reset-password') router.replace('/(auth)/reset-password');
+      // Widened: without the generated typed-routes file (CI) the tuple has one element.
+      const onResetScreen = (segments as string[])[1] === 'reset-password';
+      if (!onResetScreen) router.replace('/(auth)/reset-password');
       return;
     }
 
