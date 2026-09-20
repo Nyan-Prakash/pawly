@@ -19,7 +19,6 @@ export default function TrainLayout() {
         name="session"
         options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }}
       />
-      <Stack.Screen name="upload-video" options={{ presentation: 'modal', title: 'Upload a video' }} />
       <Stack.Screen name="add-course" options={{ presentation: 'modal', title: 'Add a course' }} />
     </Stack>
   );

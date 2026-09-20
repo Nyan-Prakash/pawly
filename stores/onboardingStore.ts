@@ -515,7 +515,6 @@ export const useOnboardingStore = create<OnboardingStore>()(
             streak_alerts: true,
             milestone_alerts: true,
             insights: true,
-            expert_review: true,
             lifecycle: true,
             weekly_summary: true,
             scheduled_session_reminders: true,

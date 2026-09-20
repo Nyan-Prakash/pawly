@@ -49,7 +49,6 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   streakAlerts: true,
   milestoneAlerts: true,
   insights: true,
-  expertReview: true,
   lifecycle: true,
   weeklySummary: true,
   scheduledSessionReminders: true,

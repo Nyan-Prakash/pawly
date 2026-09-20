@@ -39,7 +39,6 @@ const TOGGLES: { key: BooleanPrefKey; title: string; subtitle: string }[] = [
   { key: 'milestoneAlerts', title: 'Milestone alerts', subtitle: 'When a milestone is reached or the plan moves on' },
   { key: 'insights', title: 'Weekly insights', subtitle: 'A weekly note on progress' },
   { key: 'lifecycle', title: 'Age and routine reminders', subtitle: 'Tips as your dog grows and routines change' },
-  { key: 'expertReview', title: 'Expert review', subtitle: 'When review feedback is ready' },
 ];
 
 function timeFromPref(value: string): Date {

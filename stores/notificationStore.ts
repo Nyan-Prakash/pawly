@@ -100,7 +100,6 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
           streak_alerts: nextPrefs.streakAlerts,
           milestone_alerts: nextPrefs.milestoneAlerts,
           insights: nextPrefs.insights,
-          expert_review: nextPrefs.expertReview,
           lifecycle: nextPrefs.lifecycle,
           weekly_summary: nextPrefs.weeklySummary,
           scheduled_session_reminders: nextPrefs.scheduledSessionReminders,
