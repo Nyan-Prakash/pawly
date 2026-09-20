@@ -12,7 +12,7 @@ import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { isRevenueCatAvailable } from '@/lib/revenuecat';
-import { annualSavingsPercent, freeTrialLength } from '@/lib/subscription';
+import { FREE_LIMITS, annualSavingsPercent, freeTrialLength } from '@/lib/subscription';
 import { useDogStore } from '@/stores/dogStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
@@ -113,7 +113,7 @@ export function PaywallSheet() {
           <View style={{ gap: spacing.sm, paddingHorizontal: spacing.sm }}>
             <Text variant="h1">{dogName ? `All of ${dogName}'s plan` : 'The whole plan'}</Text>
             <Text variant="body" color={colors.text.secondary}>
-              Free covers the first sessions. Pro opens everything after them.
+              Free covers the first {FREE_LIMITS.sessions} sessions. Pro opens everything after them.
             </Text>
           </View>
 

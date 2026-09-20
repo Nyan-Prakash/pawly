@@ -73,6 +73,7 @@ import {
   saveSessionSnapshot,
 } from '@/lib/sessionPersistence';
 import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
+import { guardSessionStart } from '@/lib/proGate';
 
 // ── Local UI state for live coaching (does not touch session store) ──────────
 type LocalOverlayState = 'NONE' | 'MODE_PICKER' | 'LIVE_COACHING';
@@ -170,6 +171,12 @@ export default function SessionScreen() {
     const planSession = activePlan.sessions.find((s) => s.id === sessionId);
     if (!planSession) {
       setLoadError('This session is not in your active plan. Go back and pick a session from today.');
+      return;
+    }
+
+    // Backstop for deep links and notifications; the entry points gate first.
+    if (!isQuickMode && !guardSessionStart(activePlan.id, sessionId)) {
+      router.back();
       return;
     }
 

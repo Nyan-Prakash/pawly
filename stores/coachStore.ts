@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { supabase } from '@/lib/supabase';
 import type { ChatMessage, CoachConversation } from '@/types';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 const EDGE_FUNCTION_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/ai-coach-message`;
 
@@ -196,6 +197,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       if (!res.ok) {
         console.error(`Edge Function error ${res.status}:`, JSON.stringify(json));
         if (res.status === 429) {
+          if (json.code === 'free_daily_limit') useSubscriptionStore.getState().openPaywall('coach');
           set((state) => ({
             messages: state.messages.filter((m) => m.id !== tempUserMsg.id),
             isTyping: false,

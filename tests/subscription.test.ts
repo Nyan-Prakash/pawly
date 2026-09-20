@@ -4,7 +4,10 @@ import test from 'node:test';
 import {
   annualSavingsPercent,
   canAccess,
+  FREE_LIMITS,
   freeTrialLength,
+  isSessionLocked,
+  progressWeeksFor,
   tierFromCustomerInfo,
 } from '../lib/subscription.ts';
 
@@ -12,7 +15,7 @@ test('tier follows the pro entitlement', () => {
   assert.equal(tierFromCustomerInfo(null), 'free');
   assert.equal(tierFromCustomerInfo({ entitlements: { active: {} } }), 'free');
   assert.equal(tierFromCustomerInfo({ entitlements: { active: { other: {} } } }), 'free');
-  assert.equal(tierFromCustomerInfo({ entitlements: { active: { pro: {} } } }), 'pro');
+  assert.equal(tierFromCustomerInfo({ entitlements: { active: { pawly_pro: {} } } }), 'pro');
 });
 
 test('pro features are closed on free and open on pro', () => {
@@ -34,4 +37,18 @@ test('free trial length only for a zero-price intro offer', () => {
   assert.equal(freeTrialLength({ price: 0, periodUnit: 'WEEK', periodNumberOfUnits: 1 }), '7-day');
   assert.equal(freeTrialLength({ price: 0, periodUnit: 'MONTH', periodNumberOfUnits: 1 }), '1-month');
   assert.equal(freeTrialLength({ price: 1.99, periodUnit: 'WEEK', periodNumberOfUnits: 1 }), null);
+});
+
+test('free sessions lock once the free limit is used, completed ones stay open', () => {
+  const open = { isCompleted: false };
+  assert.equal(isSessionLocked(open, 0, 'free'), false);
+  assert.equal(isSessionLocked(open, FREE_LIMITS.sessions - 1, 'free'), false);
+  assert.equal(isSessionLocked(open, FREE_LIMITS.sessions, 'free'), true);
+  assert.equal(isSessionLocked({ isCompleted: true }, FREE_LIMITS.sessions, 'free'), false);
+  assert.equal(isSessionLocked(open, 50, 'pro'), false);
+});
+
+test('progress history is shorter on free', () => {
+  assert.equal(progressWeeksFor('free'), FREE_LIMITS.progressWeeks);
+  assert.ok(progressWeeksFor('pro') > progressWeeksFor('free'));
 });

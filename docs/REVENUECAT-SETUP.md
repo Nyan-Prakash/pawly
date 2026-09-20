@@ -7,7 +7,7 @@ The code depends on exactly three names. Keep them as written.
 
 | Thing | Identifier | Where the code reads it |
 |---|---|---|
-| Entitlement | `pro` | `PRO_ENTITLEMENT` in `lib/subscription.ts` |
+| Entitlement | `pawly_pro` | `PRO_ENTITLEMENT` in `lib/subscription.ts` |
 | Offering | whichever is marked **current** | `getProPackages()` in `lib/revenuecat.ts` |
 | Packages | `$rc_monthly`, `$rc_annual` (the built-in Monthly / Annual types) | same |
 
@@ -26,7 +26,7 @@ Prices, trial length and the "% less than monthly" line all come from the store,
 
 1. Create a project, add an **App Store** app with bundle ID `com.nyan.prakash.pawly`, and upload the `.p8` key from step 1.5.
 2. Product catalog → Products: import `pawly_pro_monthly` and `pawly_pro_annual`.
-3. Entitlements: create `pro` and attach both products.
+3. Entitlements: create `pawly_pro` and attach both products.
 4. Offerings: create one offering (`default`), add the **Monthly** package with the monthly product and the **Annual** package with the annual product, and make the offering current.
 5. API keys: copy the **public** Apple key (`appl_…`) into `.env`:
 
@@ -58,4 +58,25 @@ if (!canAccess('full_plan', tier)) {
 }
 ```
 
-Not built yet (roadmap PR 10): gates wired into the screens, the RevenueCat → Supabase webhook, and server-side enforcement. Until the webhook exists, `users.subscription_tier` in Supabase is not updated; the client reads the tier from RevenueCat directly.
+## Free vs Pro
+
+The free tier is defined in one place, `FREE_LIMITS` in `lib/subscription.ts`:
+3 completed sessions, 3 coach messages a day, the last 2 weeks of progress.
+The coach number is enforced server-side and mirrored as `FREE_DAILY_MESSAGES`
+in `supabase/functions/ai-coach-message`; change both together.
+
+- Sessions: `guardSessionStart()` in `lib/proGate.ts` runs at every entry point and as a backstop in the session screen. Completed sessions and quick reps stay free.
+- Coach: the edge function answers 429 with `code: 'free_daily_limit'`; `coachStore` opens the paywall.
+- Progress: free shows `FREE_LIMITS.progressWeeks` weekly bars and a row that opens the paywall.
+- The paywall opens once for everyone after onboarding (`plan_preview`), and can be closed.
+
+## Webhook (RevenueCat → Supabase)
+
+`supabase/functions/revenuecat-webhook` keeps `user_profiles.subscription_tier` in step with the `pawly_pro` entitlement. Without it the coach limit never lifts for subscribers.
+
+1. Pick a long random secret: `openssl rand -hex 32`.
+2. `supabase secrets set REVENUECAT_WEBHOOK_SECRET=<secret>`
+3. `supabase db push` (migration `20260920140000_revenuecat_webhook.sql`), then `supabase functions deploy revenuecat-webhook ai-coach-message`.
+4. RevenueCat → Integrations → Webhooks → add `https://<project-ref>.supabase.co/functions/v1/revenuecat-webhook` with Authorization header value `Bearer <secret>`. Send a test event; it should return 200.
+
+Session and progress limits are client-side only; the coach limit is the one enforced on the server.
