@@ -9,6 +9,9 @@ import { IconButton } from '@/components/ui/IconButton';
 import { MascotCallout } from '@/components/ui/MascotCallout';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
+import { captureEvent } from '@/lib/analytics';
+import { storeAppleAuthorizationCode } from '@/lib/appleAuth';
+import { EMAIL_CONFIRM_REDIRECT } from '@/lib/authLinks';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
 import { colors } from '@/constants/colors';
@@ -29,10 +32,13 @@ export default function LoginScreen() {
   const [generalError, setGeneralError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   const handleLogin = async () => {
     setAuthError('');
     setGeneralError('');
+    setNeedsConfirmation(false);
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -41,15 +47,39 @@ export default function LoginScreen() {
       });
 
       if (error) {
-        setAuthError("That email and password don't match. Try again or reset your password.");
+        if (error.code === 'email_not_confirmed') {
+          setNeedsConfirmation(true);
+          setResendState('idle');
+          setGeneralError('Confirm your email first. Open the link we sent when you created the account.');
+        } else if (error.status === 429 || error.code === 'over_request_rate_limit') {
+          setGeneralError('Too many attempts. Wait a minute, then try again.');
+        } else if (error.code === 'invalid_credentials' || error.status === 400) {
+          setAuthError("That email and password don't match. Try again or reset your password.");
+        } else {
+          setGeneralError(NETWORK_ERROR);
+        }
         return;
       }
+      captureEvent('login_completed', { method: 'email' });
       // Root layout auth listener handles redirect
     } catch {
       setGeneralError(NETWORK_ERROR);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleResendConfirmation = async () => {
+    setResendState('sending');
+    const { error } = await supabase.auth
+      .resend({ type: 'signup', email: email.trim(), options: { emailRedirectTo: EMAIL_CONFIRM_REDIRECT } })
+      .catch(() => ({ error: true }));
+    if (error) {
+      setResendState('idle');
+      setGeneralError("Couldn't send the email. Wait a minute, then try again.");
+      return;
+    }
+    setResendState('sent');
   };
 
   const handleAppleSignIn = async () => {
@@ -77,6 +107,9 @@ export default function LoginScreen() {
 
       if (error) {
         setGeneralError("Couldn't log in with Apple. Try again or use your email.");
+      } else {
+        storeAppleAuthorizationCode(credential.authorizationCode);
+        captureEvent('login_completed', { method: 'apple' });
       }
     } catch (err: unknown) {
       if ((err as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
@@ -100,7 +133,7 @@ export default function LoginScreen() {
         keyboardDismissMode="on-drag"
       >
         <View style={{ gap: spacing.lg }}>
-          <Text variant="h1">Welcome back</Text>
+          <Text variant="h1" accessibilityRole="header">Welcome back</Text>
           <MascotCallout state="happy" size={64} calloutPlacement="right" callout="Your dog's plan is right where you left it." />
         </View>
 
@@ -165,6 +198,16 @@ export default function LoginScreen() {
             <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
               {generalError}
             </Text>
+          ) : null}
+          {needsConfirmation ? (
+            <Button
+              label={resendState === 'sent' ? 'Confirmation email sent' : 'Resend confirmation email'}
+              variant="secondary"
+              size="md"
+              onPress={handleResendConfirmation}
+              loading={resendState === 'sending'}
+              disabled={resendState === 'sent'}
+            />
           ) : null}
           <Button label="Log in" onPress={handleLogin} loading={isLoading} />
           <Button

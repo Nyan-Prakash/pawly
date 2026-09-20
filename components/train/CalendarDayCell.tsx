@@ -36,12 +36,15 @@ export function CalendarDayCell({
   const textColor = isSelected || isToday ? colors.accent : colors.text.primary;
   const dotColor = allCompleted ? colors.accent : hasUpcoming ? colors.text.secondary : null;
   const dateLabel = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const sessionsLabel = !hasSessions ? null : allCompleted ? 'all sessions done' : 'has sessions';
+  const a11yLabel = [isToday ? 'Today' : null, dateLabel, sessionsLabel].filter(Boolean).join(', ');
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${dateLabel}${hasSessions ? ', has sessions' : ''}`}
+      accessibilityLabel={a11yLabel}
+      accessibilityHint="Shows this day's sessions"
       accessibilityState={{ selected: isSelected }}
       style={({ pressed }) => ({
         flex: 1,

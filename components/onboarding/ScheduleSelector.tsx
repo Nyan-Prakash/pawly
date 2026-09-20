@@ -65,7 +65,8 @@ export function ScheduleSelector({
                 title={day.label}
                 selected={isSelected}
                 trailing={isSelected ? <Check /> : undefined}
-                accessibilityHint={isSelected ? 'Selected' : 'Not selected'}
+                accessibilityLabel={`${day.label}, ${isSelected ? 'training day' : 'not a training day'}`}
+                accessibilityHint={isSelected ? 'Removes this day' : 'Adds this day'}
                 onPress={() => {
                   haptics.selection();
                   onToggleDay(day.id);
@@ -79,6 +80,7 @@ export function ScheduleSelector({
       {showTime ? (
         <View>
           <SectionHeader title="Time of day" />
+          <View accessibilityRole="radiogroup" accessibilityLabel="Time of day">
           <ListGroup>
             {TIME_OPTIONS.map((opt) => {
               const isSelected = selectedTimeWindow === opt.id;
@@ -99,6 +101,7 @@ export function ScheduleSelector({
               );
             })}
           </ListGroup>
+          </View>
         </View>
       ) : null}
     </View>

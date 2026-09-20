@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { AccessibilityInfo, Alert, FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { router } from 'expo-router';
 
-import { MessageBubble } from '@/components/coach/MessageBubble';
+import { MessageBubble, spokenCoachText } from '@/components/coach/MessageBubble';
 import { QuickSuggestions } from '@/components/coach/QuickSuggestions';
 import { TypingIndicator } from '@/components/coach/TypingIndicator';
 import { AppIcon } from '@/components/ui/AppIcon';
@@ -18,6 +18,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
+import { COACH_AI_DISCLAIMER } from '@/constants/safety';
 import { spacing } from '@/constants/spacing';
 import { useCoachStore } from '@/stores/coachStore';
 import { useDogStore } from '@/stores/dogStore';
@@ -42,7 +43,13 @@ const COMPOSER_MAX_HEIGHT = 144;
 
 function ChatSkeleton() {
   return (
-    <View style={{ padding: spacing.lg, gap: spacing.md }}>
+    <View
+      style={{ padding: spacing.lg, gap: spacing.md }}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading your conversation"
+      accessibilityState={{ busy: true }}
+    >
       <SkeletonBlock height={72} width="70%" borderRadius={radii.md} />
       <SkeletonBlock height={48} width="55%" borderRadius={radii.md} style={{ alignSelf: 'flex-end' }} />
       <SkeletonBlock height={96} width="80%" borderRadius={radii.md} />
@@ -91,6 +98,27 @@ export default function CoachScreen() {
     }
     return undefined;
   }, [messages.length, isTyping, scrollToBottom]);
+
+  // Screen reader status. Android hears "The coach is writing" and the rate
+  // limit notice through their live regions; iOS has none, so it is announced
+  // (same approach as OfflineBanner). A finished reply is announced on both,
+  // because focus is usually still in the composer when it lands.
+  const wasTyping = useRef(false);
+  useEffect(() => {
+    const started = !wasTyping.current && isTyping;
+    const finished = wasTyping.current && !isTyping;
+    wasTyping.current = isTyping;
+    if (started && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility('The coach is writing');
+    if (isTyping) return;
+    const last = messages[messages.length - 1];
+    if (finished && last?.role === 'assistant') {
+      AccessibilityInfo.announceForAccessibility(`Coach: ${spokenCoachText(last.content)}`);
+    }
+  }, [isTyping, messages]);
+
+  useEffect(() => {
+    if (rateLimitError && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility(rateLimitError);
+  }, [rateLimitError]);
 
   const canSend = inputText.trim().length > 0 && !isTyping;
 
@@ -192,7 +220,14 @@ export default function CoachScreen() {
             <QuickSuggestions suggestions={suggestions} onSelect={handleSuggestion} disabled={isTyping} />
           </View>
         }
-        ListFooterComponent={isTyping ? <TypingIndicator /> : null}
+        ListFooterComponent={
+          <View style={{ gap: spacing.md }}>
+            {isTyping ? <TypingIndicator /> : null}
+            <Text variant="label" style={{ paddingTop: spacing.sm }}>
+              {COACH_AI_DISCLAIMER}
+            </Text>
+          </View>
+        }
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={scrollToBottom}
@@ -210,13 +245,14 @@ export default function CoachScreen() {
             backgroundColor: colors.status.warningSoft,
             borderRadius: radii.sm,
           }}
+          accessibilityRole="alert"
           accessibilityLiveRegion="polite"
         >
           <AppIcon name="alert-circle-outline" size={20} color={colors.status.warning} />
           <Text variant="caption" color={colors.status.warning} style={{ flex: 1 }}>
             {rateLimitError}
           </Text>
-          <IconButton icon="close" accessibilityLabel="Dismiss" tone="secondary" onPress={clearRateLimitError} />
+          <IconButton icon="close" accessibilityLabel="Dismiss this notice" tone="secondary" onPress={clearRateLimitError} />
         </View>
       ) : null}
 
@@ -236,6 +272,7 @@ export default function CoachScreen() {
           style={{ flex: 1, maxHeight: COMPOSER_MAX_HEIGHT }}
           placeholder={`Ask about ${dog.name}`}
           accessibilityLabel="Message the coach"
+          accessibilityHint={isTyping ? 'Unavailable while the coach is writing' : undefined}
           value={inputText}
           onChangeText={setInputText}
           multiline
@@ -250,7 +287,7 @@ export default function CoachScreen() {
         <IconButton
           icon="arrow-up"
           variant="filled"
-          accessibilityLabel="Send"
+          accessibilityLabel="Send message"
           onPress={handleSend}
           disabled={!canSend}
         />

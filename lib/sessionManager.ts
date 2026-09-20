@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase';
+import { captureError } from '@/lib/sentry';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import { updateLearningStateFromSessionLog } from '@/lib/adaptivePlanning/learningStateEngine';
 import type { AdaptationApiResult, PlanEnvironment, PlanSession, PostSessionReflection } from '@/types';
 import type { StepResult } from '@/stores/sessionStore';
@@ -93,7 +95,6 @@ async function invokeAdaptPlan(body: {
     return null;
   }
 
-  console.log('[sessionManager] adapt-plan response:', data);
   return (data ?? null) as AdaptationApiResult | null;
 }
 
@@ -136,6 +137,26 @@ export async function saveSession(params: SaveSessionParams): Promise<SaveSessio
   if (error || !data?.id) {
     const message = error?.message ?? 'Session log insert returned no id';
     console.warn('[sessionManager] saveSession error:', message);
+    // Server-side backstop of the free tier (session_logs trigger). The client
+    // gate normally stops this earlier; retrying cannot succeed without Pro.
+    if (message.includes('free_session_limit')) {
+      // The store says Pro but the server has not heard yet (late webhook).
+      // Selling Pro to someone who already paid would be wrong; ask them to retry.
+      if (useSubscriptionStore.getState().tier === 'pro') {
+        captureError(new Error('free_session_limit hit by a Pro user'), { userId: params.userId });
+        return {
+          sessionLogId: null,
+          adaptation: null,
+          error: "Your Pro subscription hasn't reached our server yet. Wait a minute and save again.",
+        };
+      }
+      useSubscriptionStore.getState().openPaywall('session_limit');
+      return {
+        sessionLogId: null,
+        adaptation: null,
+        error: 'This session needs Pawly Pro to save. Your free sessions are used up.',
+      };
+    }
     return { sessionLogId: null, adaptation: null, error: message };
   }
 

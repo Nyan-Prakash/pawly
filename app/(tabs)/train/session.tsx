@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated, AppState, type AppStateStatus, ScrollView, View } from 'react-native';
+import {
+  AccessibilityInfo,
+  Alert,
+  Animated,
+  AppState,
+  type AppStateStatus,
+  Platform,
+  ScrollView,
+  View,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
@@ -21,6 +30,7 @@ import { RepCounter } from '@/components/session/RepCounter';
 import { StepCard } from '@/components/session/StepCard';
 import { StepMedia } from '@/components/session/StepMedia';
 import { StepHelpSheet } from '@/components/session/StepHelpSheet';
+import { ProfessionalHelpCard } from '@/components/safety/ProfessionalHelpNotice';
 import { SessionModePicker } from '@/components/session/SessionModePicker';
 import { LiveAiTrainerOverlay } from '@/components/vision/LiveAiTrainerOverlay';
 import { colors } from '@/constants/colors';
@@ -32,6 +42,7 @@ import { durations, useReducedMotion } from '@/lib/motion';
 import { useTheme } from '@/lib/theme';
 import { useSessionStore, type ActiveSession, type StepResult } from '@/stores/sessionStore';
 import { usePlanStore } from '@/stores/planStore';
+import { useProgressStore } from '@/stores/progressStore';
 import { useDogStore } from '@/stores/dogStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
@@ -74,6 +85,7 @@ import {
 } from '@/lib/sessionPersistence';
 import type { PostSessionReflection, ReflectionQuestionId } from '@/types';
 import { guardSessionStart } from '@/lib/proGate';
+import { maybeAskForRating } from '@/lib/ratingPrompt';
 
 // ── Local UI state for live coaching (does not touch session store) ──────────
 type LocalOverlayState = 'NONE' | 'MODE_PICKER' | 'LIVE_COACHING';
@@ -175,7 +187,10 @@ export default function SessionScreen() {
     }
 
     // Backstop for deep links and notifications; the entry points gate first.
-    if (!isQuickMode && !guardSessionStart(activePlan.id, sessionId)) {
+    // Quick reps rerun a step from a session that is already done, so only
+    // those skip the gate; `mode=quick` on a locked session does not.
+    const isRerun = isQuickMode && planSession.isCompleted;
+    if (!isRerun && !guardSessionStart(activePlan.id, sessionId)) {
       router.back();
       return;
     }
@@ -496,6 +511,8 @@ export default function SessionScreen() {
           // Quick reps count toward the streak (the session_logs trigger writes it)
           // but never complete a plan session.
           fetchDogLearningState(dog.id).catch(() => {});
+          // Quick reps count toward the streak but skip the plan-session hook that moves tonight's reminder.
+          useNotificationStore.getState().syncStreakReminder(dog).catch(() => {});
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : 'The quick reps could not be saved.';
@@ -964,6 +981,11 @@ export default function SessionScreen() {
           onBack={() => {
             clearSession();
             router.replace('/(tabs)/train');
+            // After the celebration, never over it.
+            maybeAskForRating({
+              totalSessionsCompleted: useProgressStore.getState().totalSessionsCompleted,
+              sessionWentWell: (reviewOutcome ?? 'met') === 'met',
+            });
           }}
         />
       )}
@@ -982,6 +1004,16 @@ export default function SessionScreen() {
 
     </SafeScreen>
   );
+}
+
+/** "1 minute 20 seconds": `formatTimer`'s "1:20" is read as a clock time. */
+function spokenTimer(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const parts: string[] = [];
+  if (minutes > 0) parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+  if (seconds > 0 || minutes === 0) parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
+  return parts.join(' ');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1011,14 +1043,24 @@ function TopBar({
     >
       <IconButton icon="close" accessibilityLabel="Leave session" tone="secondary" onPress={onClose} />
       <ProgressBar progress={progress} accessibilityLabel="Session progress" style={{ flex: 1 }} />
-      {stepLabel ? <Text variant="caption">{stepLabel}</Text> : null}
+      {stepLabel ? (
+        <Text variant="caption" accessibilityLabel={/^\d/.test(stepLabel) ? `Step ${stepLabel}` : stepLabel}>
+          {stepLabel}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 function LoadingSkeleton() {
   return (
-    <View style={{ padding: spacing.lg, gap: spacing.xl }} accessibilityLabel="Loading session">
+    <View
+      style={{ padding: spacing.lg, gap: spacing.xl }}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading session"
+      accessibilityState={{ busy: true }}
+    >
       <View style={{ gap: spacing.sm }}>
         <SkeletonBlock height={20} width="40%" />
         <SkeletonBlock height={30} width="80%" />
@@ -1068,12 +1110,16 @@ function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, on
       >
         <View style={{ gap: spacing.sm }}>
           {courseTitle ? <Text variant="caption">{courseTitle}</Text> : null}
-          <Text variant="h1">{protocol.title}</Text>
+          <Text variant="h1" accessibilityRole="header">
+            {protocol.title}
+          </Text>
           <Text variant="body">{protocol.objective}</Text>
           <Text variant="caption">
             {protocol.durationMinutes} min, {protocol.steps.length} steps
           </Text>
         </View>
+
+        <ProfessionalHelpCard goalKey={protocol.behavior} />
 
         <View>
           <SectionHeader title={`Today's goal for ${dogName}`} />
@@ -1103,7 +1149,7 @@ function IntroView({ protocol, courseTitle, dogName, showModeChoice, onStart, on
         ) : null}
 
         {protocol.trainerNote ? (
-          <Card style={{ gap: spacing.xs }}>
+          <Card style={{ gap: spacing.xs }} accessible accessibilityLabel={`From the coach. ${protocol.trainerNote}`}>
             <Text variant="caption">From the coach</Text>
             <Text variant="body">{protocol.trainerNote}</Text>
           </Card>
@@ -1169,6 +1215,13 @@ function StepActiveView({
   const media = getStepMedia(activeSession.protocol.id, activeSession.currentStepIndex);
   const timerDone = hasTimer && activeSession.timerSeconds === 0 && !activeSession.isTimerRunning;
   const timerUntouched = !activeSession.isTimerRunning && activeSession.timerSeconds === step.durationSeconds;
+  const timerStatus = activeSession.isTimerRunning ? 'Running' : timerDone ? 'Time’s up' : 'Ready';
+
+  // Android announces the end of the timer through the live region below;
+  // iOS has no live regions, so say it once (same approach as OfflineBanner).
+  useEffect(() => {
+    if (timerDone && Platform.OS === 'ios') AccessibilityInfo.announceForAccessibility('Time’s up');
+  }, [timerDone]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -1192,30 +1245,43 @@ function StepActiveView({
             <StepMedia clip={media} />
           ) : hasTimer ? (
             <View style={{ alignItems: 'center', gap: spacing.lg }}>
-              <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <View
+                style={{ alignItems: 'center', justifyContent: 'center' }}
+                accessible
+                accessibilityRole="timer"
+                accessibilityLabel="Timer"
+                accessibilityValue={{
+                  text: timerDone ? timerStatus : `${spokenTimer(activeSession.timerSeconds)} remaining, ${timerStatus}`,
+                }}
+                accessibilityLiveRegion={timerDone ? 'polite' : 'none'}
+              >
                 <TimerRing totalSeconds={step.durationSeconds!} currentSeconds={activeSession.timerSeconds} size={220} />
                 <View style={{ position: 'absolute', alignItems: 'center' }}>
-                  <Text
-                    variant="numeral"
-                    color={timerDone ? colors.accent : colors.text.primary}
-                    accessibilityLiveRegion={timerDone ? 'polite' : 'none'}
-                  >
+                  <Text variant="numeral" color={timerDone ? colors.accent : colors.text.primary}>
                     {formatTimer(activeSession.timerSeconds)}
                   </Text>
-                  <Text variant="caption">
-                    {activeSession.isTimerRunning ? 'Running' : timerDone ? 'Time’s up' : 'Ready'}
-                  </Text>
+                  <Text variant="caption">{timerStatus}</Text>
                 </View>
               </View>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 <Button
                   label={activeSession.isTimerRunning ? 'Pause' : timerDone ? 'Finished' : 'Start timer'}
+                  accessibilityLabel={
+                    activeSession.isTimerRunning ? 'Pause timer' : timerDone ? 'Timer finished' : 'Start timer'
+                  }
                   icon={activeSession.isTimerRunning ? 'pause' : 'play'}
                   size="md"
                   onPress={onToggleTimer}
                   disabled={timerDone}
                 />
-                <Button label="Reset" variant="ghost" size="md" onPress={onResetTimer} disabled={timerUntouched} />
+                <Button
+                  label="Reset"
+                  accessibilityLabel="Reset timer"
+                  variant="ghost"
+                  size="md"
+                  onPress={onResetTimer}
+                  disabled={timerUntouched}
+                />
               </View>
             </View>
           ) : showRepCounter ? (
@@ -1232,7 +1298,14 @@ function StepActiveView({
           {onPreviousStep ? (
             <Button label="Previous step" icon="chevron-back" variant="ghost" size="md" onPress={onPreviousStep} />
           ) : null}
-          <Button label="Why this step" icon="help-circle-outline" variant="ghost" size="md" onPress={onWhy} />
+          <Button
+            label="Why this step"
+            icon="help-circle-outline"
+            variant="ghost"
+            size="md"
+            onPress={onWhy}
+            accessibilityHint="Opens the reason for this step and common mistakes"
+          />
         </View>
       </ScrollView>
 
@@ -1246,8 +1319,20 @@ function StepActiveView({
           <Button label={saveError ? 'Try saving again' : 'Next step'} onPress={onWorked} loading={isSaving} />
         ) : (
           <>
-            <Button label={saveError ? 'Try saving again' : 'It worked'} icon="checkmark" onPress={onWorked} loading={isSaving} />
-            <Button label="Not yet" variant="ghost" onPress={onNotYet} disabled={isSaving} />
+            <Button
+              label={saveError ? 'Try saving again' : 'It worked'}
+              icon="checkmark"
+              onPress={onWorked}
+              loading={isSaving}
+              accessibilityHint={saveError ? undefined : 'Marks this step as done'}
+            />
+            <Button
+              label="Not yet"
+              variant="ghost"
+              onPress={onNotYet}
+              disabled={isSaving}
+              accessibilityHint="Choose to try this step again or make it easier"
+            />
           </>
         )}
       </View>
@@ -1285,7 +1370,9 @@ function StepCompleteView({ stepNumber, totalSteps, outcome, nextStep, onNext, o
           color={struggled ? colors.text.secondary : colors.accent}
         />
         <View style={{ gap: spacing.sm }}>
-          <Text variant="h1">{struggled ? `Step ${stepNumber} noted` : `Step ${stepNumber} done`}</Text>
+          <Text variant="h1" accessibilityRole="header" accessibilityLiveRegion="polite">
+            {struggled ? `Step ${stepNumber} noted` : `Step ${stepNumber} done`}
+          </Text>
           <Text variant="body">
             {struggled
               ? 'Struggles are useful data. Your plan will factor it in.'

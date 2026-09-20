@@ -27,7 +27,7 @@ export function NotificationItem({
     <Pressable
       onPress={() => onPress(item)}
       accessibilityRole="button"
-      accessibilityLabel={`${item.isRead ? '' : 'Unread. '}${item.title}. ${item.body}`}
+      accessibilityLabel={`${item.isRead ? '' : 'Unread. '}${item.title}. ${item.body}${timestamp ? `. ${timestamp}` : ''}`}
       accessibilityHint={hint}
       style={({ pressed }) => ({
         minHeight: 52,

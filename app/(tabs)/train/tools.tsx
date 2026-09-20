@@ -17,12 +17,16 @@ export default function TrainingToolsScreen() {
       contentContainerStyle={{ padding: spacing.lg, gap: spacing.xl }}
     >
       {error ? (
-        <Text variant="body" color={colors.status.danger} accessibilityLiveRegion="polite">
+        <Text variant="body" color={colors.status.danger} accessibilityRole="alert" accessibilityLiveRegion="polite">
           Couldn't load the sounds. Check the volume switch and reopen this screen.
         </Text>
       ) : null}
 
-      {!isReady && !error ? <Text variant="caption">Loading sounds</Text> : null}
+      {!isReady && !error ? (
+        <Text variant="caption" accessibilityLiveRegion="polite">
+          Loading sounds
+        </Text>
+      ) : null}
 
       <TrainingToolCard
         title="Clicker"

@@ -44,7 +44,14 @@ const DAY_LABELS: Record<Weekday, string> = {
 function PlanSkeleton({ dogName }: { dogName: string }) {
   return (
     <View style={{ gap: spacing.xl }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      <View
+        style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={`Building ${dogName ? `${dogName}'s` : 'the'} plan`}
+        accessibilityState={{ busy: true }}
+        accessibilityLiveRegion="polite"
+      >
         <MascotLoader activity="wake" size={64} />
         <Text variant="caption">Building {dogName ? `${dogName}'s` : 'the'} plan</Text>
       </View>
@@ -243,7 +250,9 @@ export default function PlanPreviewScreen() {
       >
         <View style={{ gap: spacing.lg }}>
           <View style={{ gap: spacing.xs }}>
-            <Text variant="display">{dogName}'s plan</Text>
+            <Text variant="display" accessibilityRole="header">
+              {dogName}'s plan
+            </Text>
             <Text variant="caption">
               {goalLabel}. {totalSessions} sessions over {totalWeeks} {totalWeeks === 1 ? 'week' : 'weeks'},{' '}
               {availableMinutesPerDay} min each.

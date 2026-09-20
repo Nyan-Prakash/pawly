@@ -102,7 +102,9 @@ export function PlanReasonCard({
 
   return (
     <Card style={{ gap: spacing.sm }}>
-      <Text variant="caption">Why this plan</Text>
+      <Text variant="caption" accessibilityRole="header">
+        Why this plan
+      </Text>
 
       <View style={{ gap: spacing.sm }}>
         {lines.map((line, i) => (

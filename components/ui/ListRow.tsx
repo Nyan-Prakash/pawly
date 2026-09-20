@@ -83,8 +83,19 @@ export function ListRow({
     danger: colors.status.danger,
   }[iconTone];
 
+  // Read as one element: title, subtitle, then a trailing value. A trailing
+  // node (Tag, Switch) is not text, so call sites that need it pass a label.
+  const trailingText = typeof trailing === 'string' && trailing !== 'chevron' ? trailing : null;
+  const label =
+    accessibilityLabel ??
+    [title, subtitle?.replace(/\n/g, '. '), trailingText].filter(Boolean).join(', ');
+  // A static row groups itself unless it holds a control of its own.
+  const groupsItself = !onPress && (trailing == null || typeof trailing === 'string');
+
   const content = (
     <View
+      accessible={groupsItself ? true : undefined}
+      accessibilityLabel={groupsItself ? label : undefined}
       style={[
         {
           minHeight: 52,
@@ -128,7 +139,7 @@ export function ListRow({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: !!disabled, selected: !!selected }}
       style={({ pressed }) => ({ opacity: disabled ? 0.4 : pressed ? 0.6 : 1 })}

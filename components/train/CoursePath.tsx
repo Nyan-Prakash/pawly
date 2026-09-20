@@ -2,12 +2,14 @@ import { Pressable, View } from 'react-native';
 
 import { AppIcon } from '@/components/ui/AppIcon';
 import { Card } from '@/components/ui/Card';
+import { Tag } from '@/components/ui/PillTag';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { EXERCISE_TO_PROTOCOL, PROTOCOLS_BY_ID, type Protocol } from '@/constants/protocols';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { PRO_LOCK_LABEL } from '@/hooks/useSessionLock';
 import type { PlanSession } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,13 +106,13 @@ export function stageLabel(group: StageGroup): string {
 // Node
 // ─────────────────────────────────────────────────────────────────────────────
 
-function nodeA11yLabel(node: PathNode): string {
+function nodeA11yLabel(node: PathNode, needsPro: boolean): string {
   const what = node.isCheck ? `Stage check, ${node.session.title}` : `Session ${node.index}, ${node.session.title}`;
   const status = node.state === 'done' ? 'completed' : node.state === 'next' ? 'next up' : 'locked';
-  return `${what}, ${status}`;
+  return needsPro ? `${what}, ${status}, ${PRO_LOCK_LABEL}` : `${what}, ${status}`;
 }
 
-function PathNodeButton({ node, onPress }: { node: PathNode; onPress: () => void }) {
+function PathNodeButton({ node, needsPro, onPress }: { node: PathNode; needsPro: boolean; onPress: () => void }) {
   const isDone = node.state === 'done';
   const isNext = node.state === 'next';
   const tint = isNext ? colors.accent : colors.text.secondary;
@@ -119,7 +121,7 @@ function PathNodeButton({ node, onPress }: { node: PathNode; onPress: () => void
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={nodeA11yLabel(node)}
+      accessibilityLabel={nodeA11yLabel(node, needsPro)}
       accessibilityHint="Opens session details"
       style={({ pressed }) => ({
         minWidth: 44,
@@ -174,9 +176,11 @@ function Connector() {
 type StagePathProps = {
   group: StageGroup;
   onSelectSession: (session: PlanSession) => void;
+  /** The course's next session is past the free sessions; mark it where it shows. */
+  nextNeedsPro?: boolean;
 };
 
-export function StagePath({ group, onSelectSession }: StagePathProps) {
+export function StagePath({ group, onSelectSession, nextNeedsPro = false }: StagePathProps) {
   const total = group.nodes.length;
   const nextNode = group.nodes.find((n) => n.state === 'next') ?? null;
   const wraps = total > WRAP_AFTER;
@@ -201,7 +205,11 @@ export function StagePath({ group, onSelectSession }: StagePathProps) {
           {group.nodes.map((node, i) => (
             <View key={node.session.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
               {i > 0 ? <Connector /> : null}
-              <PathNodeButton node={node} onPress={() => onSelectSession(node.session)} />
+              <PathNodeButton
+                node={node}
+                needsPro={nextNeedsPro && node.state === 'next'}
+                onPress={() => onSelectSession(node.session)}
+              />
             </View>
           ))}
         </View>
@@ -210,9 +218,12 @@ export function StagePath({ group, onSelectSession }: StagePathProps) {
             {group.doneCount} of {total} sessions
           </Text>
           {group.isCurrent && nextNode ? (
-            <Text variant="caption" color={colors.text.primary}>
-              Next: {nextNode.session.title}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Text variant="caption" color={colors.text.primary} style={{ flexShrink: 1 }}>
+                Next: {nextNode.session.title}
+              </Text>
+              {nextNeedsPro ? <Tag label="Pro" icon="lock-closed" tone="accent" /> : null}
+            </View>
           ) : null}
         </View>
       </Card>

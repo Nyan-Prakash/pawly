@@ -8,6 +8,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from '@/stores/authStore';
 import type { SessionState, StepResult } from '@/stores/sessionStore';
 
 const STORAGE_KEY = 'pawly:active-session:v1';
@@ -29,6 +30,8 @@ export interface SessionSnapshot {
   repCount: number;
   state: SessionState;
   savedAt: string;
+  /** Owner of the snapshot, so another account on this device never resumes it. */
+  userId?: string | null;
 }
 
 export function isSnapshotFresh(snapshot: SessionSnapshot, now: Date = new Date()): boolean {
@@ -49,7 +52,8 @@ export function isSnapshotResumable(snapshot: SessionSnapshot): boolean {
 
 export async function saveSessionSnapshot(snapshot: SessionSnapshot): Promise<void> {
   try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    const userId = useAuthStore.getState().user?.id ?? null;
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...snapshot, userId }));
   } catch (e) {
     if (__DEV__) console.warn('[sessionPersistence] save failed', e);
   }
@@ -61,7 +65,9 @@ export async function loadSessionSnapshot(): Promise<SessionSnapshot | null> {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as SessionSnapshot;
     if (!parsed || typeof parsed.sessionId !== 'string') return null;
-    if (!isSnapshotFresh(parsed)) {
+    const currentUserId = useAuthStore.getState().user?.id ?? null;
+    const belongsToSomeoneElse = !!parsed.userId && parsed.userId !== currentUserId;
+    if (belongsToSomeoneElse || !isSnapshotFresh(parsed)) {
       await clearSessionSnapshot();
       return null;
     }

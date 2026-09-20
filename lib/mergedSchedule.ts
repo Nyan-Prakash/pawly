@@ -177,7 +177,7 @@ export function mergeActivePlanSchedules(
     if (plan.status !== 'active') continue;
 
     // ── Overdue (missed) sessions ─────────────────────────────────────────
-    const missedRaw = getMissedScheduledSessions(plan);
+    const missedRaw = getMissedScheduledSessions(plan, todayKey);
     for (const s of missedRaw) {
       missed.push(enrichSession(s, plan));
     }
@@ -185,7 +185,7 @@ export function mergeActivePlanSchedules(
     // ── Today's session ───────────────────────────────────────────────────
     // scheduleEngine.getTodaySession does exact date match and handles
     // unscheduled plans by returning the first incomplete session.
-    const todaySession = getTodaySession(plan);
+    const todaySession = getTodaySession(plan, [], todayKey);
     if (todaySession) {
       today.push(enrichSession(todaySession, plan));
     }
@@ -193,7 +193,7 @@ export function mergeActivePlanSchedules(
     // ── Upcoming sessions ─────────────────────────────────────────────────
     // getUpcomingSessions already filters scheduledDate >= today and sorts
     // by date/time. We grab a generous slice; dedup vs today below.
-    const upcomingRaw = getUpcomingSessions(plan, upcomingLimit);
+    const upcomingRaw = getUpcomingSessions(plan, upcomingLimit, todayKey);
     for (const s of upcomingRaw) {
       // Exclude today's session from the upcoming list to avoid duplication
       if (s.scheduledDate !== todayKey) {

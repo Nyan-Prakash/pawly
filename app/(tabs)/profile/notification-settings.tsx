@@ -35,7 +35,7 @@ const PERMISSION_LABELS: Record<string, string> = {
 const TOGGLES: { key: BooleanPrefKey; title: string; subtitle: string }[] = [
   { key: 'walkReminders', title: 'Walk reminders', subtitle: 'Around your usual walk times' },
   { key: 'postWalkCheckIn', title: 'Post-walk check-in', subtitle: 'Ask how the walk went while it is fresh' },
-  { key: 'streakAlerts', title: 'Streak alerts', subtitle: 'When your streak is about to slip' },
+  { key: 'streakAlerts', title: 'Streak alerts', subtitle: 'At 7:30 PM when a streak has no session yet that day' },
   { key: 'milestoneAlerts', title: 'Milestone alerts', subtitle: 'When a milestone is reached or the plan moves on' },
   { key: 'insights', title: 'Weekly insights', subtitle: 'A weekly note on progress' },
   { key: 'lifecycle', title: 'Age and routine reminders', subtitle: 'Tips as your dog grows and routines change' },
@@ -90,7 +90,7 @@ export default function NotificationSettingsScreen() {
   const { user } = useAuthStore();
   const { dog } = useDogStore();
   const { activePlan } = usePlanStore();
-  const { prefs, permissionStatus, isLoading, loadPrefs, updatePrefs, refreshSchedules } = useNotificationStore();
+  const { prefs, permissionStatus, isLoading, loadPrefs, updatePrefs, refreshSchedules, syncStreakReminder } = useNotificationStore();
 
   const [hasLoaded, setHasLoaded] = useState(false);
   const [optimistic, setOptimistic] = useState<Partial<NotificationPrefs>>({});
@@ -115,6 +115,9 @@ export default function NotificationSettingsScreen() {
       await updatePrefs(user.id, updates);
       if (dog && activePlan) {
         await refreshSchedules(dog, activePlan);
+      } else if (dog) {
+        // No plan to remind about, but the streak reminder still follows its toggle.
+        await syncStreakReminder(dog).catch(() => {});
       }
     } catch {
       setErrorMsg(failureMessage);
@@ -169,7 +172,7 @@ export default function NotificationSettingsScreen() {
         ) : (
           <>
             {errorMsg ? (
-              <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+              <Text variant="caption" color={colors.status.danger} accessibilityRole="alert" accessibilityLiveRegion="polite">
                 {errorMsg}
               </Text>
             ) : null}
@@ -198,6 +201,7 @@ export default function NotificationSettingsScreen() {
                       onValueChange={(value) => toggle('scheduledSessionReminders', value)}
                       trackColor={{ true: colors.accent }}
                       accessibilityLabel="Session reminders"
+                      accessibilityHint="Before a scheduled session"
                     />
                   }
                 />
@@ -232,6 +236,7 @@ export default function NotificationSettingsScreen() {
                         onValueChange={(value) => toggle(item.key, value)}
                         trackColor={{ true: colors.accent }}
                         accessibilityLabel={item.title}
+                        accessibilityHint={item.subtitle}
                       />
                     }
                   />
@@ -243,6 +248,7 @@ export default function NotificationSettingsScreen() {
       </ScrollView>
 
       <BottomSheet visible={showLeadSheet} onClose={() => setShowLeadSheet(false)} title="Remind me">
+        <View accessibilityRole="radiogroup" accessibilityLabel="Remind me">
         <ListGroup>
           {LEAD_OPTIONS.map((minutes) => (
             <ListRow
@@ -254,6 +260,7 @@ export default function NotificationSettingsScreen() {
             />
           ))}
         </ListGroup>
+        </View>
       </BottomSheet>
 
       {Platform.OS === 'ios' ? (

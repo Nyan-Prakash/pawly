@@ -61,7 +61,7 @@ export function RepCounter({ count, target, onIncrement, onDecrement }: RepCount
       <Pressable
         onPress={handleRep}
         accessibilityRole="button"
-        accessibilityLabel="Count a rep"
+        accessibilityLabel="Add one rep"
         accessibilityValue={{ text: countLabel }}
         style={({ pressed }) => ({
           width: DIAL,
@@ -85,7 +85,11 @@ export function RepCounter({ count, target, onIncrement, onDecrement }: RepCount
               opacity: pressed ? 0.92 : 1,
             }}
           >
-            <Animated.View style={{ transform: [{ scale: scaleAnim }] }} accessibilityLiveRegion="polite">
+            <Animated.View
+              style={{ transform: [{ scale: scaleAnim }] }}
+              accessibilityLiveRegion="polite"
+              accessibilityLabel={countLabel}
+            >
               <Text variant="numeral" color={numberColor} style={{ textAlign: 'center' }}>
                 {count}
               </Text>
@@ -108,7 +112,14 @@ export function RepCounter({ count, target, onIncrement, onDecrement }: RepCount
 
       <Text variant="caption">{targetReached ? 'Target reached. Finish on this one.' : 'Tap the dial for every rep'}</Text>
 
-      <Button label="Undo" variant="ghost" size="md" onPress={onDecrement} disabled={count === 0} />
+      <Button
+        label="Undo"
+        accessibilityLabel="Remove one rep"
+        variant="ghost"
+        size="md"
+        onPress={onDecrement}
+        disabled={count === 0}
+      />
     </View>
   );
 }

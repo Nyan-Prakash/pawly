@@ -75,6 +75,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
       >
         <View>
           <SectionHeader title="What is it about" />
+          <View accessibilityRole="radiogroup" accessibilityLabel="What is it about">
           <ListGroup>
             {FEEDBACK_OPTIONS.map((opt) => {
               const selected = selectedType === opt.value;
@@ -94,6 +95,7 @@ export function FeedbackModal({ visible, onClose }: FeedbackModalProps) {
               );
             })}
           </ListGroup>
+          </View>
         </View>
 
         <Input

@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
+import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { typography } from '@/constants/typography';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/stores/authStore';
@@ -39,6 +41,14 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      // Still the platform tab bar. The offline line rides on top of it, in the
+      // layout, so it shows on every tab without covering the bar or a header.
+      tabBar={(props) => (
+        <>
+          <OfflineBanner />
+          <BottomTabBar {...props} />
+        </>
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.accent,

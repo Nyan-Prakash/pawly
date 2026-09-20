@@ -4,6 +4,7 @@ import type { CustomerInfo, PurchasesPackage } from 'react-native-purchases';
 import { captureEvent } from '@/lib/analytics';
 import {
   getProPackages,
+  getTrialEligibility,
   identify,
   isUserCancelled,
   logOutOfRevenueCat,
@@ -17,12 +18,20 @@ import { tierFromCustomerInfo } from '@/lib/subscription';
 import type { SubscriptionTier } from '@/types';
 
 /** Where the paywall was opened from, for analytics. */
-export type PaywallSource = 'profile' | 'plan_preview' | 'coach' | 'video' | 'progress' | 'plan';
+export type PaywallSource =
+  | 'profile'
+  | 'plan_preview'
+  | 'coach'
+  | 'progress'
+  | 'plan'
+  | 'session_limit';
 
 interface SubscriptionStore {
   tier: SubscriptionTier;
   customerInfo: CustomerInfo | null;
   packages: ProPackages;
+  /** Product id → can this store account still take the free trial. */
+  trialEligibility: Record<string, boolean>;
   isLoadingPackages: boolean;
   isPurchasing: boolean;
   isRestoring: boolean;
@@ -52,6 +61,7 @@ export const useSubscriptionStore = create<SubscriptionStore>((set, get) => {
     tier: 'free',
     customerInfo: null,
     packages: { monthly: null, annual: null },
+    trialEligibility: {},
     isLoadingPackages: false,
     isPurchasing: false,
     isRestoring: false,
@@ -64,7 +74,11 @@ export const useSubscriptionStore = create<SubscriptionStore>((set, get) => {
       set({ isPaywallOpen: true, paywallSource: source, error: null });
       get().loadPackages();
     },
-    closePaywall: () => set({ isPaywallOpen: false, error: null }),
+    closePaywall: () => {
+      const { isPaywallOpen, paywallSource, tier } = get();
+      if (isPaywallOpen && tier === 'free') captureEvent('paywall_dismissed', { source: paywallSource });
+      set({ isPaywallOpen: false, error: null });
+    },
 
     identify: async (userId) => {
       try {
@@ -85,7 +99,10 @@ export const useSubscriptionStore = create<SubscriptionStore>((set, get) => {
       if (get().isLoadingPackages) return;
       set({ isLoadingPackages: true });
       try {
-        set({ packages: await getProPackages() });
+        const packages = await getProPackages();
+        set({ packages });
+        // Without an answer the paywall shows the plain price, never a trial.
+        set({ trialEligibility: await getTrialEligibility(packages).catch(() => ({})) });
       } catch (error) {
         console.warn('[subscription] offerings failed:', error);
       } finally {
@@ -102,7 +119,9 @@ export const useSubscriptionStore = create<SubscriptionStore>((set, get) => {
         captureEvent('purchase_completed', { source, product: pkg.product.identifier });
         return get().tier === 'pro';
       } catch (error) {
-        if (!isUserCancelled(error)) {
+        if (isUserCancelled(error)) {
+          captureEvent('purchase_cancelled', { source, product: pkg.product.identifier });
+        } else {
           captureEvent('purchase_failed', { source, product: pkg.product.identifier });
           set({ error: purchaseErrorMessage(error) });
         }

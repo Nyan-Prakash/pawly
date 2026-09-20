@@ -7,12 +7,14 @@ import { mapInAppNotificationRowToModel } from '@/lib/modelMappers';
 import {
   getNotificationPermissionStatus,
   requestNotificationPermissionIfNeeded,
+  scheduleStreakReminder,
   scheduleUserNotifications,
   scheduleUserNotificationsForPlans,
   type ScheduledNotification,
 } from '@/lib/notifications';
 import { normalizeNotificationPrefs } from '@/lib/scheduleEngine';
 import { supabase } from '@/lib/supabase';
+import { useDogStore } from '@/stores/dogStore';
 import type { Dog, InAppNotification, InAppNotificationType, NotificationPrefs, Plan } from '@/types';
 
 interface NotificationStore {
@@ -20,6 +22,8 @@ interface NotificationStore {
   pendingNotifications: ScheduledNotification[];
   permissionStatus: string;
   hasRequestedPermission: boolean;
+  /** False until loadPrefs has read the saved prefs; `prefs` holds the defaults until then. */
+  hasLoadedPrefs: boolean;
   isLoading: boolean;
   items: InAppNotification[];
   unreadCount: number;
@@ -30,6 +34,12 @@ interface NotificationStore {
   refreshSchedules: (dog: Dog, plan: Plan) => Promise<void>;
   /** Multi-plan variant — prefers this over refreshSchedules when multiple courses are active. */
   refreshSchedulesForPlans: (dog: Dog, plans: Plan[]) => Promise<void>;
+  /**
+   * Re-plan the evening streak reminder from the streaks row: tonight if the
+   * streak is still open, tomorrow night once today's session is saved. Runs
+   * after every schedule refresh and every saved session.
+   */
+  syncStreakReminder: (dog: Dog) => Promise<void>;
   ensurePermissionAfterMeaningfulAction: () => Promise<void>;
   fetchInbox: (userId: string) => Promise<void>;
   addNotification: (input: {
@@ -43,6 +53,31 @@ interface NotificationStore {
   markAsRead: (notificationId: string) => Promise<void>;
   markAllAsRead: (userId: string) => Promise<void>;
   hydrateRealtime: (userId: string) => (() => void);
+}
+
+/** user_profiles.notification_prefs is stored snake_case (see updatePrefs). */
+const PREF_COLUMNS: Record<keyof NotificationPrefs, string> = {
+  dailyReminder: 'daily_reminder',
+  dailyReminderTime: 'daily_reminder_time',
+  walkReminders: 'walk_reminders',
+  postWalkCheckIn: 'post_walk_check_in',
+  streakAlerts: 'streak_alerts',
+  milestoneAlerts: 'milestone_alerts',
+  insights: 'insights',
+  lifecycle: 'lifecycle',
+  weeklySummary: 'weekly_summary',
+  scheduledSessionReminders: 'scheduled_session_reminders',
+  reminderLeadMinutes: 'reminder_lead_minutes',
+  fallbackMissedSessionReminders: 'fallback_missed_session_reminders',
+};
+
+function prefsFromRow(row: Record<string, unknown> | null | undefined): Partial<NotificationPrefs> {
+  const prefs: Record<string, unknown> = {};
+  for (const [key, column] of Object.entries(PREF_COLUMNS)) {
+    const value = row?.[column] ?? row?.[key];
+    if (value !== undefined && value !== null) prefs[key] = value;
+  }
+  return prefs as Partial<NotificationPrefs>;
 }
 
 function deriveUnreadCount(items: InAppNotification[]): number {
@@ -63,6 +98,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   pendingNotifications: [],
   permissionStatus: 'undetermined',
   hasRequestedPermission: false,
+  hasLoadedPrefs: false,
   isLoading: false,
   items: [],
   unreadCount: 0,
@@ -76,9 +112,10 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
         getNotificationPermissionStatus(),
       ]);
 
-      const prefs = normalizeNotificationPrefs(data?.notification_prefs ?? {});
+      const prefs = normalizeNotificationPrefs(prefsFromRow(data?.notification_prefs));
       set({
         prefs,
+        hasLoadedPrefs: true,
         permissionStatus: permission.status,
         hasRequestedPermission: permission.status !== 'undetermined',
       });
@@ -121,6 +158,8 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       prefs: get().prefs,
     });
     set({ pendingNotifications: notifications });
+    // The refresh cancels everything, the streak reminder included.
+    await get().syncStreakReminder(dog).catch(() => {});
   },
 
   refreshSchedulesForPlans: async (dog, plans) => {
@@ -130,17 +169,47 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       prefs: get().prefs,
     });
     set({ pendingNotifications: notifications });
+    await get().syncStreakReminder(dog).catch(() => {});
+  },
+
+  syncStreakReminder: async (dog) => {
+    // Session completion can run before the settings screen has ever loaded the prefs.
+    if (!get().hasLoadedPrefs) {
+      await get().loadPrefs(dog.ownerId).catch(() => {});
+    }
+
+    const { data } = await supabase
+      .from('streaks')
+      .select('current_streak, last_session_date')
+      .eq('user_id', dog.ownerId)
+      .eq('dog_id', dog.id)
+      .maybeSingle();
+
+    const reminder = await scheduleStreakReminder({
+      dog,
+      currentStreak: data?.current_streak ?? 0,
+      lastSessionDate: data?.last_session_date ?? null,
+      prefs: get().prefs,
+    });
+
+    const others = get().pendingNotifications.filter((item) => item.type !== 'streak_at_risk');
+    set({ pendingNotifications: reminder ? [...others, reminder] : others });
   },
 
   ensurePermissionAfterMeaningfulAction: async () => {
-    const { hasRequestedPermission } = get();
-    if (hasRequestedPermission) return;
+    if (!get().hasRequestedPermission) {
+      const result = await requestNotificationPermissionIfNeeded();
+      captureEvent('notification_permission_result', { status: result.status });
+      set({
+        permissionStatus: result.status,
+        hasRequestedPermission: true,
+      });
+    }
 
-    const result = await requestNotificationPermissionIfNeeded();
-    set({
-      permissionStatus: result.status,
-      hasRequestedPermission: true,
-    });
+    // The meaningful action is a saved session: tonight's streak reminder is
+    // no longer needed and tomorrow's takes its place.
+    const dog = useDogStore.getState().dog;
+    if (dog) await get().syncStreakReminder(dog).catch(() => {});
   },
 
   fetchInbox: async (userId) => {

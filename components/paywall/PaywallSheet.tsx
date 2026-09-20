@@ -40,6 +40,7 @@ export function PaywallSheet() {
   const {
     tier,
     packages,
+    trialEligibility,
     isLoadingPackages,
     isPurchasing,
     isRestoring,
@@ -62,7 +63,8 @@ export function PaywallSheet() {
   }, [packages, period]);
 
   const selected = packages[period];
-  const trial = freeTrialLength(selected?.product.introPrice);
+  const trialAvailable = !!selected && trialEligibility[selected.product.identifier] === true;
+  const trial = trialAvailable ? freeTrialLength(selected?.product.introPrice) : null;
   const busy = isPurchasing || isRestoring;
   const hasPlans = !!packages.annual || !!packages.monthly;
 
@@ -76,7 +78,7 @@ export function PaywallSheet() {
     body = (
       <View style={{ flex: 1, paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, gap: spacing.xl }}>
         <View style={{ flex: 1, gap: spacing.sm, paddingTop: spacing.sm }}>
-          <Text variant="h1">Pro is on</Text>
+          <Text variant="h1" accessibilityRole="header">Pro is on</Text>
           <Text variant="body" color={colors.text.secondary}>
             {dogName ? `${dogName}'s whole plan is open.` : 'The whole plan is open.'} You can manage the
             subscription from Profile.
@@ -100,6 +102,22 @@ export function PaywallSheet() {
             {isRevenueCatAvailable ? (
               <Button label="Load plans again" variant="secondary" onPress={loadPackages} />
             ) : null}
+            {error ? (
+              <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+                {error}
+              </Text>
+            ) : null}
+            {/* Restore and the legal links stay reachable even when the plans can't load. */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.xl }}>
+              <TextLink
+              label={isRestoring ? 'Restoring' : 'Restore purchases'}
+              disabled={busy}
+              busy={isRestoring}
+              onPress={restore}
+            />
+              <TextLink label="Terms" accessibilityLabel="Terms of service" disabled={busy} onPress={() => openLegal('/(tabs)/profile/terms-of-service')} />
+              <TextLink label="Privacy" accessibilityLabel="Privacy policy" disabled={busy} onPress={() => openLegal('/(tabs)/profile/privacy-policy')} />
+            </View>
           </>
         )}
       </View>
@@ -111,7 +129,7 @@ export function PaywallSheet() {
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.xl }}
         >
           <View style={{ gap: spacing.sm, paddingHorizontal: spacing.sm }}>
-            <Text variant="h1">{dogName ? `All of ${dogName}'s plan` : 'The whole plan'}</Text>
+            <Text variant="h1" accessibilityRole="header">{dogName ? `All of ${dogName}'s plan` : 'The whole plan'}</Text>
             <Text variant="body" color={colors.text.secondary}>
               Free covers the first {FREE_LIMITS.sessions} sessions. Pro opens everything after them.
             </Text>
@@ -123,6 +141,7 @@ export function PaywallSheet() {
             <ListRow icon="stats-chart-outline" title="Full progress history" />
           </ListGroup>
 
+          <View accessibilityRole="radiogroup" accessibilityLabel="Billing period">
           <ListGroup>
             {(['annual', 'monthly'] as const).map((option) => {
               const pkg = packages[option];
@@ -141,6 +160,7 @@ export function PaywallSheet() {
               );
             })}
           </ListGroup>
+          </View>
         </ScrollView>
 
         <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, gap: spacing.md }}>
@@ -163,9 +183,14 @@ export function PaywallSheet() {
             </Text>
           ) : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.xl }}>
-            <TextLink label={isRestoring ? 'Restoring' : 'Restore purchases'} disabled={busy} onPress={restore} />
-            <TextLink label="Terms" disabled={busy} onPress={() => openLegal('/(tabs)/profile/terms-of-service')} />
-            <TextLink label="Privacy" disabled={busy} onPress={() => openLegal('/(tabs)/profile/privacy-policy')} />
+            <TextLink
+              label={isRestoring ? 'Restoring' : 'Restore purchases'}
+              disabled={busy}
+              busy={isRestoring}
+              onPress={restore}
+            />
+            <TextLink label="Terms" accessibilityLabel="Terms of service" disabled={busy} onPress={() => openLegal('/(tabs)/profile/terms-of-service')} />
+            <TextLink label="Privacy" accessibilityLabel="Privacy policy" disabled={busy} onPress={() => openLegal('/(tabs)/profile/privacy-policy')} />
           </View>
         </View>
       </>
@@ -179,12 +204,26 @@ export function PaywallSheet() {
   );
 }
 
-function TextLink({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
+function TextLink({
+  label,
+  onPress,
+  disabled,
+  busy,
+  accessibilityLabel,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+  accessibilityLabel?: string;
+}) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled: !!disabled, busy: !!busy }}
       hitSlop={8}
       style={({ pressed }) => ({ minHeight: 44, justifyContent: 'center', opacity: disabled ? 0.4 : pressed ? 0.6 : 1 })}
     >

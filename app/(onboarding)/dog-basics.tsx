@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Keyboard, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
+import { captureEvent } from '@/lib/analytics';
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,6 +16,7 @@ import { ScheduleSelector } from '@/components/onboarding/ScheduleSelector';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { BREEDS_LIST } from '@/constants/breeds';
+import { ISSUE_OPTIONS, TRICK_OPTIONS } from '@/constants/onboardingGoals';
 import { haptics } from '@/lib/haptics';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import type { Weekday, TimeWindow, SessionStyle } from '@/types';
@@ -56,41 +58,8 @@ type Option<V extends string | number = string> = {
   description?: string;
 };
 
-const ISSUE_OPTIONS: Option[] = [
-  { value: 'leash_pulling', label: 'Pulls on leash', icon: 'walk', description: 'Pulls toward triggers or scents' },
-  { value: 'jumping_up', label: 'Jumps on people', icon: 'arrow-up-circle', description: 'Excited greetings' },
-  { value: 'barking', label: 'Barking', icon: 'volume-high', description: 'Reacts to sounds or people' },
-  { value: 'recall', label: "Won't come", icon: 'return-down-back', description: 'Ignores you when called' },
-  { value: 'puppy_biting', label: 'Puppy biting', icon: 'flash', description: 'Nipping and mouthing' },
-  { value: 'crate_anxiety', label: 'Crate anxiety', icon: 'home', description: "Stressed or won't settle in the crate" },
-  { value: 'potty_training', label: 'Potty training', icon: 'water', description: 'Accidents indoors' },
-  { value: 'separation_anxiety', label: 'Separation anxiety', icon: 'sad', description: 'Distressed when left alone' },
-  { value: 'leash_reactivity', label: 'Leash reactivity', icon: 'alert-circle', description: 'Lunges or barks at dogs or people' },
-  { value: 'door_manners', label: 'Door manners', icon: 'exit', description: 'Bolts out the door' },
-  { value: 'settling', label: 'Settling', icon: 'moon', description: 'Struggles to calm down' },
-  { value: 'leave_it', label: 'Leave it', icon: 'hand-left', description: 'Grabs or steals things' },
-  { value: 'impulse_control', label: 'Impulse control', icon: 'pause-circle', description: 'Impulsive and reactive' },
-  { value: 'cooperative_care', label: 'Cooperative care', icon: 'medkit', description: 'Resists handling or grooming' },
-];
-
-const TRICK_OPTIONS: Option[] = [
-  { value: 'sit', label: 'Sit', icon: 'chevron-down-circle', description: 'Sit on cue' },
-  { value: 'down', label: 'Down', icon: 'arrow-down-circle', description: 'Lie down on cue' },
-  { value: 'stay', label: 'Stay', icon: 'pause-circle', description: 'Hold position until released' },
-  { value: 'heel', label: 'Heel', icon: 'footsteps', description: 'Walk in formal heel position' },
-  { value: 'wait_and_stay', label: 'Wait', icon: 'time', description: 'Pause before moving forward' },
-  { value: 'basic_obedience', label: 'Basic obedience', icon: 'school', description: 'Sit, down and stay together' },
-  { value: 'shake', label: 'Shake', icon: 'hand-right', description: 'Offer a paw on cue' },
-  { value: 'spin', label: 'Spin', icon: 'refresh-circle', description: 'Turn in a circle' },
-  { value: 'roll_over', label: 'Roll over', icon: 'sync-circle', description: 'Roll from side to side' },
-  { value: 'play_dead', label: 'Play dead', icon: 'skull', description: 'Drop and lie still on cue' },
-  { value: 'fetch', label: 'Fetch', icon: 'baseball', description: 'Retrieve and return an object' },
-  { value: 'high_five', label: 'High five', icon: 'hand-left', description: 'Tap your hand up high' },
-  { value: 'speak', label: 'Speak', icon: 'chatbubble', description: 'Bark on cue' },
-  { value: 'leave_it_trick', label: 'Leave it', icon: 'ban', description: 'Ignore and move away from items' },
-  { value: 'touch', label: 'Touch', icon: 'finger-print', description: 'Nose-target your hand' },
-  { value: 'place', label: 'Place', icon: 'bed', description: 'Go to a designated spot' },
-];
+// ISSUE_OPTIONS and TRICK_OPTIONS live in constants/onboardingGoals.ts so a test can
+// check every value against GOAL_MAP.
 
 const AGE_OPTIONS: Option<number>[] = [
   { value: 4, label: 'Puppy', description: 'Under 6 months', icon: 'paw' },
@@ -205,17 +174,22 @@ function OptionList<V extends string | number>({
   options,
   value,
   onSelect,
+  groupLabel,
 }: {
   options: Option<V>[];
   value: V | null;
   onSelect: (value: V) => void;
+  /** Names the radio group for screen readers when the screen holds more than one. */
+  groupLabel?: string;
 }) {
   return (
-    <ListGroup>
-      {options.map((opt) => (
-        <OptionRow key={String(opt.value)} option={opt} selected={value === opt.value} onSelect={onSelect} />
-      ))}
-    </ListGroup>
+    <View accessibilityRole="radiogroup" accessibilityLabel={groupLabel}>
+      <ListGroup>
+        {options.map((opt) => (
+          <OptionRow key={String(opt.value)} option={opt} selected={value === opt.value} onSelect={onSelect} />
+        ))}
+      </ListGroup>
+    </View>
   );
 }
 
@@ -247,6 +221,13 @@ export default function DogBasicsScreen() {
   const [sex, setSex] = useState<'male' | 'female'>(stored.sex || 'male');
   const [neutered, setNeutered] = useState(stored.neutered ?? false);
   const [primaryGoal, setPrimaryGoal] = useState(stored.primaryGoal || '');
+  // Which list the goal was picked from. leave_it and settling are in both lists,
+  // so the goal value alone cannot say which way Back should go.
+  const [goalPickedFromTricks, setGoalPickedFromTricks] = useState(
+    () =>
+      TRICK_OPTIONS.some((o) => o.value === stored.primaryGoal) &&
+      !ISSUE_OPTIONS.some((o) => o.value === stored.primaryGoal),
+  );
   const [secondaryGoals] = useState<string[]>([]);
   const [severity, setSeverity] = useState<'mild' | 'moderate' | 'severe'>(stored.severity || 'moderate');
   const [trainingExperience, setTrainingExperience] = useState<'none' | 'some' | 'experienced'>(stored.trainingExperience || 'none');
@@ -275,11 +256,11 @@ export default function DogBasicsScreen() {
     else router.replace('/(auth)/welcome');
   };
   // From primaryGoal: skip trickGoal and go straight to severity
-  const goForwardFromPrimaryGoal = () => goTo(STEPS.indexOf('severity'));
+  const goForwardFromPrimaryGoal = () => { setGoalPickedFromTricks(false); goTo(STEPS.indexOf('severity')); };
   // Jump into trickGoal from the primaryGoal page
   const goToTrickGoal = () => { setPrimaryGoal(''); goTo(STEPS.indexOf('trickGoal')); };
   // From trickGoal: skip severity and go straight to experienceLevel
-  const goForwardFromTrickGoal = () => goTo(STEPS.indexOf('experienceLevel'));
+  const goForwardFromTrickGoal = () => { setGoalPickedFromTricks(true); goTo(STEPS.indexOf('experienceLevel')); };
   // Back from experienceLevel when reached via trickGoal
   const goBackFromExperienceToTrick = () => goTo(STEPS.indexOf('trickGoal'));
   const goToPrimaryGoal = () => goTo(STEPS.indexOf('primaryGoal'));
@@ -290,6 +271,11 @@ export default function DogBasicsScreen() {
   // ─── Batch write + push to plan-preview ──────────────────────────────────
 
   const hasWritten = useRef(false);
+
+  // The funnel: which question people reach, and where they leave.
+  useEffect(() => {
+    captureEvent('onboarding_step_viewed', { step: STEPS[currentStepIndex], index: currentStepIndex });
+  }, [currentStepIndex]);
 
   useEffect(() => {
     const stepId = STEPS[currentStepIndex];
@@ -431,14 +417,16 @@ export default function DogBasicsScreen() {
                   ))}
                 </ListGroup>
               ) : (
-                <ListGroup>
-                  <ListRow
-                    icon="search-outline"
-                    iconTone="secondary"
-                    title="No breeds match"
-                    subtitle="Check the spelling, or skip this step."
-                  />
-                </ListGroup>
+                <View accessibilityLiveRegion="polite">
+                  <ListGroup>
+                    <ListRow
+                      icon="search-outline"
+                      iconTone="secondary"
+                      title="No breeds match"
+                      subtitle="Check the spelling, or skip this step."
+                    />
+                  </ListGroup>
+                </View>
               )
             ) : null}
           </View>
@@ -465,6 +453,7 @@ export default function DogBasicsScreen() {
           <View>
             <SectionHeader title="Sex" />
             <OptionList
+              groupLabel="Sex"
               options={[
                 { value: 'male', label: 'Male', icon: 'male' },
                 { value: 'female', label: 'Female', icon: 'female' },
@@ -476,6 +465,7 @@ export default function DogBasicsScreen() {
           <View>
             <SectionHeader title={sex === 'male' ? 'Neutered' : 'Spayed'} />
             <OptionList
+              groupLabel={sex === 'male' ? 'Neutered' : 'Spayed'}
               options={[
                 { value: 'yes', label: 'Yes', icon: 'checkmark-circle-outline' },
                 { value: 'no', label: 'No', icon: 'close-circle-outline' },
@@ -554,7 +544,7 @@ export default function DogBasicsScreen() {
           title="How much dog training have you done?"
           onContinue={goForward}
           continueLabel="Next"
-          onBack={TRICK_OPTIONS.some((o) => o.value === primaryGoal) ? goBackFromExperienceToTrick : goBack}
+          onBack={goalPickedFromTricks ? goBackFromExperienceToTrick : goBack}
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
@@ -632,6 +622,7 @@ export default function DogBasicsScreen() {
           currentStep={progressStep}
           totalSteps={PROGRESS_STEP_COUNT}
         >
+          <View accessibilityRole="radiogroup">
           <ListGroup>
             {DAYS_PER_WEEK_OPTIONS.map((n) => {
               const selected = availableDaysPerWeek === n;
@@ -649,6 +640,7 @@ export default function DogBasicsScreen() {
               );
             })}
           </ListGroup>
+          </View>
         </QuestionScreen>
       )}
 
@@ -885,7 +877,7 @@ function GeneratingStep({ dogName }: { dogName: string }) {
       >
         <MascotLoader activity="wake" />
         <View style={{ alignItems: 'center', gap: spacing.xs }}>
-          <Text variant="h2" style={{ textAlign: 'center' }}>
+          <Text variant="h2" style={{ textAlign: 'center' }} accessibilityRole="header" accessibilityLiveRegion="polite">
             Building {dogName || 'your dog'}'s plan
           </Text>
           <Text variant="caption" style={{ textAlign: 'center' }}>

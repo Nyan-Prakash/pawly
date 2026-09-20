@@ -552,10 +552,17 @@ export function buildWeeklySchedule(params: {
   });
 }
 
-export function getTodaySession(plan: Plan, completedSessions: string[] = []): PlanSession | null {
+/**
+ * `todayKey` (local YYYY-MM-DD) is injectable so callers and tests can pin
+ * "today". It defaults to the device's local date.
+ */
+export function getTodaySession(
+  plan: Plan,
+  completedSessions: string[] = [],
+  todayKey: string = toDateKey(new Date())
+): PlanSession | null {
   if (!plan || plan.sessions.length === 0) return null;
 
-  const todayKey = toDateKey(new Date());
   const completedSet = new Set(completedSessions);
   const scheduledSessions = plan.sessions.filter((session) => session.scheduledDate || session.scheduledDay);
 
@@ -576,9 +583,12 @@ export function getTodaySession(plan: Plan, completedSessions: string[] = []): P
   return null;
 }
 
-export function getUpcomingSessions(plan: Plan, limit = 3): PlanSession[] {
+export function getUpcomingSessions(
+  plan: Plan,
+  limit = 3,
+  todayKey: string = toDateKey(new Date())
+): PlanSession[] {
   if (!plan) return [];
-  const todayKey = toDateKey(new Date());
   const scheduled = plan.sessions.filter((session) => !session.isCompleted);
   const withDates = scheduled.filter((session) => session.scheduledDate);
   if (withDates.length === 0) {
@@ -595,9 +605,11 @@ export function getUpcomingSessions(plan: Plan, limit = 3): PlanSession[] {
     .slice(0, limit);
 }
 
-export function getMissedScheduledSessions(plan: Plan): PlanSession[] {
+export function getMissedScheduledSessions(
+  plan: Plan,
+  todayKey: string = toDateKey(new Date())
+): PlanSession[] {
   if (!plan) return [];
-  const todayKey = toDateKey(new Date());
   return plan.sessions.filter(
     (session) =>
       !session.isCompleted &&
@@ -842,6 +854,12 @@ export function getBehaviorLabel(goal: string): string {
     'sit': 'Sit',
     'down': 'Down',
     'heel': 'Heel',
+    'touch': 'Hand touch',
+    'spin': 'Spin',
+    'high_five': 'High five',
+    'bow': 'Take a bow',
+    'roll_over': 'Roll over',
+    'leg_weave': 'Leg weave',
   };
   return map[goal.toLowerCase()] ?? goal;
 }

@@ -25,6 +25,7 @@ import { useDogStore } from '@/stores/dogStore';
 import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
 import type { PlanAdaptation, PlanSession } from '@/types';
 import { guardSessionStart } from '@/lib/proGate';
+import { PRO_LOCK_HINT, PRO_LOCK_LABEL, useSessionLock } from '@/hooks/useSessionLock';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -75,6 +76,7 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      accessibilityRole="tablist"
       style={{ marginHorizontal: -spacing.lg }}
       contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
     >
@@ -85,6 +87,7 @@ function CourseSwitcher({ plans, selectedId, onSelect }: CourseSwitcherProps) {
             key={plan.id}
             onPress={() => onSelect(plan.id)}
             accessibilityRole="tab"
+            accessibilityLabel={plan.label}
             accessibilityState={{ selected: isSelected }}
             style={({ pressed }) => ({
               minHeight: 44,
@@ -137,6 +140,7 @@ function SessionDetailSheet({
   onClose,
   onStart,
   canStart,
+  proLocked,
   dogName,
   recentAdaptations,
 }: {
@@ -146,6 +150,8 @@ function SessionDetailSheet({
   onStart: () => void;
   /** Only the course's next session can be started; locked ones explain why. */
   canStart: boolean;
+  /** The session needs Pro: `onStart` opens the paywall instead. */
+  proLocked: boolean;
   dogName: string;
   recentAdaptations: PlanAdaptation[];
 }) {
@@ -209,6 +215,8 @@ function SessionDetailSheet({
                 {protocol.steps.map((step, index) => (
                   <View
                     key={step.order}
+                    accessible
+                    accessibilityLabel={[`Step ${index + 1}`, step.instruction, stepMeta(step)].filter(Boolean).join('. ')}
                     style={{ flexDirection: 'row', gap: spacing.md, paddingLeft: spacing.lg, paddingRight: spacing.xl, paddingVertical: spacing.lg }}
                   >
                     <Text variant="captionStrong" color={colors.accent} style={{ width: spacing.xl }}>
@@ -273,7 +281,13 @@ function SessionDetailSheet({
         {!session.isCompleted ? (
           <View style={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.bg.app }}>
             {canStart ? (
-              <Button label="Start session" onPress={onStart} />
+              <Button
+                label="Start session"
+                onPress={onStart}
+                icon={proLocked ? 'lock-closed' : undefined}
+                accessibilityLabel={proLocked ? `Start session, ${PRO_LOCK_LABEL}` : undefined}
+                accessibilityHint={proLocked ? PRO_LOCK_HINT : undefined}
+              />
             ) : (
               <Text variant="caption">Unlocks after the sessions before it</Text>
             )}
@@ -328,11 +342,13 @@ export default function PlanScreen() {
     selectedPlanId,
     recentAdaptations,
     isLoading,
+    loadError,
     fetchActivePlans,
     setSelectedPlan,
     fetchRecentAdaptations,
   } = planStoreState;
 
+  const isLocked = useSessionLock();
   const [selectedSession, setSelectedSession] = useState<PlanSession | null>(null);
 
   useEffect(() => {
@@ -366,6 +382,29 @@ export default function PlanScreen() {
 
   const noPlans = !isLoading && activePlanIds.length === 0;
   const goToAddCourse = () => router.push('/(tabs)/train/add-course' as never);
+
+  // The fetch failed and there is nothing to fall back on. Not the same as
+  // having no plan, so it gets its own state and a way to run the fetch again.
+  if (!isLoading && loadError && !displayPlan) {
+    return (
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, flexGrow: 1, justifyContent: 'center' }}
+      >
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Plan didn't load"
+          subtitle={loadError}
+          action={{
+            label: 'Try again',
+            onPress: () => {
+              if (dog?.id) fetchActivePlans(dog.id);
+            },
+          }}
+        />
+      </ScrollView>
+    );
+  }
 
   if (noPlans || (!isLoading && !displayPlan)) {
     return (
@@ -402,6 +441,7 @@ export default function PlanScreen() {
   const nextSessionId = stages.flatMap((g) => g.nodes).find((n) => n.state === 'next')?.session.id ?? null;
   const courseTitle = displayPlan.courseTitle ?? getBehaviorLabel(displayPlan.goal);
   const nextSession = displayPlan.sessions.find((session) => session.id === nextSessionId) ?? null;
+  const nextLocked = nextSession ? isLocked(displayPlanId, nextSession.id) : false;
   const currentStage = (() => {
     const group = nextSession ? stages.find((g) => g.nodes.some((n) => n.session.id === nextSession.id)) : null;
     if (!group) return null;
@@ -451,6 +491,9 @@ export default function PlanScreen() {
             {nextSession ? (
               <Button
                 label={`Start: ${nextSession.title}`}
+                icon={nextLocked ? 'lock-closed' : undefined}
+                accessibilityLabel={nextLocked ? `Start: ${nextSession.title}, ${PRO_LOCK_LABEL}` : undefined}
+                accessibilityHint={nextLocked ? PRO_LOCK_HINT : undefined}
                 onPress={() => {
                   if (!guardSessionStart(displayPlanId, nextSession.id)) return;
                   router.push(`/(tabs)/train/session?id=${nextSession.id}&planId=${displayPlanId ?? ''}`);
@@ -472,7 +515,7 @@ export default function PlanScreen() {
         </View>
 
         {stages.map((group) => (
-          <StagePath key={group.stage} group={group} onSelectSession={setSelectedSession} />
+          <StagePath key={group.stage} group={group} onSelectSession={setSelectedSession} nextNeedsPro={nextLocked} />
         ))}
       </ScrollView>
 
@@ -490,6 +533,7 @@ export default function PlanScreen() {
           }
         }}
         canStart={!!selectedSession && selectedSession.id === nextSessionId}
+        proLocked={!!selectedSession && isLocked(displayPlanId, selectedSession.id)}
         dogName={dog?.name ?? 'your dog'}
         recentAdaptations={recentAdaptations}
       />

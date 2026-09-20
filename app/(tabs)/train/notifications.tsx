@@ -15,7 +15,13 @@ import type { InAppNotification } from '@/types';
 
 function LoadingRows() {
   return (
-    <View style={{ gap: spacing.sm }}>
+    <View
+      style={{ gap: spacing.sm }}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading notifications"
+      accessibilityState={{ busy: true }}
+    >
       {[0, 1, 2].map((i) => (
         <SkeletonBlock key={i} height={96} borderRadius={radii.md} />
       ))}
@@ -85,6 +91,7 @@ export default function NotificationsScreen() {
         showMarkAll ? (
           <Button
             label="Mark all as read"
+            accessibilityLabel={`Mark all as read, ${unreadCount} unread`}
             variant="ghost"
             size="md"
             onPress={() => user?.id && markAllAsRead(user.id)}

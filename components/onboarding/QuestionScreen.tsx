@@ -51,7 +51,9 @@ export function QuestionScreen({
 
   const titleBlock = (
     <View style={{ gap: spacing.xs }}>
-      <Text variant="h1">{title}</Text>
+      <Text variant="h1" accessibilityRole="header">
+        {title}
+      </Text>
       {subtitle ? <Text variant="body">{subtitle}</Text> : null}
     </View>
   );

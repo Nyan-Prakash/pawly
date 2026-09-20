@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { captureEvent } from '@/lib/analytics';
 import type { Protocol, ProtocolStep } from '@/constants/protocols';
 import type { StepOutcome } from '@/lib/sessionScoring';
 
@@ -129,6 +130,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     const lastIndex = Math.max(protocol.steps.length - 1, 0);
     const quickStepIndex = options?.quickStepIndex;
     const isQuickReps = typeof quickStepIndex === 'number' && Number.isFinite(quickStepIndex);
+
+    captureEvent('session_started', {
+      protocolId: protocol.id,
+      mode: isQuickReps ? 'quick_reps' : 'plan',
+      resumed: !!restore,
+    });
 
     if (isQuickReps) {
       const stepIndex = Math.min(Math.max(Math.floor(quickStepIndex), 0), lastIndex);
@@ -357,6 +364,12 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     if (!activeSession) return;
 
     await onComplete(activeSession.sessionId, trainingSeconds(activeSession));
+    captureEvent('session_completed', {
+      protocolId: activeSession.protocol.id,
+      mode: activeSession.isQuickReps ? 'quick_reps' : 'plan',
+      durationSeconds: trainingSeconds(activeSession),
+      stepsCompleted: activeSession.stepResults.length,
+    });
 
     set((s) => {
       if (!s.activeSession) return s;
@@ -365,6 +378,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   },
 
   abandonSession: () => {
+    const current = get().activeSession;
+    if (current && current.state !== 'ABANDONED') {
+      captureEvent('session_abandoned', {
+        protocolId: current.protocol.id,
+        stepIndex: current.currentStepIndex,
+        totalSteps: current.protocol.steps.length,
+      });
+    }
     set((s) => {
       if (!s.activeSession) return s;
       return { activeSession: { ...s.activeSession, state: 'ABANDONED', isTimerRunning: false } };

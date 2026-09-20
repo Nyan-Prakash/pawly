@@ -6,6 +6,7 @@ import { useHeaderHeight } from '@react-navigation/elements';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
+import { PASSWORD_RESET_REDIRECT } from '@/lib/authLinks';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
@@ -31,7 +32,9 @@ export default function ForgotPasswordScreen() {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: PASSWORD_RESET_REDIRECT,
+      });
       if (error) {
         setGeneralError("Couldn't send the reset link. Check the address and try again.");
         return;
@@ -59,10 +62,10 @@ export default function ForgotPasswordScreen() {
         {isSuccess ? (
           <>
             <View style={{ gap: spacing.sm }}>
-              <Text variant="h1">Check your email</Text>
+              <Text variant="h1" accessibilityRole="header">Check your email</Text>
               <Text variant="body">
-                We sent a reset link to {email.trim()}. Open it to choose a new password, then log
-                in.
+                We sent a reset link to {email.trim()}. Open it on this phone to choose a new
+                password.
               </Text>
             </View>
             <Button label="Back to log in" onPress={() => router.back()} />
@@ -70,7 +73,7 @@ export default function ForgotPasswordScreen() {
         ) : (
           <>
             <View style={{ gap: spacing.sm }}>
-              <Text variant="h1">Reset password</Text>
+              <Text variant="h1" accessibilityRole="header">Reset password</Text>
               <Text variant="body">Enter your email and we'll send you a link to set a new one.</Text>
             </View>
 

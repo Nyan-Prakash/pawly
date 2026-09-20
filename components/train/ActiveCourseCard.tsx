@@ -36,6 +36,12 @@ const GOAL_ICONS: Record<string, AppIconName> = {
   sit: 'chevron-down-circle',
   down: 'arrow-down-circle',
   heel: 'footsteps',
+  touch: 'finger-print',
+  spin: 'refresh-circle',
+  high_five: 'hand-right',
+  bow: 'ribbon',
+  roll_over: 'sync-circle',
+  leg_weave: 'infinite',
 };
 
 export function getCourseIcon(goal: string): AppIconName {
@@ -58,6 +64,7 @@ export function ActiveCourseCard({ plan, onPress }: ActiveCourseCardProps) {
       subtitle={`${completedSessions} of ${totalSessions} sessions`}
       trailing={isPaused ? <Tag label="Paused" /> : 'chevron'}
       onPress={onPress}
+      accessibilityLabel={`${courseLabel}, ${completedSessions} of ${totalSessions} sessions${isPaused ? ', paused' : ''}`}
       accessibilityHint="Opens the plan for this course"
     />
   );

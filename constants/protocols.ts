@@ -1,3 +1,5 @@
+import { TRICK_PROTOCOLS, TRICK_EXERCISE_TO_PROTOCOL } from './trickProtocols.ts'
+
 export interface ProtocolStep {
   order: number
   /** Do: one action, imperative, <= 12 words, the number first. */
@@ -4798,6 +4800,8 @@ export const PROTOCOLS: Protocol[] = [
   down_stage1, down_stage2, down_stage3,
   // Heel
   heel_stage1, heel_stage2, heel_stage3,
+  // Tricks: touch, spin, high five, bow, roll over, leg weave
+  ...TRICK_PROTOCOLS,
 ]
 
 export const PROTOCOLS_BY_ID: Record<string, Protocol> = Object.fromEntries(
@@ -4871,4 +4875,6 @@ export const EXERCISE_TO_PROTOCOL: Record<string, string> = {
   // Heel
   hl_01: 'heel_s1', hl_02: 'heel_s1', hl_03: 'heel_s2',
   hl_04: 'heel_s2', hl_05: 'heel_s3', hl_06: 'heel_s3',
+  // Tricks (tc_, sp_, hf_, bw_, ro_, lw_)
+  ...TRICK_EXERCISE_TO_PROTOCOL,
 }

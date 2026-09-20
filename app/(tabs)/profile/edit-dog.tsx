@@ -148,7 +148,7 @@ export default function EditDogScreen() {
           {breedResults.length > 0 ? (
             <ListGroup>
               {breedResults.map((b) => (
-                <ListRow key={b} title={b} onPress={() => chooseBreed(b)} />
+                <ListRow key={b} title={b} onPress={() => chooseBreed(b)} accessibilityHint="Sets this as the breed" />
               ))}
             </ListGroup>
           ) : null}
@@ -156,49 +156,57 @@ export default function EditDogScreen() {
 
         <View>
           <SectionHeader title="Age" />
-          <ListGroup>
-            {AGE_OPTIONS.map((opt) => (
-              <ListRow
-                key={opt.ageMonths}
-                icon={opt.icon}
-                title={opt.label}
-                subtitle={opt.description}
-                selected={ageMonths === opt.ageMonths}
-                onPress={() => setAgeMonths(opt.ageMonths)}
-              />
-            ))}
-          </ListGroup>
+          <View accessibilityRole="radiogroup" accessibilityLabel="Age">
+            <ListGroup>
+              {AGE_OPTIONS.map((opt) => (
+                <ListRow
+                  key={opt.ageMonths}
+                  icon={opt.icon}
+                  title={opt.label}
+                  subtitle={opt.description}
+                  selected={ageMonths === opt.ageMonths}
+                  onPress={() => setAgeMonths(opt.ageMonths)}
+                />
+              ))}
+            </ListGroup>
+          </View>
         </View>
 
         <View>
           <SectionHeader title="Sex" />
-          <ListGroup>
-            <ListRow icon="male-outline" title="Male" selected={sex === 'male'} onPress={() => setSex('male')} />
-            <ListRow icon="female-outline" title="Female" selected={sex === 'female'} onPress={() => setSex('female')} />
-          </ListGroup>
+          <View accessibilityRole="radiogroup" accessibilityLabel="Sex">
+            <ListGroup>
+              <ListRow icon="male-outline" title="Male" selected={sex === 'male'} onPress={() => setSex('male')} />
+              <ListRow icon="female-outline" title="Female" selected={sex === 'female'} onPress={() => setSex('female')} />
+            </ListGroup>
+          </View>
         </View>
 
         <View>
           <SectionHeader title={sex === 'male' ? 'Neutered' : 'Spayed'} />
-          <ListGroup>
-            <ListRow icon="checkmark-circle-outline" title="Yes" selected={neutered} onPress={() => setNeutered(true)} />
-            <ListRow icon="close-circle-outline" title="No" selected={!neutered} onPress={() => setNeutered(false)} />
-          </ListGroup>
+          <View accessibilityRole="radiogroup" accessibilityLabel={sex === 'male' ? 'Neutered' : 'Spayed'}>
+            <ListGroup>
+              <ListRow icon="checkmark-circle-outline" title="Yes" selected={neutered} onPress={() => setNeutered(true)} />
+              <ListRow icon="close-circle-outline" title="No" selected={!neutered} onPress={() => setNeutered(false)} />
+            </ListGroup>
+          </View>
         </View>
 
         <View>
           <SectionHeader title="Home" />
-          <ListGroup>
-            {HOME_OPTIONS.map((opt) => (
-              <ListRow
-                key={opt.value}
-                icon={opt.icon}
-                title={opt.label}
-                selected={environmentType === opt.value}
-                onPress={() => setEnvironmentType(opt.value)}
-              />
-            ))}
-          </ListGroup>
+          <View accessibilityRole="radiogroup" accessibilityLabel="Home">
+            <ListGroup>
+              {HOME_OPTIONS.map((opt) => (
+                <ListRow
+                  key={opt.value}
+                  icon={opt.icon}
+                  title={opt.label}
+                  selected={environmentType === opt.value}
+                  onPress={() => setEnvironmentType(opt.value)}
+                />
+              ))}
+            </ListGroup>
+          </View>
         </View>
 
         <View style={{ gap: spacing.md }}>

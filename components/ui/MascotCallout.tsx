@@ -30,7 +30,11 @@ const MASCOT = require('@/assets/mascot.png');
  */
 function Mascot({ state, size }: { state: MascotState; size: number }) {
   return (
-    <View style={{ width: size, height: size }}>
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ width: size, height: size }}
+    >
       <Image source={MASCOT} style={{ width: size, height: size }} resizeMode="contain" accessibilityIgnoresInvertColors />
       {state === 'thinking' || state === 'celebrating' ? (
         <Svg width={size} height={size} viewBox="0 0 100 100" style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">

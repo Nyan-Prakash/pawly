@@ -17,7 +17,13 @@ import type { Article } from '@/types';
 
 function ArticleSkeleton() {
   return (
-    <View style={{ gap: spacing.lg }}>
+    <View
+      style={{ gap: spacing.lg }}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading guide"
+      accessibilityState={{ busy: true }}
+    >
       <SkeletonBlock height={14} width="30%" />
       <SkeletonBlock height={30} width="90%" />
       <SkeletonBlock height={30} width="60%" />

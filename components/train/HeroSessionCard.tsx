@@ -3,11 +3,13 @@ import { View } from 'react-native';
 import { AppIcon, type AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Tag } from '@/components/ui/PillTag';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { spacing } from '@/constants/spacing';
 import { formatDisplayTime, formatScheduleLabel, getBehaviorLabel } from '@/lib/scheduleEngine';
+import { PRO_LOCK_HINT, PRO_LOCK_LABEL } from '@/hooks/useSessionLock';
 import type { Plan, PlanSession } from '@/types';
 
 export type HeroVariant = 'today' | 'overdue' | 'upcoming' | 'resume';
@@ -20,6 +22,8 @@ type HeroSessionCardProps = {
   resumeLabel?: string;
   canReschedule?: boolean;
   rescheduleLabel?: string;
+  /** The session needs Pro: `onStart` opens the paywall instead of the session. */
+  locked?: boolean;
   onStart: () => void;
   onViewPlan: () => void;
   onReschedule?: () => void;
@@ -50,6 +54,7 @@ export function HeroSessionCard({
   resumeLabel,
   canReschedule = false,
   rescheduleLabel = 'Move to next slot',
+  locked = false,
   onStart,
   onViewPlan,
   onReschedule,
@@ -77,6 +82,8 @@ export function HeroSessionCard({
   const primaryLabel =
     variant === 'resume' ? 'Resume session' : variant === 'upcoming' ? 'View plan' : 'Start session';
   const primaryAction = variant === 'upcoming' ? onViewPlan : onStart;
+  // Only a start is gated; "View plan" and resuming stay open.
+  const showLock = locked && (variant === 'today' || variant === 'overdue');
 
   const secondary = [
     variant !== 'upcoming' ? { label: 'View plan', onPress: onViewPlan } : null,
@@ -90,10 +97,15 @@ export function HeroSessionCard({
     <Card accessibilityRole="summary" style={{ gap: spacing.xl }}>
       <View style={{ gap: spacing.md }}>
         <View style={{ gap: spacing.xs }}>
-          <Text variant="captionStrong" color={variant === 'overdue' ? colors.status.warning : colors.accent}>
-            {stateLabel}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+            <Text variant="captionStrong" color={variant === 'overdue' ? colors.status.warning : colors.accent}>
+              {stateLabel}
+            </Text>
+            {showLock ? <Tag label="Pro" icon="lock-closed" tone="accent" /> : null}
+          </View>
+          <Text variant="h1" accessibilityRole="header">
+            {session.title}
           </Text>
-          <Text variant="h1">{session.title}</Text>
         </View>
         <View style={{ gap: spacing.xs }}>
           <Fact icon={variant === 'resume' ? 'play-outline' : 'calendar-outline'} tone={variant === 'overdue' ? 'warning' : 'secondary'}>
@@ -117,7 +129,13 @@ export function HeroSessionCard({
       </View>
 
       <View style={{ gap: spacing.xs }}>
-        <Button label={primaryLabel} onPress={primaryAction} />
+        <Button
+          label={primaryLabel}
+          onPress={primaryAction}
+          icon={showLock ? 'lock-closed' : undefined}
+          accessibilityLabel={showLock ? `${primaryLabel}, ${PRO_LOCK_LABEL}` : undefined}
+          accessibilityHint={showLock ? PRO_LOCK_HINT : undefined}
+        />
         {secondary.length ? (
           <View style={{ flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' }}>
             {secondary.map((item) => (

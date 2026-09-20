@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, View } from 'react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import { Button } from '@/components/ui/Button';
@@ -12,6 +12,8 @@ import { spacing } from '@/constants/spacing';
 import { haptics } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useSubscriptionStore } from '@/stores/subscriptionStore';
 
 const DELETION_LIST = [
   'Your account and login details',
@@ -19,15 +21,21 @@ const DELETION_LIST = [
   'All plans and session history',
   'Walk logs and milestones',
   'Conversations with the coach',
-  'Uploaded training videos',
   'Notifications and settings',
 ];
+
+const STORE_SUBSCRIPTIONS_URL =
+  Platform.OS === 'ios'
+    ? 'https://apps.apple.com/account/subscriptions'
+    : 'https://play.google.com/store/account/subscriptions';
 
 const CONFIRM_PHRASE = 'delete';
 
 export default function DeleteAccountScreen() {
   const { user } = useAuthStore();
   const headerHeight = useHeaderHeight();
+  const tier = useSubscriptionStore((s) => s.tier);
+  const managementURL = useSubscriptionStore((s) => s.customerInfo?.managementURL);
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -76,7 +84,9 @@ export default function DeleteAccountScreen() {
 
       // Log out locally after the server-side deletion. The root layout's
       // auth listener navigates to the auth stack.
-      await supabase.auth.signOut();
+      // The account no longer exists server-side, so only the local session is left to clear.
+      useOnboardingStore.getState().reset();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (err: unknown) {
       const reason = err instanceof Error ? err.message : '';
       setErrorMsg(
@@ -113,6 +123,22 @@ export default function DeleteAccountScreen() {
           </ListGroup>
         </View>
 
+        {tier === 'pro' ? (
+          <View>
+            <SectionHeader title="Your subscription" />
+            <ListGroup>
+              <ListRow
+                icon="card-outline"
+                title="Cancel Pawly Pro first"
+                subtitle="Deleting the account does not cancel billing. The store keeps charging until you cancel there."
+                trailing="chevron"
+                onPress={() => Linking.openURL(managementURL ?? STORE_SUBSCRIPTIONS_URL)}
+                accessibilityHint="Opens your store subscription settings"
+              />
+            </ListGroup>
+          </View>
+        ) : null}
+
         {user?.email ? (
           <View>
             <SectionHeader title="Account" />
@@ -136,7 +162,7 @@ export default function DeleteAccountScreen() {
         />
 
         {errorMsg ? (
-          <Text variant="caption" color={colors.status.danger} accessibilityLiveRegion="polite">
+          <Text variant="caption" color={colors.status.danger} accessibilityRole="alert" accessibilityLiveRegion="polite">
             {errorMsg}
           </Text>
         ) : null}
@@ -147,6 +173,7 @@ export default function DeleteAccountScreen() {
           loading={isDeleting}
           disabled={!confirmed || isDeleting}
           onPress={handleDelete}
+          accessibilityHint={confirmed ? 'Permanently deletes your account' : `Type ${CONFIRM_PHRASE} above to turn this on`}
         />
       </ScrollView>
     </KeyboardAvoidingView>
