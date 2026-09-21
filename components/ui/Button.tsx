@@ -38,6 +38,7 @@ export function Button({
   icon,
   style,
   disabled,
+  accessibilityLabel,
   ...props
 }: ButtonProps) {
   const palette: Record<ButtonVariant, { bg: string; edge: string; text: string }> = {
@@ -53,6 +54,8 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
+      // Named explicitly so the button still says what it is while the spinner replaces the text.
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
       style={({ pressed }) => [

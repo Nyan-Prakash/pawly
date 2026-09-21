@@ -23,10 +23,13 @@ const COMPARE_SIZE = 140;
 // dog-basics step index of the goal question, where the flow resumes.
 const RETURN_STEP = 4;
 
-function Photo({ uri, size }: { uri: string; size: number }) {
+function Photo({ uri, size, label }: { uri: string; size: number; label: string }) {
   return (
     <Image
       source={{ uri }}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={label}
       accessibilityIgnoresInvertColors
       style={{ width: size, height: size, borderRadius: radii.md, backgroundColor: colors.bg.fill }}
     />
@@ -186,7 +189,7 @@ export default function DogPhotoScreen() {
       case 'selected':
         return (
           <View style={{ gap: spacing.xl }}>
-            {photoUri ? <Photo uri={photoUri} size={PREVIEW_SIZE} /> : null}
+            {photoUri ? <Photo uri={photoUri} size={PREVIEW_SIZE} label={`Your photo of ${dogName}`} /> : null}
             <Text variant="body">
               The coach will turn this photo into {dogName}'s avatar.
             </Text>
@@ -204,8 +207,15 @@ export default function DogPhotoScreen() {
       case 'generating':
         return (
           <View style={{ gap: spacing.xl }}>
-            {photoUri ? <Photo uri={photoUri} size={PREVIEW_SIZE} /> : null}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            {photoUri ? <Photo uri={photoUri} size={PREVIEW_SIZE} label={`Your photo of ${dogName}`} /> : null}
+            <View
+              style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel={`Creating ${dogName}'s avatar. This takes about 30 seconds.`}
+              accessibilityState={{ busy: true }}
+              accessibilityLiveRegion="polite"
+            >
               <ActivityIndicator color={colors.text.secondary} />
               <View style={{ flex: 1, gap: spacing.xs }}>
                 <Text variant="bodyStrong">Creating {dogName}'s avatar</Text>
@@ -220,12 +230,16 @@ export default function DogPhotoScreen() {
           <View style={{ gap: spacing.xl }}>
             <View style={{ flexDirection: 'row', gap: spacing.lg }}>
               <View style={{ gap: spacing.sm }}>
-                {photoUri ? <Photo uri={photoUri} size={COMPARE_SIZE} /> : null}
-                <Text variant="caption">Photo</Text>
+                {photoUri ? <Photo uri={photoUri} size={COMPARE_SIZE} label={`Your photo of ${dogName}`} /> : null}
+                <Text variant="caption" accessible={false} accessibilityElementsHidden importantForAccessibility="no">
+                  Photo
+                </Text>
               </View>
               <View style={{ gap: spacing.sm }}>
-                {avatarUri ? <Photo uri={avatarUri} size={COMPARE_SIZE} /> : null}
-                <Text variant="caption">Avatar</Text>
+                {avatarUri ? <Photo uri={avatarUri} size={COMPARE_SIZE} label={`${dogName}'s new avatar`} /> : null}
+                <Text variant="caption" accessible={false} accessibilityElementsHidden importantForAccessibility="no">
+                  Avatar
+                </Text>
               </View>
             </View>
 
@@ -245,7 +259,7 @@ export default function DogPhotoScreen() {
       case 'error':
         return (
           <View style={{ gap: spacing.xl }}>
-            {photoUri ? <Photo uri={photoUri} size={PREVIEW_SIZE} /> : null}
+            {photoUri ? <Photo uri={photoUri} size={PREVIEW_SIZE} label={`Your photo of ${dogName}`} /> : null}
             <Text variant="body" color={colors.status.danger} accessibilityLiveRegion="polite">
               {errorMessage}
             </Text>

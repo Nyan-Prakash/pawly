@@ -13,6 +13,8 @@ export default function ProfileLayout() {
       <Stack.Screen name="privacy-policy" options={{ title: 'Privacy policy' }} />
       <Stack.Screen name="terms-of-service" options={{ title: 'Terms of service' }} />
       <Stack.Screen name="delete-account" options={{ title: 'Delete account' }} />
+      <Stack.Screen name="support" options={{ title: 'Contact support' }} />
+      <Stack.Screen name="faq" options={{ title: 'Help and FAQ' }} />
     </Stack>
   );
 }

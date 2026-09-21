@@ -16,3 +16,7 @@ verify_jwt = true
 # Called by RevenueCat, authenticated with REVENUECAT_WEBHOOK_SECRET.
 [functions.revenuecat-webhook]
 verify_jwt = false
+
+# Sign in with Apple code → refresh token, stored for revocation on delete-account.
+[functions.apple-token-exchange]
+verify_jwt = false

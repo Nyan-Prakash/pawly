@@ -7,6 +7,7 @@ import {
   normalizeNotificationPrefs,
 } from '@/lib/scheduleEngine';
 import { mergeActivePlanSchedules, flattenMergedSchedule } from '@/lib/mergedSchedule';
+import { buildStreakReminderCopy, resolveStreakReminder } from '@/lib/streakReminder';
 import type { Dog, NotificationPrefs, Plan, PlanSession } from '@/types';
 
 export { didUpcomingScheduleChange } from '@/lib/planScheduleDiff';
@@ -23,7 +24,7 @@ Notifications.setNotificationHandler({
 
 export type ScheduledNotification = {
   id: string;
-  type: 'scheduled_session' | 'walk_reminder' | 'post_walk_check_in' | 'weekly_summary';
+  type: 'scheduled_session' | 'walk_reminder' | 'post_walk_check_in' | 'weekly_summary' | 'streak_at_risk';
   title: string;
   body: string;
 };
@@ -310,6 +311,56 @@ export async function scheduleUserNotificationsForPlans(params: {
   });
 
   return scheduled;
+}
+
+/** One fixed identifier, so scheduling again replaces the pending reminder. */
+const STREAK_REMINDER_ID = 'streak-at-risk';
+
+export async function cancelStreakReminder() {
+  await Notifications.cancelScheduledNotificationAsync(STREAK_REMINDER_ID);
+}
+
+/**
+ * The evening nudge for a streak of two days or more. Scheduled for tonight
+ * when the dog last trained yesterday, and for tomorrow night once today's
+ * session is saved (see lib/streakReminder). Call it again after every saved
+ * session and after anything that runs cancelAllNotifications.
+ */
+export async function scheduleStreakReminder(params: {
+  dog: Dog;
+  currentStreak: number;
+  lastSessionDate: string | null;
+  prefs?: Partial<NotificationPrefs> | null;
+}): Promise<ScheduledNotification | null> {
+  const prefs = normalizeNotificationPrefs(params.prefs);
+
+  await cancelStreakReminder();
+  if (!prefs.streakAlerts) return null;
+
+  const permission = await Notifications.getPermissionsAsync();
+  if (!permission.granted && permission.ios?.status !== Notifications.IosAuthorizationStatus.PROVISIONAL) {
+    return null;
+  }
+
+  const reminder = resolveStreakReminder({
+    currentStreak: params.currentStreak,
+    lastSessionDate: params.lastSessionDate,
+  });
+  if (!reminder) return null;
+
+  const { title, body } = buildStreakReminderCopy(params.dog.name, reminder.streakDays);
+  const result = await scheduleNotification({
+    identifier: STREAK_REMINDER_ID,
+    title,
+    body,
+    date: reminder.fireAt,
+    data: {
+      type: 'streak_at_risk',
+      path: '/(tabs)/train',
+    },
+  });
+
+  return result ? { id: STREAK_REMINDER_ID, type: 'streak_at_risk', title, body } : null;
 }
 
 export function getRouteFromNotification(data: Record<string, any> | undefined): string {

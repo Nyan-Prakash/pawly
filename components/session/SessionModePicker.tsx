@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
 import { Text } from '@/components/ui/Text';
+import { LIVE_COACH_AI_DISCLAIMER } from '@/constants/safety';
 import { spacing } from '@/constants/spacing';
 import { haptics } from '@/lib/haptics';
 
@@ -43,12 +44,15 @@ export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: Sessi
 
       <View style={{ flex: 1, padding: spacing.lg, gap: spacing.xl }}>
         <View style={{ gap: spacing.sm }}>
-          <Text variant="h1">How do you want to train?</Text>
+          <Text variant="h1" accessibilityRole="header">
+            How do you want to train?
+          </Text>
           <Text variant="body">
             The coach uses the camera to count reps and give feedback as you train.
           </Text>
         </View>
 
+        <View accessibilityRole="radiogroup">
         <ListGroup>
           <ListRow
             icon="videocam-outline"
@@ -66,8 +70,15 @@ export function SessionModePicker({ dogName, onNormal, onCamera, onBack }: Sessi
             onPress={() => select('manual')}
           />
         </ListGroup>
+        </View>
 
-        <Text variant="caption">You can switch to manual at any point in the session.</Text>
+        <View style={{ gap: spacing.sm }}>
+          <Text variant="caption">You can switch to manual at any point in the session.</Text>
+          <Text variant="caption">
+            Camera frames are sent for analysis while the live coach is on and are not saved. No audio is recorded.
+          </Text>
+          <Text variant="caption">{LIVE_COACH_AI_DISCLAIMER}</Text>
+        </View>
       </View>
 
       <View style={{ padding: spacing.lg }}>

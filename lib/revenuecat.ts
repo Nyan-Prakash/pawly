@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Purchases, {
+  INTRO_ELIGIBILITY_STATUS,
   LOG_LEVEL,
   PACKAGE_TYPE,
   PURCHASES_ERROR_CODE,
@@ -62,6 +63,28 @@ export async function getProPackages(): Promise<ProPackages> {
     monthly: current?.monthly ?? packages.find((p) => p.packageType === PACKAGE_TYPE.MONTHLY) ?? null,
     annual: current?.annual ?? packages.find((p) => p.packageType === PACKAGE_TYPE.ANNUAL) ?? null,
   };
+}
+
+/**
+ * Whether this store account can still use each package's free trial. A lapsed
+ * subscriber is charged immediately, so the paywall must not promise a trial.
+ * Android reports "unknown" and hides the intro price itself when ineligible.
+ */
+export async function getTrialEligibility(packages: ProPackages): Promise<Record<string, boolean>> {
+  const ids = [packages.monthly, packages.annual]
+    .filter((pkg): pkg is PurchasesPackage => !!pkg?.product.introPrice)
+    .map((pkg) => pkg.product.identifier);
+  if (!configured || ids.length === 0) return {};
+
+  const result = await Purchases.checkTrialOrIntroductoryPriceEligibility(ids);
+  const eligible: Record<string, boolean> = {};
+  for (const id of ids) {
+    const status = result[id]?.status;
+    eligible[id] =
+      status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE ||
+      (Platform.OS === 'android' && status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_UNKNOWN);
+  }
+  return eligible;
 }
 
 export async function purchase(pkg: PurchasesPackage): Promise<CustomerInfo> {

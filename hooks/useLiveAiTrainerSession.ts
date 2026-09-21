@@ -271,7 +271,16 @@ export function useLiveAiTrainerSession({
         }
 
         if (res.status === 401) return fail('unauthorized');
-        if (res.status === 429) return fail('rate_limited');
+        if (res.status === 429) {
+          const body = (await res.json().catch(() => null)) as { code?: string } | null;
+          if (body?.code === 'free_live_trainer_limit') {
+            // No point retrying today: hand the session back to manual counting.
+            setError({ kind: 'free_limit', message: describeError('free_limit') });
+            enterFallback('errors');
+            return;
+          }
+          return fail('rate_limited');
+        }
         if (!res.ok) return fail('server');
 
         let raw: unknown;

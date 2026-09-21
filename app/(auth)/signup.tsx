@@ -9,6 +9,9 @@ import { IconButton } from '@/components/ui/IconButton';
 import { MascotCallout } from '@/components/ui/MascotCallout';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
+import { captureEvent } from '@/lib/analytics';
+import { storeAppleAuthorizationCode } from '@/lib/appleAuth';
+import { EMAIL_CONFIRM_REDIRECT } from '@/lib/authLinks';
 import { supabase, createUserRecord } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
 import { useOnboardingStore } from '@/stores/onboardingStore';
@@ -81,6 +84,7 @@ export default function SignUpScreen() {
       const { data, error } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
+        options: { emailRedirectTo: EMAIL_CONFIRM_REDIRECT },
       });
 
       if (error) {
@@ -96,6 +100,8 @@ export default function SignUpScreen() {
       if (data.user) {
         await createUserRecord(data.user.id, data.user.email ?? trimmedEmail).catch(() => {});
       }
+
+      captureEvent('signup_completed', { method: 'email', needsConfirmation: !data.session, fromOnboarding });
 
       if (data.user && !data.session) {
         setPendingConfirmationEmail(data.user.email ?? trimmedEmail);
@@ -153,7 +159,11 @@ export default function SignUpScreen() {
 
       if (error) {
         setGeneralError("Couldn't create your account with Apple. Try again or use your email.");
-      } else if (fromOnboarding && appleData.session) {
+        return;
+      }
+      storeAppleAuthorizationCode(credential.authorizationCode);
+      captureEvent('signup_completed', { method: 'apple', fromOnboarding });
+      if (fromOnboarding && appleData.session) {
         setOnboardingField('submissionIntent', 'onboarding');
         router.replace('/(onboarding)/plan-preview');
       }
@@ -182,7 +192,7 @@ export default function SignUpScreen() {
           <>
             <MascotCallout state="waiting" size={64} calloutPlacement="right" callout="Almost there. One tap in your inbox." />
             <View style={{ gap: spacing.sm }}>
-              <Text variant="h1">Check your email</Text>
+              <Text variant="h1" accessibilityRole="header">Check your email</Text>
               <Text variant="body">
                 We sent a confirmation link to {pendingConfirmationEmail}. Open it, then log in with
                 the same email and password.
@@ -207,7 +217,7 @@ export default function SignUpScreen() {
           <>
             <View style={{ gap: spacing.lg }}>
               <View style={{ gap: spacing.xs }}>
-                <Text variant="h1">{fromOnboarding && dogName ? `Save ${dogName}'s plan` : 'Create account'}</Text>
+                <Text variant="h1" accessibilityRole="header">{fromOnboarding && dogName ? `Save ${dogName}'s plan` : 'Create account'}</Text>
               </View>
               <MascotCallout
                 state="happy"

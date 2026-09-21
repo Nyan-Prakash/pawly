@@ -49,6 +49,18 @@ export function identifyUser(userId: string) {
   posthog.identify(userId);
 }
 
+/** The Profile toggle. PostHog remembers the choice on the device. */
+export function isAnalyticsOptedOut(): boolean {
+  return posthog?.optedOut ?? false;
+}
+
+export function setAnalyticsOptedOut(optedOut: boolean) {
+  if (!posthog) return;
+  // Record the choice itself before going quiet, so opt-out rates are visible.
+  if (optedOut) posthog.capture('analytics_opted_out');
+  (optedOut ? posthog.optOut() : posthog.optIn()).catch(() => {});
+}
+
 /** Call on sign-out so the next user on this device gets a fresh anonymous id. */
 export function resetAnalytics() {
   posthog?.reset();

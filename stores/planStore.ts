@@ -20,6 +20,7 @@ import {
   groupEnrichedSessionsByDate,
   getAllSessionsForCalendar,
 } from '@/lib/mergedSchedule';
+import { moveSessionToDate, skipSessionToNextTrainingDay } from '@/lib/sessionReschedule';
 import { supabase } from '@/lib/supabase';
 import type { Protocol } from '@/constants/protocols';
 import type {
@@ -66,6 +67,8 @@ interface PlanStore {
   protocols: Record<string, Protocol>;
   recentAdaptations: PlanAdaptation[];
   isLoading: boolean;
+  /** Set when the last fetchActivePlans failed; cleared when the next one starts. */
+  loadError: string | null;
 
   // ── Multi-plan actions ─────────────────────────────────────────────────────
   /** Fetch all active plans for a dog, apply schedule if needed, derive merged state. */
@@ -91,6 +94,22 @@ interface PlanStore {
   fetchRecentAdaptations: (planId: string) => Promise<void>;
   markSessionComplete: (planId: string, sessionId: string, score: SessionScore) => Promise<void>;
   rescheduleMissedSession: (planId: string, sessionId: string) => Promise<void>;
+  /**
+   * Owner-chosen move from the calendar. `dateKey` is a local YYYY-MM-DD.
+   * Resolves to the session's new date, or null when nothing changed.
+   */
+  moveSessionToDate: (
+    planId: string,
+    sessionId: string,
+    dateKey: string,
+    mode?: 'manual_move' | 'do_today'
+  ) => Promise<string | null>;
+  /**
+   * Skip a session for now: it moves to the plan's next training day and later
+   * sessions shift back one slot (plan sessions have no skipped state).
+   * Resolves to the session's new date, or null when nothing changed.
+   */
+  skipSession: (planId: string, sessionId: string) => Promise<string | null>;
 
   // ── Backward-compatibility shims ──────────────────────────────────────────
   /**
@@ -187,6 +206,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   protocols: PROTOCOLS_BY_ID,
   recentAdaptations: [],
   isLoading: false,
+  loadError: null,
   // Shims
   activePlan: null,
   todaySession: null,
@@ -230,7 +250,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   // ── fetchActivePlans ───────────────────────────────────────────────────────
 
   fetchActivePlans: async (dogId: string) => {
-    set({ isLoading: true });
+    set({ isLoading: true, loadError: null });
     try {
       const { data, error } = await supabase
         .from('plans')
@@ -312,6 +332,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         recentAdaptations,
         ...deriveShimState(plansById, activePlanIds, selectedPlanId, merged),
       });
+    } catch (err) {
+      // Plans already in the store stay put; screens show them over the error.
+      console.warn('[planStore] fetchActivePlans error:', err);
+      set({ loadError: "Couldn't load your plan. Check your connection and try again." });
     } finally {
       set({ isLoading: false });
     }
@@ -415,6 +439,20 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     });
   },
 
+  // ── moveSessionToDate / skipSession ────────────────────────────────────────
+
+  moveSessionToDate: async (planId, sessionId, dateKey, mode = 'manual_move') => {
+    const plan = get().plansById[planId];
+    if (!plan) return null;
+    return persistScheduleChange(plan, moveSessionToDate(plan, sessionId, dateKey), sessionId, mode);
+  },
+
+  skipSession: async (planId, sessionId) => {
+    const plan = get().plansById[planId];
+    if (!plan) return null;
+    return persistScheduleChange(plan, skipSessionToNextTrainingDay(plan, sessionId), sessionId, 'skip');
+  },
+
   // ── Backward-compatibility shims ──────────────────────────────────────────
 
   /** @deprecated Use fetchActivePlans(). */
@@ -471,6 +509,42 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     return get().getMissedSessionsAcrossPlans();
   },
 }));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Owner-initiated schedule changes (same write path as rescheduleMissedSession)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function persistScheduleChange(
+  plan: Plan,
+  nextPlan: Plan,
+  sessionId: string,
+  mode: 'manual_move' | 'do_today' | 'skip'
+): Promise<string | null> {
+  if (nextPlan === plan) return null;
+
+  const { error } = await supabase
+    .from('plans')
+    .update({ sessions: nextPlan.sessions })
+    .eq('id', plan.id);
+
+  if (error) throw error;
+
+  captureEvent('scheduled_session_rescheduled', { planId: plan.id, sessionId, mode });
+
+  const { plansById, activePlanIds, selectedPlanId } = usePlanStore.getState();
+  const nextPlansById = { ...plansById, [plan.id]: nextPlan };
+  const merged = deriveMergedState(nextPlansById, activePlanIds);
+
+  usePlanStore.setState({
+    plansById: nextPlansById,
+    todaySessions: merged.todaySessions,
+    missedSessions: merged.missedSessions,
+    recommendedTodaySession: merged.recommendedTodaySession,
+    ...deriveShimState(nextPlansById, activePlanIds, selectedPlanId, merged),
+  });
+
+  return nextPlan.sessions.find((session) => session.id === sessionId)?.scheduledDate ?? null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Convenience selector: build PlanSummary[] for list UIs

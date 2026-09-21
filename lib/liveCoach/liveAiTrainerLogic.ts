@@ -273,7 +273,14 @@ export function pushHistory(
 
 // ── Human-friendly error copy ────────────────────────────────────────────────
 
-export type LiveAiTrainerErrorKind = 'timeout' | 'network' | 'rate_limited' | 'unauthorized' | 'server' | 'capture';
+export type LiveAiTrainerErrorKind =
+  | 'timeout'
+  | 'network'
+  | 'rate_limited'
+  | 'free_limit'
+  | 'unauthorized'
+  | 'server'
+  | 'capture';
 
 export function describeError(kind: LiveAiTrainerErrorKind): string {
   switch (kind) {
@@ -283,6 +290,8 @@ export function describeError(kind: LiveAiTrainerErrorKind): string {
       return 'Connection issue. Check your signal and I’ll keep trying.';
     case 'rate_limited':
       return 'Taking a short breather so I don’t overload. Keep training!';
+    case 'free_limit':
+      return 'That’s today’s free Live Trainer time. Count the reps yourself for the rest of this session.';
     case 'unauthorized':
       return 'Your session expired. Please sign in again.';
     case 'server':

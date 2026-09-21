@@ -85,7 +85,9 @@ export function AdaptationNotice({ dogName, adaptation, onSeeWhy }: AdaptationNo
     <Card style={{ gap: spacing.xs }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <AppIcon name="sync-outline" size={20} color={colors.accent} />
-        <Text variant="caption">Plan updated</Text>
+        <Text variant="caption" accessibilityRole="header">
+          Plan updated
+        </Text>
       </View>
 
       <Text variant="bodyStrong">{adaptationTitle(adaptation, dogName)}</Text>
@@ -98,6 +100,7 @@ export function AdaptationNotice({ dogName, adaptation, onSeeWhy }: AdaptationNo
         onPress={onSeeWhy}
         accessibilityRole="button"
         accessibilityLabel="See why the plan changed"
+        accessibilityHint="Opens the explanation"
         hitSlop={8}
         style={({ pressed }) => ({
           alignSelf: 'flex-start',

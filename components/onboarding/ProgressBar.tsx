@@ -18,7 +18,8 @@ export function OnboardingProgressBar({ currentStep, totalSteps }: OnboardingPro
         accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
         style={{ flex: 1 }}
       />
-      <Text variant="caption">
+      {/* The bar already says "Step N of M"; the caption would repeat it. */}
+      <Text variant="caption" accessible={false} accessibilityElementsHidden importantForAccessibility="no">
         {currentStep} of {totalSteps}
       </Text>
     </View>

@@ -26,11 +26,14 @@ export function SectionHeader({ title, action, style }: SectionHeaderProps) {
         style,
       ]}
     >
-      <Text variant="h2">{title}</Text>
+      <Text variant="h2" accessibilityRole="header">
+        {title}
+      </Text>
       {action ? (
         <Pressable
           onPress={action.onPress}
           accessibilityRole="button"
+          accessibilityLabel={action.label}
           hitSlop={8}
           style={({ pressed }) => ({ minHeight: 44, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
         >

@@ -78,8 +78,9 @@ export const useDogStore = create<DogStore>((set, get) => ({
         .eq('owner_id', userId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
+      // No row is a normal state (account created, onboarding not finished).
       if (error) throw error;
 
       if (data) {

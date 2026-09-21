@@ -171,6 +171,12 @@ const BEHAVIOR_LABELS: Record<string, string> = {
   barking: 'Barking',
   reactivity: 'Reactivity',
   resource_guarding: 'Resource guarding',
+  touch: 'Hand touch',
+  spin: 'Spin',
+  high_five: 'High five',
+  bow: 'Take a bow',
+  roll_over: 'Roll over',
+  leg_weave: 'Leg weave',
 };
 
 function labelForBehavior(behavior: string): string {
@@ -253,6 +259,7 @@ export default function ProgressScreen() {
     behaviorScores,
     milestones,
     isLoading,
+    loadError,
     fetchProgressData,
     fetchMilestones,
   } = useProgressStore();
@@ -344,17 +351,22 @@ export default function ProgressScreen() {
   const hasWalks = walkBars.some((b) => b.value > 0);
 
   const showSkeleton = isLoading && totalSessionsCompleted === 0;
-  const isNewUser = !isLoading && totalSessionsCompleted === 0;
+  // A failed fetch with nothing to show. With numbers already in the store we
+  // keep showing them; the offline line covers the rest.
+  const loadFailed = !isLoading && !!loadError && totalSessionsCompleted === 0;
+  const isNewUser = !isLoading && !loadFailed && totalSessionsCompleted === 0;
   const name = dog?.name ?? 'your dog';
   const headerLine = showSkeleton
     ? 'Adding it all up.'
-    : isNewUser
-      ? `Nothing to count yet. The first session with ${name} changes that.`
-      : sessionStreak >= 3
-        ? `${sessionStreak} days in a row. That's a habit forming.`
-        : totalSessionsCompleted === 1
-          ? `One session with ${name} in the book. Let's make it two.`
-          : `${totalSessionsCompleted} sessions with ${name} so far. Keep it steady.`;
+    : loadFailed
+      ? "We couldn't fetch the numbers. Let's try that again."
+      : isNewUser
+        ? `Nothing to count yet. The first session with ${name} changes that.`
+        : sessionStreak >= 3
+          ? `${sessionStreak} days in a row. That's a habit forming.`
+          : totalSessionsCompleted === 1
+            ? `One session with ${name} in the book. Let's make it two.`
+            : `${totalSessionsCompleted} sessions with ${name} so far. Keep it steady.`;
 
   return (
     <>
@@ -368,10 +380,24 @@ export default function ProgressScreen() {
         <PageHeader
           title="Progress"
           line={headerLine}
-          mascotState={showSkeleton ? 'thinking' : sessionStreak >= 3 ? 'celebrating' : 'happy'}
+          mascotState={showSkeleton ? 'thinking' : loadFailed ? 'encouraging' : sessionStreak >= 3 ? 'celebrating' : 'happy'}
         />
         {showSkeleton ? (
           <ProgressSkeleton />
+        ) : loadFailed ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Progress didn't load"
+            subtitle={loadError ?? undefined}
+            action={{
+              label: 'Try again',
+              onPress: () => {
+                if (!dog?.id || !user?.id) return;
+                fetchProgressData(dog.id, user.id);
+                fetchMilestones(dog.id, user.id);
+              },
+            }}
+          />
         ) : isNewUser ? (
           <EmptyState
             mascotState="encouraging"

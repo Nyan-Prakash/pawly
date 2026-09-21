@@ -13,7 +13,11 @@ type StreakBadgeProps = {
 export function StreakBadge({ count }: StreakBadgeProps) {
   if (!count) return null;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+    <View
+      accessible
+      accessibilityLabel={`${count}-day streak`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}
+    >
       <AppIcon name="flame" size={16} color={colors.status.warning} />
       <Text variant="captionStrong" color={colors.status.warning}>
         {count}-day streak

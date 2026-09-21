@@ -45,7 +45,9 @@ export function TrainingCalendar({ groupedSessions, selectedDate, onDateSelect }
   return (
     <View style={{ gap: spacing.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text variant="h2">{monthLabel}</Text>
+        <Text variant="h2" accessibilityRole="header" accessibilityLiveRegion="polite">
+          {monthLabel}
+        </Text>
         <View style={{ flexDirection: 'row' }}>
           <IconButton icon="chevron-back" accessibilityLabel="Previous month" tone="primary" onPress={prevMonth} />
           <IconButton icon="chevron-forward" accessibilityLabel="Next month" tone="primary" onPress={nextMonth} />
@@ -54,7 +56,15 @@ export function TrainingCalendar({ groupedSessions, selectedDate, onDateSelect }
 
       <View style={{ flexDirection: 'row' }}>
         {WEEKDAYS.map((day) => (
-          <Text key={day} variant="label" style={{ flex: 1, textAlign: 'center' }}>
+          // Each day cell already speaks its weekday.
+          <Text
+            key={day}
+            variant="label"
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            style={{ flex: 1, textAlign: 'center' }}
+          >
             {day}
           </Text>
         ))}

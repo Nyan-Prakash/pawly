@@ -23,6 +23,12 @@ type OptionCardProps = {
   /** Shown as a trailing tag, never as a corner overlay. */
   badge?: string;
   disabled?: boolean;
+  /**
+   * How the card is announced: `radio` when one option can be picked (wrap
+   * the set in a View with accessibilityRole="radiogroup"), `checkbox` when
+   * several can.
+   */
+  selectionRole?: 'radio' | 'checkbox';
   style?: StyleProp<ViewStyle>;
 };
 
@@ -47,6 +53,7 @@ export function OptionCard({
   size = 'md',
   badge,
   disabled = false,
+  selectionRole = 'radio',
   style,
 }: OptionCardProps) {
   const isVertical = layout === 'vertical';
@@ -61,9 +68,9 @@ export function OptionCard({
     <Pressable
       onPress={handlePress}
       disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={description ? `${label}, ${description}` : label}
-      accessibilityState={{ selected, disabled }}
+      accessibilityRole={selectionRole}
+      accessibilityLabel={[label, description, badge].filter(Boolean).join(', ')}
+      accessibilityState={{ selected, checked: selected, disabled }}
       style={({ pressed }) => [
         {
           flex: 1,

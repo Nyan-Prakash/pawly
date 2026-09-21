@@ -7,7 +7,7 @@ import {
   normalizeTrainingSchedulePrefs,
 } from './scheduleEngine.ts';
 
-type GoalKey =
+export type GoalKey =
   | 'leash_pulling'
   | 'jumping_up'
   | 'barking'
@@ -26,7 +26,13 @@ type GoalKey =
   | 'leash_reactivity'
   | 'sit'
   | 'down'
-  | 'heel';
+  | 'heel'
+  | 'touch'
+  | 'spin'
+  | 'high_five'
+  | 'bow'
+  | 'roll_over'
+  | 'leg_weave';
 
 export const GOAL_MAP: Record<string, GoalKey> = {
   leash_pulling: 'leash_pulling',
@@ -48,6 +54,12 @@ export const GOAL_MAP: Record<string, GoalKey> = {
   sit: 'sit',
   down: 'down',
   heel: 'heel',
+  touch: 'touch',
+  spin: 'spin',
+  high_five: 'high_five',
+  bow: 'bow',
+  roll_over: 'roll_over',
+  leg_weave: 'leg_weave',
   'Leash Pulling': 'leash_pulling',
   'Jumping Up': 'jumping_up',
   'Barking': 'barking',
@@ -67,9 +79,40 @@ export const GOAL_MAP: Record<string, GoalKey> = {
   'Sit': 'sit',
   'Down': 'down',
   'Heel': 'heel',
+  'Touch': 'touch',
+  'Spin': 'spin',
+  'High Five': 'high_five',
+  'Bow': 'bow',
+  'Roll Over': 'roll_over',
+  'Leg Weave': 'leg_weave',
 };
 
-const GOAL_TITLES: Record<GoalKey, string> = {
+const FALLBACK_GOAL: GoalKey = 'leash_pulling';
+const warnedGoals = new Set<string>();
+
+/**
+ * Resolve a stored goal string to a course key.
+ *
+ * Unknown goals still fall back to loose leash so that old persisted data keeps
+ * producing a plan, but the fallback is no longer silent: a goal that is offered
+ * in the UI and missing from GOAL_MAP builds the wrong course, and this warning
+ * is how that gets noticed. Own-property check so 'constructor' and friends do
+ * not resolve through the prototype. No react-native imports here: the node test
+ * runner loads this module directly.
+ */
+export function resolveGoalKey(goal: string | null | undefined): GoalKey {
+  if (typeof goal === 'string' && Object.hasOwn(GOAL_MAP, goal)) return GOAL_MAP[goal];
+  const label = String(goal);
+  if (!warnedGoals.has(label)) {
+    warnedGoals.add(label);
+    console.warn(
+      `[planGenerator] Unknown goal "${label}" is not in GOAL_MAP. Falling back to "${FALLBACK_GOAL}".`,
+    );
+  }
+  return FALLBACK_GOAL;
+}
+
+export const GOAL_TITLES: Record<GoalKey, string> = {
   leash_pulling: 'loose leash plan',
   jumping_up: 'polite greetings plan',
   barking: 'quiet plan',
@@ -89,6 +132,12 @@ const GOAL_TITLES: Record<GoalKey, string> = {
   sit: 'sit plan',
   down: 'down plan',
   heel: 'heel plan',
+  touch: 'hand touch plan',
+  spin: 'spin plan',
+  high_five: 'high five plan',
+  bow: 'bow plan',
+  roll_over: 'roll over plan',
+  leg_weave: 'leg weave plan',
 };
 
 interface ExerciseSequence {
@@ -112,7 +161,7 @@ function buildExercises(sequences: Array<[string, string, number]>, sessionsPerW
   return result;
 }
 
-const SEQUENCES: Record<GoalKey, Array<[string, string, number]>> = {
+export const SEQUENCES: Record<GoalKey, Array<[string, string, number]>> = {
   leash_pulling: [
     ['ll_01', 'Look up at their name', 8],
     ['ll_02', 'Stop when it goes tight', 8],
@@ -270,6 +319,54 @@ const SEQUENCES: Record<GoalKey, Array<[string, string, number]>> = {
     ['hl_05', 'Heel past distractions', 12],
     ['hl_06', 'Heel on the sidewalk', 12],
   ],
+  touch: [
+    ['tc_01', 'Nose to your palm', 5],
+    ['tc_02', 'Add the word touch', 5],
+    ['tc_03', 'Touch from across the room', 6],
+    ['tc_04', 'Follow a moving hand', 6],
+    ['tc_05', 'Touch in new places', 6],
+    ['tc_06', 'Touch past distractions', 6],
+  ],
+  spin: [
+    ['sp_01', 'Lure a half circle', 5],
+    ['sp_02', 'Lure a full circle', 5],
+    ['sp_03', 'Spin on a hand signal', 6],
+    ['sp_04', 'Spin on the word alone', 6],
+    ['sp_05', 'Twirl the other way', 6],
+    ['sp_06', 'Spin and twirl in new places', 6],
+  ],
+  high_five: [
+    ['hf_01', 'Paw to your closed hand', 5],
+    ['hf_02', 'Paw to your open palm', 5],
+    ['hf_03', 'Raise your palm upright', 6],
+    ['hf_04', 'High five on the word', 6],
+    ['hf_05', 'High five with the other paw', 6],
+    ['hf_06', 'High five in new places', 6],
+  ],
+  bow: [
+    ['bw_01', 'Nose down between the paws', 5],
+    ['bw_02', 'Elbows down, rear up', 5],
+    ['bw_03', 'Add the word bow', 6],
+    ['bw_04', 'Hold the bow for 2 seconds', 6],
+    ['bw_05', 'Bow on the word alone', 6],
+    ['bw_06', 'Bow for an audience', 6],
+  ],
+  roll_over: [
+    ['ro_01', 'Down, then onto one side', 5],
+    ['ro_02', 'Relax on one side', 5],
+    ['ro_03', 'Lure the full roll', 5],
+    ['ro_04', 'Roll with an empty hand', 5],
+    ['ro_05', 'Roll over on the word alone', 6],
+    ['ro_06', 'Roll over in a new place', 6],
+  ],
+  leg_weave: [
+    ['lw_01', 'Through your legs', 5],
+    ['lw_02', 'Around one leg', 5],
+    ['lw_03', 'Figure eight with a lure', 6],
+    ['lw_04', 'Figure eight, empty hand', 6],
+    ['lw_05', 'Weave for 2 walking steps', 6],
+    ['lw_06', 'Weave for 4 walking steps', 6],
+  ],
 };
 
 function getLifecycleStage(ageMonths: number): string {
@@ -287,7 +384,7 @@ function getStartingStage(goal: GoalKey, lifecycleStage: string): string {
 
 /** Rules-based plan generator. Also used as fallback when adaptive planner fails. */
 export function generatePlan(dog: Dog): Plan {
-  const goalKey: GoalKey = GOAL_MAP[dog.behaviorGoals[0]] ?? 'leash_pulling';
+  const goalKey = resolveGoalKey(dog.behaviorGoals[0]);
   const lifecycleStage = getLifecycleStage(dog.ageMonths);
   const sessionsPerWeek = Math.min(dog.availableDaysPerWeek, 5);
   const totalWeeks = 4;
@@ -349,12 +446,12 @@ export function generatePlan(dog: Dog): Plan {
 }
 
 export function getPlanTitle(dogName: string, goal: string): string {
-  const goalKey: GoalKey = GOAL_MAP[goal] ?? 'leash_pulling';
+  const goalKey = resolveGoalKey(goal);
   return `${dogName}'s 4-week ${GOAL_TITLES[goalKey]}`;
 }
 
 export function getPlanBullets(goal: string): string[] {
-  const goalKey: GoalKey = GOAL_MAP[goal] ?? 'leash_pulling';
+  const goalKey = resolveGoalKey(goal);
   const bullets: Record<GoalKey, string[]> = {
     leash_pulling: [
       'Teach your dog to look up at you on walks',
@@ -450,6 +547,36 @@ export function getPlanBullets(goal: string): string[] {
       'Show your dog the spot at your side with treats',
       'Build up to 20 steps together, with turns',
       'Practice heeling in the yard and on the sidewalk',
+    ],
+    touch: [
+      'Teach a nose bump to your open palm',
+      'Build it up to either hand, from across the room',
+      'Practice touch in new places and past distractions',
+    ],
+    spin: [
+      'Lure a full circle, then fade the treat',
+      'Move to a hand signal, then the word alone',
+      'Add twirl the other way and practice in new places',
+    ],
+    high_five: [
+      'Start with a paw to your low palm, a shake',
+      'Turn your palm upright and add the word',
+      'Teach the other paw and practice in new places',
+    ],
+    bow: [
+      'Lure elbows down while the rear stays up',
+      'Add the word and build a 2-second hold',
+      'Practice on the word alone, from a step away',
+    ],
+    roll_over: [
+      'Start from a down and lure onto one side',
+      'Build the full roll, then fade to an empty hand',
+      'Practice on the word alone, always on soft ground',
+    ],
+    leg_weave: [
+      'Lure your dog through and around one leg',
+      'Link both legs into a figure eight',
+      'Build up to weaving for 4 slow walking steps',
     ],
   };
   return bullets[goalKey];

@@ -79,7 +79,7 @@ export function ArticleContentRenderer({ content }: { content: ArticleContentBlo
 
         const meta = NOTE_META[block.type];
         return (
-          <Card key={key} style={{ gap: spacing.xs }}>
+          <Card key={key} style={{ gap: spacing.xs }} accessible accessibilityLabel={`${meta.title}. ${block.text}`}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               <AppIcon name={meta.icon} size={20} color={block.type === 'tip' ? colors.accent : colors.status.warning} />
               <Text variant="captionStrong">{meta.title}</Text>

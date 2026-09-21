@@ -126,12 +126,14 @@ serve(async (req) => {
       .from('session_logs')
       .select('*')
       .eq('dog_id', body.dogId)
+      .eq('user_id', authenticatedUserId)
       .order('completed_at', { ascending: false })
       .limit(8),
     adminClient
       .from('walk_logs')
       .select('*')
       .eq('dog_id', body.dogId)
+      .eq('user_id', authenticatedUserId)
       .order('logged_at', { ascending: false })
       .limit(6),
     adminClient
@@ -160,7 +162,8 @@ serve(async (req) => {
   ]);
 
   if (skillNodesResult.error || skillEdgesResult.error) {
-    return jsonResponse({ error: 'Failed to load skill graph context' }, 500);
+    console.error('[adapt-plan] skill graph load failed:', skillNodesResult.error ?? skillEdgesResult.error);
+    return jsonResponse({ error: 'Failed to load skill graph context', code: 'skill_graph_unavailable' }, 500);
   }
 
   // Normalize post_session_reflection on each raw session log row before any
@@ -261,7 +264,9 @@ serve(async (req) => {
   });
 
   if (rpcResult.error) {
-    return jsonResponse({ error: rpcResult.error.message }, 500);
+    // Database errors name tables, columns and constraints; keep them server-side.
+    console.error('[adapt-plan] apply_plan_adaptation failed:', rpcResult.error);
+    return jsonResponse({ error: 'Failed to apply plan adaptation', code: 'adaptation_failed' }, 500);
   }
 
   const adaptationId = (rpcResult.data ?? null) as string | null;
@@ -294,8 +299,10 @@ serve(async (req) => {
         },
       });
 
+    // The adaptation is already applied; a missing notification must not turn
+    // that into an error for the client.
     if (notificationError && notificationError.code !== '23505') {
-      return jsonResponse({ error: notificationError.message }, 500);
+      console.error('[adapt-plan] notification insert failed:', notificationError);
     }
   }
 

@@ -2,11 +2,13 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { Tag } from '@/components/ui/PillTag';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Text } from '@/components/ui/Text';
 import { formatDisplayTime, getBehaviorLabel } from '@/lib/scheduleEngine';
 import type { EnrichedPlanSession, PlanSession, SupportSessionType } from '@/types';
 import { guardSessionStart } from '@/lib/proGate';
+import { PRO_LOCK_HINT, PRO_LOCK_LABEL, useSessionLock } from '@/hooks/useSessionLock';
 
 function supportSessionLabel(type: SupportSessionType | null | undefined): string {
   switch (type) {
@@ -31,6 +33,7 @@ interface DaySessionListProps {
 
 /** The selected day's sessions as a grouped list under the calendar. */
 export function DaySessionList({ date, sessions, showCourseBadge = false }: DaySessionListProps) {
+  const isLocked = useSessionLock();
   const dateLabel = date.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -57,6 +60,15 @@ export function DaySessionList({ date, sessions, showCourseBadge = false }: DayS
             const subtitle = session.insertedByAdaptation
               ? `${parts}\n${supportSessionLabel(session.supportSessionType)}`
               : parts;
+            const locked = isLocked(enriched?.planId, session.id);
+            const spoken = [
+              session.title,
+              session.isCompleted ? 'completed' : null,
+              subtitle.replace(/\n/g, '. '),
+              locked ? PRO_LOCK_LABEL : null,
+            ]
+              .filter(Boolean)
+              .join(', ');
 
             return (
               <ListRow
@@ -65,7 +77,9 @@ export function DaySessionList({ date, sessions, showCourseBadge = false }: DayS
                 iconTone={session.isCompleted ? 'accent' : 'secondary'}
                 title={session.title}
                 subtitle={subtitle}
-                trailing="chevron"
+                trailing={locked ? <Tag label="Pro" icon="lock-closed" tone="accent" /> : 'chevron'}
+                accessibilityLabel={spoken}
+                accessibilityHint={locked ? PRO_LOCK_HINT : 'Starts this session'}
                 onPress={() => {
                   if (!guardSessionStart(enriched?.planId, session.id)) return;
                   router.push(

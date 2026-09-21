@@ -338,49 +338,64 @@ export const useOnboardingStore = create<OnboardingStore>()(
           avatar_url: resolvedAvatarUrl,
         };
 
-        // Retry dog insert — auth.users row may not be immediately visible to FK checks
-        let dogData: { id: unknown } | null = null;
-        let dogError: Error | null = null;
-        for (let attempt = 0; attempt < 3; attempt++) {
-          const result = await supabase
-            .from('dogs')
-            .insert(dogPayload)
-            .select('id')
-            .single();
-          if (!result.error) {
-            dogData = result.data;
-            dogError = null;
+        // A previous attempt can have created the dog and then failed on the
+        // plan (network drop, app killed). Reuse that dog instead of adding a second.
+        const { data: existingDog } = await supabase
+          .from('dogs')
+          .select('id')
+          .eq('owner_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        let dogId: string;
+        if (existingDog?.id) {
+          dogId = existingDog.id as string;
+        } else {
+          // Retry dog insert — auth.users row may not be immediately visible to FK checks
+          let dogData: { id: unknown } | null = null;
+          let dogError: Error | null = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const result = await supabase
+              .from('dogs')
+              .insert(dogPayload)
+              .select('id')
+              .single();
+            if (!result.error) {
+              dogData = result.data;
+              dogError = null;
+              break;
+            }
+            dogError = result.error;
+            if (result.error.code === '23503' && attempt < 2) {
+              // FK not yet visible — wait and retry
+              await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+              continue;
+            }
             break;
           }
-          dogError = result.error;
-          if (result.error.code === '23503' && attempt < 2) {
-            // FK not yet visible — wait and retry
-            await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-            continue;
-          }
-          break;
-        }
 
-        if (dogError || !dogData) throw dogError ?? new Error('Failed to create dog record');
+          if (dogError || !dogData) throw dogError ?? new Error('Failed to create dog record');
 
-        const dogId = dogData.id as string;
+          dogId = dogData.id as string;
 
-        await supabase.from('behavior_goals').insert({
-          dog_id: dogId,
-          goal: state.primaryGoal,
-          is_primary: true,
-          severity: state.severity,
-          video_upload_path: state.videoUploadPath,
-          video_context: state.videoContext,
-        });
-
-        for (const goal of state.secondaryGoals) {
           await supabase.from('behavior_goals').insert({
             dog_id: dogId,
-            goal,
-            is_primary: false,
-            severity: 'mild',
+            goal: state.primaryGoal,
+            is_primary: true,
+            severity: state.severity,
+            video_upload_path: state.videoUploadPath,
+            video_context: state.videoContext,
           });
+
+          for (const goal of state.secondaryGoals) {
+            await supabase.from('behavior_goals').insert({
+              dog_id: dogId,
+              goal,
+              is_primary: false,
+              severity: 'mild',
+            });
+          }
         }
 
         const dog = buildDogFromState(state, userId, dogId, lifecycleStage, resolvedAvatarUrl);
@@ -503,8 +518,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
           });
         }
 
-        // Non-blocking — user_profiles FK may also race with auth.users visibility
-        supabase.from('user_profiles').upsert({
+        // Best effort: the plan is already saved, so a failure here must not fail onboarding.
+        const { error: profileError } = await supabase.from('user_profiles').upsert({
           id: userId,
           onboarding_completed_at: new Date().toISOString(),
           notification_prefs: {
@@ -522,6 +537,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
             fallback_missed_session_reminders: true,
           },
         });
+        captureEvent('onboarding_completed', { goal: state.primaryGoal, secondaryGoals: state.secondaryGoals.length });
+        if (profileError) console.warn('[onboarding] user_profiles upsert failed:', profileError.message);
 
         return {
           dogId,
@@ -538,7 +555,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
       name: 'pawly-onboarding',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => {
-        const { isSubmitting, ...rest } = state;
+        // submissionIntent only means something while the signup screen is open.
+        const { isSubmitting, submissionIntent, ...rest } = state;
         return rest;
       },
     }

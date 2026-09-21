@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Share, View } from 'react-native';
+import { FlatList, Platform, Share, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { MilestoneCard } from '@/components/progress/MilestoneCard';
+import { MilestoneShareSheet } from '@/components/progress/MilestoneShareSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SkeletonBlock } from '@/components/ui/SkeletonBlock';
 import { Text } from '@/components/ui/Text';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { captureEvent } from '@/lib/analytics';
 import { MILESTONE_DEFINITIONS } from '@/lib/milestoneEngine';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
@@ -41,8 +43,9 @@ function MilestonesSkeleton() {
 export default function MilestonesScreen() {
   const { user } = useAuthStore();
   const { dog } = useDogStore();
-  const { milestones, fetchMilestones } = useProgressStore();
+  const { milestones, fetchMilestones, sessionStreak, totalSessionsCompleted } = useProgressStore();
   const [loading, setLoading] = useState(milestones.length === 0);
+  const [sharing, setSharing] = useState<Milestone | null>(null);
 
   useEffect(() => {
     if (!dog?.id || !user?.id) {
@@ -68,13 +71,25 @@ export default function MilestonesScreen() {
     })),
   ];
 
-  async function handleShare(milestone: Milestone) {
+  async function shareAsText(milestone: Milestone) {
     try {
-      await Share.share({
+      const result = await Share.share({
         message: `${milestone.title}. ${milestone.description}\n\nTrained with Pawly`,
       });
+      if (result.action === Share.sharedAction) {
+        captureEvent('milestone_shared', { milestoneId: milestone.milestoneId, format: 'text' });
+      }
     } catch {
       // cancelled
+    }
+  }
+
+  function handleShare(milestone: Milestone) {
+    // Share.share only takes a file url on iOS; elsewhere the milestone goes out as text.
+    if (Platform.OS === 'ios') {
+      setSharing(milestone);
+    } else {
+      shareAsText(milestone);
     }
   }
 
@@ -86,39 +101,50 @@ export default function MilestonesScreen() {
   const reachedCount = milestones.length;
 
   return (
-    <FlatList
-      data={items}
-      keyExtractor={(item) => item.id}
-      numColumns={2}
-      columnWrapperStyle={{ gap: spacing.md }}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
-      ListHeaderComponent={
-        <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
-          <Text variant="caption">
-            {reachedCount} of {total} reached
-          </Text>
-          <ProgressBar
-            progress={total > 0 ? reachedCount / total : 0}
-            accessibilityLabel={`${reachedCount} of ${total} milestones reached`}
+    <>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={{ gap: spacing.md }}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}
+        ListHeaderComponent={
+          <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+            <Text variant="caption">
+              {reachedCount} of {total} reached
+            </Text>
+            <ProgressBar
+              progress={total > 0 ? reachedCount / total : 0}
+              accessibilityLabel={`${reachedCount} of ${total} milestones reached`}
+            />
+          </View>
+        }
+        ListEmptyComponent={
+          <EmptyState
+            mascotState="encouraging"
+            title="No milestones yet"
+            subtitle="Finish a session and the first milestone will show here."
+            action={{ label: 'Start a session', onPress: () => router.push('/(tabs)/train') }}
           />
-        </View>
-      }
-      ListEmptyComponent={
-        <EmptyState
-          mascotState="encouraging"
-          title="No milestones yet"
-          subtitle="Finish a session and the first milestone will show here."
-          action={{ label: 'Start a session', onPress: () => router.push('/(tabs)/train') }}
-        />
-      }
-      renderItem={({ item }) =>
-        item.kind === 'reached' ? (
-          <MilestoneCard milestone={item.milestone} onShare={() => handleShare(item.milestone)} style={{ flex: 1, maxWidth: '50%' }} />
-        ) : (
-          <MilestoneCard definition={item.definition} style={{ flex: 1, maxWidth: '50%' }} />
-        )
-      }
-    />
+        }
+        renderItem={({ item }) =>
+          item.kind === 'reached' ? (
+            <MilestoneCard milestone={item.milestone} onShare={() => handleShare(item.milestone)} style={{ flex: 1, maxWidth: '50%' }} />
+          ) : (
+            <MilestoneCard definition={item.definition} style={{ flex: 1, maxWidth: '50%' }} />
+          )
+        }
+      />
+      <MilestoneShareSheet
+        milestone={sharing}
+        dogName={dog?.name ?? 'My dog'}
+        avatarUrl={dog?.avatarUrl}
+        streakDays={sessionStreak}
+        totalSessions={totalSessionsCompleted}
+        onShareText={shareAsText}
+        onClose={() => setSharing(null)}
+      />
+    </>
   );
 }

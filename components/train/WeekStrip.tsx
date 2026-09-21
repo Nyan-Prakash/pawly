@@ -27,6 +27,23 @@ type WeekStripProps = {
 
 const DOT = 40;
 
+const STATE_WORDS: Record<WeekDayState, string> = {
+  done: 'all sessions done',
+  today: 'today',
+  todayDone: 'today, all sessions done',
+  missed: 'missed session',
+  scheduled: 'session planned',
+  none: 'nothing planned',
+};
+
+/** "Monday, September 14, missed session". `key` is a local YYYY-MM-DD. */
+function dayA11yLabel(day: WeekDay): string {
+  const [y, m, d] = day.key.split('-').map(Number);
+  const date = new Date(y, (m ?? 1) - 1, d ?? 1);
+  const name = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return `${name}, ${STATE_WORDS[day.state]}`;
+}
+
 function DayDot({ day }: { day: WeekDay }) {
   let fill = colors.bg.fill;
   let ring: string | null = null;
@@ -64,12 +81,15 @@ function DayDot({ day }: { day: WeekDay }) {
   const isToday = day.state === 'today' || day.state === 'todayDone';
 
   return (
-    <View style={{ alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+    <View
+      accessible
+      accessibilityLabel={dayA11yLabel(day)}
+      style={{ alignItems: 'center', gap: spacing.sm, flex: 1 }}
+    >
       <Text variant="label" color={isToday ? colors.text.primary : colors.text.secondary}>
         {day.label}
       </Text>
       <View
-        accessibilityLabel={`${day.label} ${day.dayNumber}, ${day.state === 'none' ? 'nothing planned' : day.state}`}
         style={{
           width: DOT,
           height: DOT,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Image, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Image, Linking, Platform, Pressable, ScrollView, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { FeedbackModal } from '@/components/profile/FeedbackModal';
@@ -14,12 +14,14 @@ import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
 import { radii } from '@/constants/radii';
 import { spacing } from '@/constants/spacing';
+import { isAnalyticsAvailable, isAnalyticsOptedOut, setAnalyticsOptedOut } from '@/lib/analytics';
 import { haptics } from '@/lib/haptics';
 import { PRO_ENTITLEMENT } from '@/lib/subscription';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/lib/theme';
 import { useAuthStore } from '@/stores/authStore';
 import { useDogStore } from '@/stores/dogStore';
+import { useOnboardingStore } from '@/stores/onboardingStore';
 import { useProgressStore } from '@/stores/progressStore';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
 import type { ThemePreference } from '@/stores/themeStore';
@@ -59,6 +61,9 @@ export default function ProfileScreen() {
   const tier = useSubscriptionStore((s) => s.tier);
   const customerInfo = useSubscriptionStore((s) => s.customerInfo);
   const openPaywall = useSubscriptionStore((s) => s.openPaywall);
+  const restore = useSubscriptionStore((s) => s.restore);
+  const isRestoring = useSubscriptionStore((s) => s.isRestoring);
+  const [shareUsage, setShareUsage] = useState(() => !isAnalyticsOptedOut());
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showThemeSheet, setShowThemeSheet] = useState(false);
 
@@ -78,10 +83,27 @@ export default function ProfileScreen() {
         text: 'Log out',
         style: 'destructive',
         onPress: () => {
-          supabase.auth.signOut();
+          // The root layout clears the stores on SIGNED_OUT. Half-finished
+          // onboarding answers belong to this person, so they go too.
+          useOnboardingStore.getState().reset();
+          supabase.auth.signOut({ scope: 'local' });
         },
       },
     ]);
+  }
+
+  async function handleRestore() {
+    const restored = await restore();
+    const { error } = useSubscriptionStore.getState();
+    Alert.alert(
+      restored ? 'Pro is back on' : 'Nothing to restore',
+      restored ? 'Your subscription was restored on this device.' : error ?? "We couldn't find a Pro subscription for this store account.",
+    );
+  }
+
+  function toggleShareUsage(value: boolean) {
+    setShareUsage(value);
+    setAnalyticsOptedOut(!value);
   }
 
   function choosePreference(value: ThemePreference) {
@@ -111,6 +133,9 @@ export default function ProfileScreen() {
               <Image
                 source={{ uri: dog.avatarUrl }}
                 style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }}
+                accessible
+                accessibilityRole="image"
+                accessibilityLabel={`${dog.name}'s avatar`}
                 accessibilityIgnoresInvertColors
               />
             ) : (
@@ -118,7 +143,7 @@ export default function ProfileScreen() {
             )}
           </View>
           <View style={{ flex: 1, gap: spacing.xs }}>
-            <Text variant="h2" numberOfLines={1}>
+            <Text variant="h2" numberOfLines={1} accessibilityRole="header">
               {dog?.name ?? 'Your dog'}
             </Text>
             {dogSummary ? (
@@ -130,7 +155,7 @@ export default function ProfileScreen() {
           <Pressable
             onPress={() => router.push('/(tabs)/profile/edit-dog')}
             accessibilityRole="button"
-            accessibilityLabel="Edit dog"
+            accessibilityLabel={dog?.name ? `Edit ${dog.name}'s profile` : 'Edit dog profile'}
             hitSlop={8}
             style={({ pressed }) => ({ minHeight: 44, minWidth: 44, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}
           >
@@ -168,8 +193,15 @@ export default function ProfileScreen() {
                 title="Manage subscription"
                 trailing="chevron"
                 onPress={() => Linking.openURL(customerInfo?.managementURL ?? STORE_SUBSCRIPTIONS_URL)}
+                accessibilityHint="Opens your store subscription settings"
               />
             ) : null}
+            <ListRow
+              icon="refresh-outline"
+              title={isRestoring ? 'Restoring' : 'Restore purchases'}
+              disabled={isRestoring}
+              onPress={handleRestore}
+            />
           </ListGroup>
         </View>
 
@@ -188,6 +220,40 @@ export default function ProfileScreen() {
               trailing={themeLabel}
               onPress={() => setShowThemeSheet(true)}
               accessibilityHint="Opens the appearance picker"
+            />
+            {isAnalyticsAvailable ? (
+              <ListRow
+                icon="analytics-outline"
+                title="Share usage data"
+                subtitle="Anonymous stats that help improve Pawly"
+                trailing={
+                  <Switch
+                    value={shareUsage}
+                    onValueChange={toggleShareUsage}
+                    trackColor={{ true: colors.accent }}
+                    accessibilityLabel="Share usage data"
+                    accessibilityHint="Anonymous stats that help improve Pawly"
+                  />
+                }
+              />
+            ) : null}
+          </ListGroup>
+        </View>
+
+        <View>
+          <SectionHeader title="Help" />
+          <ListGroup>
+            <ListRow
+              icon="help-circle-outline"
+              title="Help and FAQ"
+              trailing="chevron"
+              onPress={() => router.push('/(tabs)/profile/faq' as never)}
+            />
+            <ListRow
+              icon="mail-outline"
+              title="Contact support"
+              trailing="chevron"
+              onPress={() => router.push('/(tabs)/profile/support' as never)}
             />
             <ListRow
               icon="chatbubble-outline"
@@ -227,6 +293,7 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <BottomSheet visible={showThemeSheet} onClose={() => setShowThemeSheet(false)} title="Appearance">
+        <View accessibilityRole="radiogroup" accessibilityLabel="Appearance">
         <ListGroup>
           {THEME_OPTIONS.map((option) => (
             <ListRow
@@ -238,6 +305,7 @@ export default function ProfileScreen() {
             />
           ))}
         </ListGroup>
+        </View>
       </BottomSheet>
 
       <FeedbackModal visible={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />

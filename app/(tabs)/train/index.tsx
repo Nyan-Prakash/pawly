@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
+import { Tag } from '@/components/ui/PillTag';
 import { MascotCallout } from '@/components/ui/MascotCallout';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -40,6 +41,7 @@ import { usePlanStore, selectPlanSummaries } from '@/stores/planStore';
 import { useProgressStore } from '@/stores/progressStore';
 import type { Milestone, Plan, PlanSession } from '@/types';
 import { guardSessionStart } from '@/lib/proGate';
+import { PRO_LOCK_HINT, PRO_LOCK_LABEL, useSessionLock } from '@/hooks/useSessionLock';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Date helpers (local time — session.scheduledDate is a local YYYY-MM-DD)
@@ -210,6 +212,7 @@ export default function TrainScreen() {
   const planStoreState = usePlanStore();
   const {
     isLoading,
+    loadError,
     fetchActivePlans,
     refreshPlans,
     activePlanIds,
@@ -224,6 +227,7 @@ export default function TrainScreen() {
   const planSummaries = selectPlanSummaries(planStoreState);
 
   const { sessionStreak, walkLoggedToday, logWalk, fetchProgressData } = useProgressStore();
+  const isLocked = useSessionLock();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const fetchInbox = useNotificationStore((s) => s.fetchInbox);
   const hydrateRealtime = useNotificationStore((s) => s.hydrateRealtime);
@@ -278,6 +282,9 @@ export default function TrainScreen() {
   const todayKey = toDateKey(new Date());
 
   const hasPlans = activePlanIds.length > 0;
+  // A failed fetch with nothing to fall back on. With plans already in the
+  // store we keep showing them; the offline line covers the rest.
+  const planLoadFailed = !!loadError && !hasPlans;
   const needsDogProfile = !hasDogProfile || !dog?.id;
   const activePlans = activePlanIds.map((id) => plansById[id]).filter((p): p is Plan => p != null);
 
@@ -313,6 +320,7 @@ export default function TrainScreen() {
       : false;
   const heroVariant = heroIsToday ? 'today' : heroIsOverdue ? 'overdue' : 'upcoming';
   const showHero = !!heroSession && !!heroPlan && heroPlan.status === 'active';
+  const heroLocked = heroSession ? isLocked(heroSession.planId, heroSession.id) : false;
 
   // The resumable session takes the card; the recommended session, if it is a
   // different one, drops into "Also today" so it stays one tap away.
@@ -350,6 +358,7 @@ export default function TrainScreen() {
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const greeting = (() => {
     const name = dog?.name ?? 'your dog';
+    if (planLoadFailed) return `We couldn't fetch the plan. Let's try that again.`;
     if (resumeTarget) return `We left a session half done. Shall we finish it?`;
     if (heroVariant === 'today' && heroSession) return `${heroSession.durationMinutes} minutes with ${name} today. Ready when you are.`;
     if (heroVariant === 'overdue') return `We missed one. No big deal, let's pick it back up.`;
@@ -386,11 +395,26 @@ export default function TrainScreen() {
           eyebrow={dateLabel}
           title={dog?.name ? `${dog.name}'s day` : 'Today'}
           line={greeting}
-          mascotState={resumeTarget || heroVariant === 'overdue' || firstMissed ? 'encouraging' : 'happy'}
+          mascotState={planLoadFailed || resumeTarget || heroVariant === 'overdue' || firstMissed ? 'encouraging' : 'happy'}
         />
 
+        {/* ── Plan didn't load (not the same as having no plan) ── */}
+        {planLoadFailed ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Your plan didn't load"
+            subtitle={loadError ?? undefined}
+            action={{
+              label: 'Try again',
+              onPress: () => {
+                if (dog?.id) fetchActivePlans(dog.id);
+              },
+            }}
+          />
+        ) : null}
+
         {/* ── No plan ── */}
-        {!hasPlans ? (
+        {!hasPlans && !planLoadFailed ? (
           <EmptyState
             mascotState="waiting"
             title={needsDogProfile ? 'Your plan is waiting' : 'No active plan right now'}
@@ -432,6 +456,7 @@ export default function TrainScreen() {
             variant={heroVariant}
             canReschedule={canReschedule}
             rescheduleLabel={rescheduleLabel}
+            locked={heroLocked}
             onStart={() => {
               if (!guardSessionStart(heroSession.planId, heroSession.id)) return;
               router.push(`/(tabs)/train/session?id=${heroSession.id}&planId=${heroSession.planId}`);
@@ -491,19 +516,25 @@ export default function TrainScreen() {
             <SectionHeader title="Also today" />
             <ListGroup>
               {quickRep ? <QuickRepsRow quickRep={quickRep} /> : null}
-              {heroInAlsoToday.map((session) => (
-                <ListRow
-                  key={`${session.planId}_${session.id}`}
-                  icon="play-circle-outline"
-                  title={session.title}
-                  subtitle={`${session.planCourseTitle ?? getBehaviorLabel(session.planGoal)}, ${session.durationMinutes} min`}
-                  trailing="chevron"
-                  onPress={() => {
-                    if (!guardSessionStart(session.planId, session.id)) return;
-                    router.push(`/(tabs)/train/session?id=${session.id}&planId=${session.planId}`);
-                  }}
-                />
-              ))}
+              {heroInAlsoToday.map((session) => {
+                const locked = isLocked(session.planId, session.id);
+                const subtitle = `${session.planCourseTitle ?? getBehaviorLabel(session.planGoal)}, ${session.durationMinutes} min`;
+                return (
+                  <ListRow
+                    key={`${session.planId}_${session.id}`}
+                    icon="play-circle-outline"
+                    title={session.title}
+                    subtitle={subtitle}
+                    trailing={locked ? <Tag label="Pro" icon="lock-closed" tone="accent" /> : 'chevron'}
+                    accessibilityLabel={locked ? `${session.title}, ${subtitle}, ${PRO_LOCK_LABEL}` : undefined}
+                    accessibilityHint={locked ? PRO_LOCK_HINT : 'Starts this session'}
+                    onPress={() => {
+                      if (!guardSessionStart(session.planId, session.id)) return;
+                      router.push(`/(tabs)/train/session?id=${session.id}&planId=${session.planId}`);
+                    }}
+                  />
+                );
+              })}
               {walkGoalText ? (
                 <WalkGoalRow goalText={walkGoalText} logged={walkLoggedToday} onLog={() => setShowWalkModal(true)} />
               ) : null}

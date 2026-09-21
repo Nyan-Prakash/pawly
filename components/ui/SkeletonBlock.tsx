@@ -34,6 +34,8 @@ export function SkeletonBlock({ height, width, borderRadius = radii.sm, style }:
 
   return (
     <Animated.View
+      accessibilityElementsHidden
+      importantForAccessibility="no"
       style={[{ height, width, borderRadius, backgroundColor: colors.bg.fill, opacity }, style]}
     />
   );

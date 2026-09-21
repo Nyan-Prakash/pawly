@@ -125,7 +125,9 @@ export function PostSessionReflectionCard({
           ) : null}
           <Text variant="caption">{durationLabel}</Text>
           {stepSummaryLabel ? <Text variant="caption">{stepSummaryLabel}</Text> : null}
-          <Text variant="caption">{positionLabel}</Text>
+          <Text variant="caption" accessibilityLiveRegion="polite">
+            {positionLabel}
+          </Text>
         </View>
 
         {isOutcomeStep ? (
@@ -207,12 +209,15 @@ function OutcomeStep({ dogName, successCriteria, selected, onSelect }: OutcomeSt
   return (
     <View style={{ gap: spacing.xl }}>
       <View style={{ gap: spacing.sm }}>
-        <Text variant="h1">Did {dogName} hit the goal?</Text>
+        <Text variant="h1" accessibilityRole="header">
+          Did {dogName} hit the goal?
+        </Text>
         <Text variant="body" color={colors.text.secondary}>
           {successCriteria}
         </Text>
       </View>
 
+      <View accessibilityRole="radiogroup">
       <ListGroup>
         {OUTCOME_OPTIONS.map((opt) => (
           <ListRow
@@ -226,6 +231,7 @@ function OutcomeStep({ dogName, successCriteria, selected, onSelect }: OutcomeSt
           />
         ))}
       </ListGroup>
+      </View>
     </View>
   );
 }
@@ -246,7 +252,9 @@ function QuestionStep({ question, answers, onAnswer }: QuestionStepProps) {
   return (
     <View style={{ gap: spacing.xl }}>
       <View style={{ gap: spacing.sm }}>
-        <Text variant="h1">{question.prompt}</Text>
+        <Text variant="h1" accessibilityRole="header">
+          {question.prompt}
+        </Text>
         {question.helperText ? <Text variant="caption">{question.helperText}</Text> : null}
       </View>
 
@@ -288,7 +296,10 @@ function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveEr
     <View style={{ gap: spacing.xl }}>
       {saveError ? (
         <View
+          accessible
           accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel="Couldn't save this session. Your answers are still here. Check your connection and try again."
           style={{
             backgroundColor: colors.status.dangerSoft,
             borderRadius: radii.md,
@@ -302,7 +313,9 @@ function NotesStep({ notes, onNotesChange, onSubmit, isSaving, canSubmit, saveEr
       ) : null}
 
       <View style={{ gap: spacing.sm }}>
-        <Text variant="h1">Anything to note?</Text>
+        <Text variant="h1" accessibilityRole="header">
+          Anything to note?
+        </Text>
         <Text variant="body" color={colors.text.secondary}>
           Optional. Observations or reminders for next time.
         </Text>
@@ -343,6 +356,7 @@ interface SingleSelectInputProps {
 
 function SingleSelectInput({ options, selected, onSelect }: SingleSelectInputProps) {
   return (
+    <View accessibilityRole="radiogroup">
     <ListGroup>
       {options.map((opt) => (
         <ListRow
@@ -354,6 +368,7 @@ function SingleSelectInput({ options, selected, onSelect }: SingleSelectInputPro
         />
       ))}
     </ListGroup>
+    </View>
   );
 }
 
@@ -374,8 +389,11 @@ function ScaleInput({ min, max, minLabel, maxLabel, selected, onSelect }: ScaleI
   const ticks = Array.from({ length: max - min + 1 }, (_, i) => min + i);
 
   return (
+    <View accessibilityRole="radiogroup">
     <ListGroup>
-      {ticks.map((n) => (
+      {ticks.map((n) => {
+        const endLabel = n === min ? minLabel : n === max ? maxLabel : null;
+        return (
         <ListRow
           key={n}
           title={`${n}`}
@@ -383,9 +401,12 @@ function ScaleInput({ min, max, minLabel, maxLabel, selected, onSelect }: ScaleI
           selected={selected === n}
           onPress={() => onSelect(n)}
           trailing={selected === n ? <SelectedMark /> : undefined}
+          accessibilityLabel={`${n} out of ${max}${endLabel ? `, ${endLabel}` : ''}`}
         />
-      ))}
+        );
+      })}
     </ListGroup>
+    </View>
   );
 }
 

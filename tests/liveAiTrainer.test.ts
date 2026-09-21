@@ -227,7 +227,7 @@ describe('pushHistory', () => {
 
 describe('describeError', () => {
   it('has copy for every error kind', () => {
-    for (const kind of ['timeout', 'network', 'rate_limited', 'unauthorized', 'server', 'capture'] as const) {
+    for (const kind of ['timeout', 'network', 'rate_limited', 'free_limit', 'unauthorized', 'server', 'capture'] as const) {
       assert.ok(describeError(kind).length > 10, kind);
     }
   });

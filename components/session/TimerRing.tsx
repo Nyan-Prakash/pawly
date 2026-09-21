@@ -15,7 +15,11 @@ interface TimerRingProps {
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-/** State-driven ring: the arc follows `currentSeconds`. Accent on fill. */
+/**
+ * State-driven ring: the arc follows `currentSeconds`. Accent on fill.
+ * Decorative for screen readers: the screen that overlays the time on the
+ * ring owns the timer role and its remaining-time value.
+ */
 export function TimerRing({
   totalSeconds,
   currentSeconds,
@@ -51,7 +55,12 @@ export function TimerRing({
   });
 
   return (
-    <View style={{ width: size, height: size }}>
+    <View
+      style={{ width: size, height: size }}
+      accessible={false}
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       <Svg width={size} height={size}>
         <Circle cx={cx} cy={cy} r={radius} stroke={trackColor} strokeWidth={strokeWidth} fill="none" />
         <AnimatedCircle

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { captureEvent } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import { updateLearningStateFromWalkLog } from '@/lib/adaptivePlanning/learningStateEngine';
 import { triggerPlanAdaptation } from '@/lib/sessionManager';
@@ -30,6 +31,8 @@ interface ProgressStore {
   milestones: Milestone[];
   walkLoggedToday: boolean;
   isLoading: boolean;
+  /** Set when the last fetchProgressData failed; cleared when the next one starts. */
+  loadError: string | null;
 
   fetchProgressData: (dogId: string, userId: string) => Promise<void>;
   logWalk: (
@@ -128,9 +131,10 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
   milestones: [],
   walkLoggedToday: false,
   isLoading: false,
+  loadError: null,
 
   fetchProgressData: async (dogId: string, userId: string) => {
-    set({ isLoading: true });
+    set({ isLoading: true, loadError: null });
 
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -168,6 +172,12 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
             .lte('logged_at', `${today}T23:59:59`)
             .limit(1),
         ]);
+
+      // Supabase resolves with an error instead of throwing. A failed list query
+      // is a real failure (the .single() ones also error on "no row"), so stop
+      // here and keep whatever the store already holds.
+      const failed = sessionsResult.error ?? walkLogsResult.error ?? walkLogTodayResult.error;
+      if (failed) throw failed;
 
       const sessionStreak = streakResult.data?.current_streak ?? 0;
       const longestSessionStreak = streakResult.data?.longest_streak ?? 0;
@@ -233,7 +243,10 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       });
     } catch (err) {
       console.warn('[progressStore] fetchProgressData error:', err);
-      set({ isLoading: false });
+      set({
+        isLoading: false,
+        loadError: "Couldn't load your progress. Check your connection and try again.",
+      });
     }
   },
 
@@ -258,6 +271,7 @@ export const useProgressStore = create<ProgressStore>((set, get) => ({
       console.warn('[progressStore] logWalk error:', error.message);
       throw error;
     }
+    captureEvent('walk_logged', { quality, durationMinutes: durationMinutes ?? null, goalAchieved: goalAchieved ?? null });
 
     if (data?.id) {
       updateLearningStateFromWalkLog(data.id)

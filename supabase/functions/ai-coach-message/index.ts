@@ -1,7 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import OpenAI from 'https://esm.sh/openai@4';
-import { consumeQuota, userSubject } from '../_shared/quota.ts';
+import { consumeQuota, DAY_SECONDS, type QuotaRule, releaseQuota, userSubject } from '../_shared/quota.ts';
+import { isProProfile, PROFILE_SUBSCRIPTION_COLUMNS } from '../_shared/subscription.ts';
 import { buildLearningStateCoachSummary } from '../../../lib/adaptivePlanning/learningStateSummary.ts';
 
 // Mirrors FREE_LIMITS.coachMessagesPerDay in lib/subscription.ts.
@@ -318,7 +319,7 @@ serve(async (req) => {
 
   // ── 3. Rate limit check ────────────────────────────────────────────────────
   // Burst guard first: it is atomic, so parallel requests can't slip past the
-  // count-based limits below.
+  // count-based paid limit below.
   const burst = await consumeQuota(adminClient, [
     { subject: userSubject(user.id), feature: 'coach', limit: 10, windowSeconds: 60 },
   ]);
@@ -329,24 +330,27 @@ serve(async (req) => {
   // subscription_tier is service-role-write only (see launch_security migration).
   const { data: profileRow } = await adminClient
     .from('user_profiles')
-    .select('subscription_tier')
+    .select(PROFILE_SUBSCRIPTION_COLUMNS)
     .eq('id', user.id)
     .maybeSingle();
 
-  const tier = profileRow?.subscription_tier && profileRow.subscription_tier !== 'free' ? 'paid' : 'free';
+  const tier = isProProfile(profileRow) ? 'paid' : 'free';
+
+  // Set once a free unit has been consumed, so it can be handed back if the
+  // user ends up with no reply.
+  let freeRule: QuotaRule | null = null;
 
   if (tier === 'free') {
-    const dayStart = new Date();
-    dayStart.setHours(0, 0, 0, 0);
-
-    const { count } = await adminClient
-      .from('coach_messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('role', 'user')
-      .gte('created_at', dayStart.toISOString());
-
-    if ((count ?? 0) >= FREE_DAILY_MESSAGES) {
+    // Atomic check-and-record; counting coach_messages let parallel requests
+    // all pass before any of them was stored. Like every consume_ai_quota
+    // window this is a rolling 24 hours, not a calendar day.
+    const rule: QuotaRule = {
+      subject: userSubject(user.id),
+      feature: 'coach_free',
+      limit: FREE_DAILY_MESSAGES,
+      windowSeconds: DAY_SECONDS,
+    };
+    if (await consumeQuota(adminClient, [rule])) {
       // `code` tells the app to open the paywall.
       return jsonResponse(
         {
@@ -356,6 +360,7 @@ serve(async (req) => {
         429,
       );
     }
+    freeRule = rule;
   } else {
     // Paid: max 30 per hour
     const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -437,6 +442,7 @@ serve(async (req) => {
   ]);
 
   if (dogResult.error || !dogResult.data) {
+    if (freeRule) await releaseQuota(adminClient, freeRule);
     return jsonResponse({ error: 'Dog not found or access denied' }, 404);
   }
 
@@ -477,6 +483,7 @@ serve(async (req) => {
     tokensUsed = response.usage?.completion_tokens ?? 0;
   } catch (err) {
     console.error('OpenAI API error:', err);
+    if (freeRule) await releaseQuota(adminClient, freeRule);
     return jsonResponse({ error: 'AI service temporarily unavailable. Please try again.' }, 503);
   }
 

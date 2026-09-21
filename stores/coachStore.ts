@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { captureEvent } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 import type { ChatMessage, CoachConversation } from '@/types';
 import { useSubscriptionStore } from '@/stores/subscriptionStore';
@@ -197,6 +198,7 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
       if (!res.ok) {
         console.error(`Edge Function error ${res.status}:`, JSON.stringify(json));
         if (res.status === 429) {
+          captureEvent('coach_limit_hit', { code: json.code ?? 'rate_limit' });
           if (json.code === 'free_daily_limit') useSubscriptionStore.getState().openPaywall('coach');
           set((state) => ({
             messages: state.messages.filter((m) => m.id !== tempUserMsg.id),
@@ -224,6 +226,8 @@ export const useCoachStore = create<CoachStore>((set, get) => ({
         ],
         isTyping: false,
       }));
+      // Length only; the message itself never goes to analytics.
+      captureEvent('coach_message_sent', { length: content.length });
       return true;
     } catch (err) {
       console.error('sendMessage error:', err);

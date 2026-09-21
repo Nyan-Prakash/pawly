@@ -56,13 +56,16 @@ export default function WelcomeScreen() {
           resizeMode="contain"
           accessibilityIgnoresInvertColors
           accessible
+          accessibilityRole="image"
           accessibilityLabel="The Pawly dog"
         />
       </View>
 
       <View style={{ flex: 1, paddingHorizontal: spacing.xl, paddingTop: spacing.xxl, paddingBottom: Math.max(insets.bottom, spacing.lg) }}>
         <View style={{ gap: spacing.sm }}>
-          <Text variant="display">Pawly</Text>
+          <Text variant="display" accessibilityRole="header">
+            Pawly
+          </Text>
           <Text variant="body" color={colors.text.secondary}>
             Five minutes a day. One thing at a time. A coach that remembers every session.
           </Text>

@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { acknowledgeProfessionalHelp, ProfessionalHelpSheet } from '@/components/safety/ProfessionalHelpNotice';
 import type { AppIconName } from '@/components/ui/AppIcon';
 import { Button } from '@/components/ui/Button';
 import { ListGroup, ListRow } from '@/components/ui/ListRow';
@@ -22,6 +23,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { MascotLoader } from '@/components/ui/MascotLoader';
 import { Text } from '@/components/ui/Text';
 import { colors } from '@/constants/colors';
+import { isHighRiskGoal } from '@/constants/safety';
 import { spacing } from '@/constants/spacing';
 import { haptics } from '@/lib/haptics';
 import { formatDisplayTime } from '@/lib/scheduleEngine';
@@ -164,6 +166,42 @@ const GOAL_OPTIONS: GoalOption[] = [
     label: 'Heel',
     description: 'Formal heel position on and off leash',
     icon: 'footsteps',
+  },
+  {
+    key: 'touch',
+    label: 'Hand touch',
+    description: 'Nose to your palm, the base for many other tricks',
+    icon: 'finger-print',
+  },
+  {
+    key: 'spin',
+    label: 'Spin',
+    description: 'A full circle on cue, then a twirl the other way',
+    icon: 'refresh-circle',
+  },
+  {
+    key: 'high_five',
+    label: 'Shake and high five',
+    description: 'A paw to your hand, from a low shake to a high five',
+    icon: 'hand-right',
+  },
+  {
+    key: 'bow',
+    label: 'Take a bow',
+    description: 'Elbows down, rear up, held for 2 seconds',
+    icon: 'ribbon',
+  },
+  {
+    key: 'roll_over',
+    label: 'Roll over',
+    description: 'A full roll from a down, built up gently on soft ground',
+    icon: 'sync-circle',
+  },
+  {
+    key: 'leg_weave',
+    label: 'Leg weave',
+    description: 'A figure eight through your legs, then while you walk',
+    icon: 'infinite',
   },
 ];
 
@@ -361,6 +399,8 @@ export default function AddCourseScreen() {
   const [makePrimary, setMakePrimary] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // A high-risk goal waits here until the "when to see a professional" sheet is acknowledged.
+  const [pendingHighRiskGoal, setPendingHighRiskGoal] = useState<string | null>(null);
 
   // The previewed plan is a hidden draft until "Add course" is tapped. Track it
   // so backing out (or leaving the screen) deletes it instead of enrolling it.
@@ -381,10 +421,28 @@ export default function AddCourseScreen() {
   // Keys of goals that already have active courses — used for duplicate display
   const activeGoalKeys = activePlans.map((p) => normalizeGoalKey(p.goal));
 
+  function handleGoalPress(goalKey: string) {
+    if (!dog) return;
+    haptics.selection();
+    if (isHighRiskGoal(goalKey)) {
+      setPendingHighRiskGoal(goalKey);
+      return;
+    }
+    void handleGoalSelect(goalKey);
+  }
+
+  function handleAcknowledgeHighRisk() {
+    const goalKey = pendingHighRiskGoal;
+    if (!dog || !goalKey) return;
+    setPendingHighRiskGoal(null);
+    // Acknowledged here, so the session overview does not show it again.
+    void acknowledgeProfessionalHelp(dog.id, goalKey);
+    void handleGoalSelect(goalKey);
+  }
+
   async function handleGoalSelect(goalKey: string) {
     if (!dog) return;
 
-    haptics.selection();
     setSelectedGoal(goalKey);
     setStep('generating');
 
@@ -480,6 +538,16 @@ export default function AddCourseScreen() {
     setErrorMessage(null);
   }
 
+  // The sheet stays mounted across steps so it slides away instead of being
+  // torn down when "Got it" moves the screen on to building the course.
+  const professionalHelpSheet = (
+    <ProfessionalHelpSheet
+      visible={pendingHighRiskGoal !== null}
+      onAcknowledge={handleAcknowledgeHighRisk}
+      onClose={() => setPendingHighRiskGoal(null)}
+    />
+  );
+
   if (step === 'error') {
     return (
       <ScrollView
@@ -498,7 +566,12 @@ export default function AddCourseScreen() {
   }
 
   if (step === 'generating') {
-    return <GeneratingView />;
+    return (
+      <>
+        <GeneratingView />
+        {professionalHelpSheet}
+      </>
+    );
   }
 
   if (step === 'preview' && generatedPlan && selectedGoal) {
@@ -516,10 +589,13 @@ export default function AddCourseScreen() {
   }
 
   return (
-    <GoalSelectionStep
-      activeGoalKeys={activeGoalKeys}
-      activePlanCount={activePlans.length}
-      onSelect={handleGoalSelect}
-    />
+    <>
+      <GoalSelectionStep
+        activeGoalKeys={activeGoalKeys}
+        activePlanCount={activePlans.length}
+        onSelect={handleGoalPress}
+      />
+      {professionalHelpSheet}
+    </>
   );
 }

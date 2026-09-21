@@ -22,8 +22,10 @@ function CategoryChip({ label, selected, onPress }: { label: string; selected: b
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityRole="radio"
+      accessibilityLabel={label === 'All' ? 'All guides' : label}
+      accessibilityHint="Filters the guides"
+      accessibilityState={{ selected, checked: selected }}
       style={({ pressed }) => ({
         minHeight: 44,
         justifyContent: 'center',
@@ -42,7 +44,13 @@ function CategoryChip({ label, selected, onPress }: { label: string; selected: b
 
 function GuidesSkeleton() {
   return (
-    <View style={{ gap: spacing.xl }}>
+    <View
+      style={{ gap: spacing.xl }}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading guides"
+      accessibilityState={{ busy: true }}
+    >
       <View>
         <SkeletonBlock height={26} width="35%" style={{ marginBottom: spacing.sm }} />
         <View style={{ backgroundColor: colors.bg.surface, borderRadius: radii.md, overflow: 'hidden' }}>
@@ -144,6 +152,8 @@ export default function KnowScreen() {
       {categories.length > 1 ? (
         <ScrollView
           horizontal
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Guide category"
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: spacing.sm }}
         >
@@ -198,7 +208,9 @@ export default function KnowScreen() {
                 }
               />
             ) : hasOnlyFeaturedResult ? (
-              <Text variant="caption">The only matching guide is the featured one above.</Text>
+              <Text variant="caption" accessibilityLiveRegion="polite">
+                The only matching guide is the featured one above.
+              </Text>
             ) : (
               <ListGroup>
                 {listArticles.map((article) => (

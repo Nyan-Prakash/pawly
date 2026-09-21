@@ -41,7 +41,13 @@ export function StepMedia({ clip }: StepMediaProps) {
       accessibilityRole="image"
       accessibilityLabel={clip.label}
     >
-      <Image source={clip.poster} style={{ position: 'absolute', width, height }} resizeMode="contain" />
+      <Image
+        source={clip.poster}
+        style={{ position: 'absolute', width, height }}
+        resizeMode="contain"
+        accessible={false}
+        accessibilityIgnoresInvertColors
+      />
       {reducedMotion ? null : (
         <Video
           source={clip.video}

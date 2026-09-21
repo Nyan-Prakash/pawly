@@ -38,15 +38,41 @@ export async function consumeQuota(
   return null;
 }
 
+/**
+ * Hands back the newest unit for a rule consumed by consumeQuota, for when the
+ * metered call failed before the user got anything. Best effort.
+ */
+export async function releaseQuota(
+  adminClient: AdminClient,
+  rule: Pick<QuotaRule, 'subject' | 'feature'>,
+): Promise<void> {
+  const { error } = await adminClient.rpc('release_ai_quota', {
+    p_subject: rule.subject,
+    p_feature: rule.feature,
+  });
+  if (error) console.error('[quota] release_ai_quota failed:', error.message);
+}
+
 export const userSubject = (userId: string) => `user:${userId}`;
 
+/**
+ * Best available client IP. cf-connecting-ip is set by the edge and cannot be
+ * supplied by the caller. x-forwarded-for can: a client may send its own value
+ * and proxies only append to it, so the first entry is attacker-controlled and
+ * the last one (added by the nearest trusted proxy) is the one to use.
+ */
+function clientIp(req: Request): string {
+  const cf = req.headers.get('cf-connecting-ip')?.trim();
+  if (cf) return cf;
+  const hops = (req.headers.get('x-forwarded-for') ?? '')
+    .split(',')
+    .map((hop) => hop.trim())
+    .filter(Boolean);
+  return hops[hops.length - 1] ?? 'unknown';
+}
+
 export async function ipSubject(req: Request): Promise<string> {
-  const forwarded = req.headers.get('x-forwarded-for') ?? '';
-  const ip =
-    req.headers.get('cf-connecting-ip') ??
-    forwarded.split(',')[0]?.trim() ??
-    'unknown';
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip || 'unknown'));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clientIp(req)));
   const hex = Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');

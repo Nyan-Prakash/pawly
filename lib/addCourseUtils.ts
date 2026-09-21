@@ -25,6 +25,12 @@ export const GOAL_LABEL_MAP: Record<string, string> = {
   crate_anxiety: 'crate_anxiety',
   puppy_biting: 'puppy_biting',
   settling: 'settling',
+  touch: 'touch',
+  spin: 'spin',
+  high_five: 'high_five',
+  bow: 'bow',
+  roll_over: 'roll_over',
+  leg_weave: 'leg_weave',
   'Leash Pulling': 'leash_pulling',
   'Jumping Up': 'jumping_up',
   'Barking': 'barking',
@@ -55,6 +61,12 @@ const GOAL_TITLES: Record<string, string> = {
   sit: 'Sit',
   down: 'Down',
   heel: 'Heel',
+  touch: 'Hand touch',
+  spin: 'Spin',
+  high_five: 'High five',
+  bow: 'Take a bow',
+  roll_over: 'Roll over',
+  leg_weave: 'Leg weave',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -51,7 +51,14 @@ export function TypingIndicator() {
   }, [dots, reducedMotion]);
 
   return (
-    <View style={{ alignItems: 'flex-start', marginBottom: spacing.md }} accessibilityLabel="The coach is writing">
+    <View
+      style={{ alignItems: 'flex-start', marginBottom: spacing.md }}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="The coach is writing"
+      accessibilityState={{ busy: true }}
+      accessibilityLiveRegion="polite"
+    >
       <View
         style={{
           flexDirection: 'row',

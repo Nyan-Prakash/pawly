@@ -29,6 +29,12 @@ export const GOAL_KEYS = [
   'sit',
   'down',
   'heel',
+  'touch',
+  'spin',
+  'high_five',
+  'bow',
+  'roll_over',
+  'leg_weave',
 ] as const;
 
 export type GoalColorKey = (typeof GOAL_KEYS)[number] | 'fallback';

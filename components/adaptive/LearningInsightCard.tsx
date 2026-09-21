@@ -70,7 +70,9 @@ export function LearningInsightCard({ dogName, learningState }: LearningInsightC
 
   return (
     <Card style={{ gap: spacing.sm }}>
-      <Text variant="caption">What the coach is learning</Text>
+      <Text variant="caption" accessibilityRole="header">
+        What the coach is learning
+      </Text>
 
       {insights.map((insight, i) => (
         <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>

@@ -12,7 +12,6 @@ export type Feature =
   | 'full_plan'
   | 'unlimited_sessions'
   | 'coach_unlimited'
-  | 'video_upload_unlimited'
   | 'progress_history';
 
 /** Everything listed here needs Pro. A feature that is not listed is free. */
@@ -20,7 +19,6 @@ const PRO_FEATURES: ReadonlySet<Feature> = new Set<Feature>([
   'full_plan',
   'unlimited_sessions',
   'coach_unlimited',
-  'video_upload_unlimited',
   'progress_history',
 ]);
 
