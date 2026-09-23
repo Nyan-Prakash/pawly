@@ -54,6 +54,7 @@ import {
 import { EXERCISE_TO_PROTOCOL, type Protocol, type ProtocolStep } from '@/constants/protocols';
 import { didUpcomingScheduleChange } from '@/lib/notifications';
 import { useLiveAiTrainerSession } from '@/hooks/useLiveAiTrainerSession';
+import { isLiveAiTrainerEnabled } from '@/lib/liveCoach/featureFlags';
 import type { LiveAiTrainerSummary } from '@/lib/liveCoach/liveAiTrainerTypes';
 import { buildPostSessionReflectionQuestions } from '@/lib/adaptivePlanning/reflectionQuestionEngine';
 import type {
@@ -892,7 +893,7 @@ export default function SessionScreen() {
           protocol={protocol}
           courseTitle={activePlan?.courseTitle ?? null}
           dogName={dogName}
-          showModeChoice={protocol.supportsLiveAiTrainer}
+          showModeChoice={isLiveAiTrainerEnabled() && protocol.supportsLiveAiTrainer}
           onStart={handleStart}
           onChooseMode={handleChooseMode}
         />

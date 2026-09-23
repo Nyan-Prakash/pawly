@@ -87,6 +87,7 @@ eas env:create --environment production --name EXPO_PUBLIC_SUPABASE_URL --value 
 - `EXPO_PUBLIC_POSTHOG_API_KEY`
 - `EXPO_PUBLIC_SENTRY_DSN`
 - `EXPO_PUBLIC_ENABLE_ADAPTIVE_PLANNER` (`true`)
+- `EXPO_PUBLIC_ENABLE_LIVE_AI_TRAINER` (leave unset or `false`; live camera coaching is gated off for launch)
 - `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` (source map upload)
 
 Then:
